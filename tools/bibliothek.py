@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.4'
+FASSUNG = 'v1.5'
 STAND = '2026-10-28'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -65,27 +65,29 @@ AUSWAHL = [
  ('Übersicht (einpolig)', 'ue_spd',       'Überspannungsschutz einpolig', 'bau:ue_spd', False),
  ('Übersicht (einpolig)', 'ue_steckdose', 'Steckdose einpolig',           'bau:ue_steckdose', False),
  ('Übersicht (einpolig)', 'ue_leuchte',   'Leuchte einpolig',             'bau:ue_leuchte', False),
- ('Steuerung – Befehlsgeber', 'taster_s',      'Taster (Schließer)',                  '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_02.elmt', True),
- ('Steuerung – Befehlsgeber', 'taster_oe',     'Taster (Öffner, Aus-Taster)',         'bau:taster_oe', True),
- ('Steuerung – Befehlsgeber', 'schalter_hand', 'Schalter handbetätigt (Lichtschalter)', '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_01.elmt', True),
- ('Steuerung – Befehlsgeber', 'hand0auto',     'Wahlschalter Hand-0-Automatik',       'bau:hand0auto', True),
- ('Steuerung – Befehlsgeber', 'notaus',        'Not-Aus (Pilzdrucktaster, Öffner)',   '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_06.elmt', True),
- ('Steuerung – Befehlsgeber', 'daemmerung',    'Dämmerungsschalter (Kontakt)',        'bau:daemmerung', True),
- ('Steuerung – Befehlsgeber', 'bewegung',      'Bewegungsmelder (Kontakt)',           'bau:bewegung', True),
- ('Steuerung – Befehlsgeber', 'praesenz',      'Präsenzmelder (Kontakt)',             'bau:praesenz', True),
- ('Steuerung – Befehlsgeber', 'endschalter_s', 'Endschalter, Schließer',              '91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_01.elmt', True),
- ('Steuerung – Befehlsgeber', 'endschalter_oe','Endschalter, Öffner',                 '91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_02.elmt', True),
- ('Steuerung – Hilfskontakte', 'hilfs_s',      'Hilfsschließer (13/14)',              '91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_02.elmt', True),
- ('Steuerung – Hilfskontakte', 'hilfs_oe',     'Hilfsöffner (21/22)',                 '91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_03.elmt', True),
- ('Steuerung – Zeitrelais', 'spule_ein',       'Spule einschaltverzögert',            '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_08.elmt', True),
- ('Steuerung – Zeitrelais', 'spule_aus',       'Spule ausschaltverzögert',            '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_07.elmt', True),
- ('Steuerung – Zeitrelais', 'spule_einaus',    'Spule ein- und ausschaltverzögert',   '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_09.elmt', True),
- ('Steuerung – Zeitrelais', 'k_s_ein',         'Schließer einschaltverzögert',        '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_01.elmt', True),
- ('Steuerung – Zeitrelais', 'k_s_aus',         'Schließer ausschaltverzögert',        '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_02.elmt', True),
- ('Steuerung – Zeitrelais', 'k_oe_ein',        'Öffner einschaltverzögert',           '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_03.elmt', True),
- ('Steuerung – Zeitrelais', 'k_oe_aus',        'Öffner ausschaltverzögert',           '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_04.elmt', True),
- ('Steuerung – Zeitrelais', 'k_s_einaus',      'Schließer ein- und ausschaltverzögert', '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_05.elmt', True),
- ('Melden', 'meldeleuchte',                    'Meldeleuchte',                        'bau:meldeleuchte', True),
+ ('Steuerung – Befehlsgeber', 'taster_s',      'Taster (Schließer)',                  '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_02.elmt', False),
+ ('Steuerung – Befehlsgeber', 'taster_oe',     'Taster (Öffner, Aus-Taster)',         'bau:taster_oe', False),
+ ('Steuerung – Befehlsgeber', 'schalter_hand', 'Schalter handbetätigt (Lichtschalter)', '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_01.elmt', False),
+ ('Steuerung – Befehlsgeber', 'hand0auto',     'Wahlschalter Hand-0-Automatik',       'bau:hand0auto', False),
+ ('Steuerung – Befehlsgeber', 'notaus',        'Not-Aus (Pilzdrucktaster, Öffner)',   '91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_06.elmt', False),
+ ('Steuerung – Befehlsgeber', 'daemmerung',    'Dämmerungsschalter (Kontakt)',        'bau:daemmerung', False),
+ ('Steuerung – Befehlsgeber', 'bewegung',      'Bewegungsmelder (Kontakt)',           'bau:bewegung', False),
+ ('Steuerung – Befehlsgeber', 'praesenz',      'Präsenzmelder (Kontakt)',             'bau:praesenz', False),
+ ('Steuerung – Befehlsgeber', 'endschalter_s', 'Endschalter, Schließer',              '91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_01.elmt', False),
+ ('Steuerung – Befehlsgeber', 'endschalter_oe','Endschalter, Öffner',                 '91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_02.elmt', False),
+ ('Steuerung – Hilfskontakte', 'hilfs_s',      'Hilfsschließer (13/14)',              '91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_02.elmt', False),
+ ('Steuerung – Hilfskontakte', 'hilfs_oe',     'Hilfsöffner (21/22)',                 '91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_03.elmt', False),
+ ('Steuerung – Zeitrelais', 'spule_ein',       'Spule einschaltverzögert',            '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_08.elmt', False),
+ ('Steuerung – Zeitrelais', 'spule_aus',       'Spule ausschaltverzögert',            '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_07.elmt', False),
+ ('Steuerung – Zeitrelais', 'spule_einaus',    'Spule ein- und ausschaltverzögert',   '91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_09.elmt', False),
+ ('Steuerung – Zeitrelais', 'k_s_ein',         'Schließer einschaltverzögert',        '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_01.elmt', False),
+ ('Steuerung – Zeitrelais', 'k_s_aus',         'Schließer ausschaltverzögert',        '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_02.elmt', False),
+ ('Steuerung – Zeitrelais', 'k_oe_ein',        'Öffner einschaltverzögert',           '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_03.elmt', False),
+ ('Steuerung – Zeitrelais', 'k_oe_aus',        'Öffner ausschaltverzögert',           '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_04.elmt', False),
+ ('Steuerung – Zeitrelais', 'k_s_einaus',      'Schließer ein- und ausschaltverzögert', '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_05.elmt', False),
+ ('Melden', 'meldeleuchte',                    'Meldeleuchte',                        'bau:meldeleuchte', False),
+ ('Steuertrafo', 'trafo',                    'Transformator mit getrennten Wicklungen', '10_allpole/330_transformers_power_supplies/10_transformers/transformator_1f_2.elmt', True),
+ ('Steuertrafo', 'ue_trafo',                 'Transformator mit zwei Wicklungen (einpolig)', '91_en_60617/en_60617_06/en_60617_06_09/en_60617_06_09_01.elmt', True),
 ]
 
 def daten():

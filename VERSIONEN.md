@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.15 | Bibliothek v1.5 mit dem Steuertrafo (noch ohne Verwendung) |
 | v1.14 | Etappe C4: Vorlagen – Taster parallel (Stromstoß, Treppenlicht), Selbsthaltung Ein/Aus, mit Not-Aus, mit/ohne Betriebsmeldung, Hand-0-Automatik; Befehlsgeber-Anschlüsse je Gerät fortlaufend |
 | v1.13 | Etappe C3: Warnungen; Feldgeräte über -X1 (zwei Klemmen je Kontakt, Leitung -W, Klemmenplan); eigenständiges Zeitrelais -K mit verzögerten Kontakten und Kontaktspiegel; Kreise ohne Schaltgerät (Meldeleuchte, Zeitrelais) |
 | v1.12 | Etappe C2b: Raster-Editor für Steuerstromkreise – Palette, Raster mit Pfaden und Zweigen, Werkzeugleiste, Rückgängig/Wiederholen, Tastenkürzel (Entf, Strg+Z/Y, Strg+C/V, Pfeile, Alt+↑/↓, Esc); geteilte Ansicht mit Vorschau des Blatts |
@@ -33,6 +34,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.5 | Steuertrafo nach Auswahl „Trafo v0.1“: Transformator mit getrennten Wicklungen (allpolig), Transformator mit zwei Wicklungen (einpolig, EN 60617 06-09-01) |
 | v1.4 | Steuerstromkreise nach Auswahl „Steuerung v0.2“: Befehlsgeber, Hilfskontakte, Zeitrelais-Spulen, verzögerte Kontakte, Meldeleuchte |
 | v1.3 | einpolige Zeichen für den Übersichtsschaltplan |
 | v1.2 | Leuchte |
@@ -43,7 +45,7 @@
 
 - Zeichenbibliothek (Musterblatt) v0.1–v0.3: Auswahl der Grundzeichen; v0.2 nach Bedeutung geordnet, v0.3 mit EN-Baukasten.
 - Steuerung v0.1–v0.2: Auswahl der Steuerungszeichen; v0.2 eine Bedeutung je Karte.
-- Trafo v0.1: Auswahl des Steuertrafos (4 Karten aus der Sammlung, `bibliothek/kandidaten-trafo.json`), Auswahl durch Jean steht aus.
+- Trafo v0.1: Auswahl des Steuertrafos (4 Karten aus der Sammlung, `bibliothek/kandidaten-trafo.json`), ausgewählt: allpolig `transformator_1f_2`, einpolig EN 06-09-01 → Bibliothek v1.5.
 - Blattrahmen v0.1–v0.5: Prototyp für Rahmen und Schriftfeld (in die App übernommen).
 
 Ältere Einzeldateien liegen nicht im Repository; die Geschichte beginnt mit v1.8.

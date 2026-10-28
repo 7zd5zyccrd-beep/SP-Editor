@@ -1265,7 +1265,10 @@ const PLAN = (() => {
     }
     // Anschluss an die gemeinsame Leitung: durchgeschliffen direkt, sonst über eine Klemme
     const klemme = (x, yOben, nr, art, erste) => {
-      setze(g, 'klemme', x, yOben, null, art);
+      // N-Klemme: blau erst ab dem Klemmpunkt, der obere Anschlussstrich gehört zur schwarzen Leitung
+      const oben = gz => { if (art === 'N') for (const l of gz.querySelectorAll('line'))
+        if (Math.max(+l.getAttribute('y1'), +l.getAttribute('y2')) <= 0) l.setAttribute('stroke', '#000'); };
+      setze(g, 'klemme', x, yOben, null, art, 1, oben);
       lt(x, yOben, x, yOben + ST_KL, art, true);   // für die Verbindungspunkte
       text(g, x + 1.8, yOben + 3.3, String(nr), 1.8);
       if (erste) text(g, x - 2, yOben + 3.5, kl.bmk, 2.5, 'end', { 'font-weight': 'bold' });

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.8 · Stand 24.10.2026
+<!-- Stromlaufplan · Fassung v1.9 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.9: Etappe C1 – Blatt „Steuerstromkreis“ je Verteiler hinter seinem Stromlaufplan:
+           Pfade mit 6 Kontaktplätzen und Verbraucherplatz, Zweige, Kontaktspiegel, Querverweise;
+           Abgriff der Steuerspannung im Abgang; Befehlsgeber -S, Meldeleuchte -P
+           (Eingabe noch ohne Editor, nur über Daten)
      v1.8: Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm
            und auf dem Deckblatt des Plans
      v1.7: Schaltgeräte je Abgang (Schütz, Stromstoßschalter, Zeitrelais) mit Kennzeichen -Q bzw. -K,
@@ -357,6 +361,8 @@ const QET = (() => {
      - danach (abschaltbar) der Übersichtsschaltplan, einpolig, ab v1.3:
        je Verteiler ein Abschnitt, Abgänge im halben Spaltenraster, Leiterzahl
        als Schrägstrich mit Zahl, Beschriftung unten senkrecht
+     - hinter dem Stromlaufplan je Verteiler (falls vorhanden) die Steuerstromkreise,
+       ab v1.9: ein Kreis je Schaltgerät, ein Pfad je Spalte, Kontaktspiegel unter der Spule
      - Leiterfarben: N blau, PE grün; Schrift immer schwarz */
 const PLAN = (() => {
   const NS = 'http://www.w3.org/2000/svg';
@@ -549,6 +555,9 @@ const PLAN = (() => {
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
     return [ph, 'N', 'PE'];
   }
+  // greift ein Steuerstromkreis seine Spannung im Abgang ab, braucht der Abgang
+  // rechts Platz für die gehenden Querverweise (rund drei Leiterabstände)
+  function abgangSpalten(k, a, v, R) { return spaltenFuer(abgangArten(k, a, v).length + (a.abgriff ? 3 : 0), R); }
 
   // ---- Abgang zeichnen --------------------------------------------------------
   // xSp: linke Kante der ersten Spalte; bars: {art: y}; yG: Höhe des oberen Geräteanschlusses.
@@ -574,7 +583,23 @@ const PLAN = (() => {
     }
     const bis = (y) => { arten.forEach((art, i) => { if (enden[i] < y) leiter(g, xs[i], enden[i], xs[i], y, art); enden[i] = y; }); };
     // hinter FI-Geräten steht deren Beschriftung unter dem Gerät: dort etwas Abstand lassen
-    if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, cursor + (z && GERAETE[z] && GERAETE[z].fi ? 3 : 0), bis);
+    let yS = cursor + (z && GERAETE[z] && GERAETE[z].fi ? 3 : 0);
+    // Abgriff der Steuerspannung hinter dem Schutzorgan (Etappe C): L (erster Außenleiter)
+    // am oberen Anschluss des Schaltgeräts, N 3 mm tiefer (noch in dessen Anschlussstrich),
+    // je mit gehendem Querverweis nach rechts zum Steuerstromkreis
+    if (a.abgriff) {
+      const y1 = Math.max(yS, cursor + 2), iN = arten.indexOf('N'), xr = xs[xs.length - 1] + 4;
+      const ziel = ctx.steuer && ctx.steuer.kreise[a.abgriff], ref = ziel ? `/${ziel.blatt}.${ziel.spalte}` : '';
+      [[0, y1], [iN, y1 + 3]].forEach(([i, y]) => {
+        punkt(g, xs[i], y, arten[i]); leiter(g, xs[i], y, xr, y, arten[i]);
+        setze(g, 'qv_gehend', xr, y, t => t.richtung === 'w', arten[i]);
+        text(g, xr + 4.5, y + 0.9, ref, 2.2);
+      });
+      yS = y1;
+      if (!a.schalt) { bis(y1 + 3); cursor = y1 + 3; }
+    }
+    const spule = ctx.steuer && ctx.steuer.spulen[k.id];
+    if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '');
     if (a.klemmen) {
       const ky = cursor + (a.schalt ? 1 : 6); bis(ky);
       // N als N-Trennklemme (Grundeinstellung) oder als normale Klemme
@@ -624,7 +649,7 @@ const PLAN = (() => {
   // durch die Schaltstücke; Kennzeichen links daneben. Gibt das neue untere Ende zurück.
   const SG_KONTAKT = { schuetz: 'schuetz1', stromstoss: 'hilfs_s' };
   const ZR_KONTAKT = { aus: 'k_s_aus', ein: 'k_s_ein', einaus: 'k_s_einaus' };
-  function zeichneSchaltglieder(g, a, arten, xs, enden, cursor, bis) {
+  function zeichneSchaltglieder(g, a, arten, xs, enden, cursor, bis, spuleRef = '') {
     const sg = a.schalt, n = sg.pole.length, top = cursor;   // oberer Anschlussstrich = Verbindung zum Schutzorgan
     bis(top);
     const kenn = sg.typ === 'zeitrelais' ? ZR_KONTAKT[sg.zr.fkt] || 'k_s_aus' : SG_KONTAKT[sg.typ];
@@ -637,7 +662,8 @@ const PLAN = (() => {
     const yW = top + (40 - 11.5) * E;
     if (n > 1) el('line', { x1: xs[0] - 1, y1: yW, x2: xs[n - 1] - 1, y2: yW, stroke: '#000', 'stroke-width': 0.25, 'stroke-dasharray': '1.2 0.8' }, g);
     const zeile2 = sg.typ === 'zeitrelais' ? (sg.zr.zeit ? `t = ${sg.zr.zeit}` : '') : sg.typ === 'stromstoss' ? 'Stromstoß' : '';
-    bmk(g, xs[0] - 5, top + 1, sg.bmk.t, [zeile2]);
+    // spuleRef: Lage der Spule im Steuerstromkreis; beim Zeitrelais dann links am Verzögerungszeichen vorbei
+    bmk(g, xs[0] - (spuleRef && sg.typ === 'zeitrelais' ? 12 : 5), top + 1, sg.bmk.t, [zeile2, spuleRef]);
     // nicht geschaltete Leiter (N, PE) laufen durch
     arten.forEach((art, i) => { if (i >= n && enden[i] < unten) { leiter(g, xs[i], enden[i], xs[i], unten, art); enden[i] = unten; } });
     return unten;
@@ -694,7 +720,7 @@ const PLAN = (() => {
     const yEnde = yEndeFest || gruppenNatur;
     let x = xSp, unterst = yK;
     for (const k of kinder) {
-      const a = e.abgaenge[k.id], w = spaltenFuer(abgangArten(k, a, v).length, R);
+      const a = e.abgaenge[k.id], w = abgangSpalten(k, a, v, R);
       unterst = Math.max(unterst, zeichneAbgang(g, ctx, v, k, a, x, unterBars, yK, w * R.sb, yEnde, tap).unten);
       x += w * R.sb;
     }
@@ -797,9 +823,9 @@ const PLAN = (() => {
     const items = [];
     if (v.spd.zeichen) items.push({ art: 'spd', w: spaltenFuer(v.spd.zeichen === 'spd4' ? 5 : 3, R) });
     for (const k of v.knoten) {
-      if (k.typ === 'abgang') items.push({ art: 'abgang', k, w: spaltenFuer(abgangArten(k, e.abgaenge[k.id], v).length, R) });
+      if (k.typ === 'abgang') items.push({ art: 'abgang', k, w: abgangSpalten(k, e.abgaenge[k.id], v, R) });
       else {
-        const sum = k.kinder.filter(c => c.typ === 'abgang').reduce((s, c) => s + spaltenFuer(abgangArten(c, e.abgaenge[c.id], v).length, R), 0);
+        const sum = k.kinder.filter(c => c.typ === 'abgang').reduce((s, c) => s + abgangSpalten(c, e.abgaenge[c.id], v, R), 0);
         items.push({ art: 'gruppe', k, w: Math.max(sum, spaltenFuer(gruppenLeiterzahl(k, e), R)) });
       }
     }
@@ -1076,6 +1102,154 @@ const PLAN = (() => {
     });
   }
 
+  // ---- Steuerstromkreise (Etappe C) ---------------------------------------
+  // Je Schaltgerät ein Kreis, jeder Pfad belegt eine Spalte des Rahmens. Oben L,
+  // unten N als Schienen über die Pfade des Kreises, links mit kommendem
+  // Querverweis vom Abgriff im Abgang. Je Pfad 6 Kontaktplätze und darunter ein
+  // Verbraucherplatz (Spule, Meldeleuchte); unter der N-Schiene der Kontaktspiegel.
+  const ST_PL = 6, ST_H = 16;                       // Kontaktplätze, Platzhöhe in mm
+  const ST_YL = RAND + 16;                          // L-Schiene
+  const stB = i => ST_YL + 3 + i * ST_H;            // obere Grenze von Platz i
+  const ST_YV = stB(ST_PL) + 2, ST_YN = ST_YV + 16; // oberer Anschluss des Verbrauchers, N-Schiene
+  const SPULE = { schuetz: 'spule', stromstoss: 'stromstoss' };
+  const spulenZeichen = sg => sg.typ === 'zeitrelais' ? 'spule_' + ((sg.zr && sg.zr.fkt) || 'aus') : SPULE[sg.typ];
+  // Platz links (Kennzeichen) und rechts (Anschlussnummern) vom Leiter in mm.
+  // Der Rahmen der Definition ist bei Baukasten-Zeichen breiter als die Zeichnung,
+  // daher links höchstens 11 mm; rechts liegt bei Kontakten nichts außer dem Leiter.
+  const ST_RECHTS = { spule: 6.5, spule_ein: 6.5, spule_aus: 6.5, spule_einaus: 6.5, stromstoss: 4, meldeleuchte: 3 };
+  function seiten(kennung) {
+    const x = ZEICHEN[kennung].xml, hs = /hotspot_x="([\d.]+)"/.exec(x);
+    const li = kennung === 'meldeleuchte' ? 3 : hs ? Math.min(+hs[1] * E, 11) : 5;
+    return [li, ST_RECHTS[kennung] || 1.4];
+  }
+  const ST_LINKS = 19;                              // Pfad in der Spalte: Platz links für Kennzeichen und Text
+  const stKnoten = (v, kid) => { let r = null; const such = l => l.forEach(k => { if (k.id === kid) r = k; if (k.kinder) such(k.kinder); }); such(v.knoten); return r; };
+  // Kreise auf Blätter verteilen; ein Kreis wird nicht geteilt
+  function stPlane(v, F) {
+    const kreise = ((v.steuerung && v.steuerung.kreise) || []).filter(kr => kr.pfade.length);
+    const bl = []; let cur = null, col = 1;
+    for (const kr of kreise) {
+      const w = kr.pfade.length;
+      if (!cur || (col + w - 1 > F.sp && cur.kreise.length)) { cur = { kreise: [] }; bl.push(cur); col = 1; }
+      cur.kreise.push({ kr, col }); col += w;
+    }
+    return bl;
+  }
+  // Lage aller Spulen, Kontakte und Kreise für die Querverweise
+  function stLagen(p, st) {
+    p.st.forEach((b, i) => b.kreise.forEach(({ kr, col }) => {
+      st.kreise[kr.id] = { blatt: p.stStart + i, spalte: col };
+      kr.pfade.forEach((pf, j) => {
+        const lg = { blatt: p.stStart + i, spalte: col + j };
+        pf.plaetze.forEach((pl, n) => { if (pl) st.kontakte[pf.id + ':' + n] = lg; });
+        if (pf.verbraucher) st.spulen[pf.verbraucher.g] = lg;
+      });
+    }));
+  }
+  function stKreis(g, ctx, v, e, kr, col, R) {
+    const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);
+    const xA = R.x0 + (col - 1) * R.sb + 7;        // Schienenanfang (kommender Querverweis)
+    const haupt = pf.map((_, j) => { let h = j; while (h > 0 && pf[h].zweig) h--; return h; });
+    const zweig = j => j > 0 && pf[j].zweig ? pf[j].zweig : null;
+    const segs = [];                                 // Leitungen für die Verbindungspunkte
+    const lt = (x1, y1, x2, y2, art) => { if (Math.abs(x1 - x2) + Math.abs(y1 - y2) < 0.01) return; leiter(g, x1, y1, x2, y2, art); segs.push({ x1, y1, x2, y2, art }); };
+    // Quelle: Abgriff im Abgang
+    const kid = kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
+    const a = kid && e.abgaenge[kid], k = kid && stKnoten(v, kid), la = kid && ctx.lage[kid];
+    const ref = la ? `/${la.blatt}.${la.spalte}` : '';
+    const lName = !a ? 'L' : v.leiter === '1NPE' ? 'L' : a.drei ? 'L1' : (a.phase.t || 'L1');
+    // Überschrift: Schaltgerät und Abgang
+    const sgK = pf.map(p => p.verbraucher && e.abgaenge[p.verbraucher.g]).find(x => x && x.schalt);
+    const titel = kr.name || (k ? [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') : '');
+    text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' });
+    // Schienen bis zum letzten angeschlossenen Pfad
+    const anN = pf.map((p, j) => !zweig(j) || zweig(j).bis >= ST_PL);
+    const xLe = Math.max(...xs.filter((_, j) => !zweig(j))), xNe = Math.max(...xs.filter((_, j) => anN[j]));
+    lt(xA, ST_YL, xLe, ST_YL, lName); lt(xA, ST_YN, xNe, ST_YN, 'N');
+    setze(g, 'qv_kommend', xA, ST_YL, t => t.richtung === 'e', lName);
+    setze(g, 'qv_kommend', xA, ST_YN, t => t.richtung === 'e', 'N');
+    text(g, xA - 4.5, ST_YL - 1.6, [lName, a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
+    text(g, xA - 4.5, ST_YN + 3.4, ['N', ref].filter(Boolean).join(' '), 2.2);
+    // Pfade
+    const st = e.steuer || { geraete: {}, kontakte: {} };
+    pf.forEach((p, j) => {
+      const x = xs[j], zw = zweig(j);
+      const von = zw ? zw.von : 0, bis = zw ? zw.bis : ST_PL;
+      let y = zw ? stB(von) : ST_YL;
+      if (zw) { lt(xs[haupt[j]], y, x, y, lName); }
+      for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
+        const pl = p.plaetze[i]; if (!pl) continue;
+        const sa = e.abgaenge[pl.g], ger = !sa && ((v.steuerung.geraete || []).find(d => d.id === pl.g));
+        const z = pl.z || (ger && ger.zeichen); if (!z || !ZEICHEN[z]) continue;
+        const top = stB(i) + 0.5; lt(x, y, x, top, lName);
+        const t = setze(g, z, x, top);
+        const u = t.filter(q => q.richtung === 's').sort((p1, p2) => Math.abs(p1.x - x) - Math.abs(p2.x - x))[0];
+        y = u ? u.y : top + 15;
+        const [li, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
+        let an;
+        if (sa && sa.schalt) {
+          const sp = ctx.steuer.spulen[pl.g];
+          bmk(g, x - li - 1, top + 5, sa.schalt.bmk.t, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
+          an = kn ? kn.an : ['', ''];
+        } else {
+          bmk(g, x - li - 1, top + 5, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
+          an = /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
+        }
+        text(g, x + re + 0.8, top + 2.2, an[0], 1.8); text(g, x + re + 0.8, y - 0.6, an[1], 1.8);
+      }
+      if (bis >= ST_PL) {
+        const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g];
+        const ger = vb && !sa && ((v.steuerung.geraete || []).find(d => d.id === vb.g));
+        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : ger ? ger.zeichen : null;
+        if (z && ZEICHEN[z]) {
+          lt(x, y, x, ST_YV, lName);
+          const t = setze(g, z, x, ST_YV);
+          const u = t.find(q => q.richtung === 's'); y = u ? u.y : ST_YV + 10;
+          const [li, re] = seiten(z);
+          if (sa) {
+            const sg = sa.schalt;
+            bmk(g, x - li - 1, ST_YV + 4, sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? `t = ${sg.zr.zeit}` : '']);
+            stSpiegel(g, ctx, e, vb.g, x, ST_YN + 4);
+          } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
+          text(g, x + re + 0.8, ST_YV + 2.2, sa ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa ? 'A2' : 'X2', 1.8);
+        }
+        lt(x, y, x, ST_YN, 'N');
+      } else {
+        const yb = stB(bis + 1);
+        lt(x, y, x, yb, lName); lt(x, yb, xs[haupt[j]], yb, lName);
+      }
+    });
+    // Verbindungspunkte, wo drei oder mehr Linien zusammentreffen
+    const nah = (p, q) => Math.abs(p - q) < 0.01;
+    const pkt = [];
+    segs.forEach(s => [[s.x1, s.y1], [s.x2, s.y2]].forEach(([px, py]) => { if (!pkt.some(q => nah(q[0], px) && nah(q[1], py))) pkt.push([px, py, s.art]); }));
+    pkt.forEach(([px, py, art]) => {
+      let n = 0;
+      segs.forEach(s => {
+        const ende = (nah(s.x1, px) && nah(s.y1, py)) || (nah(s.x2, px) && nah(s.y2, py));
+        const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, px) && py > Math.min(s.y1, s.y2) && py < Math.max(s.y1, s.y2)
+          : nah(s.y1, s.y2) && nah(s.y1, py) && px > Math.min(s.x1, s.x2) && px < Math.max(s.x1, s.x2));
+        n += ende ? 1 : innen ? 2 : 0;
+      });
+      if (n >= 3) punkt(g, px, py, nah(py, ST_YN) ? 'N' : art);
+    });
+  }
+  // Kontaktspiegel unter der Spule: Hauptkontakte, dann alle Hilfskontakte der
+  // Ausstattung; genutzte mit Querverweis, ungenutzte ohne
+  function stSpiegel(g, ctx, e, kid, x, y) {
+    const sg = e.abgaenge[kid].schalt, la = ctx.lage[kid], gen = (e.steuer.genutzt || {})[kid] || { s: [], o: [] };
+    const lageText = key => { const l = ctx.steuer.kontakte[key]; return l ? `/${l.blatt}.${l.spalte}` : ''; };
+    const haupt = sg.pole.map((_, i) => [`${2 * i + 1}–${2 * i + 2}`, la ? `/${la.blatt}.${la.spalte}` : '']);
+    const hilf = [];
+    for (let n = 1; n <= sg.hs; n++) hilf.push([`${n}3–${n}4`, gen.s[n - 1] ? lageText(gen.s[n - 1]) : '']);
+    for (let n = 1; n <= sg.ho; n++) hilf.push([`${sg.hs + n}1–${sg.hs + n}2`, gen.o[n - 1] ? lageText(gen.o[n - 1]) : '']);
+    let yy = y + 2.4;
+    const zeile = ([nr, r]) => { text(g, x - 1, yy, nr, 2, 'end'); if (r) text(g, x + 1, yy, r, 2); yy += 2.8; };
+    haupt.forEach(zeile);
+    if (hilf.length) { linie(g, x - 7, yy - 1.6, x + 7, yy - 1.6, 0.18); yy += 0.6; hilf.forEach(zeile); }
+    linie(g, x, y, x, yy - 1.8, 0.18);
+  }
+
   // ---- Deckblatt und Inhaltsverzeichnis -----------------------------------
   const INH_Y0 = 30, INH_ZH = 6;     // erste Tabellenzeile (Kopf) und Zeilenhöhe in mm
   function zeichneDeckblatt(g, F, P, namen) {
@@ -1133,7 +1307,7 @@ const PLAN = (() => {
         if (it.art === 'abgang') return zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], 0, bars, yG, it.w * R.sb).unten;
         return zeichneGruppe(g, ctx, v, e, it.k, 0, bars, yG, it.w, R, F.h - RAND - SF_H - 24);
       };
-      return { v, e, blaetter: planeVerteiler(v, e, F, R, probe) };
+      return { v, e, blaetter: planeVerteiler(v, e, F, R, probe), st: stPlane(v, F) };
     });
     zuBegrenzen.length = 0;      // Texte aus dem Probezeichnen verwerfen
     // Blattnummern durchgehend; Einspeisungsspalte jedes Verteilers für Querverweise
@@ -1148,7 +1322,7 @@ const PLAN = (() => {
     hilfK = { name: id => (P.verteiler.find(x => x.id === id) || {}).name };
     plaene.forEach(p => { p.kl = mitKl ? klemmenBlaetter(klemmenBloecke(p.v, p.e), F) : []; });
     const klZahl = plaene.reduce((s, p) => s + p.kl.length, 0);
-    const planZahl = ueZahl + klZahl + plaene.reduce((s, p) => s + p.blaetter.length, 0);
+    const planZahl = ueZahl + klZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
     const zProBlatt = Math.floor((F.h - RAND - SF_H - 4 - INH_Y0 - INH_ZH) / INH_ZH);
     let nInhalt = 0;
     if (mitVorn) { nInhalt = 1; while (Math.ceil((planZahl + 1 + nInhalt) / zProBlatt) > nInhalt) nInhalt++; }
@@ -1169,6 +1343,7 @@ const PLAN = (() => {
     for (const p of plaene) {
       p.start = nr + 1; nr += p.blaetter.length;
       ctx.verteiler[p.v.id] = { name: p.v.name, blatt: p.start, spalte: p.blaetter[0].art === 'einspeisung' ? 2 : 1 };
+      p.stStart = nr + 1; nr += p.st.length;     // Steuerstromkreise direkt hinter dem Stromlaufplan des Verteilers
     }
     for (const p of plaene) { p.klStart = nr + 1; nr += p.kl.length; }
     const gesamt = nr;
@@ -1177,8 +1352,10 @@ const PLAN = (() => {
     plaene.forEach(p => p.blaetter.forEach((b, i) => b.items.forEach(it => {
       if (it.art === 'abgang') lage[it.k.id] = { blatt: p.start + i, spalte: it.col };
       if (it.art === 'gruppe') { let c = it.col; it.k.kinder.forEach(k => { if (k.typ !== 'abgang') return; lage[k.id] = { blatt: p.start + i, spalte: c };
-        c += spaltenFuer(abgangArten(k, p.e.abgaenge[k.id], p.v).length, R); }); }
+        c += abgangSpalten(k, p.e.abgaenge[k.id], p.v, R); }); }
     })));
+    ctx.lage = lage; ctx.steuer = { kreise: {}, kontakte: {}, spulen: {} };
+    plaene.forEach(p => stLagen(p, ctx.steuer));
     // 2. Durchgang: zeichnen
     const aus = [];
     const neuesBlatt = () => {
@@ -1207,8 +1384,14 @@ const PLAN = (() => {
         if (kz.length) teile.push('Abgänge' + ber);
         eintraege.push({ nr: p.start + i, verteiler: p.v.name, inhalt: teile.join(', ') });
       }));
+      plaene.forEach(p => p.st.forEach((b, i) => {
+        const kz = b.kreise.map(({ kr }) => { const pf = kr.pfade.find(x => x.verbraucher && p.e.abgaenge[x.verbraucher.g]);
+          return pf ? p.e.abgaenge[pf.verbraucher.g].schalt.bmk.t : null; }).filter(Boolean);
+        eintraege.push({ nr: p.stStart + i, verteiler: p.v.name, inhalt: 'Steuerstromkreis' + (kz.length ? ' ' + kz.join(', ') : '') });
+      }));
       plaene.forEach(p => p.kl.forEach((b, i) => eintraege.push({ nr: p.klStart + i, verteiler: p.v.name,
         inhalt: 'Klemmenplan -X1' + (i ? ' (Fortsetzung)' : '') })));
+      eintraege.sort((x, y) => x.nr - y.nr);
       const { svg, g } = neuesBlatt();
       zeichneDeckblatt(g, F, P, plaene.map(p => p.v.name));
       schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: '', blatt: 1, blaetter: gesamt }));
@@ -1270,6 +1453,12 @@ const PLAN = (() => {
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: b.art });
       });
+      p.st.forEach((b, i) => {
+        const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
+        b.kreise.forEach(({ kr, col }) => stKreis(g, ctx, v, e, kr, col, R));
+        schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
+        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung' });
+      });
     }
     for (const p of plaene) p.kl.forEach((b, i) => {
       const blattNr = p.klStart + i, { svg, g } = neuesBlatt();
@@ -1285,7 +1474,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.8';
+const FASSUNG = 'v1.9';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -1378,7 +1567,7 @@ function istDrei(k, v) {
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -1442,7 +1631,36 @@ function berechne(v) {
     if (a.phase.auto) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1'); last[p]++; a.phase.t = p; }
   });
   e.last = last;
+  e.steuer = berechneSteuerung(v, e, bmk);
   return e;
+}
+// Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise }.
+//   geraete: Befehlsgeber und Meldeleuchten, { id, zeichen, bez, ort, bmk }
+//   kreise:  je Schaltgerät ein Kreis, { id, quelle: { art: 'abgang', kid }, pfade }
+//   pfad:    { id, zweig: null | { von, bis }, plaetze: [6 × null | { g, z }], verbraucher: null | { g } }
+//            zweig: parallel zum Pfad links daneben von Platz von bis Platz bis (0 … 5, 6 = Verbraucher)
+//            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Hilfskontakts
+// Ergebnis: Kennzeichen (-S Befehlsgeber, -P Meldeleuchte), Anschlussnummern der
+// Hilfskontakte (Schließer n3/n4 zuerst, dann Öffner n1/n2), Abgriff im Abgang, Warnungen
+const ST_KZ = { meldeleuchte: 'P' };
+const istOeffner = z => /_oe/.test(z);
+function berechneSteuerung(v, e, bmk) {
+  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [] }, st = v.steuerung;
+  if (!st) return r;
+  (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
+  (st.kreise || []).forEach(kr => {
+    if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+    kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => {
+      const a = pl && e.abgaenge[pl.g]; if (!a || !a.schalt) return;
+      const n = r.genutzt[pl.g] = r.genutzt[pl.g] || { s: [], o: [] }, oe = istOeffner(pl.z);
+      const liste = oe ? n.o : n.s, nr = liste.length + 1, frei = oe ? a.schalt.ho : a.schalt.hs;
+      const ord = nr <= frei ? (oe ? a.schalt.hs + nr : nr) : null;
+      liste.push(p.id + ':' + i);
+      r.kontakte[p.id + ':' + i] = ord ? { ord, an: oe ? [`${ord}1`, `${ord}2`] : [`${ord}3`, `${ord}4`] } : { ord: null, an: ['?', '?'] };
+      if (!ord) r.warn.push(`${a.schalt.bmk.t}: mehr Hilfs${oe ? 'öffner' : 'schließer'} genutzt als vorhanden (${frei}).`);
+    }));
+  });
+  return r;
 }
 function bemessung(g) {
   if (!g || !g.zeichen) return '';
@@ -1883,7 +2101,7 @@ function bPlan(b) {
   catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
   let ziel = null;
   res.blaetter.forEach(bl => {
-    const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : '')));
+    const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : '')));
     k.append(bl.svg); m.append(k);
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
     if (b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = k;

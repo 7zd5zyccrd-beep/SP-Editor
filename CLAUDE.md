@@ -114,7 +114,27 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
   Hilfsschließern/-öffnern je Gerät; **gezeichnet werden nur die genutzten
   Hilfskontakte**, der Kontaktspiegel nennt alle.
 
-## Nächste Etappe C – Steuerstromkreise (abgestimmt, Detailvorschlag steht noch aus)
+## Etappe C – Steuerstromkreise (abgestimmt, in Arbeit)
+
+**Detailvorschlag (abgestimmt 28.10.2026)** – Teil-Etappen je mit eigener Version:
+C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur über das
+Beispiel `steuerung` (Aussehen festlegen); C2 v1.10 Strompfad-Editor mit geteilter
+Ansicht; C3 v1.11 Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais;
+C4 v1.12 Vorlagen.
+- Eigene Blätter je Verteiler direkt hinter dessen Stromlaufplan, ein Kreis je
+  Schaltgerät hintereinander (ein Kreis wird nicht geteilt), ein Pfad je Rahmenspalte.
+- Je Pfad **6 Kontaktplätze** und darunter ein Verbraucherplatz (Spule, Meldeleuchte);
+  parallele Zweige neben dem Pfad links davon, von Platz a bis Platz b.
+- Steuerspannung: L (erster Außenleiter) und N hinter dem Schutzorgan des Abgangs
+  abgegriffen, im Stromlaufplan mit gehendem, im Steuerstromkreis mit kommendem
+  Querverweis; ein eigener Steuer-LS wird von der Schiene mit Querverweis gespeist.
+- Kontaktspiegel unter der Spule (Hauptkontakte 1–2 …, Hilfskontakte Schließer n3–n4,
+  dann Öffner n1–n2), genutzte mit `/Blatt.Spalte`; Hauptkontakte im Stromlaufplan
+  tragen den Verweis auf die Spule. Befehlsgeber: Schließer 13–14, Öffner 11–12.
+- Datenmodell `v.steuerung = { geraete, kreise }`, beschrieben bei `berechneSteuerung()`
+  in `src/app-vorlage.html`.
+- Offen: Kennzeichen der Meldeleuchte (vorläufig -P nach DIN EN IEC 81346-2, früher -H).
+
 
 Mischweg: Hauptstromkreis bleibt generiert; Steuerstromkreise mit einem
 **Strompfad-Editor im Raster** (wie ein Kontaktplan): oben L, unten N, senkrechte Pfade

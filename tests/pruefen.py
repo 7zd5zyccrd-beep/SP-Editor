@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -36,7 +36,7 @@ with sync_playwright() as p:
               if (y > 120 && y < 178 && x > 30 && x < 285) ys[x] = Math.max(ys[x] || 0, y); });
             return [k.querySelector('.bt').innerText.replace(/\\n/g, ' '), Object.values(ys).map(y => +y.toFixed(2))]; })""")
         for t, ys in unten:
-            if ys and ('Übersicht' in t or t.count('·') and 'Klemmen' not in t and 'Deckblatt' not in t and 'Inhalt' not in t):
+            if ys and ('Übersicht' in t or t.count('·') and 'Klemmen' not in t and 'Steuer' not in t and 'Deckblatt' not in t and 'Inhalt' not in t):
                 werte = sorted(set(ys)); haupt = max(set(ys), key=ys.count)
                 ab = [y for y in werte if y > haupt + 0.01 and y - haupt not in (1.5,)]
                 if any(y - haupt > 2 for y in ab): fehler.append(f'{name} {t}: Pfad endet tiefer als die Steckdosen ({haupt} mm): {ab}')

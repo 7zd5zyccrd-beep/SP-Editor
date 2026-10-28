@@ -28,4 +28,25 @@ window.BEISPIELE = {
     const cee = ab('CEE 32 A Werkstatt'); cee.schalt = neuesSchalt('schuetz'); cee.schalt.nMit = true;
     ab('Herd Küche').schalt = neuesSchalt('schuetz');
     ab('Steckdosen Lager 1').schalt = neuesSchalt('zeitrelais'); sichern(); zeichne(); },
+  // wie schalt, dazu Steuerstromkreise (Etappe C): Stromstoß mit drei Tastern (Licht Büro),
+  // Selbsthaltung mit Not-Aus/Aus/Ein und Betriebsmeldung (CEE), Zeitrelais mit Taster (Lager 1)
+  steuerung: () => { BEISPIELE.schalt(); const [hv] = P.verteiler;
+    const ab = bez => { let r; alleKnoten(hv, k => { if (!r && k.typ === 'abgang' && (k.ziel.bez + ' ' + k.ziel.ort) === bez) r = k; }); return r; };
+    const licht = ab('Licht Büro'), cee = ab('CEE 32 A Werkstatt'), lager = ab('Steckdosen Lager 1');
+    cee.schalt.hs = 2;
+    const ger = (zeichen, bez, ort) => { const g = { id: id(), zeichen, bez, ort }; hv.steuerung.geraete.push(g); return g.id; };
+    const leer = () => [null, null, null, null, null, null];
+    const pfad = (plaetze, verbraucher, zweig = null) => { const pl = leer(); plaetze.forEach((x, i) => pl[i] = x); return { id: id(), zweig, plaetze: pl, verbraucher }; };
+    hv.steuerung = { geraete: [], kreise: [] };
+    const t1 = ger('taster_s', 'Tür', 'Büro'), t2 = ger('taster_s', 'Fenster', 'Büro'), t3 = ger('taster_s', 'Flur', 'Flur');
+    hv.steuerung.kreise.push({ id: id(), quelle: { art: 'abgang', kid: licht.id }, pfade: [
+      pfad([{ g: t1 }], { g: licht.id }), pfad([{ g: t2 }], null, { von: 0, bis: 0 }), pfad([{ g: t3 }], null, { von: 0, bis: 0 })] });
+    const na = ger('notaus', 'Not-Aus', 'Werkstatt'), aus = ger('taster_oe', 'Aus', 'Werkstatt'), ein = ger('taster_s', 'Ein', 'Werkstatt');
+    const hl = ger('meldeleuchte', 'Betrieb', 'Tür HV');
+    hv.steuerung.kreise.push({ id: id(), quelle: { art: 'abgang', kid: cee.id }, pfade: [
+      pfad([{ g: na }, { g: aus }, { g: ein }], { g: cee.id }), pfad([null, null, { g: cee.id, z: 'hilfs_s' }], null, { von: 2, bis: 2 }),
+      pfad([{ g: cee.id, z: 'hilfs_s' }], { g: hl })] });
+    const tl = ger('taster_s', 'Licht', 'Lager 1');
+    hv.steuerung.kreise.push({ id: id(), quelle: { art: 'abgang', kid: lager.id }, pfade: [pfad([{ g: tl }], { g: lager.id })] });
+    sichern(); zeichne(); },
 };

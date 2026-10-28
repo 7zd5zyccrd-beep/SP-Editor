@@ -120,5 +120,55 @@
    "10 HV klemmen",
    "786ecb9e463a966cc462f1c32df4f3c2"
   ]
+ ],
+ "steuerung": [
+  [
+   "1 Deckblatt deckblatt",
+   "8629f76fb9503ac4461df100a7c473d5"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "21526a1a501ef47ea51119d72b954345"
+  ],
+  [
+   "3 HV uebersicht",
+   "6aeedd16cd2269950854d9e6f92248a1"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "064046d6ea87f10c87abe0a8d9ee1ee2"
+  ],
+  [
+   "5 HV einspeisung",
+   "3b56404dbd75efe4032f9ac7dff29f15"
+  ],
+  [
+   "6 HV abgang",
+   "877d7e6d26ab86ccb651bfa3e90ae937"
+  ],
+  [
+   "7 HV abgang",
+   "a584802ca2ef1642b59f4c6dedd14099"
+  ],
+  [
+   "8 HV abgang",
+   "ea9f448eba2cf08677d0658b4727f940"
+  ],
+  [
+   "9 HV steuerung",
+   "dc7dde98444af3ece973c2964b1d17ef"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "dc12cc5ec47fbaf8f3ba344aacad2143"
+  ],
+  [
+   "11 HV klemmen",
+   "229867d8c4b1e39715f358217f3132c3"
+  ],
+  [
+   "12 HV klemmen",
+   "4d106ecd52cee44e98c2036b142fcd91"
+  ]
  ]
 }

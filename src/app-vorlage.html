@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung /*FASSUNG*/ · Stand 24.10.2026
+<!-- Stromlaufplan · Fassung /*FASSUNG*/ · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.9: Etappe C1 – Blatt „Steuerstromkreis“ je Verteiler hinter seinem Stromlaufplan:
+           Pfade mit 6 Kontaktplätzen und Verbraucherplatz, Zweige, Kontaktspiegel, Querverweise;
+           Abgriff der Steuerspannung im Abgang; Befehlsgeber -S, Meldeleuchte -P
+           (Eingabe noch ohne Editor, nur über Daten)
      v1.8: Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm
            und auf dem Deckblatt des Plans
      v1.7: Schaltgeräte je Abgang (Schütz, Stromstoßschalter, Zeitrelais) mit Kennzeichen -Q bzw. -K,
@@ -265,7 +269,7 @@ function istDrei(k, v) {
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -329,7 +333,36 @@ function berechne(v) {
     if (a.phase.auto) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1'); last[p]++; a.phase.t = p; }
   });
   e.last = last;
+  e.steuer = berechneSteuerung(v, e, bmk);
   return e;
+}
+// Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise }.
+//   geraete: Befehlsgeber und Meldeleuchten, { id, zeichen, bez, ort, bmk }
+//   kreise:  je Schaltgerät ein Kreis, { id, quelle: { art: 'abgang', kid }, pfade }
+//   pfad:    { id, zweig: null | { von, bis }, plaetze: [6 × null | { g, z }], verbraucher: null | { g } }
+//            zweig: parallel zum Pfad links daneben von Platz von bis Platz bis (0 … 5, 6 = Verbraucher)
+//            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Hilfskontakts
+// Ergebnis: Kennzeichen (-S Befehlsgeber, -P Meldeleuchte), Anschlussnummern der
+// Hilfskontakte (Schließer n3/n4 zuerst, dann Öffner n1/n2), Abgriff im Abgang, Warnungen
+const ST_KZ = { meldeleuchte: 'P' };
+const istOeffner = z => /_oe/.test(z);
+function berechneSteuerung(v, e, bmk) {
+  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [] }, st = v.steuerung;
+  if (!st) return r;
+  (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
+  (st.kreise || []).forEach(kr => {
+    if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+    kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => {
+      const a = pl && e.abgaenge[pl.g]; if (!a || !a.schalt) return;
+      const n = r.genutzt[pl.g] = r.genutzt[pl.g] || { s: [], o: [] }, oe = istOeffner(pl.z);
+      const liste = oe ? n.o : n.s, nr = liste.length + 1, frei = oe ? a.schalt.ho : a.schalt.hs;
+      const ord = nr <= frei ? (oe ? a.schalt.hs + nr : nr) : null;
+      liste.push(p.id + ':' + i);
+      r.kontakte[p.id + ':' + i] = ord ? { ord, an: oe ? [`${ord}1`, `${ord}2`] : [`${ord}3`, `${ord}4`] } : { ord: null, an: ['?', '?'] };
+      if (!ord) r.warn.push(`${a.schalt.bmk.t}: mehr Hilfs${oe ? 'öffner' : 'schließer'} genutzt als vorhanden (${frei}).`);
+    }));
+  });
+  return r;
 }
 function bemessung(g) {
   if (!g || !g.zeichen) return '';
@@ -770,7 +803,7 @@ function bPlan(b) {
   catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
   let ziel = null;
   res.blaetter.forEach(bl => {
-    const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : '')));
+    const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : '')));
     k.append(bl.svg); m.append(k);
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
     if (b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = k;

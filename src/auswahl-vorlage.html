@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Zeichenbibliothek</title>
+<!-- Stromlaufplan · Zeichenbibliothek · Musterblatt
+     Fassung v0.3 · Stand 24.10.2026
+     v0.3: EN-Baukasten als zusätzliche Variante je Bedeutung (zusammengesetzt
+           aus den EN-60617-Grundzeichen der Sammlung), Platzhalter standardmäßig
+           aus, Bausteine je Zeichen sichtbar, Filter „nur EN“ / „nur Sammlung“
+     v0.2: Rollen nach Bedeutung statt nach Gerätegruppe; „Brauchen wir nicht“;
+           Hinweise je Bedeutung; Originalname der Sammlung klein darunter
+     Etappe 1: Auswahl der Schaltzeichen aus der QElectroTech-Sammlung.
+     Die Zeichen stecken unverändert als XML in dieser Datei und werden
+     erst im Browser in SVG übersetzt. -->
+<style>
+:root{
+  --grund:#f4f3ef; --karte:#fff; --tinte:#1c1c1a; --leise:#6b6a64; --linie:#dedcd4;
+  --raster:#e7e5dd; --raster5:#d3d0c5; --akzent:#1f5fbf; --akzent-hell:#e6eefb;
+  --term:#e11d48; --gut:#1d7a46; --gut-hell:#e3f3e9; --weg:#9a3412;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--grund);color:var(--tinte);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  touch-action:manipulation}
+header{padding:20px 16px 8px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.unter{color:var(--leise);font-size:14px}
+.fassung{display:inline-block;font-size:12px;padding:1px 7px;border:1px solid var(--linie);border-radius:10px;margin-left:6px;vertical-align:2px;color:var(--leise);background:var(--karte)}
+.leiste{position:sticky;top:0;z-index:5;background:rgba(244,243,239,.94);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);border-bottom:1px solid var(--linie)}
+.leiste-in{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.schalter{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:6px 12px;font:inherit;font-size:14px;color:var(--tinte);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent)}
+.fortschritt{margin-left:auto;font-size:13px;color:var(--leise)}
+main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--leise);margin:28px 0 10px;font-weight:600}
+.rolle{background:var(--karte);border:1px solid var(--linie);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.rolle-kopf{display:flex;align-items:baseline;gap:10px;padding:12px 14px 4px;flex-wrap:wrap}
+.rolle-kopf h3{font-size:17px;margin:0}
+.stand{font-size:13px;color:var(--leise)}
+.stand.gewaehlt{color:var(--gut)}
+.stand.keins{color:var(--weg)}
+.reihe{display:flex;gap:10px;overflow-x:auto;padding:8px 14px 12px;-webkit-overflow-scrolling:touch;align-items:stretch}
+.kachel{flex:0 0 auto;border:1.5px solid var(--linie);border-radius:10px;padding:8px;background:var(--karte);cursor:pointer;display:flex;flex-direction:column;min-width:150px;text-align:left;font:inherit;color:inherit}
+.kachel:active{transform:scale(.99)}
+.kachel[aria-checked="true"]{border-color:var(--gut);background:var(--gut-hell)}
+.kachel svg{display:block;margin:0 auto 6px;overflow:visible}
+.k-name{font-weight:600;font-size:13.5px;max-width:240px}
+.k-datei{font:11.5px ui-monospace,Menlo,Consolas,monospace;color:var(--leise);word-break:break-all;max-width:240px}
+.k-mass{font-size:12px;color:var(--leise);margin-top:2px}
+.en-marke{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#fff;background:#3b5b8c;border-radius:4px;padding:1px 5px;margin-right:6px;vertical-align:1px}
+.kachel.ist-en{border-style:solid;background:#f7f9fd}
+.kachel.ist-en[aria-checked="true"]{background:var(--gut-hell)}
+.k-bem{font-size:12px;color:#3b5b8c;max-width:240px;margin-top:2px}
+.hinweis.kein-en{font-style:italic}
+body.nur-en .kachel:not(.ist-en){display:none}
+body.nur-qet .kachel.ist-en{display:none}
+.k-orig{font-size:11.5px;color:var(--leise);max-width:260px}
+.hinweis{font-size:13.5px;color:var(--leise);padding:0 14px 2px;max-width:760px}
+.knoepfe{display:flex;flex-direction:column;gap:8px;align-self:center;flex:0 0 auto}
+.unnoetig-knopf[aria-pressed="true"]{border-color:var(--leise);color:var(--tinte);border-style:solid;background:#eeede8}
+.stand.unnoetig{color:var(--leise);text-decoration:line-through}
+.rolle.abgewaehlt .reihe .kachel{opacity:.35}
+.k-haken.leise{color:var(--leise);font-weight:400}
+.k-warn{font-size:12px;color:#b45309;margin-top:2px;max-width:240px}
+.k-haken{font-size:12px;color:var(--gut);font-weight:600;margin-top:4px;min-height:16px}
+.keins-knopf{flex:0 0 auto;align-self:center;border:1.5px dashed var(--linie);border-radius:10px;background:none;font:inherit;font-size:13px;color:var(--leise);padding:10px 12px;cursor:pointer}
+.keins-knopf[aria-pressed="true"]{border-color:var(--weg);color:var(--weg);border-style:solid}
+.notiz{width:calc(100% - 28px);margin:0 14px 12px;font:inherit;font-size:14px;border:1px solid var(--linie);border-radius:8px;padding:7px 9px;background:#fbfaf7;color:var(--tinte)}
+.ergebnis{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:14px;margin-top:28px}
+.ergebnis pre{white-space:pre-wrap;font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace;margin:8px 0 12px;background:#fbfaf7;border:1px solid var(--linie);border-radius:8px;padding:10px;max-height:340px;overflow:auto}
+.knopf{border:0;background:var(--akzent);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;margin-right:8px;margin-bottom:6px}
+.knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
+.erklaer{font-size:14px;color:var(--leise);max-width:760px}
+.erklaer b{color:var(--tinte);font-weight:600}
+.legende{display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-size:13px}
+.punkt{width:8px;height:8px;border-radius:50%;background:var(--term);display:inline-block}
+.blau{color:#2563eb;font-family:ui-monospace,Menlo,monospace}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 40px;font-size:12px;color:var(--leise)}
+footer a{color:var(--leise)}
+.meldung{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--tinte);color:#fff;padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.meldung.an{opacity:.92}
+svg .gitter{stroke:var(--raster);stroke-width:.35}
+svg .gitter5{stroke:var(--raster5);stroke-width:.5}
+svg .nullpkt{stroke:#9ca3af;stroke-width:.6}
+body.ohne-raster svg .gitter, body.ohne-raster svg .gitter5, body.ohne-raster svg .nullpkt{display:none}
+body.ohne-term svg .qet-term{display:none}
+body.ohne-text svg .qet-dyn{display:none}
+</style>
+</head>
+<body class="ohne-text">
+<header>
+  <h1>Zeichenbibliothek <span class="fassung" id="fassung"></span></h1>
+  <div class="unter">Stromlaufplan · Etappe 1 · Auswahl der Schaltzeichen</div>
+  <p class="erklaer">Jede Karte ist <b>eine Bedeutung</b>. Nebeneinander stehen nur Darstellungsvarianten desselben Geräts aus der QElectroTech-Sammlung, <b>alle im selben Maßstab</b>; sie unterscheiden sich höchstens in der Detailtiefe (etwa ob der Antrieb mitgezeichnet ist). Tippe die Variante an, die gelten soll – bei nur einer Variante heißt das „übernehmen“. Passt keine, tippe „Keine passt“ und schreib dazu, was fehlt. Wird eine Bedeutung gar nicht gebraucht, tippe „Brauchen wir nicht“. Unten entsteht daraus eine Liste zum Kopieren.</p>
+  <p class="erklaer"><span class="en-marke">EN</span> kennzeichnet Varianten aus dem EN-60617-Satz der Sammlung. „EN-Baukasten“ heißt: aus den einpoligen Grundzeichen der Norm zusammengesetzt, nach festen Regeln (Polabstand 20, Wirkverbindung quer durch die Schaltglieder, Überstromauslöser im Leiter jedes geschützten Pols). Unter jeder solchen Kachel steht, aus welchen Bausteinen sie besteht und wo etwas abgeleitet oder korrigiert wurde. Mit dem Filter oben lassen sich nur die EN- oder nur die Sammlungsvarianten anzeigen.</p>
+  <p class="erklaer">Die Namen der Karten stammen von mir und richten sich nach dem, was das Zeichen tatsächlich zeigt. Der deutsche Name aus der Sammlung steht klein darunter – er ist dort teils falsch übersetzt.</p>
+  <p class="erklaer">
+    <span class="legende"><span class="punkt"></span> Anschlusspunkt</span>
+    <span class="legende">Raster 10 · dunkler alle 50</span>
+    <span class="legende"><span class="blau">{label}</span> Platzhalter für Kennzeichen</span>
+  </p>
+  <p class="erklaer"><span style="color:#b45309">⚠</span> markiert Zeichen, deren Anschlüsse nicht im gemeinsamen Raster liegen (10er-Raster, Polabstand 20). Die meisten Zeichen halten es ein; Abweichler würden im Plan schief anschließen und sollten nur gewählt werden, wenn es keine Alternative gibt.</p>
+</header>
+
+<div class="leiste"><div class="leiste-in">
+  <div class="schalter">
+    <button class="chip" id="b-raster" aria-pressed="true">Raster</button>
+    <button class="chip" id="b-term" aria-pressed="true">Anschlüsse</button>
+    <button class="chip" id="b-text" aria-pressed="false">Platzhalter</button>
+  </div>
+  <div class="schalter" id="massstab"></div>
+  <div class="schalter" id="filter">
+    <button class="chip" data-f="alle" aria-pressed="true">Alle</button>
+    <button class="chip" data-f="en" aria-pressed="false">Nur EN</button>
+    <button class="chip" data-f="qet" aria-pressed="false">Nur Sammlung</button>
+  </div>
+  <div class="fortschritt" id="fortschritt"></div>
+</div></div>
+
+<main id="inhalt"></main>
+
+<main>
+  <section class="ergebnis">
+    <h3 style="margin:0">Deine Auswahl</h3>
+    <div class="erklaer">Diese Liste schickst du mir zurück. Daraus wird die feste Bibliothek für den Generator.</div>
+    <pre id="ausgabe"></pre>
+    <button class="knopf" id="b-kopieren">Kopieren</button>
+    <button class="knopf zweit" id="b-teilen">Teilen …</button>
+    <button class="knopf zweit" id="b-leeren">Auswahl zurücksetzen</button>
+  </section>
+</main>
+
+<footer>
+  Schaltzeichen: Elementsammlung von <a href="https://qelectrotech.org">QElectroTech</a> (The QElectroTech team und Mitwirkende), lizenziert unter
+  <a href="https://creativecommons.org/licenses/by/3.0/deed.de">Creative Commons Namensnennung 3.0</a>; die Zeichen sind hier unverändert eingebettet.
+  Herkunft je Zeichen siehe Dateipfad unter der Kachel.
+</footer>
+<div class="meldung" id="meldung"></div>
+
+<script>
+/*RENDERER*/
+</script>
+<script>
+const FASSUNG = 'v0.3';
+const KANDIDATEN = /*DATEN*/;
+const SPEICHER = 'slp.bibliothek.auswahl.v3';
+const SVGNS = 'http://www.w3.org/2000/svg';
+let massstab = 2;
+
+document.getElementById('fassung').textContent = FASSUNG;
+
+function laden(){ try { return JSON.parse(localStorage.getItem(SPEICHER)) || {}; } catch(e){ return {}; } }
+function sichern(){ try { localStorage.setItem(SPEICHER, JSON.stringify(auswahl)); } catch(e){} }
+let auswahl = laden(); // { rolle: {datei|null, keins:bool, notiz:'' } }
+
+function meldung(t){ const m = document.getElementById('meldung'); m.textContent = t; m.classList.add('an'); clearTimeout(meldung.t); meldung.t = setTimeout(()=>m.classList.remove('an'), 1600); }
+
+function polabstand(ans){
+  const oben = ans.filter(a => a.richtung === 'n').map(a => a.x).sort((a,b)=>a-b);
+  const d = new Set(); for (let i=1;i<oben.length;i++) d.add(+(oben[i]-oben[i-1]).toFixed(2));
+  return [...d];
+}
+
+// Prüft, ob das Zeichen ins gemeinsame Raster passt: Anschlüsse auf dem
+// 10er-Raster, Polabstand 20. Abweichler würden später schief anschließen.
+function rasterAbweichung(ans, pa){
+  const neben = ans.filter(a => Math.abs(a.x % 10) > 0.01 || Math.abs(a.y % 10) > 0.01).length;
+  const t = [];
+  if (neben) t.push(`${neben} Anschl. neben dem 10er-Raster`);
+  if (pa.some(d => Math.abs(d - 20) > 0.01)) t.push('Polabstand ≠ 20');
+  return t.join(' · ');
+}
+
+function kachelSvg(xml){
+  const s = document.createElementNS(SVGNS, 'svg');
+  const r = QET.zeichne(xml, { terminals: true });
+  const hinter = document.createElementNS(SVGNS, 'g');
+  s.appendChild(hinter); s.appendChild(r.g);
+  // vorübergehend einhängen, um den Umriss zu messen
+  const tmp = document.createElement('div'); tmp.style.cssText = 'position:absolute;left:-9999px;top:0';
+  tmp.appendChild(s); document.body.appendChild(tmp);
+  const b = r.g.getBBox();
+  document.body.removeChild(tmp);
+  const x0 = Math.floor(b.x/10)*10 - 10, y0 = Math.floor(b.y/10)*10 - 10;
+  const x1 = Math.ceil((b.x+b.width)/10)*10 + 10, y1 = Math.ceil((b.y+b.height)/10)*10 + 10;
+  for (let x = x0; x <= x1; x += 10) {
+    const l = document.createElementNS(SVGNS,'line');
+    l.setAttribute('x1',x); l.setAttribute('x2',x); l.setAttribute('y1',y0); l.setAttribute('y2',y1);
+    l.setAttribute('class', x % 50 === 0 ? 'gitter5' : 'gitter'); hinter.appendChild(l);
+  }
+  for (let y = y0; y <= y1; y += 10) {
+    const l = document.createElementNS(SVGNS,'line');
+    l.setAttribute('y1',y); l.setAttribute('y2',y); l.setAttribute('x1',x0); l.setAttribute('x2',x1);
+    l.setAttribute('class', y % 50 === 0 ? 'gitter5' : 'gitter'); hinter.appendChild(l);
+  }
+  // Bezugspunkt (hotspot) als kleines Kreuz
+  [['-3','0','3','0'],['0','-3','0','3']].forEach(p=>{ const l=document.createElementNS(SVGNS,'line');
+    l.setAttribute('x1',p[0]);l.setAttribute('y1',p[1]);l.setAttribute('x2',p[2]);l.setAttribute('y2',p[3]);
+    l.setAttribute('class','nullpkt'); hinter.appendChild(l); });
+  const w = x1-x0, h = y1-y0;
+  s.setAttribute('viewBox', `${x0} ${y0} ${w} ${h}`);
+  s.dataset.w = w; s.dataset.h = h;
+  s.setAttribute('width', w*massstab); s.setAttribute('height', h*massstab);
+  return { s, anschluesse: r.anschluesse };
+}
+
+function kurz(pfad){ return pfad.split('/').pop(); }
+
+function aufbauen(){
+  const inhalt = document.getElementById('inhalt'); inhalt.innerHTML = '';
+  let gruppe = null;
+  KANDIDATEN.forEach(k => {
+    if (k.gruppe !== gruppe) { gruppe = k.gruppe; const h = document.createElement('h2'); h.textContent = gruppe; inhalt.appendChild(h); }
+    const karte = document.createElement('section'); karte.className = 'rolle';
+    const kopf = document.createElement('div'); kopf.className = 'rolle-kopf';
+    const h3 = document.createElement('h3'); h3.textContent = k.rolle;
+    const stand = document.createElement('span'); stand.className = 'stand';
+    kopf.append(h3, stand); karte.appendChild(kopf);
+    if (k.hinweis) { const h = document.createElement('div'); h.className = 'hinweis'; h.textContent = k.hinweis; karte.appendChild(h); }
+    if (!k.zeichen.some(z => z.en)) { const h = document.createElement('div'); h.className = 'hinweis kein-en'; h.textContent = 'Im EN-Satz kein Gegenstück.'; karte.appendChild(h); }
+    const reihe = document.createElement('div'); reihe.className = 'reihe'; karte.appendChild(reihe);
+    const kacheln = [];
+    k.zeichen.forEach(z => {
+      const kb = document.createElement('button'); kb.className = 'kachel'; kb.setAttribute('role','radio');
+      const { s, anschluesse } = kachelSvg(z.xml);
+      const pa = polabstand(anschluesse);
+      const name = document.createElement('div'); name.className = 'k-name';
+      name.textContent = z.zusatz || (k.zeichen.length > 1 ? 'Variante ' + (k.zeichen.indexOf(z) + 1) : 'Zeichen');
+      if (z.en) { const m = document.createElement('span'); m.className = 'en-marke'; m.textContent = 'EN'; name.prepend(m); kb.classList.add('ist-en'); }
+      const orig = document.createElement('div'); orig.className = 'k-orig';
+      orig.textContent = z.quellen ? 'Bausteine: ' + z.quellen.join(' · ') : 'Sammlung: ' + (QET.name(z.xml) || '–');
+      const datei = document.createElement('div'); datei.className = 'k-datei'; datei.textContent = kurz(z.pfad);
+      const mass = document.createElement('div'); mass.className = 'k-mass';
+      mass.textContent = `${anschluesse.length} Anschlüsse` + (pa.length ? ` · Polabstand ${pa.join('/')}` : '') + ` · ${s.dataset.w-20}×${s.dataset.h-20}`;
+      const haken = document.createElement('div'); haken.className = 'k-haken';
+      kb.append(s, name, orig);
+      if (z.bem) { const bm = document.createElement('div'); bm.className = 'k-bem'; bm.textContent = z.bem; kb.appendChild(bm); }
+      if (!z.quellen) kb.appendChild(datei);
+      kb.appendChild(mass);
+      const abw = rasterAbweichung(anschluesse, pa);
+      if (abw) { const w = document.createElement('div'); w.className = 'k-warn'; w.textContent = '⚠ ' + abw; kb.appendChild(w); }
+      kb.appendChild(haken);
+      kb.addEventListener('click', () => {
+        const a = auswahl[k.rolle] || {};
+        a.datei = a.datei === z.pfad ? null : z.pfad; a.keins = false; a.unnoetig = false;
+        auswahl[k.rolle] = a; sichern(); zeigen();
+      });
+      reihe.appendChild(kb); kacheln.push({ kb, haken, pfad: z.pfad });
+    });
+    const keins = document.createElement('button'); keins.className = 'keins-knopf'; keins.textContent = 'Keine passt';
+    keins.addEventListener('click', () => {
+      const a = auswahl[k.rolle] || {}; a.keins = !a.keins; if (a.keins) { a.datei = null; a.unnoetig = false; }
+      auswahl[k.rolle] = a; sichern(); zeigen();
+    });
+    const unnoetig = document.createElement('button'); unnoetig.className = 'keins-knopf unnoetig-knopf'; unnoetig.textContent = 'Brauchen wir nicht';
+    unnoetig.addEventListener('click', () => {
+      const a = auswahl[k.rolle] || {}; a.unnoetig = !a.unnoetig; if (a.unnoetig) { a.datei = null; a.keins = false; }
+      auswahl[k.rolle] = a; sichern(); zeigen();
+    });
+    const knoepfe = document.createElement('div'); knoepfe.className = 'knoepfe';
+    knoepfe.append(keins, unnoetig);
+    reihe.appendChild(knoepfe);
+    const notiz = document.createElement('input'); notiz.className = 'notiz'; notiz.placeholder = 'Anmerkung (optional)';
+    notiz.value = (auswahl[k.rolle] || {}).notiz || '';
+    notiz.addEventListener('input', () => { const a = auswahl[k.rolle] || {}; a.notiz = notiz.value; auswahl[k.rolle] = a; sichern(); ausgabe(); });
+    karte.appendChild(notiz);
+    k._ui = { stand, kacheln, keins, unnoetig, karte };
+    inhalt.appendChild(karte);
+  });
+  zeigen();
+}
+
+function zeigen(){
+  let fertig = 0;
+  KANDIDATEN.forEach(k => {
+    const a = auswahl[k.rolle] || {}; const ui = k._ui;
+    const einzig = ui.kacheln.length === 1;
+    ui.kacheln.forEach(c => { const an = a.datei === c.pfad; c.kb.setAttribute('aria-checked', an);
+      c.haken.textContent = an ? (einzig ? '✓ übernommen' : '✓ gewählt') : (einzig ? 'Antippen = übernehmen' : ''); c.haken.classList.toggle('leise', !an); });
+    ui.keins.setAttribute('aria-pressed', !!a.keins);
+    ui.unnoetig.setAttribute('aria-pressed', !!a.unnoetig);
+    ui.karte.classList.toggle('abgewaehlt', !!a.unnoetig);
+    ui.stand.className = 'stand' + (a.datei ? ' gewaehlt' : a.keins ? ' keins' : a.unnoetig ? ' unnoetig' : '');
+    ui.stand.textContent = a.datei ? '✓ ' + kurz(a.datei) : a.keins ? 'keine passt' : a.unnoetig ? 'brauchen wir nicht' : 'offen';
+    if (a.datei || a.keins || a.unnoetig) fertig++;
+  });
+  document.getElementById('fortschritt').textContent = `${fertig} von ${KANDIDATEN.length} entschieden`;
+  ausgabe();
+}
+
+function ausgabeText(){
+  const z = [`Zeichenbibliothek ${FASSUNG} – Auswahl`];
+  KANDIDATEN.forEach(k => {
+    const a = auswahl[k.rolle] || {};
+    let t = `${k.rolle}: ` + (a.datei ? a.datei : a.keins ? 'KEINE PASST' : a.unnoetig ? 'brauchen wir nicht' : 'offen');
+    if (a.notiz) t += `  // ${a.notiz}`;
+    z.push(t);
+  });
+  return z.join('\n');
+}
+function ausgabe(){ document.getElementById('ausgabe').textContent = ausgabeText(); }
+
+function massstabKnoepfe(){
+  const box = document.getElementById('massstab');
+  [1,2,3].forEach(m => {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = m + '×';
+    b.setAttribute('aria-pressed', m === massstab);
+    b.addEventListener('click', () => {
+      massstab = m;
+      box.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+      document.querySelectorAll('.kachel svg').forEach(s => { s.setAttribute('width', s.dataset.w*m); s.setAttribute('height', s.dataset.h*m); });
+    });
+    box.appendChild(b);
+  });
+}
+
+function umschalter(id, klasse){
+  const b = document.getElementById(id);
+  b.addEventListener('click', () => {
+    const an = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', an); document.body.classList.toggle(klasse, !an);
+  });
+}
+umschalter('b-raster', 'ohne-raster');
+umschalter('b-term', 'ohne-term');
+umschalter('b-text', 'ohne-text');
+
+document.getElementById('b-kopieren').addEventListener('click', async () => {
+  const t = ausgabeText();
+  try { await navigator.clipboard.writeText(t); meldung('Kopiert'); }
+  catch(e) {
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); meldung('Kopiert'); } catch(_) { meldung('Bitte die Liste von Hand markieren'); }
+    document.body.removeChild(ta);
+  }
+});
+document.getElementById('b-teilen').addEventListener('click', async () => {
+  const t = ausgabeText();
+  if (navigator.share) { try { await navigator.share({ title: 'Zeichenbibliothek – Auswahl', text: t }); } catch(e){} }
+  else meldung('Teilen ist hier nicht verfügbar – bitte kopieren');
+});
+document.getElementById('b-leeren').addEventListener('click', () => {
+  if (!confirm('Gesamte Auswahl zurücksetzen?')) return;
+  auswahl = {}; sichern(); aufbauen();
+});
+
+document.querySelectorAll('#filter .chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#filter .chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+  document.body.classList.toggle('nur-en', b.dataset.f === 'en');
+  document.body.classList.toggle('nur-qet', b.dataset.f === 'qet');
+}));
+window.addEventListener('error', e => meldung('Fehler: ' + e.message));
+massstabKnoepfe();
+aufbauen();
+</script>
+</body>
+</html>

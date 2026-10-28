@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Stromlaufplan</title>
+<!-- Stromlaufplan · Fassung /*FASSUNG*/ · Stand 24.10.2026
+     Etappe 3: Datenmodell und Eingabe.
+       - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
+         Abgang eines anderen Verteilers gespeist
+       - je Verteiler: Einspeisung (Netzform, Leiter), Vorsicherung, Zähler,
+         Hauptschalter, Überspannungsschutz, Abgangsbaum aus Gruppen (z. B. FI
+         mit Untersammelschiene) und Abgängen
+       - automatisch und überschreibbar: Kennzeichen nach DIN EN IEC 81346
+         (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
+         -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
+       - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.8: Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm
+           und auf dem Deckblatt des Plans
+     v1.7: Schaltgeräte je Abgang (Schütz, Stromstoßschalter, Zeitrelais) mit Kennzeichen -Q bzw. -K,
+           N mitschalten, Ausstattung an Hilfskontakten; Hauptkontakte im Stromlaufplan,
+           Schützzeichen im Übersichtsschaltplan, Herkunft im Klemmenplan, Zusatz im Türzettel
+     v1.6: Bibliothek v1.4 mit den Zeichen für Steuerstromkreise (noch ohne Verwendung im Plan)
+     v1.5: Klemmenplan der Klemmleiste -X1 je Verteiler (Tabelle mit Aderfarben br/sw/gr/bl/gnge)
+           hinter den Stromlaufplänen, abschaltbar; N-Klemme je Verteiler wählbar
+           (N-Trennklemme oder normale N-Klemme), auch im Stromlaufplan gezeichnet
+     v1.4: Endklemmen (Geräteanschlussdose) und offene Enden schließen genau mit der
+           Unterkante der Steckdosen ab, im Stromlaufplan und im Übersichtsschaltplan
+     v1.3: Übersichtsschaltplan (einpolig) je Verteiler hinter dem Inhaltsverzeichnis,
+           abschaltbar in den Projektdaten; einpolige Zeichen aus der Bibliothek v1.3
+     v1.2: Deckblatt (Blatt 1) und Inhaltsverzeichnis (Blatt 2) vor den Planblättern,
+           abschaltbar in den Projektdaten; Planblätter beginnen dann mit Blatt 3
+     v1.1: Türzettel (Sicherungsübersicht) je Verteiler, A4 hoch, zum Ausdrucken
+     v1.0: alle Linien in Leiterstärke (auch Sammelschienen und deren Querverweise);
+           Verbindungspunkte überall, wo drei oder mehr Linien zusammentreffen
+     v0.9: Untersammelschienen in Leiterstärke (0,25 mm); nur die Hauptsammelschienen bleiben 0,5 mm
+     v0.8: Endklemmen der Anschlussdose auf Höhe der übrigen Abgangsenden
+     v0.7: Anschluss auch als Geräteanschlussdose (Endklemmen, -X2 …) und als
+           Leuchte (Lampenzeichen, -E1 …); Bibliothek v1.2
+     v0.6: alle Abgänge enden ganz unten auf einer Höhe; Überspannungsschutz:
+           PE-Seite der Ableiter grün
+     v0.5: Schriftfeld als 20 mm hoher Streifen über die ganze Blattbreite
+     v0.4: Plan: keine Leiter mehr übereinander in Gruppen (N/PE werden rechts
+           neben dem Gruppengerät zugeführt), Untersammelschienen nur von der
+           ersten bis zur letzten Verbindung, Abgänge einer Reihe enden auf
+           gleicher Höhe (auch feste Anschlüsse)
+     v0.3: Etappe 4a – Generator: Bildschirm „Plan“ mit allen Blättern, Format A4/A3
+           (A4 voreingestellt), Druck/PDF aller Blätter; Einspeisungsblatt bzw.
+           kurze Einspeisung auf dem ersten Abgangsblatt, Abgänge, Gruppen mit
+           Untersammelschiene, Querverweise, Blattnummern durchgehend
+     v0.2: Abgangsklemmen je Verteiler wählbar (Klemmleiste / ohne, neu: ohne),
+           je Abgang als Option abweichend (mit / ohne Klemmen)
+     Bedienung wie im SF E-Plan: eigene Bildschirme, ein Feld je Fenster,
+     sofort gespeichert, Zurück-Pfeil genügt.
+     Gerätekennungen = Kennungen der Bibliothek v1.1. -->
+<style>
+:root{--grund:#f4f3ef;--karte:#fff;--tinte:#1c1c1a;--leise:#6b6a64;--linie:#e1ded6;--akzent:#1f5fbf;--akzent-hell:#e6eefb;--warn:#b45309;--rot:#b42318;--n:#1f5fd6;--pe:#1a8a3a}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--grund);color:var(--tinte);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+.kopf{position:sticky;top:0;z-index:5;background:rgba(244,243,239,.95);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:1px solid var(--linie);padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;display:flex;align-items:center;gap:8px;min-height:52px}
+.kopf h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.kopf .seite{width:72px;display:flex}
+.kopf .seite.r{justify-content:flex-end}
+.zurueck{border:0;background:none;color:var(--akzent);font-size:17px;padding:6px 4px;cursor:pointer;display:flex;align-items:center;gap:2px}
+.zurueck svg{width:20px;height:20px}
+.kopfknopf{border:0;background:none;color:var(--akzent);font-size:15px;padding:6px 4px;cursor:pointer}
+.kopfknopf[aria-pressed="true"]{font-weight:700}
+main{max-width:760px;margin:0 auto;padding:12px 16px 60px}
+h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--leise);margin:22px 4px 8px;font-weight:600}
+.liste{background:var(--karte);border:1px solid var(--linie);border-radius:12px;overflow:hidden}
+.zeile{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:11px 14px;min-height:48px;border-top:1px solid var(--linie);cursor:pointer}
+.zeile:first-child{border-top:0}
+.zeile:active{background:#f1efe9}
+.zeile .t{flex:1;min-width:0}
+.zeile .ob{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zeile .un{display:block;font-size:13px;color:var(--leise);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zeile .w{color:var(--leise);text-align:right;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zeile .pfeil{color:#b8b4aa;flex:0 0 auto}
+.zeile.einr{padding-left:34px;position:relative}
+.zeile.einr::before{content:"";position:absolute;left:20px;top:0;bottom:0;border-left:2px solid #c9c5bb}
+.bmk{display:inline-block;min-width:44px;font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--tinte);background:#f1efe9;border-radius:6px;padding:2px 6px;text-align:center;flex:0 0 auto}
+.bmk.hand{background:#fff4e0;color:var(--warn)}
+.leise{color:var(--leise)}
+.neu{display:block;width:100%;border:1.5px dashed #cbc7bd;background:none;border-radius:10px;padding:10px;margin-top:8px;color:var(--leise);font-size:15px;cursor:pointer}
+.neu.inliste{border:0;border-top:1px dashed #cbc7bd;border-radius:0;margin:0;text-align:left;padding:11px 14px}
+.neu.inliste.einr{padding-left:34px}
+.gefahr{color:var(--rot)}
+.hinweis{font-size:13.5px;color:var(--leise);margin:6px 4px}
+.hinweis.lizenz{font-size:12px}
+.hinweis.lizenz a{color:inherit}
+.warnung{font-size:13.5px;color:var(--warn);margin:6px 4px}
+.sort{display:flex;gap:4px;flex:0 0 auto}
+.sort button{border:1px solid var(--linie);background:#fff;border-radius:8px;width:36px;height:32px;cursor:pointer;color:var(--akzent)}
+.sort button:disabled{opacity:.3}
+table.ueb{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border:1px solid var(--linie);border-radius:12px;overflow:hidden}
+table.ueb th{text-align:left;font-weight:600;color:var(--leise);font-size:12px;padding:8px;border-bottom:1px solid var(--linie);background:#faf9f6}
+table.ueb td{padding:7px 8px;border-top:1px solid var(--linie);vertical-align:top}
+table.ueb td.m{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}
+table.ueb tr.gr td{background:#f7f6f2;font-weight:600}
+.tabwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ph{display:inline-block;font:600 12px ui-monospace,Menlo,monospace;padding:1px 5px;border-radius:5px;background:#eee}
+.ph.auto{background:#e6eefb;color:var(--akzent)}
+/* Fenster */
+.schleier{position:fixed;inset:0;background:rgba(20,20,18,.35);z-index:20;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.schleier .mitte{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px 14px}
+.fenster{background:#fff;border-radius:14px;width:100%;max-width:440px;box-shadow:0 10px 30px rgba(0,0,0,.25);overflow:hidden}
+.fenster h3{margin:0;padding:14px 16px 6px;font-size:16px}
+.fenster .inhalt{padding:4px 16px 12px}
+.fenster .fuss{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--linie)}
+.fenster input[type=text],.fenster input[type=number],.fenster input[type=date]{width:100%;font:inherit;font-size:17px;padding:9px 10px;border:1px solid var(--linie);border-radius:9px;background:#fbfaf7}
+.wahl{display:flex;flex-direction:column;border:1px solid var(--linie);border-radius:10px;overflow:hidden;max-height:60vh;overflow-y:auto}
+.wahl button{border:0;border-top:1px solid var(--linie);background:#fff;text-align:left;padding:11px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.wahl button:first-child{border-top:0}
+.wahl button[aria-checked="true"]{background:var(--akzent-hell);color:var(--akzent);font-weight:600}
+.wahl button small{color:var(--leise);font-weight:400}
+.knopf{border:0;background:var(--akzent);color:#fff;border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer}
+.knopf.zweit{background:#fff;color:var(--akzent);border:1px solid var(--akzent)}
+.knopf.rot{background:var(--rot)}
+.fenster .text{font-size:15px;color:var(--leise);margin:0 0 8px}
+.meldung{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinte);color:#fff;padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
+.meldung.an{opacity:.92}
+.blattkarte{background:#cfccc3;border-radius:12px;padding:10px;margin-bottom:14px}
+.blattkarte .bt{font-size:13px;color:#4a4842;margin:0 2px 6px;display:flex;justify-content:space-between}
+.blattkarte svg{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+/* Türzettel: auf dem Bildschirm als Blatt, im Druck A4 hoch */
+.tz{background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;padding:14mm 12mm;box-shadow:0 2px 8px rgba(0,0,0,.18);border-radius:4px;margin-bottom:16px}
+.tz h1{font-size:22pt;margin:0 0 2pt}
+.tz .tzu{font-size:10.5pt;color:#333;margin-bottom:10pt}
+.tz table{width:100%;border-collapse:collapse;font-size:11pt}
+.tz th{text-align:left;font-size:9pt;color:#333;border-bottom:1.2pt solid #000;padding:3pt 4pt}
+.tz td{border-bottom:.5pt solid #999;padding:4pt 4pt;vertical-align:top}
+.tz td.k{font-weight:700;white-space:nowrap}
+.tz td:nth-child(3),.tz td:nth-child(6){white-space:nowrap}
+.tz tr.tzkopf td{background:#eee}
+.tz tr.gruppe td{background:#f3f3f3;font-weight:700;border-bottom:.8pt solid #000}
+.tz tr.ein td:nth-child(2){padding-left:14pt}
+.tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt}
+.tzwrap{overflow-x:auto}
+.tzwrap .tz{min-width:600px}
+#druck{display:none}
+@media print{
+  body{background:#fff}
+  #app,.meldung,.fehlerband{display:none !important}
+  #druck{display:block}
+  #druck .db{break-after:page;page-break-after:always}
+  #druck .tz{box-shadow:none;border-radius:0;padding:0;margin:0;break-after:page;page-break-after:always}
+  #druck .tz:last-child{break-after:auto;page-break-after:auto}
+  #druck .tz thead{display:table-header-group}
+  #druck .tz tr{break-inside:avoid}
+  #druck .db:last-child{break-after:auto;page-break-after:auto}
+  #druck svg{display:block}
+}
+.fehlerband{position:fixed;left:0;right:0;bottom:0;background:var(--rot);color:#fff;font-size:13px;padding:6px 12px;z-index:40;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="meldung" id="meldung"></div>
+<div class="fehlerband" id="fehlerband"></div>
+<input type="file" id="datei" accept=".json,application/json" hidden>
+<div id="druck"></div>
+<style id="seite">@page{size:A4 landscape;margin:0}</style>
+<script id="slp-bibliothek" type="application/json">/*BIBLIOTHEK*/</script>
+<script>
+/*RENDERER*/
+</script>
+<script>
+/*PLAN*/
+</script>
+<script>
+'use strict';
+const FASSUNG = '/*FASSUNG*/';
+const SPEICHER = 'slp.projekt.v1';
+
+// ---------------------------------------------------------------------------
+// Gerätearten (Kennungen = Bibliothek v1.1)
+// pole: Zahl der Außenleiter, die das Gerät schaltet (1 oder 3); n: N mitgeführt
+const GERAETE = {
+  ls1:            { name: 'LS 1-polig',            pole: 1, kennlinie: true },
+  ls3:            { name: 'LS 3-polig',            pole: 3, kennlinie: true },
+  fils1n:         { name: 'FI/LS 1P+N',            pole: 1, kennlinie: true, fi: true },
+  fils3n:         { name: 'FI/LS 3P+N',            pole: 3, kennlinie: true, fi: true },
+  sich1:          { name: 'Sicherung 1-polig',     pole: 1, sicherung: true },
+  sich3:          { name: 'Drei Sicherungen',      pole: 3, sicherung: true },
+  fi2:            { name: 'FI 2-polig',            pole: 1, fi: true, ohneKennlinie: true },
+  fi4:            { name: 'FI 4-polig',            pole: 3, fi: true, ohneKennlinie: true },
+  sichtrenn3:     { name: 'Sicherungstrennschalter 3-polig', pole: 3, sicherung: true },
+  sichlasttrenn3: { name: 'Sicherungslasttrennschalter 3-polig (NH)', pole: 3, sicherung: true },
+  lasttrenn3:     { name: 'Lasttrennschalter 3-polig', pole: 3 },
+  trenn3:         { name: 'Trennschalter 3-polig', pole: 3 },
+  leistung3:      { name: 'Leistungsschalter 3-polig', pole: 3 },
+  zaehler3:       { name: 'Zähler 3-phasig',       pole: 3, ohneNenn: true },
+  zaehler1:       { name: 'Zähler 1-phasig',       pole: 1, ohneNenn: true },
+  spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true },
+  spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true },
+};
+const WAHL = {
+  abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', ''],
+  gruppe:       ['fi2', 'fi4', 'ls3', 'sich3', 'sichtrenn3'],
+  vorsicherung: ['', 'sichlasttrenn3', 'sichtrenn3', 'sich3', 'ls3'],
+  hauptschalter:['', 'lasttrenn3', 'trenn3', 'leistung3'],
+  zaehler:      ['', 'zaehler3', 'zaehler1'],
+  spd:          ['', 'spd4', 'spd2'],
+};
+const gName = k => k ? GERAETE[k].name : 'ohne';
+const KENNLINIEN = ['B', 'C', 'D', 'K', 'Z'];
+const NENNSTROM = ['6', '10', '13', '16', '20', '25', '32', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400'];
+const NENNFEHLER = ['10', '30', '100', '300', '500'];
+const FI_TYP = ['A', 'F', 'B', 'B+', 'AC'];
+const SICH_ART = ['gG', 'gL', 'aM'];
+const ANSCHLUSS = { steckdose3: 'Steckdose 1/N/PE (Schuko, CEE 3-pol.)', steckdose5: 'Steckdose 3/N/PE (CEE 5-pol.)',
+  dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', fest: 'Fester Anschluss (offenes Ende)' };
+const PHASEN = ['auto', 'L1', 'L2', 'L3'];
+// Schaltgeräte im Abgang (Etappe B); Kennzeichen nach DIN EN IEC 81346-2: -Q schaltet Energie, -K Zeitrelais
+const SCHALT = { schuetz: 'Schütz', stromstoss: 'Stromstoßschalter', zeitrelais: 'Zeitrelais' };
+const ZR_FKT = { aus: 'ausschaltverzögert', ein: 'einschaltverzögert', einaus: 'ein- und ausschaltverzögert' };
+const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1, ho: 0, zr: { fkt: 'aus', zeit: '3 min' } });
+
+// ---------------------------------------------------------------------------
+// Datenhaltung
+const id = () => Math.random().toString(36).slice(2, 9);
+function neuesProjekt() {
+  return { format: 'slp-projekt', version: 1, projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+}
+function neuerVerteiler(name) {
+  return { id: id(), name, netzform: 'TN-S', leiter: '3NPE', klemmen: 'ohne',
+    vorsicherung: { zeichen: '' }, zaehler: { zeichen: '' }, hauptschalter: { zeichen: 'lasttrenn3', nenn: '63' }, spd: { zeichen: '' },
+    knoten: [] };
+}
+function neuerAbgang() {
+  return { id: id(), typ: 'abgang', geraet: { zeichen: 'ls1', kennlinie: 'B', nenn: '16' }, phase: 'auto',
+    leitung: { typ: 'NYM-J', quer: '2,5' }, ziel: { bez: '', ort: '', anschluss: 'steckdose3' }, speist: null, klemmen: 'verteiler' };
+}
+function neueGruppe() {
+  return { id: id(), typ: 'gruppe', geraet: { zeichen: 'fi4', nenn: '40', idn: '30', fityp: 'A' }, kinder: [] };
+}
+let P;
+try { P = JSON.parse(localStorage.getItem(SPEICHER)); } catch (e) { P = null; }
+if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
+function sichern() { try { localStorage.setItem(SPEICHER, JSON.stringify(P)); } catch (e) { meldung('Speichern im Gerät nicht möglich'); } }
+
+// Hilfen im Baum
+const vById = vid => P.verteiler.find(v => v.id === vid);
+function alleKnoten(v, f, liste = v.knoten, eltern = null, tiefe = 0) {
+  liste.forEach((k, i) => { f(k, eltern, liste, i, tiefe); if (k.typ === 'gruppe') alleKnoten(v, f, k.kinder, k, tiefe + 1); });
+}
+function knoten(v, kid) { let r = null; alleKnoten(v, (k, e, l, i) => { if (k.id === kid) r = { k, eltern: e, liste: l, i }; }); return r; }
+// welcher Abgang speist diesen Verteiler?
+function speisenderAbgang(vid) {
+  for (const v of P.verteiler) { let r = null; alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) return r; }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Berechnung: Kennzeichen, Klemmen, Phasen (automatisch, überschreibbar)
+function istDrei(k, v) {
+  if (v.leiter === '1NPE') return false;
+  const g = k.geraet.zeichen;
+  if (g && GERAETE[g].pole === 3) return true;
+  if (k.ziel && k.ziel.anschluss === 'steckdose5') return true;
+  if (k.speist) { const u = vById(k.speist); if (u && u.leiter === '3NPE') return true; }
+  return false;
+}
+function berechne(v) {
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
+  const e = { geraete: {}, abgaenge: {}, kopf: {} };
+  // Einspeisung von oben nach unten
+  if (v.vorsicherung.zeichen) e.kopf.vorsicherung = bmk('F', v.vorsicherung.bmk);
+  if (v.zaehler.zeichen) e.kopf.zaehler = bmk('P', v.zaehler.bmk);
+  if (v.hauptschalter.zeichen) e.kopf.hauptschalter = bmk('Q', v.hauptschalter.bmk);
+  if (v.spd.zeichen) e.kopf.spd = bmk('F', v.spd.bmk);
+  // Phasenlast: zählt einphasige Abgänge je Außenleiter
+  const last = { L1: 0, L2: 0, L3: 0 };
+  let klemme = 0;
+  // Gruppe mit 1-poligem Gerät (FI 2-polig) im Drehstromverteiler: alle ihre
+  // Abgänge hängen an deren einem Außenleiter
+  const einLeiterGruppe = g => g && g.typ === 'gruppe' && v.leiter === '3NPE' && GERAETE[g.geraet.zeichen] && GERAETE[g.geraet.zeichen].pole === 1;
+  e.gruppenPhase = {};
+  alleKnoten(v, (k, eltern) => {
+    if (k.typ === 'gruppe') { e.geraete[k.id] = bmk('F', k.geraet.bmk); return; }
+    const a = {};
+    if (k.geraet.zeichen) a.f = bmk('F', k.geraet.bmk);
+    a.drei = istDrei(k, v);
+    if (a.drei) a.phase = { t: 'L1–L3', auto: false };
+    else if (v.leiter === '1NPE') a.phase = { t: 'L', auto: false };
+    else if (einLeiterGruppe(eltern)) a.phase = { t: null, auto: false, gruppe: eltern.id };
+    else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
+    else a.phase = { t: null, auto: true };
+    a.leiter = a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
+    // Schaltgerät hinter dem Schutzorgan: geschaltet werden die Außenleiter, N nur auf Wunsch
+    const sg = k.schalt && k.schalt.typ ? k.schalt : null;
+    if (sg) a.schalt = { typ: sg.typ, bmk: bmk(sg.typ === 'zeitrelais' ? 'K' : 'Q', sg.bmk),
+      pole: (a.drei ? ['L1', 'L2', 'L3'] : ['L']).concat(sg.nMit ? ['N'] : []), hs: sg.hs || 0, ho: sg.ho || 0, zr: sg.zr };
+    // Widersprüche nur melden, nicht verhindern
+    const gp = k.geraet.zeichen ? GERAETE[k.geraet.zeichen].pole : null;
+    if (a.drei && gp === 1) a.warn = 'Gerät ist 1-polig, der Abgang aber dreiphasig (Anschluss oder Unterverteiler 3/N/PE).';
+    if (v.leiter === '1NPE' && gp === 3) a.warn = 'Gerät ist 3-polig, der Verteiler aber 1/N/PE.';
+    if (a.drei && einLeiterGruppe(eltern)) a.warn = 'Dreiphasiger Abgang hinter einem 2-poligen FI.';
+    // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
+    a.mitKlemmen = k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste');
+    if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + a.leiter.length, bmk: '-X1' }; klemme += a.leiter.length; }
+    else a.klemmen = null;
+    a.w = bmk('W', k.leitung.bmk);
+    // Kennzeichen des Leitungsendes: Steckdose -XD, Anschlussdose -X (ab -X2), Leuchte -E
+    if (!k.speist) {
+      if (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') a.xd = bmk('XD', k.ziel.bmk);
+      else if (k.ziel.anschluss === 'dose') a.xd = bmk('X', k.ziel.bmk);
+      else if (k.ziel.anschluss === 'leuchte') a.xd = bmk('E', k.ziel.bmk);
+    }
+    e.abgaenge[k.id] = a;
+  });
+  // automatische Phasen: jeweils der bisher am wenigsten belegte Außenleiter
+  const wenigste = () => ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1');
+  alleKnoten(v, k => {
+    if (k.typ === 'gruppe') {
+      if (!einLeiterGruppe(k)) return;
+      const n = k.kinder.filter(c => c.typ === 'abgang' && !e.abgaenge[c.id].drei).length;
+      const ph = (k.phase && k.phase !== 'auto') ? k.phase : wenigste();
+      e.gruppenPhase[k.id] = { t: ph, auto: !(k.phase && k.phase !== 'auto') };
+      last[ph] += n;
+      return;
+    }
+    const a = e.abgaenge[k.id];
+    if (a.phase.gruppe) { a.phase.t = e.gruppenPhase[a.phase.gruppe].t; a.phase.auto = e.gruppenPhase[a.phase.gruppe].auto; return; }
+    if (a.phase.auto) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1'); last[p]++; a.phase.t = p; }
+  });
+  e.last = last;
+  return e;
+}
+function bemessung(g) {
+  if (!g || !g.zeichen) return '';
+  const d = GERAETE[g.zeichen], t = [];
+  if (d.sicherung) t.push(`${g.art || 'gG'} ${g.nenn || '?'} A`);
+  else if (d.kennlinie) t.push(`${g.kennlinie || 'B'} ${g.nenn || '?'} A`);
+  else if (g.nenn) t.push(`${g.nenn} A`);
+  if (d.fi) t.push(`${g.idn || '30'} mA` + (g.fityp ? ` Typ ${g.fityp}` : ''));
+  return t.join(' ');
+}
+const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
+const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
+function leitungText(k, a) {
+  const adern = a.drei ? 5 : 3;
+  return `${k.leitung.typ || 'NYM-J'} ${adern}×${k.leitung.quer || '?'}`;
+}
+
+// ---------------------------------------------------------------------------
+// Oberfläche: Bildschirme als Stapel
+let stapel = [{ s: 'start' }];
+let sortieren = false;
+const app = document.getElementById('app');
+function geh(b) { stapel.push(b); sortieren = false; zeichne(); window.scrollTo(0, 0); }
+function zurueck() { stapel.pop(); sortieren = false; zeichne(); }
+function h(tag, attr = {}, ...kinder) {
+  const e = document.createElement(tag);
+  for (const k in attr) {
+    if (k === 'on') for (const ev in attr.on) e.addEventListener(ev, attr.on[ev]);
+    else if (k === 'class') e.className = attr[k];
+    else if (attr[k] !== null && attr[k] !== undefined && attr[k] !== false) e.setAttribute(k, attr[k] === true ? '' : attr[k]);
+  }
+  for (const c of kinder.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
+  return e;
+}
+const PFEIL = '›';
+function kopf(titel, rechts = null) {
+  const links = stapel.length > 1
+    ? h('button', { class: 'zurueck', 'aria-label': 'Zurück', on: { click: zurueck } }, svgZurueck(), 'Zurück') : h('span');
+  return h('div', { class: 'kopf' }, h('div', { class: 'seite' }, links), h('h1', {}, titel), h('div', { class: 'seite r' }, rechts || ''));
+}
+function svgZurueck() {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24');
+  s.innerHTML = '<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  return s;
+}
+function zeile(ob, wert, klick, opt = {}) {
+  return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), on: { click: klick } },
+    opt.bmk ? h('span', { class: 'bmk' + (opt.bmk.hand ? ' hand' : '') }, opt.bmk.t) : null,
+    h('span', { class: 't' }, h('span', { class: 'ob' + (opt.rot ? ' gefahr' : '') }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null),
+    wert !== null && wert !== undefined ? h('span', { class: 'w' }, wert) : null,
+    opt.ohnePfeil ? null : h('span', { class: 'pfeil' }, PFEIL));
+}
+
+// ---- Fenster: genau ein Feld, sofort gespeichert --------------------------
+function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null) {
+  const schl = () => { s.remove(); if (beimSchliessen) beimSchliessen(); zeichne(); window.scrollTo(0, merk); };
+  const merk = window.scrollY;
+  const fuss = h('div', { class: 'fuss' }, ...(knoepfe ? knoepfe(schl) : [h('button', { class: 'knopf', on: { click: schl } }, 'Fertig')]));
+  const f = h('div', { class: 'fenster', role: 'dialog' }, h('h3', {}, titel), h('div', { class: 'inhalt' }, inhalt), fuss);
+  const s = h('div', { class: 'schleier', on: { click: ev => { if (ev.target === s || ev.target.classList.contains('mitte')) schl(); } } }, h('div', { class: 'mitte' }, f));
+  document.body.appendChild(s);
+  return schl;
+}
+function textFeld(titel, wert, setzen, opt = {}) {
+  const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences' });
+  i.addEventListener('input', () => { setzen(i.value.trim()); sichern(); });
+  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i];
+  const schl = fenster(titel, kids);
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') schl(); });
+  setTimeout(() => i.focus(), 50);
+}
+function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
+  let schl;
+  const liste = h('div', { class: 'wahl', role: 'radiogroup' }, optionen.map(o => {
+    const [w, t, klein] = Array.isArray(o) ? o : [o, o];
+    return h('button', { role: 'radio', 'aria-checked': String(w) === String(wert ?? ''), on: { click: () => { setzen(w); sichern(); schl(); } } },
+      h('span', {}, t), klein ? h('small', {}, klein) : null);
+  }));
+  schl = fenster(titel, [opt.text ? h('p', { class: 'text' }, opt.text) : null, liste], s => [h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen')]);
+}
+function frage(titel, text, ja, jaText = 'Löschen') {
+  fenster(titel, h('p', { class: 'text' }, text), s => [
+    h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen'),
+    h('button', { class: 'knopf rot', on: { click: () => { ja(); sichern(); s(); } } }, jaText)]);
+}
+// Kennzeichen: automatisch oder von Hand
+function bmkFeld(titel, objekt, auto) {
+  textFeld(titel, objekt.bmk || '', w => { objekt.bmk = w || undefined; },
+    { platz: auto, text: `Leer lassen für die automatische Vergabe (zurzeit ${auto}).` });
+}
+
+// ---- Bildschirme -----------------------------------------------------------
+function zeichne() {
+  const b = stapel[stapel.length - 1];
+  app.innerHTML = '';
+  ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer }[b.s])(b);
+}
+
+function bStart() {
+  app.append(kopf('Stromlaufplan'));
+  const m = h('main');
+  m.append(h('h2', {}, 'Projekt'),
+    h('div', { class: 'liste' }, zeile(P.projekt.projekt || 'Projektdaten', null, () => geh({ s: 'projekt' }),
+      { un: [P.projekt.firma, P.projekt.nummer].filter(Boolean).join(' · ') || 'Schriftfeld: Firma, Projekt, Ersteller …' })));
+  m.append(h('h2', {}, 'Verteiler'));
+  const l = h('div', { class: 'liste' });
+  P.verteiler.forEach((v, i) => {
+    const sp = speisenderAbgang(v.id);
+    const herkunft = sp ? `aus ${sp.v.name}` : `${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+    let n = 0; alleKnoten(v, k => { if (k.typ === 'abgang') n++; });
+    const z = zeile(v.name, null, () => geh({ s: 'verteiler', vid: v.id }), { un: `${herkunft} · ${n} Abgänge` });
+    if (sortieren) { z.querySelector('.pfeil').replaceWith(sortKnoepfe(P.verteiler, i)); }
+    l.append(z);
+  });
+  if (P.verteiler.length) m.append(l);
+  m.append(h('button', { class: 'neu', on: { click: neuerVerteilerFenster } }, '+ Verteiler hinzufügen'));
+  if (P.verteiler.length > 1)
+    m.append(h('button', { class: 'neu', on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Sortieren beenden' : 'Reihenfolge ändern'));
+  if (P.verteiler.length) m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
+    zeile('Stromlaufplan ansehen und drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${P.projekt.format || 'A4'} quer` }),
+    zeile('Türzettel aller Verteiler', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' })));
+  m.append(h('h2', {}, 'Stand'),
+    h('div', { class: 'liste' },
+      zeile('Projekt als Datei sichern', null, exportieren, { un: 'JSON-Datei zum Weitergeben oder für ein anderes Gerät' }),
+      zeile('Projekt aus Datei öffnen', null, () => document.getElementById('datei').click(), { un: 'ersetzt das Projekt auf diesem Gerät' }),
+      zeile('Neues leeres Projekt', null, () => frage('Neues Projekt', 'Das Projekt auf diesem Gerät wird gelöscht. Vorher als Datei sichern?', () => { P = neuesProjekt(); }, 'Neu beginnen'), { rot: true, ohnePfeil: true })));
+  m.append(h('p', { class: 'hinweis' }, `Fassung ${FASSUNG}. Gespeichert wird automatisch auf diesem Gerät.`));
+  // Namensnennung nach CC BY 3.0 für die Schaltzeichen
+  m.append(h('p', { class: 'hinweis lizenz' }, 'Schaltzeichen: ',
+    h('a', { href: 'https://github.com/qelectrotech/qelectrotech-elements', target: '_blank', rel: 'noopener' }, 'Elementsammlung von QElectroTech'),
+    ' (The QElectroTech team und Mitwirkende), lizenziert unter ',
+    h('a', { href: 'https://creativecommons.org/licenses/by/3.0/deed.de', target: '_blank', rel: 'noopener' }, 'Creative Commons Namensnennung 3.0'),
+    '. Zeichen des EN-Baukastens sind aus diesen Elementen zusammengesetzt; die Bausteine stehen in der Zeichenbibliothek.'));
+  app.append(m);
+}
+function neuerVerteilerFenster() {
+  let name = '';
+  const i = h('input', { type: 'text', placeholder: P.verteiler.length ? 'z. B. UV Werkstatt' : 'z. B. HV', autocapitalize: 'sentences' });
+  i.addEventListener('input', () => name = i.value.trim());
+  const anlegen = s => { if (!name) { i.focus(); return; } const v = neuerVerteiler(name); P.verteiler.push(v); sichern(); s(); geh({ s: 'verteiler', vid: v.id }); };
+  fenster('Neuer Verteiler', [h('p', { class: 'text' }, 'Name des Verteilers'), i], s => [
+    h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen'),
+    h('button', { class: 'knopf', on: { click: () => anlegen(s) } }, 'Anlegen')]);
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') document.querySelector('.fenster .knopf:not(.zweit)').click(); });
+  setTimeout(() => i.focus(), 50);
+}
+function sortKnoepfe(liste, i, nachZeichnen = zeichne) {
+  const tausch = d => ev => { ev.stopPropagation(); const j = i + d; [liste[i], liste[j]] = [liste[j], liste[i]]; sichern(); nachZeichnen(); };
+  return h('span', { class: 'sort' },
+    h('button', { 'aria-label': 'nach oben', disabled: i === 0, on: { click: tausch(-1) } }, '↑'),
+    h('button', { 'aria-label': 'nach unten', disabled: i === liste.length - 1, on: { click: tausch(1) } }, '↓'));
+}
+
+function bProjekt() {
+  app.append(kopf('Projektdaten'));
+  const p = P.projekt, m = h('main');
+  const f = (titel, feld, opt = {}) => zeile(titel, (feld === 'datum' ? datumDE(p[feld]) : p[feld]) || '—', () => textFeld(titel, p[feld], w => p[feld] = w, opt), { ohnePfeil: false });
+  m.append(h('h2', {}, 'Schriftfeld'), h('div', { class: 'liste' },
+    f('Firma', 'firma'), f('Anschrift', 'anschrift'), f('Projekt', 'projekt'), f('Dokumenttitel', 'titel'),
+    f('Erstellt durch', 'ersteller'), f('Zeichnungsnummer', 'nummer'), f('Revision', 'rev'), f('Ausgabedatum', 'datum', { typ: 'date' })));
+  m.append(h('p', { class: 'hinweis' }, 'Der Verteiler im Schriftfeld kommt aus dem jeweiligen Verteiler, die Blattnummern setzt der Generator.'));
+  m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
+    zeile('Deckblatt und Inhaltsverzeichnis', p.deckblatt === false ? 'ohne' : 'mit',
+      () => wahlFeld('Deckblatt und Inhaltsverzeichnis', [['mit', 'mit', 'Blatt 1 Deckblatt, Blatt 2 Inhaltsverzeichnis'], ['ohne', 'ohne', 'der Plan beginnt mit dem ersten Verteiler']],
+        p.deckblatt === false ? 'ohne' : 'mit', w => p.deckblatt = w !== 'ohne')),
+    zeile('Übersichtsschaltplan', p.uebersicht === false ? 'ohne' : 'mit',
+      () => wahlFeld('Übersichtsschaltplan', [['mit', 'mit', 'einpolig, je Verteiler vor dem Stromlaufplan'], ['ohne', 'ohne', 'nur der allpolige Stromlaufplan']],
+        p.uebersicht === false ? 'ohne' : 'mit', w => p.uebersicht = w !== 'ohne')),
+    zeile('Klemmenplan', p.klemmenplan === false ? 'ohne' : 'mit',
+      () => wahlFeld('Klemmenplan', [['mit', 'mit', 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan'], ['ohne', 'ohne', 'kein Klemmenplan']],
+        p.klemmenplan === false ? 'ohne' : 'mit', w => p.klemmenplan = w !== 'ohne'))));
+  app.append(m);
+}
+function datumDE(iso) { const x = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return x ? `${x[3]}.${x[2]}.${x[1]}` : (iso || ''); }
+
+function bVerteiler(b) {
+  const v = vById(b.vid); if (!v) { zurueck(); return; }
+  const e = berechne(v);
+  app.append(kopf(v.name, h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
+  const m = h('main');
+  // Einspeisung
+  const sp = speisenderAbgang(v.id);
+  const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+  m.append(h('h2', {}, 'Einspeisung'), h('div', { class: 'liste' },
+    zeile('Name', v.name, () => textFeld('Name des Verteilers', v.name, w => { if (w) v.name = w; }), {}),
+    zeile('Einspeisung', eins, () => geh({ s: 'einspeisung', vid: v.id })),
+    kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung),
+    kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
+    kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter),
+    kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd),
+    zeile('Abgangsklemmen', KLEMMEN_V[v.klemmen || 'ohne'], () => wahlFeld('Abgangsklemmen', [
+      ['ohne', 'ohne Klemmleiste', 'Außenleiter direkt vom Schutzorgan, N und PE von den Schienen'],
+      ['leiste', 'Klemmleiste', 'alle Abgänge über Reihenklemmen']], v.klemmen || 'ohne', w => v.klemmen = w,
+      { text: 'Gilt für alle Abgänge; einzelne Abgänge können abweichen.' })),
+    Object.values(e.abgaenge).some(a => a.klemmen) ? zeile('N-Klemmen', v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme', () => wahlFeld('N-Klemmen', [
+      ['trenn', 'N-Trennklemme', 'N lässt sich je Stromkreis auftrennen (z. B. für die Isolationsmessung)'],
+      ['normal', 'N-Klemme', 'normale Reihenklemme für N']], v.nKlemme === 'normal' ? 'normal' : 'trenn', w => v.nKlemme = w)) : null));
+  // Abgänge
+  m.append(h('h2', {}, 'Abgänge'));
+  const l = h('div', { class: 'liste' });
+  baumZeilen(v, e, v.knoten, l, 0);
+  l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = neuerAbgang(); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
+           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'));
+  m.append(l);
+  if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Einphasige Abgänge je Außenleiter: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));
+  m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
+    zeile('Stromlaufplan', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts, dieser Verteiler zuerst sichtbar' }),
+    zeile('Türzettel', null, () => geh({ s: 'tuer', vid: v.id }), { un: 'Sicherungsübersicht für die Verteilertür' }),
+    zeile('Übersicht als Liste', null, () => geh({ s: 'liste', vid: v.id }), { un: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' })));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen', null, () => frage('Verteiler löschen', `„${v.name}“ mit allen Abgängen löschen?`, () => {
+    P.verteiler = P.verteiler.filter(x => x !== v);
+    for (const w of P.verteiler) alleKnoten(w, k => { if (k.speist === v.id) k.speist = null; });
+    stapel.pop();
+  }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
+const KOPF_TITEL = { vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter', spd: 'Überspannungsschutz' };
+function kopfZeile(v, feld, titel, bmk) {
+  const g = v[feld];
+  const wert = g.zeichen ? [gName(g.zeichen), bemessung(g)].filter(Boolean).join(', ') : 'keine';
+  return zeile(titel, null, () => geh({ s: 'kopf', vid: v.id, feld }), { bmk: g.zeichen ? bmk : null, un: wert });
+}
+function bKopf(b) {
+  const v = vById(b.vid), g = v[b.feld], titel = KOPF_TITEL[b.feld], e = berechne(v), bmk = e.kopf[b.feld];
+  app.append(kopf(titel));
+  const m = h('main');
+  m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
+    zeile('Gerät', g.zeichen ? gName(g.zeichen) : 'keines', () => wahlFeld(titel, WAHL[b.feld].map(k => [k, k ? gName(k) : 'keines']), g.zeichen, w => {
+      g.zeichen = w;
+      if (w && GERAETE[w].sicherung && !g.art) g.art = 'gG';
+      if (w && GERAETE[w].kennlinie && !g.kennlinie) g.kennlinie = 'C';
+      if (w && !GERAETE[w].ohneNenn && !g.nenn) g.nenn = '63';
+    })),
+    ...geraetZeilen(g),
+    bmk ? zeile('Kennzeichen', bmk.t, () => bmkFeld('Kennzeichen', g, bmk.hand ? '' : bmk.t)) : null));
+  if (b.feld === 'zaehler' && g.zeichen === 'zaehler3' && v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Der Verteiler ist als 1/N/PE angelegt.'));
+  app.append(m);
+}
+function baumZeilen(v, e, liste, ziel, tiefe) {
+  liste.forEach((k, i) => {
+    let z;
+    if (k.typ === 'gruppe') {
+      z = zeile(gName(k.geraet.zeichen), bemessung(k.geraet), () => geh({ s: 'gruppe', vid: v.id, kid: k.id }),
+        { bmk: e.geraete[k.id], einr: tiefe > 0, un: `Gruppe · ${k.kinder.length} Abgänge` });
+    } else {
+      const a = e.abgaenge[k.id];
+      const zielText = k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(', ') || 'ohne Bezeichnung';
+      z = zeile(zielText, a.phase.t, () => geh({ s: 'abgang', vid: v.id, kid: k.id }),
+        { bmk: a.f || { t: '—', hand: false }, einr: tiefe > 0, rot: !!a.warn, un: (a.warn ? '⚠ ' : '') + [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan', leitungText(k, a)].join(' · ') });
+    }
+    if (sortieren) z.querySelector('.pfeil').replaceWith(sortKnoepfe(liste, i));
+    ziel.append(z);
+    if (k.typ === 'gruppe') {
+      baumZeilen(v, e, k.kinder, ziel, tiefe + 1);
+    }
+  });
+}
+
+function bEinspeisung(b) {
+  const v = vById(b.vid);
+  app.append(kopf('Einspeisung'));
+  const m = h('main');
+  const sp = speisenderAbgang(v.id);
+  // mögliche speisende Abgänge aus anderen Verteilern
+  const quellen = [];
+  for (const w of P.verteiler) if (w !== v) {
+    const e = berechne(w);
+    alleKnoten(w, k => { if (k.typ === 'abgang' && (!k.speist || k.speist === v.id))
+      quellen.push([w.id + ':' + k.id, `${w.name} ${(e.abgaenge[k.id].f || {}).t || ''}`.trim(), [k.ziel.bez, bemessung(k.geraet)].filter(Boolean).join(', ')]); });
+  }
+  m.append(h('h2', {}, 'Herkunft'), h('div', { class: 'liste' },
+    zeile('Gespeist aus', sp ? `${sp.v.name}` : 'Netz / Hausanschluss', () => wahlFeld('Gespeist aus', [['', 'Netz / Hausanschluss']].concat(quellen),
+      sp ? sp.v.id + ':' + sp.k.id : '', w => {
+        for (const x of P.verteiler) alleKnoten(x, k => { if (k.speist === v.id) k.speist = null; });
+        if (w) { const [vid, kid] = w.split(':'); const q = knoten(vById(vid), kid); q.k.speist = v.id; q.k.ziel.anschluss = 'fest'; v.netzform = vById(vid).netzform === 'TN-C' ? 'TN-C' : 'TN-S'; }
+      }, { text: 'Ein Unterverteiler hängt an einem Abgang eines anderen Verteilers. Der Abgang führt dann zum Unterverteiler statt zu einem Verbraucher.' }))));
+  m.append(h('h2', {}, 'Netz'), h('div', { class: 'liste' },
+    zeile('Netzform', v.netzform, () => wahlFeld('Netzform', [['TN-S', 'TN-S', 'N und PE getrennt'], ['TN-C', 'TN-C', 'PEN'], ['TN-C-S', 'TN-C-S', 'PEN wird im Verteiler aufgeteilt']], v.netzform, w => v.netzform = w)),
+    zeile('Leiter', v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE', () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => v.leiter = w))));
+  if (v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Bei 1/N/PE werden alle Abgänge einphasig gezählt; 3-polige Geräte passen hier nicht.'));
+  app.append(m);
+}
+
+function bGruppe(b) {
+  const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
+  const g = r.k, e = berechne(v);
+  app.append(kopf('Gruppe', h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
+  const m = h('main');
+  const ge = g.geraet;
+  m.append(h('h2', {}, 'Schutzorgan der Gruppe'), h('div', { class: 'liste' },
+    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan der Gruppe', WAHL.gruppe.map(k => [k, gName(k)]), ge.zeichen, w => {
+      ge.zeichen = w; if (GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'C'; if (GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; })),
+    ...geraetZeilen(ge),
+    e.gruppenPhase[g.id] ? zeile('Außenleiter', g.phase && g.phase !== 'auto' ? g.phase : `${e.gruppenPhase[g.id].t} (automatisch)`,
+      () => wahlFeld('Außenleiter der Gruppe', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${e.gruppenPhase[g.id].t}` : '']), g.phase || 'auto', w => g.phase = w),
+      { un: 'gilt für alle Abgänge der Gruppe' }) : null,
+    zeile('Kennzeichen', e.geraete[g.id].t, () => bmkFeld('Kennzeichen', ge, e.geraete[g.id].hand ? '' : e.geraete[g.id].t), { bmk: null })));
+  m.append(h('h2', {}, 'Abgänge der Gruppe'));
+  const l = h('div', { class: 'liste' });
+  baumZeilen(v, e, g.kinder, l, 0);
+  l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = neuerAbgang(); g.kinder.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang in dieser Gruppe'));
+  m.append(l);
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' },
+    zeile('Gruppe auflösen', null, () => frage('Gruppe auflösen', 'Das Schutzorgan der Gruppe entfällt; die Abgänge bleiben und rücken an seine Stelle.', () => { r.liste.splice(r.i, 1, ...g.kinder); stapel.pop(); }, 'Auflösen'), { ohnePfeil: true }),
+    zeile('Gruppe löschen', null, () => frage('Gruppe löschen', 'Gruppe mit allen ihren Abgängen löschen?', () => { r.liste.splice(r.i, 1); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
+function geraetZeilen(ge) {
+  if (!ge.zeichen) return [];
+  const d = GERAETE[ge.zeichen], z = [];
+  if (d.sicherung) z.push(zeile('Betriebsklasse', ge.art || 'gG', () => wahlFeld('Betriebsklasse', SICH_ART, ge.art || 'gG', w => ge.art = w)));
+  if (d.kennlinie) z.push(zeile('Kennlinie', ge.kennlinie || 'B', () => wahlFeld('Kennlinie', KENNLINIEN, ge.kennlinie || 'B', w => ge.kennlinie = w)));
+  if (!d.ohneNenn) z.push(zeile('Nennstrom', ge.nenn ? ge.nenn + ' A' : '—', () => wahlFeld('Nennstrom', NENNSTROM.map(x => [x, x + ' A']), ge.nenn, w => ge.nenn = w)));
+  if (d.fi) {
+    z.push(zeile('Nennfehlerstrom', (ge.idn || '30') + ' mA', () => wahlFeld('Nennfehlerstrom', NENNFEHLER.map(x => [x, x + ' mA']), ge.idn || '30', w => ge.idn = w)));
+    z.push(zeile('Typ', ge.fityp || 'A', () => wahlFeld('FI-Typ', FI_TYP, ge.fityp || 'A', w => ge.fityp = w)));
+  }
+  return z;
+}
+
+function bAbgang(b) {
+  const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
+  const k = r.k, e = berechne(v), a = e.abgaenge[k.id], ge = k.geraet;
+  app.append(kopf(a.f ? `Abgang ${a.f.t}` : 'Abgang'));
+  const m = h('main');
+  const inGruppe = !!r.eltern;
+  m.append(h('h2', {}, 'Ziel'), h('div', { class: 'liste' },
+    k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
+             : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
+    zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
+    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => k.ziel.anschluss = w)),
+    a.xd ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
+      () => bmkFeld('Kennzeichen', k.ziel, a.xd.hand ? '' : a.xd.t)) : null));
+  if (k.ziel.anschluss === 'leuchte' && a.drei) m.append(h('p', { class: 'warnung' }, 'Eine Leuchte wird einphasig angeschlossen.'));
+  m.append(h('h2', {}, 'Schutzorgan'), h('div', { class: 'liste' },
+    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : '']), ge.zeichen, w => {
+      ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; if (w && !ge.nenn) ge.nenn = '16'; })),
+    ...geraetZeilen(ge),
+    a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null));
+  if (a.warn) m.append(h('p', { class: 'warnung' }, '⚠ ' + a.warn));
+  m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(k, a)));
+  if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi)
+    m.append(h('p', { class: 'warnung' }, 'Hinweis: FI/LS hinter einem FI – zwei Fehlerstromschutzeinrichtungen hintereinander.'));
+  const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { un: 'wird an der Gruppe eingestellt' })
+    : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+    () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w), { ohnePfeil: v.leiter === '1NPE' });
+  m.append(h('h2', {}, 'Leitung'), h('div', { class: 'liste' },
+    phasenwahl,
+    zeile('Leiter', a.leiter.join(' '), () => {}, { ohnePfeil: true, un: a.drei ? 'dreiphasig, weil Gerät oder Anschluss 3-polig ist' : null }),
+    zeile('Leitungstyp', k.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYY-J', 'H07RN-F', 'H05VV-F', 'NHXHX-J', 'N2XH-J'], k.leitung.typ, w => k.leitung.typ = w)),
+    zeile('Querschnitt', (k.leitung.quer || '—') + ' mm²', () => wahlFeld('Querschnitt', ['1,5', '2,5', '4', '6', '10', '16', '25', '35', '50', '70', '95'].map(x => [x, x + ' mm²']), k.leitung.quer, w => k.leitung.quer = w)),
+    zeile('Kennzeichen Leitung', `${a.w.t}  ${leitungText(k, a)}`, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
+    zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : 'wie Verteiler') + (a.klemmen ? ` · ${klemmenText(a)}` : ''),
+      () => wahlFeld('Klemmen', [
+        ['verteiler', 'wie Verteiler', `zurzeit ${KLEMMEN_V[v.klemmen || 'ohne']}`],
+        ['ja', 'mit Klemmen', 'über die Klemmleiste -X1'],
+        ['nein', 'ohne Klemmen', 'direkt vom Schutzorgan bzw. den Schienen']], k.klemmen || 'verteiler', w => k.klemmen = w))));
+  // Unterverteiler anschließen
+  const freie = P.verteiler.filter(w => w !== v && (!speisenderAbgang(w.id) || k.speist === w.id));
+  m.append(h('h2', {}, 'Unterverteiler'), h('div', { class: 'liste' },
+    zeile('Speist Unterverteiler', k.speist ? (vById(k.speist) || {}).name : 'nein', () => wahlFeld('Speist Unterverteiler',
+      [['', 'nein']].concat(freie.map(w => [w.id, w.name])), k.speist || '', w => { k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
+      { un: 'Der Unterverteiler zeigt diesen Abgang dann als seine Einspeisung.' })));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' },
+    zeile('Abgang löschen', null, () => frage('Abgang löschen', 'Diesen Abgang löschen?', () => { r.liste.splice(r.i, 1); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
+
+function schaltZeilen(k, a) {
+  const sg = k.schalt && k.schalt.typ ? k.schalt : null, z = [];
+  z.push(zeile('Schaltgerät', sg ? SCHALT[sg.typ] : 'ohne', () => wahlFeld('Schaltgerät', [
+    ['', 'ohne', 'der Abgang ist dauernd eingeschaltet'],
+    ['schuetz', 'Schütz', 'Hauptkontakte im Abgang, Spule im Steuerstromkreis'],
+    ['stromstoss', 'Stromstoßschalter', 'z. B. Licht über mehrere Taster'],
+    ['zeitrelais', 'Zeitrelais', 'verzögerter Kontakt im Abgang, z. B. Treppenlichtzeitschalter']],
+    sg ? sg.typ : '', w => { if (!w) { if (k.schalt) k.schalt.typ = ''; } else if (!k.schalt || !k.schalt.typ) k.schalt = neuesSchalt(w); else k.schalt.typ = w; })));
+  if (!sg) return z;
+  z.push(zeile('Pole', a.schalt.pole.join(' + '), () => wahlFeld('N mitschalten', [
+    ['nein', 'nur Außenleiter', a.drei ? 'L1, L2, L3' : 'L'], ['ja', 'N mitschalten', a.drei ? 'L1, L2, L3, N' : 'L, N']],
+    sg.nMit ? 'ja' : 'nein', w => sg.nMit = w === 'ja')));
+  if (sg.typ === 'zeitrelais') {
+    z.push(zeile('Funktion', ZR_FKT[sg.zr.fkt], () => wahlFeld('Funktion', Object.entries(ZR_FKT), sg.zr.fkt, w => sg.zr.fkt = w)));
+    z.push(zeile('Zeit', sg.zr.zeit || '—', () => textFeld('Zeit', sg.zr.zeit, w => sg.zr.zeit = w, { platz: 'z. B. 3 min, 30 s' })));
+  }
+  const anz = [0, 1, 2, 3, 4].map(n => [String(n), String(n)]);
+  z.push(zeile('Hilfsschließer', String(sg.hs || 0), () => wahlFeld('Hilfsschließer (13/14 …)', anz, String(sg.hs || 0), w => sg.hs = +w,
+    { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
+  z.push(zeile('Hilfsöffner', String(sg.ho || 0), () => wahlFeld('Hilfsöffner (21/22 …)', anz, String(sg.ho || 0), w => sg.ho = +w,
+    { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
+  z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
+  return z;
+}
+
+function bListe(b) {
+  const v = vById(b.vid), e = berechne(v);
+  app.append(kopf(`${v.name} · Liste`));
+  const m = h('main');
+  const sp = speisenderAbgang(v.id);
+  const kopfZ = [];
+  if (sp) kopfZ.push(['', `Einspeisung aus ${sp.v.name}`, '', '', '', '']);
+  else kopfZ.push(['', `Einspeisung ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`, '', '', '', '']);
+  for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['zaehler', 'Zähler'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
+    if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel}: ${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
+  const tb = h('tbody');
+  kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)))));
+  alleKnoten(v, (k, eltern, l, i, tiefe) => {
+    const ein = ' '.repeat(tiefe);
+    if (k.typ === 'gruppe') {
+      tb.append(h('tr', { class: 'gr' }, h('td', { class: 'm' }, e.geraete[k.id].t), h('td', {}, ein + `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`), h('td'), h('td'), h('td'), h('td', {}, 'Gruppe')));
+      return;
+    }
+    const a = e.abgaenge[k.id];
+    const zielText = k.speist ? `→ ${(vById(k.speist) || {}).name}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(', ') + (a.xd ? ` (${a.xd.t})` : '');
+    tb.append(h('tr', {},
+      h('td', { class: 'm' }, a.f ? a.f.t : '—'),
+      h('td', {}, ein + (k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan')),
+      h('td', {}, h('span', { class: 'ph' + (a.phase.auto ? ' auto' : '') }, a.phase.t)),
+      h('td', { class: 'm' }, klemmenText(a)),
+      h('td', {}, `${a.w.t} ${leitungText(k, a)}`),
+      h('td', {}, zielText + (a.warn ? ' ⚠' : ''))));
+  });
+  m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
+    h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Ziel'].map(t => h('th', {}, t)))), tb)));
+  m.append(h('p', { class: 'hinweis' }, 'Blau hinterlegte Außenleiter sind automatisch verteilt. Kennzeichen mit orangem Grund sind von Hand gesetzt.'));
+  app.append(m);
+}
+
+// ---- Plan -------------------------------------------------------------------
+const BIB = JSON.parse(document.getElementById('slp-bibliothek').textContent);
+function bPlan(b) {
+  app.append(kopf('Stromlaufplan', h('button', { class: 'kopfknopf', on: { click: drucken } }, 'Drucken')));
+  const m = h('main');
+  m.append(h('div', { class: 'liste' },
+    zeile('Format', `${P.projekt.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w))));
+  m.append(h('p', { class: 'hinweis' }, 'Beim Drucken auf Skalierung 100 % achten. Über das Teilen- bzw. Druckmenü lässt sich der Plan auch als PDF sichern.'));
+  let res;
+  try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); }
+  catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
+  let ziel = null;
+  res.blaetter.forEach(bl => {
+    const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : '')));
+    k.append(bl.svg); m.append(k);
+    bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
+    if (b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = k;
+  });
+  if (!res.blaetter.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
+  app.append(m);
+  requestAnimationFrame(() => { res.begrenzen(); if (ziel) ziel.scrollIntoView(); });
+}
+function drucken() {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang });
+  res.blaetter.forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); d.append(w); });
+  document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
+  d.style.display = 'block'; res.begrenzen(); d.style.display = '';
+  setTimeout(() => window.print(), 60);
+}
+
+// ---- Türzettel (Sicherungsübersicht) ---------------------------------------
+function tuerzettel(v) {
+  const e = berechne(v), sp = speisenderAbgang(v.id);
+  const zielText = (k, a) => k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : (k.ziel.bez || '');
+  const tb = h('tbody');
+  const zeileT = (kl, kenn, schutz, leiter, kreis, ort, leitung) =>
+    tb.append(h('tr', { class: kl }, h('td', { class: 'k' }, kenn || ''), h('td', {}, schutz || ''), h('td', {}, leiter || ''),
+      h('td', {}, kreis || ''), h('td', {}, ort || ''), h('td', {}, leitung || '')));
+  for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
+    if (v[feld].zeichen) zeileT('tzkopf', e.kopf[feld].t, `${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', titel, '', '');
+  alleKnoten(v, (k, eltern, l, i, tiefe) => {
+    if (k.typ === 'gruppe') {
+      const n = k.kinder.filter(c => c.typ === 'abgang').length;
+      zeileT('gruppe', e.geraete[k.id].t, `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`, e.gruppenPhase[k.id] ? e.gruppenPhase[k.id].t : '',
+        `schützt ${n} Stromkreis${n === 1 ? '' : 'e'}`, '', '');
+      return;
+    }
+    const a = e.abgaenge[k.id];
+    zeileT(tiefe ? 'ein' : '', a.f ? a.f.t : '—', k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
+      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]})` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
+  });
+  const herkunft = sp ? `gespeist aus ${sp.v.name}${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t ? ' ' + berechne(sp.v).abgaenge[sp.k.id].f.t : ''}`
+                      : `Einspeisung ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+  return h('section', { class: 'tz' },
+    h('h1', {}, v.name),
+    h('div', { class: 'tzu' }, [P.projekt.projekt, herkunft].filter(Boolean).join(' · ')),
+    h('table', {}, h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Stromkreis', 'Ort', 'Leitung'].map(t => h('th', {}, t)))), tb),
+    h('div', { class: 'fuss' }, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
+      .filter(Boolean).join(' · ')));
+}
+function bTuer(b) {
+  const liste = b.vid ? [vById(b.vid)] : P.verteiler;
+  app.append(kopf('Türzettel', h('button', { class: 'kopfknopf', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
+  const m = h('main');
+  m.append(h('p', { class: 'hinweis' }, 'Sicherungsübersicht für die Verteilertür, A4 hoch. Beim Drucken auf Skalierung 100 % achten.'));
+  liste.forEach(v => m.append(h('div', { class: 'tzwrap' }, tuerzettel(v))));
+  app.append(m);
+}
+function tuerDrucken(liste) {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  liste.forEach(v => d.append(tuerzettel(v)));
+  document.getElementById('seite').textContent = '@page{size:A4 portrait;margin:14mm 12mm}';
+  setTimeout(() => window.print(), 60);
+}
+
+// ---- Stand hinaus und herein ----------------------------------------------
+function dateiname() {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  const name = (P.projekt.projekt || 'Projekt').replace(/[\\/:*?"<>|]+/g, ' ').trim();
+  return `${String(d.getFullYear()).slice(2)}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${name}.slp.json`;
+}
+async function exportieren() {
+  const text = JSON.stringify(P, null, 1), name = dateiname();
+  const datei = new File([text], name, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try { await navigator.share({ files: [datei], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = h('a', { href: URL.createObjectURL(datei), download: name }); document.body.append(a); a.click(); a.remove();
+}
+document.getElementById('datei').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (d.format !== 'slp-projekt') throw new Error('keine Stromlaufplan-Datei');
+    frage('Projekt öffnen', `„${d.projekt.projekt || f.name}“ ersetzt das Projekt auf diesem Gerät.`, () => { P = d; stapel = [{ s: 'start' }]; }, 'Öffnen');
+  } catch (e) { meldung('Datei nicht lesbar: ' + e.message); }
+});
+
+function meldung(t) { const m = document.getElementById('meldung'); m.textContent = t; m.classList.add('an'); clearTimeout(meldung.t); meldung.t = setTimeout(() => m.classList.remove('an'), 2200); }
+function fehler(t) { const f = document.getElementById('fehlerband'); f.textContent = 'Fehler: ' + t; f.style.display = 'block'; }
+window.addEventListener('error', e => fehler(e.message));
+window.addEventListener('unhandledrejection', e => fehler(e.reason && e.reason.message || String(e.reason)));
+document.addEventListener('gesturestart', e => e.preventDefault());
+zeichne();
+</script>
+</body>
+</html>

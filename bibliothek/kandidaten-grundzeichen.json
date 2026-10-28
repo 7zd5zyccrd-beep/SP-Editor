@@ -1,0 +1,830 @@
+[
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Netz 3/N/PE (TN-S)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/src_3p_pe_n.elmt",
+    "zusatz": "Leiter gehen nach rechts ab"
+   },
+   {
+    "pfad": "10_allpole/110_network_supplies/3f_n_pe_pravy.elmt",
+    "zusatz": "Leiter gehen nach links ab"
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Netz 3/PEN (TN-C)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/src_3p_pen.elmt",
+    "zusatz": "Leiter gehen nach rechts ab"
+   },
+   {
+    "pfad": "10_allpole/110_network_supplies/3_pen_pravy.elmt",
+    "zusatz": "Leiter gehen nach links ab"
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Netz 1/N/PE",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/src_1p_pe_n.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Übergang TN-C auf TN-S",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/src_tnc_tns.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Erde",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/terre.elmt"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_02/en_60617_02_15/en_60617_02_15_01.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Schutzerde",
+  "dateien": [
+   {
+    "bau": "schutzerde",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Masse",
+  "dateien": [
+   {
+    "pfad": "10_allpole/110_network_supplies/ground1.elmt"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_02/en_60617_02_15/en_60617_02_15_04.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Zähler 3-phasig",
+  "hinweis": "Beide Kandidaten liegen nicht im Raster; einer müsste angepasst werden.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/390_sensors_instruments/70_meters_measuring_indicators/compteur_energie_3phase.elmt",
+    "zusatz": "Aufschrift kWh"
+   },
+   {
+    "pfad": "10_allpole/390_sensors_instruments/70_meters_measuring_indicators/wattheuremetre_3phase.elmt",
+    "zusatz": "Aufschrift Wh"
+   },
+   {
+    "bau": "zaehler3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Einspeisung",
+  "rolle": "Zähler 1-phasig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/390_sensors_instruments/70_meters_measuring_indicators/compteur_energie_2.elmt",
+    "zusatz": "Aufschrift kWh"
+   },
+   {
+    "pfad": "10_allpole/390_sensors_instruments/70_meters_measuring_indicators/wattheuremetre_2.elmt",
+    "zusatz": "Aufschrift Wh"
+   },
+   {
+    "bau": "zaehler1",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Trennschalter 3-polig",
+  "hinweis": "Trennfunktion (Querstrich), nicht unter Last schaltbar.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/sectionneur4.elmt"
+   },
+   {
+    "bau": "trenn3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Lasttrennschalter 3-polig",
+  "hinweis": "Lasttrennfunktion (Kreis auf dem Querstrich). Typischer Hauptschalter.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/inter_sectionneur_tri.elmt",
+    "zusatz": "mit Handantrieb gezeichnet"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/sectionneur4-2.elmt",
+    "zusatz": "ohne Antrieb"
+   },
+   {
+    "bau": "lasttrenn3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Lasttrennschalter 3-polig, abschließbar",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/itcv.elmt",
+    "zusatz": "mit Schloss und Handantrieb"
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Lasttrennschalter 4-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/inter-sectionneur_tetra.elmt",
+    "zusatz": "mit Handantrieb gezeichnet"
+   },
+   {
+    "bau": "lasttrenn4",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Leistungsschalter 3-polig",
+  "hinweis": "Leistungsschalterfunktion (Kreuz), ohne thermischen und magnetischen Auslöser – kein LS.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjoncteur4.elmt"
+   },
+   {
+    "bau": "leistung3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Schütz – Hauptkontakte 1-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/02_power_contacts/com_puiss1.elmt"
+   },
+   {
+    "bau": "schuetz1",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Schütz – Hauptkontakte 2-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/02_power_contacts/contact_puissance_2ph.elmt"
+   },
+   {
+    "bau": "schuetz2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Schütz – Hauptkontakte 3-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/02_power_contacts/com_puiss4.elmt"
+   },
+   {
+    "bau": "schuetz3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Schütz – Hauptkontakte 4-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/02_power_contacts/com_puiss6.elmt"
+   },
+   {
+    "bau": "schuetz4",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Schützspule",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/bobine3.elmt",
+    "zusatz": "allgemein"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/comm_courant_alter.elmt",
+    "zusatz": "mit Kennzeichen Wechselstrom"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_01.elmt",
+    "zusatz": "EN-Satz, allgemein",
+    "en": true
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_12.elmt",
+    "zusatz": "EN-Satz, Wechselstrom",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Trennen und Schalten",
+  "rolle": "Stromstoßschalter (Spule)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/telerupteur.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherung 1-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/pojistka1p.elmt"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_21/en_60617_07_21_01.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Drei Sicherungen",
+  "hinweis": "Drei einzelne Sicherungen ohne Trenner.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/pojistka3p.elmt"
+   },
+   {
+    "bau": "sich3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherungstrennschalter 1-polig",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_21/en_60617_07_21_08.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/poj_odpinac.elmt",
+    "zusatz": "Sicherung selbst als Schaltglied"
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherungstrennschalter 3-polig",
+  "hinweis": "Sicherungen im Trenner (Querstrich), nicht unter Last schaltbar.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/poj_odpinac_3p.elmt",
+    "zusatz": "Sicherung selbst als Schaltglied"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/sec_fus4.elmt",
+    "zusatz": "Sicherung auf dem Schaltglied"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/sectionneur_3_fusibles.elmt",
+    "zusatz": "wie vor, mit Handantrieb"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/20_disconnecting_switches/sectionneur_general.elmt",
+    "zusatz": "wie vor, Handantrieb mit Rastung"
+   },
+   {
+    "bau": "sichtrenn3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherungstrennschalter 3-polig + N",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/sec_fus5.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/10_fuses/sectionneur_3_fusibles+neutre.elmt",
+    "zusatz": "mit Handantrieb"
+   },
+   {
+    "bau": "sichtrenn3n",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherungslasttrennschalter 1-polig",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_21/en_60617_07_21_09.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Sicherungslasttrennschalter 3-polig (NH-Leiste)",
+  "dateien": [
+   {
+    "bau": "sichlasttrenn3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ],
+  "hinweis": "Gibt es in der Sammlung nicht fertig – nur aus dem EN-Baukasten."
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Überspannungsschutz-Gerät 1/N",
+  "hinweis": "Ein 3-phasiges Gerät steht als eigene Karte darunter.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/90_overvoltage_protections/parafoudre-2.elmt",
+    "zusatz": "als Kasten"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/90_overvoltage_protections/parafoudre4.elmt",
+    "zusatz": "zwei Ableiter einzeln"
+   },
+   {
+    "bau": "spd2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Überspannungsschutz-Gerät 3/N",
+  "dateien": [
+   {
+    "bau": "spd4",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ],
+  "hinweis": "Gibt es in der Sammlung nicht fertig – nur aus dem EN-Baukasten."
+ },
+ {
+  "gruppe": "Sicherungen",
+  "rolle": "Überspannungsableiter einzeln",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/90_overvoltage_protections/parafoudre.elmt"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_22/en_60617_07_22_03.elmt",
+    "zusatz": "EN-Satz, unverändert",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Fehlerstromschutz",
+  "rolle": "FI 2-polig",
+  "hinweis": "Schließer mit Summenstromwandler und IΔ-Auslöser.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff_1f-1.elmt",
+    "zusatz": "mit Handantrieb"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff_1f-2.elmt",
+    "zusatz": "Handantrieb mit Rastung"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff2.elmt",
+    "zusatz": "vereinfacht, Wandler als Ring"
+   },
+   {
+    "bau": "fi2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Fehlerstromschutz",
+  "rolle": "FI 4-polig",
+  "hinweis": "Schließer mit Summenstromwandler und IΔ-Auslöser.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff_3f-1.elmt",
+    "zusatz": "mit Handantrieb"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff_3f-2.elmt",
+    "zusatz": "Handantrieb mit Rastung"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/int_diff4.elmt",
+    "zusatz": "vereinfacht, Wandler als Ring"
+   },
+   {
+    "bau": "fi4",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Fehlerstromschutz",
+  "rolle": "Fehlerstrom-Leistungsschalter 2-polig",
+  "hinweis": "Kontakte mit Kreuz (Leistungsschalterfunktion) und Wandler – französische Schreibweise, im deutschen Plan unüblich.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/ddr3.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/interdiff_40a.elmt",
+    "zusatz": "mit Prüfkreis"
+   },
+   {
+    "bau": "filei2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Fehlerstromschutz",
+  "rolle": "Fehlerstrom-Leistungsschalter 4-polig",
+  "hinweis": "Kontakte mit Kreuz – französische Schreibweise.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/ddr6.elmt"
+   },
+   {
+    "bau": "filei4",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Fehlerstromschutz",
+  "rolle": "FI/LS 1P+N",
+  "hinweis": "Leitungsschutzschalter mit Fehlerstromauslöser.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/disjoncteur_differentiel_ph_n.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/50_residual_current_circuit_breaker/rcbo_01.elmt",
+    "zusatz": "mit Prüfkreis, ausführlich"
+   },
+   {
+    "bau": "fils1n",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Leitungsschutz",
+  "rolle": "LS 1-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct_m_1f.elmt",
+    "zusatz": "deutsche Darstellung mit Kennlinie"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct-m_1f.elmt",
+    "zusatz": "Kreuz mit thermischem und magnetischem Auslöser"
+   },
+   {
+    "bau": "ls1",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Leitungsschutz",
+  "rolle": "LS 1P+N",
+  "hinweis": "Außenleiter geschützt, N nur mitgeschaltet.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct-m_1fn.elmt"
+   },
+   {
+    "bau": "ls1n",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Leitungsschutz",
+  "rolle": "LS 2-polig",
+  "hinweis": "Beide Pole geschützt.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct-m_2f.elmt"
+   },
+   {
+    "bau": "ls2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Leitungsschutz",
+  "rolle": "LS 3-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct_m_3f.elmt",
+    "zusatz": "deutsche Darstellung mit Kennlinie"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct-m_3f.elmt",
+    "zusatz": "Kreuz mit thermischem und magnetischem Auslöser"
+   },
+   {
+    "bau": "ls3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Leitungsschutz",
+  "rolle": "LS 3P+N",
+  "hinweis": "Drei Außenleiter geschützt, N mitgeschaltet.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct-m_3fn.elmt"
+   },
+   {
+    "bau": "ls3n",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Durchgangsklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_continuite.elmt",
+    "zusatz": "Kreis"
+   },
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_continuite2.elmt",
+    "zusatz": "Kreis durchgestrichen"
+   },
+   {
+    "bau": "klemme",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Klemme mit Abzweig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_2.elmt",
+    "zusatz": "Kreis, Abzweig rechts"
+   },
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_21.elmt",
+    "zusatz": "durchgestrichen, Abzweig rechts"
+   },
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_31.elmt",
+    "zusatz": "durchgestrichen, Abzweig links"
+   },
+   {
+    "bau": "klemme_abzw",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Klemme mit zwei Abzweigen",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_5.elmt"
+   },
+   {
+    "bau": "klemme_abzw2",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Endklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_finale.elmt",
+    "zusatz": "Kreis"
+   },
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_finale1.elmt",
+    "zusatz": "Kreis durchgestrichen"
+   },
+   {
+    "bau": "endklemme",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Doppelstockklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/bornedouble.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Trennklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/barrette_connexion_f.elmt",
+    "zusatz": "Lasche geschlossen"
+   },
+   {
+    "bau": "trennklemme",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Erdtrennklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/barette_de_terre.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Sicherungsklemme",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/borne_fusible_cablage.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "PEN-Trennung (TN-Verbindungsschiene)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/barre_interconnexion_tn.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Klemmleiste 3P+N+PE",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/bornier5x.elmt"
+   },
+   {
+    "bau": "klemmleiste5",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Querverweis kommend",
+  "dateien": [
+   {
+    "pfad": "10_allpole/100_folio_referencing/01coming_arrow.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Verbindungen",
+  "rolle": "Querverweis gehend",
+  "dateien": [
+   {
+    "pfad": "10_allpole/100_folio_referencing/02going_arrow.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Abgänge",
+  "rolle": "Steckdose 1/N/PE (Schuko, CEE 3-polig)",
+  "hinweis": "Im Stromlaufplan unterscheidet nur die Beschriftung Schuko und CEE 16 A 3-polig.",
+  "dateien": [
+   {
+    "pfad": "10_allpole/140_connectors_plugs/20_socket_outlets/pc_2p_t.elmt",
+    "zusatz": "Schaltzeichen, allpolig"
+   },
+   {
+    "pfad": "10_allpole/140_connectors_plugs/20_socket_outlets/pc_mono2.elmt",
+    "zusatz": "Frontansicht mit Schutzkontakt"
+   },
+   {
+    "bau": "steckdose3",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Abgänge",
+  "rolle": "Steckdose 3/N/PE (CEE 5-polig)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/140_connectors_plugs/20_socket_outlets/pc_5p.elmt",
+    "zusatz": "Schaltzeichen, allpolig"
+   },
+   {
+    "pfad": "10_allpole/140_connectors_plugs/20_socket_outlets/pc_tetra.elmt",
+    "zusatz": "Frontansicht"
+   },
+   {
+    "bau": "steckdose5",
+    "zusatz": "EN-Baukasten",
+    "en": true
+   }
+  ]
+ }
+]

@@ -1,0 +1,361 @@
+[
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Taster (Schließer)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_02.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/20_push_buttons/poussoir.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Taster (Öffner, Aus-Taster)",
+  "dateien": [
+   {
+    "bau": "taster_oe",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/20_push_buttons/poussoir_nf.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Schalter handbetätigt (z. B. Lichtschalter)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_01.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Drehschalter rastend (Ein/Aus)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/380_signaling_operating/21_selector_switches/contact_001.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Wahlschalter Hand-0-Automatik (einpolig, zwei Ausgänge)",
+  "dateien": [
+   {
+    "bau": "hand0auto",
+    "en": true,
+    "zusatz": "einpolig, Ausgänge H und A"
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/21_selector_switches/bp1-0-2.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Not-Aus (Pilzdrucktaster, Öffner)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_07/en_60617_07_07_06.elmt",
+    "en": true,
+    "zusatz": "mit Zeichen für Entriegelung"
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/20_push_buttons/au.elmt"
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/20_push_buttons/e_stop_1p.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Zeitschaltuhr (Kontakt)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/03_contacts/comm_par_horl_no.elmt",
+    "zusatz": "Schließer zeitgesteuert"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Dämmerungsschalter (Kontakt)",
+  "dateien": [
+   {
+    "bau": "daemmerung",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Bewegungsmelder (Kontakt)",
+  "dateien": [
+   {
+    "bau": "bewegung",
+    "en": true,
+    "zusatz": "Kasten PIR"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Präsenzmelder (Kontakt)",
+  "dateien": [
+   {
+    "bau": "praesenz",
+    "en": true,
+    "zusatz": "Kasten PM"
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Thermostat, Schließer (schließt bei Temperatur)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_09/en_60617_07_09_01.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Thermostat, Öffner (öffnet bei Temperatur)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_09/en_60617_07_09_02.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Endschalter, Schließer",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_01.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Endschalter, Öffner",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_08/en_60617_07_08_02.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Befehlsgeber",
+  "rolle": "Externer Kontakt (z. B. Gebäudeautomation)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_02.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/01_auxiliary_contacts/con_simple.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Hilfskontakte",
+  "rolle": "Hilfsschließer (13/14)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_02.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/01_auxiliary_contacts/con_simple.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Hilfskontakte",
+  "rolle": "Hilfsöffner (21/22)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_03.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/01_auxiliary_contacts/con_simple_nf.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Spulen",
+  "rolle": "Spule einschaltverzögert (anzugverzögert)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_08.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/bobine_tempo_travail.elmt"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/comm_travail_retardee.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Spulen",
+  "rolle": "Spule ausschaltverzögert (abfallverzögert)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_07.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/bobine_tempo_repos.elmt"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/comm_repos_retardee.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Spulen",
+  "rolle": "Spule ein- und ausschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_15/en_60617_07_15_09.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/bobine_tempo_repos-travail.elmt"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/comm_repos_travail_retardee.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Spulen",
+  "rolle": "Zeitrelais allgemein (Multifunktion)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/tempo_programmable.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Kontakte",
+  "rolle": "Schließer einschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_01.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/11_delayed_contacts/con_simple_tmp_t.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Kontakte",
+  "rolle": "Schließer ausschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_02.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/11_delayed_contacts/con_simple_tmp_r.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Kontakte",
+  "rolle": "Öffner einschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_03.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/11_delayed_contacts/con_simple_nf_tmp_t.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Kontakte",
+  "rolle": "Öffner ausschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_04.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/11_delayed_contacts/con_simple_nf_tmp_r.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Zeitrelais – Kontakte",
+  "rolle": "Schließer ein- und ausschaltverzögert",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_05.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/11_delayed_contacts/tempo_no_travail_repos.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Melden",
+  "rolle": "Meldeleuchte",
+  "dateien": [
+   {
+    "bau": "meldeleuchte",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Schütz einpolig",
+  "dateien": [
+   {
+    "bau": "ue_schuetz",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Stromstoßschalter einpolig",
+  "dateien": [
+   {
+    "bau": "ue_stromstoss",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Zeitrelais / Treppenlichtzeitschalter einpolig",
+  "dateien": [
+   {
+    "bau": "ue_zeitrelais",
+    "en": true
+   }
+  ]
+ }
+]

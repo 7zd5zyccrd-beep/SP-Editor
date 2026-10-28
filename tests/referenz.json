@@ -1,0 +1,124 @@
+{
+ "grund": [
+  [
+   "1 Deckblatt deckblatt",
+   "902b1f34d55062073fd6a24486c8df2d"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "db9fd19da358eb874d428abde5245861"
+  ],
+  [
+   "3 HV uebersicht",
+   "b14dc82c6f8bf25de36725a0811c6f16"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "b4913cae3cc4d3c1a42b93caffde983a"
+  ],
+  [
+   "5 HV einspeisung",
+   "c18d00ab4b63bca84e4d6c115be4e38e"
+  ],
+  [
+   "6 HV abgang",
+   "0d01861c01d46aba4c484fb1eb04e586"
+  ],
+  [
+   "7 HV abgang",
+   "1a112766d6433bfeec2aae9d74223ce7"
+  ],
+  [
+   "8 UV Werkstatt kombiniert",
+   "9e64a51c4b1e3d9551a9f269d1650a54"
+  ]
+ ],
+ "klemmen": [
+  [
+   "1 Deckblatt deckblatt",
+   "6d3939ef6fa64e55707268ed1861426f"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "2e00bc141bd80aeb8be1a9b45ee254fb"
+  ],
+  [
+   "3 HV uebersicht",
+   "57897823c3423e1bee3437d539173ca0"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "f3dd46bdef69840331fdf8a64cf8a8d1"
+  ],
+  [
+   "5 HV einspeisung",
+   "e781a645912b0ff25e451ab128ca2b4c"
+  ],
+  [
+   "6 HV abgang",
+   "35e826f2ff2d225d1b9e0869bebed20d"
+  ],
+  [
+   "7 HV abgang",
+   "87445dfceab219d52d9dda1152ea1798"
+  ],
+  [
+   "8 UV Werkstatt kombiniert",
+   "de93f3420c31b7baa18ee0b661406053"
+  ],
+  [
+   "9 HV klemmen",
+   "e741ad10be15325aac98b3358d0e504a"
+  ],
+  [
+   "10 HV klemmen",
+   "154b27fd9c3ba0b902e2c99791e0df85"
+  ],
+  [
+   "11 UV Werkstatt klemmen",
+   "4a6bcf262fd0b0a6a2f0a7f76f2e5ac1"
+  ]
+ ],
+ "schalt": [
+  [
+   "1 Deckblatt deckblatt",
+   "407c7bc34ede237a9f093ebb77e218cb"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "691aa2e48bf7a0ed650bd3c82d4dda88"
+  ],
+  [
+   "3 HV uebersicht",
+   "b8521ce971c175499a34769adaa0fe5d"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "3da70ac803492c783de5e7b8d48180bd"
+  ],
+  [
+   "5 HV einspeisung",
+   "b942e50863d78cf9647b78390c0c5b1a"
+  ],
+  [
+   "6 HV abgang",
+   "b3ae25e27a9ecc2b6549e9a6386f9ff1"
+  ],
+  [
+   "7 HV abgang",
+   "89b7e8226e15c151bd2455b7d624229e"
+  ],
+  [
+   "8 UV Werkstatt kombiniert",
+   "219f88fc235ee3e87fd53525d3e97c8d"
+  ],
+  [
+   "9 HV klemmen",
+   "bd5414f9274018679d68edc073ae23a3"
+  ],
+  [
+   "10 HV klemmen",
+   "786ecb9e463a966cc462f1c32df4f3c2"
+  ]
+ ]
+}

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Bibliothek</title>
+<!-- Stromlaufplan · Zeichenbibliothek · Fassung /*FASSUNG*/ · Stand 24.10.2026
+     Feste Bibliothek nach Jeans Auswahl aus dem Musterblatt v0.3.
+     Die Zeichen stehen als QElectroTech-Elemente (XML) im Datenblock
+     <script id="slp-bibliothek">; spätere Etappen lesen genau diesen Block.
+     v1.4: Zeichen für Steuerstromkreise nach Jeans Auswahl (Steuerung v0.2): Befehlsgeber,
+           Hilfskontakte, Zeitrelais-Spulen und verzögerte Kontakte, Meldeleuchte
+     v1.3: einpolige Zeichen für den Übersichtsschaltplan neu
+     v1.2: Leuchte (Lampe 08-10-01 zwischen L und N) neu
+     v1.1: FI/LS 3P+N (4-polig) neu, in der Darstellung des gewählten LS 3-polig
+     v1.0: Auswahl übernommen; Schutzerde = gewählte Erde mit eng anliegendem,
+           mittigem Kreis; FI/LS 1P+N in der Darstellung des gewählten LS
+     Geändert ohne neue Form: Erde um 1 Einheit verschoben (Anschluss im Raster). -->
+<style>
+:root{--grund:#f4f3ef;--karte:#fff;--tinte:#1c1c1a;--leise:#6b6a64;--linie:#dedcd4;--raster:#e7e5dd;--raster5:#d3d0c5;--term:#e11d48;--neu:#b45309;--en:#3b5b8c}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--grund);color:var(--tinte);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header,main,footer{max-width:1100px;margin:0 auto;padding:0 16px}
+header{padding-top:20px}
+h1{font-size:22px;margin:0 0 4px}
+.fassung{font-size:12px;padding:1px 7px;border:1px solid var(--linie);border-radius:10px;margin-left:6px;vertical-align:3px;color:var(--leise);background:var(--karte)}
+.erklaer{font-size:14px;color:var(--leise);max-width:760px}
+.leiste{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.chip{border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;color:var(--tinte)}
+.chip[aria-pressed="true"]{background:#e6eefb;border-color:#1f5fbf;color:#1f5fbf}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--leise);margin:26px 0 10px;font-weight:600}
+.raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.z{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:10px;display:flex;flex-direction:column}
+.z.neu{border:2px solid var(--neu)}
+.z svg{display:block;margin:0 auto 8px;overflow:visible}
+.n{font-weight:600;font-size:14px}
+.k{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--leise)}
+.h{font-size:12px;color:var(--leise);margin-top:3px}
+.b{font-size:12px;color:var(--en);margin-top:2px}
+.marke{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--neu);border-radius:4px;padding:1px 6px;margin-bottom:4px;align-self:flex-start}
+footer{font-size:12px;color:var(--leise);padding-top:24px;padding-bottom:40px}
+footer a{color:var(--leise)}
+svg .gitter{stroke:var(--raster);stroke-width:.35}
+svg .gitter5{stroke:var(--raster5);stroke-width:.5}
+body.ohne-term svg .qet-term{display:none}
+body.ohne-raster svg .gitter,body.ohne-raster svg .gitter5{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Zeichenbibliothek <span class="fassung" id="fassung"></span></h1>
+  <div class="erklaer">Feste Bibliothek für den Stromlaufplan, nach deiner Auswahl. Alle Zeichen im selben Maßstab, Anschlusspunkte rot. Orange umrandet ist, was in dieser Fassung neu ist – bitte ansehen.</div>
+  <div class="leiste">
+    <button class="chip" id="b-raster" aria-pressed="true">Raster</button>
+    <button class="chip" id="b-term" aria-pressed="true">Anschlüsse</button>
+  </div>
+</header>
+<main id="inhalt"></main>
+<footer>
+  Schaltzeichen: Elementsammlung von <a href="https://qelectrotech.org">QElectroTech</a> (The QElectroTech team und Mitwirkende), lizenziert unter
+  <a href="https://creativecommons.org/licenses/by/3.0/deed.de">Creative Commons Namensnennung 3.0</a>. Zeichen aus dem EN-Baukasten sind aus diesen Elementen zusammengesetzt; Bausteine und Änderungen stehen je Zeichen dabei.
+</footer>
+<script id="slp-bibliothek" type="application/json">/*DATEN*/</script>
+<script>
+/*RENDERER*/
+</script>
+<script>
+const BIB = JSON.parse(document.getElementById('slp-bibliothek').textContent);
+const SVGNS = 'http://www.w3.org/2000/svg', MASS = 2;
+document.getElementById('fassung').textContent = BIB.fassung;
+
+function bild(xml){
+  const s = document.createElementNS(SVGNS,'svg'), hinter = document.createElementNS(SVGNS,'g');
+  const r = QET.zeichne(xml, { terminals:true, labels:false });
+  s.append(hinter, r.g);
+  const tmp = document.createElement('div'); tmp.style.cssText='position:absolute;left:-9999px'; tmp.appendChild(s); document.body.appendChild(tmp);
+  const b = r.g.getBBox(); document.body.removeChild(tmp);
+  const x0=Math.floor(b.x/10)*10-10, y0=Math.floor(b.y/10)*10-10, x1=Math.ceil((b.x+b.width)/10)*10+10, y1=Math.ceil((b.y+b.height)/10)*10+10;
+  for (let x=x0;x<=x1;x+=10){const l=document.createElementNS(SVGNS,'line');l.setAttribute('x1',x);l.setAttribute('x2',x);l.setAttribute('y1',y0);l.setAttribute('y2',y1);l.setAttribute('class',x%50===0?'gitter5':'gitter');hinter.appendChild(l);}
+  for (let y=y0;y<=y1;y+=10){const l=document.createElementNS(SVGNS,'line');l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('x1',x0);l.setAttribute('x2',x1);l.setAttribute('class',y%50===0?'gitter5':'gitter');hinter.appendChild(l);}
+  s.setAttribute('viewBox',`${x0} ${y0} ${x1-x0} ${y1-y0}`); s.setAttribute('width',(x1-x0)*MASS); s.setAttribute('height',(y1-y0)*MASS);
+  return s;
+}
+
+let gruppe = null, raster = null;
+const inhalt = document.getElementById('inhalt');
+BIB.zeichen.forEach(z => {
+  if (z.gruppe !== gruppe) { gruppe = z.gruppe; const h=document.createElement('h2'); h.textContent=gruppe; inhalt.appendChild(h);
+    raster=document.createElement('div'); raster.className='raster'; inhalt.appendChild(raster); }
+  const k = document.createElement('div'); k.className = 'z' + (z.neu ? ' neu' : '');
+  if (z.neu) { const m=document.createElement('span'); m.className='marke'; m.textContent='NEU – bitte prüfen'; k.appendChild(m); }
+  k.appendChild(bild(z.xml));
+  const n=document.createElement('div'); n.className='n'; n.textContent=z.name;
+  const ke=document.createElement('div'); ke.className='k'; ke.textContent=z.kennung;
+  const h=document.createElement('div'); h.className='h'; h.textContent=z.herkunft+': '+z.quellen.join(' · ');
+  k.append(n, ke, h);
+  if (z.bem && z.bem!=='unverändert') { const b=document.createElement('div'); b.className='b'; b.textContent=z.bem; k.appendChild(b); }
+  raster.appendChild(k);
+});
+function umschalter(id, kl){ const b=document.getElementById(id); b.addEventListener('click',()=>{const an=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',an); document.body.classList.toggle(kl,!an);}); }
+umschalter('b-raster','ohne-raster'); umschalter('b-term','ohne-term');
+</script>
+</body>
+</html>

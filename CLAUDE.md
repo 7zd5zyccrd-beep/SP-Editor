@@ -97,7 +97,7 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
 - -Q Hauptschalter und Schaltgeräte (Schütz, Stromstoßschalter), -K Zeitrelais,
   -F Schutzorgane, -P Zähler, -X1 Klemmleiste im Verteiler, -X2 … Geräteanschlussdosen,
   -XD Steckdosen, -E Leuchten, -W Leitungen; für Steuerstromkreise vorgesehen: -S Taster,
-  Schalter, Melder.
+  Schalter, Melder; -H Meldeleuchten.
 
 **Eingabe und Daten**
 - Bedienung wie SF E-Plan: eigene Bildschirme, ein Feld je Fenster, sofort gespeichert
@@ -133,7 +133,7 @@ C4 v1.12 Vorlagen.
   tragen den Verweis auf die Spule. Befehlsgeber: Schließer 13–14, Öffner 11–12.
 - Datenmodell `v.steuerung = { geraete, kreise }`, beschrieben bei `berechneSteuerung()`
   in `src/app-vorlage.html`.
-- Offen: Kennzeichen der Meldeleuchte (vorläufig -P nach DIN EN IEC 81346-2, früher -H).
+- Meldeleuchten tragen traditionell **-H** (nicht -P wie der Zähler).
 
 
 Mischweg: Hauptstromkreis bleibt generiert; Steuerstromkreise mit einem

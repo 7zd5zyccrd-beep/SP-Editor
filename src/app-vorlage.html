@@ -18,7 +18,7 @@
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
      v1.9: Etappe C1 – Blatt „Steuerstromkreis“ je Verteiler hinter seinem Stromlaufplan:
            Pfade mit 6 Kontaktplätzen und Verbraucherplatz, Zweige, Kontaktspiegel, Querverweise;
-           Abgriff der Steuerspannung im Abgang; Befehlsgeber -S, Meldeleuchte -P
+           Abgriff der Steuerspannung im Abgang; Befehlsgeber -S, Meldeleuchte -H
            (Eingabe noch ohne Editor, nur über Daten)
      v1.8: Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm
            und auf dem Deckblatt des Plans
@@ -269,7 +269,7 @@ function istDrei(k, v) {
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, H: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -342,9 +342,9 @@ function berechne(v) {
 //   pfad:    { id, zweig: null | { von, bis }, plaetze: [6 × null | { g, z }], verbraucher: null | { g } }
 //            zweig: parallel zum Pfad links daneben von Platz von bis Platz bis (0 … 5, 6 = Verbraucher)
 //            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Hilfskontakts
-// Ergebnis: Kennzeichen (-S Befehlsgeber, -P Meldeleuchte), Anschlussnummern der
+// Ergebnis: Kennzeichen (-S Befehlsgeber, -H Meldeleuchte, traditionell statt -P wie der Zähler), Anschlussnummern der
 // Hilfskontakte (Schließer n3/n4 zuerst, dann Öffner n1/n2), Abgriff im Abgang, Warnungen
-const ST_KZ = { meldeleuchte: 'P' };
+const ST_KZ = { meldeleuchte: 'H' };
 const istOeffner = z => /_oe/.test(z);
 function berechneSteuerung(v, e, bmk) {
   const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [] }, st = v.steuerung;

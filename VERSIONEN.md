@@ -4,7 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
-| v1.9 | Etappe C1: Blatt „Steuerstromkreis“ je Verteiler (6 Kontaktplätze + Verbraucher je Pfad, Zweige, Kontaktspiegel, Querverweise), Abgriff der Steuerspannung im Abgang, Kennzeichen -S und Meldeleuchte -P; Eingabe vorerst nur über das Beispiel `steuerung` |
+| v1.9 | Etappe C1: Blatt „Steuerstromkreis“ je Verteiler (6 Kontaktplätze + Verbraucher je Pfad, Zweige, Kontaktspiegel, Querverweise), Abgriff der Steuerspannung im Abgang, Kennzeichen -S und Meldeleuchte -H; Eingabe vorerst nur über das Beispiel `steuerung` |
 | v1.8 | Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm und dem Deckblatt |
 | v1.7 | Schaltgeräte je Abgang (Schütz, Stromstoßschalter, Zeitrelais), Kennzeichen -Q bzw. -K, N mitschalten, Ausstattung an Hilfskontakten; Hauptkontakte im Stromlaufplan, Schützzeichen im Übersichtsschaltplan, Herkunft im Klemmenplan, Zusatz im Türzettel; Verdichtung nur bei Platzmangel |
 | v1.6 | Bibliothek v1.4 mit den Zeichen für Steuerstromkreise (noch ohne Verwendung) |

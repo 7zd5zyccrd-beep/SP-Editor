@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.11: Etappe C2a – Eingabe der Steuerstromkreise: Bildschirm „Steuerstromkreise“ je Verteiler
+           (Steuerspannung, Quelle, Klemmen; Kreise; Befehlsgeber und Meldeleuchten), Bildschirm je Kreis
+           (Pfade mit 6 Plätzen und Verbraucher, Zweige, Abgriff), Steuer-LS im Abgangsbaum; der Kreis
+           entsteht mit der Wahl des Schaltgeräts; Kreise ohne Schaltgerät werden nicht gezeichnet
      v1.10: Etappe C1b – Steuerspannung je Verteiler wählbar: je Abgang, gemeinsam durchgeschliffen
            oder über gebrückte Klemmen (-X1 oder eigene Leiste -X0); Quelle Abgang oder Steuer-LS
            (Abgang ohne Leitung); je Kreis eigener Abgriff möglich (Eingabe noch ohne Editor);
@@ -361,13 +365,16 @@ function berechne(v) {
 const ST_KZ = { meldeleuchte: 'H' };
 const istOeffner = z => /_oe/.test(z);
 function berechneSteuerung(v, e, bmk, klemme) {
-  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], gemeinsam: null }, st = v.steuerung;
+  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], gemeinsam: null, aktiv: {} }, st = v.steuerung;
   if (!st) return r;
+  // gezeichnet werden nur Kreise, deren Schaltgerät (Spule) es noch gibt
+  (st.kreise || []).forEach(kr => { if (kr.pfade.some(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt)) r.aktiv[kr.id] = true; });
+  const kreise = (st.kreise || []).filter(kr => r.aktiv[kr.id]);
   (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
   // gemeinsame Steuerspannung (durchgeschliffen oder über gebrückte Klemmen) aus einer Quelle
   const sp = st.spannung || { art: 'abgang' };
   if (sp.art !== 'abgang' && e.abgaenge[sp.quelle]) {
-    r.gemeinsam = { art: sp.art, quelle: sp.quelle, kreise: (st.kreise || []).filter(kr => !kr.eigen).map(kr => kr.id) };
+    r.gemeinsam = { art: sp.art, quelle: sp.quelle, kreise: kreise.filter(kr => !kr.eigen).map(kr => kr.id) };
     e.abgaenge[sp.quelle].abgriff = '*';
   }
   const gemeinsam = kr => r.gemeinsam && r.gemeinsam.kreise.includes(kr.id);
@@ -376,11 +383,11 @@ function berechneSteuerung(v, e, bmk, klemme) {
   if (r.gemeinsam && sp.art === 'bruecke') {
     const eigen = sp.leiste === 'eigen', kl = r.gemeinsam.klemmen = { bmk: eigen ? (sp.bmk || '-X0') : '-X1', l: {}, n: {} };
     let nr = eigen ? 0 : klemme;
-    const ks = st.kreise.filter(gemeinsam);
+    const ks = kreise.filter(gemeinsam);
     ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig)) kl.l[p.id] = ++nr; }));
     ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig) || p.zweig.bis >= 6) kl.n[p.id] = ++nr; }));
   }
-  (st.kreise || []).forEach(kr => {
+  kreise.forEach(kr => {
     if (!gemeinsam(kr) && kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
     kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => {
       const a = pl && e.abgaenge[pl.g]; if (!a || !a.schalt) return;
@@ -394,6 +401,36 @@ function berechneSteuerung(v, e, bmk, klemme) {
   });
   return r;
 }
+// ---- Steuerstromkreise: Hilfen für die Eingabe (ab v1.11) -------------------
+const ST_ZEICHEN = {          // was auf einen Kontaktplatz kommt; art: Befehlsgeber, Hilfskontakt, verzögert (Zeitrelais)
+  taster_s: ['Taster Schließer', 'bg'], taster_oe: ['Taster Öffner', 'bg'], schalter_hand: ['Schalter handbetätigt', 'bg'],
+  notaus: ['Not-Aus', 'bg'], daemmerung: ['Dämmerungsschalter', 'bg'], bewegung: ['Bewegungsmelder', 'bg'],
+  praesenz: ['Präsenzmelder', 'bg'], endschalter_s: ['Endschalter Schließer', 'bg'], endschalter_oe: ['Endschalter Öffner', 'bg'],
+  hilfs_s: ['Hilfsschließer', 'hk'], hilfs_oe: ['Hilfsöffner', 'hk'],
+  k_s_ein: ['Schließer einschaltverzögert', 'zr'], k_s_aus: ['Schließer ausschaltverzögert', 'zr'], k_s_einaus: ['Schließer ein- und ausschaltverzögert', 'zr'],
+  k_oe_ein: ['Öffner einschaltverzögert', 'zr'], k_oe_aus: ['Öffner ausschaltverzögert', 'zr'],
+  meldeleuchte: ['Meldeleuchte', 'ml'],
+};
+const ST_ART = { abgang: 'je Abgang', durch: 'gemeinsam, durchgeschliffen', bruecke: 'gemeinsam, gebrückte Klemmen' };
+function stDaten(v) {
+  if (!v.steuerung) v.steuerung = { geraete: [], kreise: [] };
+  if (!v.steuerung.spannung) v.steuerung.spannung = { art: 'abgang' };
+  return v.steuerung;
+}
+const leerePlaetze = () => [null, null, null, null, null, null];
+const neuerPfad = (verbraucher = null, zweig = null) => ({ id: id(), zweig, plaetze: leerePlaetze(), verbraucher });
+// Kreis eines Schaltgeräts: der Kreis, in dem seine Spule sitzt
+const kreisVon = (v, kid) => ((v.steuerung && v.steuerung.kreise) || []).find(kr => kr.pfade.some(p => p.verbraucher && p.verbraucher.g === kid));
+function kreisAnlegen(v, k) {         // ein leerer Pfad mit der Spule auf dem Verbraucherplatz
+  const st = stDaten(v); let kr = kreisVon(v, k.id);
+  if (!kr) { kr = { id: id(), quelle: { art: 'abgang', kid: k.id }, pfade: [neuerPfad({ g: k.id })] }; st.kreise.push(kr); }
+  return kr;
+}
+function neuesSteuerGeraet(v, zeichen) { const g = { id: id(), zeichen, bez: '', ort: '' }; stDaten(v).geraete.push(g); return g; }
+// Abgänge mit Schaltgerät (für Hilfskontakte und Spulen)
+function schaltAbgaenge(v, e) { const r = []; alleKnoten(v, k => { if (k.typ === 'abgang' && e.abgaenge[k.id] && e.abgaenge[k.id].schalt) r.push(k); }); return r; }
+const abgangName = k => k.steuer ? (k.ziel.bez || 'Steuerspannung') : (k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') || 'ohne Bezeichnung');
+
 function bemessung(g) {
   if (!g || !g.zeichen) return '';
   const d = GERAETE[g.zeichen], t = [];
@@ -489,7 +526,8 @@ function bmkFeld(titel, objekt, auto) {
 function zeichne() {
   const b = stapel[stapel.length - 1];
   app.innerHTML = '';
-  ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer }[b.s])(b);
+  ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
+     steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet }[b.s])(b);
 }
 
 function bStart() {
@@ -596,9 +634,14 @@ function bVerteiler(b) {
   const l = h('div', { class: 'liste' });
   baumZeilen(v, e, v.knoten, l, 0);
   l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = neuerAbgang(); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
-           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'));
+           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS (gemeinsame Steuerspannung)'));
   m.append(l);
   if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Einphasige Abgänge je Außenleiter: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));
+  const nKreise = Object.keys(e.steuer.aktiv).length;
+  m.append(h('h2', {}, 'Steuerung'), h('div', { class: 'liste' },
+    zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
+      { rot: e.steuer.warn.length > 0, un: (e.steuer.warn.length ? '⚠ ' : '') + 'Steuerspannung · ' + ST_ART[(v.steuerung && v.steuerung.spannung && v.steuerung.spannung.art) || 'abgang'] })));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
     zeile('Stromlaufplan', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts, dieser Verteiler zuerst sichtbar' }),
     zeile('Türzettel', null, () => geh({ s: 'tuer', vid: v.id }), { un: 'Sicherungsübersicht für die Verteilertür' }),
@@ -642,7 +685,7 @@ function baumZeilen(v, e, liste, ziel, tiefe) {
       const a = e.abgaenge[k.id];
       const zielText = k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(', ') || 'ohne Bezeichnung';
       z = zeile(zielText, a.phase.t, () => geh({ s: 'abgang', vid: v.id, kid: k.id }),
-        { bmk: a.f || { t: '—', hand: false }, einr: tiefe > 0, rot: !!a.warn, un: (a.warn ? '⚠ ' : '') + [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan', leitungText(k, a)].join(' · ') });
+        { bmk: a.f || { t: '—', hand: false }, einr: tiefe > 0, rot: !!a.warn, un: (a.warn ? '⚠ ' : '') + [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan', leitungText(k, a)].filter(Boolean).join(' · ') });
     }
     if (sortieren) z.querySelector('.pfeil').replaceWith(sortKnoepfe(liste, i));
     ziel.append(z);
@@ -717,6 +760,7 @@ function geraetZeilen(ge) {
 function bAbgang(b) {
   const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
   const k = r.k, e = berechne(v), a = e.abgaenge[k.id], ge = k.geraet;
+  if (k.steuer) return bSteuerLs(v, r, e, a);
   app.append(kopf(a.f ? `Abgang ${a.f.t}` : 'Abgang'));
   const m = h('main');
   const inGruppe = !!r.eltern;
@@ -734,7 +778,7 @@ function bAbgang(b) {
     ...geraetZeilen(ge),
     a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null));
   if (a.warn) m.append(h('p', { class: 'warnung' }, '⚠ ' + a.warn));
-  m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(k, a)));
+  m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(v, k, a)));
   if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi)
     m.append(h('p', { class: 'warnung' }, 'Hinweis: FI/LS hinter einem FI – zwei Fehlerstromschutzeinrichtungen hintereinander.'));
   const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { un: 'wird an der Gruppe eingestellt' })
@@ -762,14 +806,15 @@ function bAbgang(b) {
   app.append(m);
 }
 
-function schaltZeilen(k, a) {
+function schaltZeilen(v, k, a) {
   const sg = k.schalt && k.schalt.typ ? k.schalt : null, z = [];
   z.push(zeile('Schaltgerät', sg ? SCHALT[sg.typ] : 'ohne', () => wahlFeld('Schaltgerät', [
     ['', 'ohne', 'der Abgang ist dauernd eingeschaltet'],
     ['schuetz', 'Schütz', 'Hauptkontakte im Abgang, Spule im Steuerstromkreis'],
     ['stromstoss', 'Stromstoßschalter', 'z. B. Licht über mehrere Taster'],
     ['zeitrelais', 'Zeitrelais', 'verzögerter Kontakt im Abgang, z. B. Treppenlichtzeitschalter']],
-    sg ? sg.typ : '', w => { if (!w) { if (k.schalt) k.schalt.typ = ''; } else if (!k.schalt || !k.schalt.typ) k.schalt = neuesSchalt(w); else k.schalt.typ = w; })));
+    sg ? sg.typ : '', w => { if (!w) { if (k.schalt) k.schalt.typ = ''; } else if (!k.schalt || !k.schalt.typ) k.schalt = neuesSchalt(w); else k.schalt.typ = w;
+      if (w) kreisAnlegen(v, k); })));   // Steuerstromkreis mit der Spule gleich anlegen (ab v1.11)
   if (!sg) return z;
   z.push(zeile('Pole', a.schalt.pole.join(' + '), () => wahlFeld('N mitschalten', [
     ['nein', 'nur Außenleiter', a.drei ? 'L1, L2, L3' : 'L'], ['ja', 'N mitschalten', a.drei ? 'L1, L2, L3, N' : 'L, N']],
@@ -784,7 +829,230 @@ function schaltZeilen(k, a) {
   z.push(zeile('Hilfsöffner', String(sg.ho || 0), () => wahlFeld('Hilfsöffner (21/22 …)', anz, String(sg.ho || 0), w => sg.ho = +w,
     { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
   z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
+  z.push(zeile('Steuerstromkreis bearbeiten', null, () => { const kr = kreisAnlegen(v, k); sichern(); geh({ s: 'kreis', vid: v.id, krid: kr.id }); },
+    { un: 'Kontakte, Taster, Meldeleuchten; Steuerspannung' }));
   return z;
+}
+
+// ---- Steuerstromkreise: Bildschirme (ab v1.11, Etappe C2a) --------------------
+function bSteuerung(b) {
+  const v = vById(b.vid); if (!v) { zurueck(); return; }
+  const st = stDaten(v), sp = st.spannung, e = berechne(v);
+  app.append(kopf('Steuerstromkreise'));
+  const m = h('main');
+  // Steuerspannung
+  const quellen = []; alleKnoten(v, k => { if (k.typ === 'abgang' && !k.speist) quellen.push(k); });
+  const q = sp.quelle ? knoten(v, sp.quelle) : null;
+  const qName = k => `${(e.abgaenge[k.id].f || {}).t || '—'} ${abgangName(k)}`;
+  const z = [zeile('Steuerspannung', ST_ART[sp.art], () => wahlFeld('Steuerspannung', [
+    ['abgang', 'je Abgang', 'jeder Kreis greift L und N hinter dem Schutzorgan seines Abgangs ab'],
+    ['durch', 'gemeinsam, durchgeschliffen', 'eine durchgehende L- und N-Leitung für alle Kreise'],
+    ['bruecke', 'gemeinsam, gebrückte Klemmen', 'je Anschluss eine Klemme; L und N je eine gebrückte Reihe']], sp.art, w => sp.art = w))];
+  if (sp.art !== 'abgang') {
+    z.push(zeile('Quelle', q ? qName(q.k) : 'nicht gewählt', () => wahlFeld('Quelle der Steuerspannung',
+      quellen.map(k => [k.id, qName(k), k.steuer ? 'Steuer-LS' : '']).concat([['+', '+ neuer Steuer-LS', 'an der Hauptschiene']]), sp.quelle || '',
+      w => { if (w === '+') { const s = neuerSteuerLs(); v.knoten.push(s); sp.quelle = s.id; } else sp.quelle = w; }), { rot: !q }));
+    if (sp.art === 'bruecke') {
+      z.push(zeile('Klemmen', sp.leiste === 'eigen' ? `eigene Leiste ${sp.bmk || '-X0'}` : 'auf -X1', () => wahlFeld('Klemmen der Steuerspannung', [
+        ['X1', 'auf -X1', 'hinter den Abgangsklemmen, im Klemmenplan -X1'], ['eigen', 'eigene Leiste', 'mit eigenem Klemmenplan']],
+        sp.leiste === 'eigen' ? 'eigen' : 'X1', w => sp.leiste = w)));
+      if (sp.leiste === 'eigen') z.push(zeile('Kennzeichen der Leiste', sp.bmk || '-X0', () => bmkFeld('Kennzeichen der Leiste', sp, '-X0')));
+    }
+  }
+  m.append(h('h2', {}, 'Steuerspannung'), h('div', { class: 'liste' }, ...z));
+  if (sp.art !== 'abgang' && !q) m.append(h('p', { class: 'warnung' }, 'Bitte die Quelle wählen; bis dahin greift jeder Kreis in seinem Abgang ab.'));
+  // Kreise, je Schaltgerät einer
+  const l = h('div', { class: 'liste' }), gem = e.steuer.gemeinsam;
+  st.kreise.forEach(kr => {
+    const pf = kr.pfade.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
+    const nP = kr.pfade.filter((p, j) => !(j > 0 && p.zweig)).length;
+    if (!pf) { l.append(zeile(kr.name || 'Kreis ohne Schaltgerät', `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
+      { rot: true, un: 'Das Schaltgerät gibt es nicht mehr; der Kreis wird nicht gezeichnet.' })); return; }
+    const a = e.abgaenge[pf.verbraucher.g], k = knoten(v, pf.verbraucher.g).k;
+    const qa = !gem || kr.eigen ? e.abgaenge[(kr.quelle && kr.quelle.kid) || k.id] : null;
+    l.append(zeile(kr.name || abgangName(k), `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
+      { bmk: a.schalt.bmk, un: `${SCHALT[a.schalt.typ]} · ` + (gem && !kr.eigen ? 'gemeinsame Steuerspannung' : `Abgriff ${(qa && qa.f) ? qa.f.t : 'im Abgang'}`) }));
+  });
+  schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id)).forEach(k => l.append(h('button', { class: 'neu inliste', on: { click: () => {
+    const kr = kreisAnlegen(v, k); sichern(); geh({ s: 'kreis', vid: v.id, krid: kr.id }); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
+  if (!st.kreise.length && !schaltAbgaenge(v, e).length) l.append(h('p', { class: 'hinweis' }, 'Noch kein Abgang mit Schaltgerät (Schütz, Stromstoßschalter, Zeitrelais).'));
+  m.append(h('h2', {}, 'Kreise'), l);
+  e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, '⚠ ' + w)));
+  // Befehlsgeber und Meldeleuchten
+  const gl = h('div', { class: 'liste' });
+  st.geraete.forEach(g => gl.append(zeile([g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], null,
+    () => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), { bmk: e.steuer.geraete[g.id], un: ST_ZEICHEN[g.zeichen][0] + ` · ${stVerwendet(v, g.id)}× verwendet` })));
+  gl.append(h('button', { class: 'neu inliste', on: { click: () => wahlFeld('Neues Gerät',
+    Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml').map(([z, [n]]) => [z, n]), '',
+    w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) } }, '+ Befehlsgeber oder Meldeleuchte'));
+  m.append(h('h2', {}, 'Befehlsgeber und Meldeleuchten'), gl);
+  app.append(m);
+}
+// wie oft ein Gerät auf Plätzen oder als Verbraucher vorkommt
+function stVerwendet(v, gid) {
+  let n = 0;
+  ((v.steuerung && v.steuerung.kreise) || []).forEach(kr => kr.pfade.forEach(p => {
+    p.plaetze.forEach(pl => { if (pl && pl.g === gid) n++; }); if (p.verbraucher && p.verbraucher.g === gid) n++; }));
+  return n;
+}
+
+function bKreis(b) {
+  const v = vById(b.vid), st = v && v.steuerung, kr = st && st.kreise.find(x => x.id === b.krid); if (!kr) { zurueck(); return; }
+  const e = berechne(v), sp = st.spannung || { art: 'abgang' };
+  const spP = kr.pfade.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
+  const sa = spP && e.abgaenge[spP.verbraucher.g], sk = spP && knoten(v, spP.verbraucher.g).k;
+  app.append(kopf(sa ? `Steuerstromkreis ${sa.schalt.bmk.t}` : 'Steuerstromkreis'));
+  const m = h('main');
+  // Kreis und Steuerspannung
+  const gem = sp.art !== 'abgang' && sp.quelle && knoten(v, sp.quelle);
+  const kz = [zeile('Bezeichnung', kr.name || (sk ? abgangName(sk) : '—'), () => textFeld('Bezeichnung', kr.name,
+    w => kr.name = w || undefined, { platz: sk ? abgangName(sk) : '', text: 'Leer lassen für die Bezeichnung des Abgangs.' }))];
+  if (gem) kz.push(zeile('Steuerspannung', kr.eigen ? 'eigener Abgriff' : 'gemeinsam', () => wahlFeld('Steuerspannung dieses Kreises', [
+    ['gem', 'gemeinsam', ST_ART[sp.art]], ['eigen', 'eigener Abgriff', 'L und N hinter dem Schutzorgan eines Abgangs']],
+    kr.eigen ? 'eigen' : 'gem', w => kr.eigen = w === 'eigen')));
+  if (!gem || kr.eigen) {
+    const abg = []; alleKnoten(v, k => { if (k.typ === 'abgang' && !k.speist) abg.push(k); });
+    const qk = kr.quelle && knoten(v, kr.quelle.kid);
+    kz.push(zeile('Abgriff im Abgang', qk ? `${(e.abgaenge[qk.k.id].f || {}).t || '—'} ${abgangName(qk.k)}` : 'nicht gewählt', () => wahlFeld('Abgriff der Steuerspannung',
+      abg.map(k => [k.id, `${(e.abgaenge[k.id].f || {}).t || '—'} ${abgangName(k)}`, k === sk ? 'Abgang des Schaltgeräts' : '']),
+      kr.quelle ? kr.quelle.kid : '', w => kr.quelle = { art: 'abgang', kid: w }), { rot: !qk }));
+  }
+  m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
+  if (!sa) m.append(h('p', { class: 'warnung' }, 'Das Schaltgerät dieses Kreises gibt es nicht mehr; der Kreis wird nicht gezeichnet.'));
+  // Pfade und Zweige
+  let nr = 0;
+  kr.pfade.forEach((p, j) => {
+    const zw = j > 0 && p.zweig ? p.zweig : null; if (!zw) nr++;
+    const z = [];
+    if (zw) {
+      const plaetze = [0, 1, 2, 3, 4, 5].map(i => [String(i), `Platz ${i + 1}`]);
+      z.push(zeile('von Platz', String(zw.von + 1), () => wahlFeld('Zweig beginnt an', plaetze, String(zw.von), w => { zw.von = +w; if (zw.bis < zw.von) zw.bis = zw.von; })));
+      z.push(zeile('bis', zw.bis >= 6 ? 'Verbraucher (bis N)' : `Platz ${zw.bis + 1}`, () => wahlFeld('Zweig endet an',
+        plaetze.filter(([w]) => +w >= zw.von).concat([['6', 'Verbraucher', 'eigener Verbraucher, endet an N']]), String(zw.bis), w => zw.bis = +w)));
+    }
+    const von = zw ? zw.von : 0, bis = zw ? zw.bis : 6;
+    for (let i = von; i <= Math.min(bis, 5); i++) z.push(platzZeile(v, e, p, i));
+    if (bis >= 6) z.push(verbraucherZeile(v, e, p));
+    if (!zw) z.push(h('button', { class: 'neu inliste', on: { click: () => {
+      let i = j + 1; while (kr.pfade[i] && kr.pfade[i].zweig) i++;
+      kr.pfade.splice(i, 0, neuerPfad(null, { von: 0, bis: 0 })); sichern(); zeichne(); } } }, '+ Zweig neben diesem Pfad'));
+    z.push(zeile(zw ? 'Zweig löschen' : 'Pfad löschen', null, () => frage(zw ? 'Zweig löschen' : 'Pfad löschen',
+      zw ? 'Diesen Zweig löschen?' : 'Diesen Pfad mit seinen Zweigen löschen?', () => {
+        let n = 1; if (!zw) while (kr.pfade[j + n] && kr.pfade[j + n].zweig) n++;
+        kr.pfade.splice(j, n); }), { rot: true, ohnePfeil: true }));
+    m.append(h('h2', {}, zw ? `Zweig neben Pfad ${nr}` : `Pfad ${nr}`), h('div', { class: 'liste' }, ...z));
+  });
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, h('button', { class: 'neu inliste', on: { click: () => { kr.pfade.push(neuerPfad()); sichern(); zeichne(); } } }, '+ Pfad')));
+  m.append(h('p', { class: 'hinweis' }, 'Plätze 1–6 von oben (L) nach unten, darunter der Verbraucher (Spule, Meldeleuchte) an N. Ein Zweig liegt parallel zum Pfad links daneben.'));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Kreis löschen', null, () => frage('Kreis löschen',
+    'Den Steuerstromkreis löschen? Das Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
+// Beschriftung eines Platzes: Zeichen, Gerät und Anschlüsse
+function platzZeile(v, e, p, i) {
+  const pl = p.plaetze[i];
+  if (!pl) return zeile(`Platz ${i + 1}`, '—', () => platzWahl(v, e, p, i), { un: 'leer: durchgehende Leitung' });
+  const sa = e.abgaenge[pl.g], g = !sa && ((v.steuerung.geraete || []).find(x => x.id === pl.g));
+  const z = pl.z || (g && g.zeichen), kn = e.steuer.kontakte[p.id + ':' + i];
+  const name = (ST_ZEICHEN[z] || [z || '?'])[0];
+  const un = sa ? [abgangName(knoten(v, pl.g).k), kn ? kn.an.join('/') : ''].filter(Boolean).join(' · ')
+    : g ? [g.bez, g.ort].filter(Boolean).join(', ') : 'Gerät fehlt';
+  const bmk = sa && sa.schalt ? sa.schalt.bmk : g ? e.steuer.geraete[g.id] : { t: '?', hand: false };
+  return zeile(`Platz ${i + 1}`, name, () => platzWahl(v, e, p, i), { bmk, un, rot: (!sa && !g) || (kn && !kn.ord) });
+}
+function verbraucherZeile(v, e, p) {
+  const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g], g = vb && !sa && ((v.steuerung.geraete || []).find(x => x.id === vb.g));
+  const wert = sa && sa.schalt ? `Spule ${SCHALT[sa.schalt.typ]}` : g ? 'Meldeleuchte' : '—';
+  return zeile('Verbraucher', wert, () => verbraucherWahl(v, e, p), {
+    bmk: sa && sa.schalt ? sa.schalt.bmk : g ? e.steuer.geraete[g.id] : null,
+    un: sa ? abgangName(knoten(v, vb.g).k) : g ? [g.bez, g.ort].filter(Boolean).join(', ') : 'Pfad ohne Verbraucher wäre ein Kurzschluss', rot: !vb });
+}
+// Platz belegen: erst das Zeichen, dann das Gerät
+function platzWahl(v, e, p, i) {
+  const cur = p.plaetze[i], g0 = cur && (v.steuerung.geraete || []).find(x => x.id === cur.g);
+  const curZ = cur ? (cur.z || (g0 && g0.zeichen) || '') : '';
+  const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakt eines Schaltgeräts', zr: 'verzögerter Kontakt eines Zeitrelais' };
+  wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml')
+    .map(([z, [n, a]]) => [z, n, art[a]])), curZ, z => {
+    if (!z) { p.plaetze[i] = null; return; }
+    setTimeout(() => geraetWahl(v, e, z, cur, gid => { p.plaetze[i] = ST_ZEICHEN[z][1] === 'bg' ? { g: gid } : { g: gid, z }; }), 0);
+  });
+}
+function geraetWahl(v, e, z, cur, setzen) {
+  const art = ST_ZEICHEN[z][1], st = stDaten(v);
+  if (art === 'bg' || art === 'ml') {
+    const opts = st.geraete.filter(g => g.zeichen === z).map(g => [g.id, [(e.steuer.geraete[g.id] || {}).t, g.bez, g.ort].filter(Boolean).join(' '), `${stVerwendet(v, g.id)}× verwendet`])
+      .concat([['+', `+ neu: ${ST_ZEICHEN[z][0]}`]]);
+    wahlFeld('Gerät', opts, cur ? cur.g : '', w => {
+      if (w !== '+') { setzen(w); return; }
+      const g = neuesSteuerGeraet(v, z); setzen(g.id);
+      setTimeout(() => textFeld('Bezeichnung', '', x => g.bez = x, { platz: 'z. B. Ein, Aus, Tür, Betrieb' }), 0);
+    });
+    return;
+  }
+  const opts = schaltAbgaenge(v, e).filter(k => art === 'hk' || e.abgaenge[k.id].schalt.typ === 'zeitrelais')
+    .map(k => [k.id, `${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]]);
+  if (!opts.length) { meldung(art === 'zr' ? 'Kein Zeitrelais im Verteiler' : 'Kein Schaltgerät im Verteiler'); return; }
+  wahlFeld('Schaltgerät', opts, cur ? cur.g : '', setzen,
+    { text: art === 'hk' ? 'Die Anschlüsse (13/14, 21/22 …) werden aus der Ausstattung des Geräts vergeben.' : null });
+}
+function verbraucherWahl(v, e, p) {
+  const st = stDaten(v), vb = p.verbraucher;
+  const opts = [['', 'keiner', 'nur bei Zweigen sinnvoll, die nicht bis N reichen']]
+    .concat(schaltAbgaenge(v, e).map(k => ['k' + k.id, `Spule ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]]))
+    .concat(st.geraete.filter(g => g.zeichen === 'meldeleuchte').map(g => ['g' + g.id, `Meldeleuchte ${[(e.steuer.geraete[g.id] || {}).t, g.bez].filter(Boolean).join(' ')}`]))
+    .concat([['+', '+ neue Meldeleuchte']]);
+  const cur = !vb ? '' : (e.abgaenge[vb.g] ? 'k' : 'g') + vb.g;
+  wahlFeld('Verbraucher', opts, cur, w => {
+    if (!w) p.verbraucher = null;
+    else if (w === '+') { const g = neuesSteuerGeraet(v, 'meldeleuchte'); p.verbraucher = { g: g.id };
+      setTimeout(() => textFeld('Bezeichnung', '', x => g.bez = x, { platz: 'z. B. Betrieb, Störung' }), 0); }
+    else p.verbraucher = { g: w.slice(1) };
+  });
+}
+
+function bSGeraet(b) {
+  const v = vById(b.vid), st = v && v.steuerung, g = st && st.geraete.find(x => x.id === b.gid); if (!g) { zurueck(); return; }
+  const e = berechne(v), bmk = e.steuer.geraete[g.id];
+  app.append(kopf(ST_ZEICHEN[g.zeichen][1] === 'ml' ? 'Meldeleuchte' : 'Befehlsgeber'));
+  const m = h('main');
+  const arten = Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a === ST_ZEICHEN[g.zeichen][1]).map(([z, [n]]) => [z, n]);
+  m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
+    arten.length > 1 ? zeile('Art', ST_ZEICHEN[g.zeichen][0], () => wahlFeld('Art', arten, g.zeichen, w => g.zeichen = w)) : null,
+    zeile('Bezeichnung', g.bez || '—', () => textFeld('Bezeichnung', g.bez, w => g.bez = w, { platz: 'z. B. Ein, Aus, Tür, Betrieb' })),
+    zeile('Ort', g.ort || '—', () => textFeld('Ort', g.ort, w => g.ort = w, { platz: 'z. B. Werkstatt, Tür HV' })),
+    zeile('Kennzeichen', bmk.t, () => bmkFeld('Kennzeichen', g, bmk.hand ? '' : bmk.t)),
+    zeile('Verwendet', `${stVerwendet(v, g.id)}×`, () => {}, { ohnePfeil: true })));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Gerät löschen', null, () => frage('Gerät löschen',
+    'Das Gerät löschen? Seine Plätze in den Kreisen werden leer.', () => {
+      st.geraete = st.geraete.filter(x => x !== g);
+      st.kreise.forEach(kr => kr.pfade.forEach(p => { p.plaetze = p.plaetze.map(pl => pl && pl.g === g.id ? null : pl);
+        if (p.verbraucher && p.verbraucher.g === g.id) p.verbraucher = null; }));
+      stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
+
+// Steuer-LS: Abgang ohne Leitung, Quelle der gemeinsamen Steuerspannung
+function bSteuerLs(v, r, e, a) {
+  const k = r.k, ge = k.geraet, sp = v.steuerung && v.steuerung.spannung;
+  app.append(kopf(a.f ? `Steuer-LS ${a.f.t}` : 'Steuer-LS'));
+  const m = h('main');
+  m.append(h('h2', {}, 'Steuerspannung'), h('div', { class: 'liste' },
+    zeile('Bezeichnung', k.ziel.bez || 'Steuerspannung', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w || 'Steuerspannung')),
+    zeile('Verwendet', sp && sp.art !== 'abgang' && sp.quelle === k.id ? 'Quelle der gemeinsamen Steuerspannung' : 'noch nicht als Quelle gewählt',
+      () => geh({ s: 'steuerung', vid: v.id }), { un: 'einstellen unter Steuerstromkreise' })));
+  m.append(h('h2', {}, 'Schutzorgan'), h('div', { class: 'liste' },
+    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', ['ls1', 'fils1n', 'sich1'].map(x => [x, gName(x)]), ge.zeichen, w => {
+      ge.zeichen = w; if (GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; })),
+    ...geraetZeilen(ge),
+    a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null,
+    a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => {}, { ohnePfeil: true })
+      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+        () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w),
+        { ohnePfeil: v.leiter === '1NPE' })));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuer-LS löschen', null, () => frage('Steuer-LS löschen', 'Den Steuer-LS löschen?', () => {
+    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
 }
 
 function bListe(b) {

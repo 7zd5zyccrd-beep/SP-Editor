@@ -119,9 +119,15 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
 **Detailvorschlag (abgestimmt 28.10.2026)** – Teil-Etappen je mit eigener Version:
 C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur über das
 Beispiel `steuerung` (Aussehen festlegen); C1b v1.10 Steuerspannung wählbar (Beispiele
-`gemeinsam`, `bruecke`, `bruecke0`); C2 v1.11 Strompfad-Editor mit geteilter Ansicht
-(dann auch Eingabe des Steuer-LS); C3 v1.12 Warnungen, Klemmen über -X1, Leitungen -W,
-eigenständiges Zeitrelais; C4 v1.13 Vorlagen.
+`gemeinsam`, `bruecke`, `bruecke0`); C2a v1.11 Eingabe in Bildschirmen wie bisher
+(Steuerspannung, Kreise mit Pfadliste, Befehlsgeber/Meldeleuchten, Steuer-LS; Beispiel
+`eingabe`); C2b v1.12 Raster-Editor mit geteilter Ansicht und Vorschau; C3 v1.13
+Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais, Kreis ohne
+Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
+- Ein Kreis entsteht automatisch mit der Wahl des Schaltgeräts (leerer Pfad, Spule auf dem
+  Verbraucherplatz); Kreise, deren Schaltgerät entfernt wurde, bleiben in den Daten, werden
+  aber nicht gezeichnet. Befehlsgeber entstehen beim Belegen eines Platzes oder vorab in der
+  Geräteliste.
 - Eigene Blätter je Verteiler direkt hinter dessen Stromlaufplan, ein Kreis je
   Schaltgerät hintereinander (ein Kreis wird nicht geteilt), ein Pfad je Rahmenspalte.
 - Je Pfad **6 Kontaktplätze** und darunter ein Verbraucherplatz (Spule, Meldeleuchte);

@@ -811,7 +811,7 @@ const PLAN = (() => {
   // Steuerspannung stehen die daran hängenden Kreise vorn, Kreise mit eigenem Abgriff dahinter.
   function stPlane(v, F, e) {
     const gem = e.steuer && e.steuer.gemeinsam, istGem = kr => !!gem && gem.kreise.includes(kr.id);
-    const alle = ((v.steuerung && v.steuerung.kreise) || []).filter(kr => kr.pfade.length);
+    const alle = ((v.steuerung && v.steuerung.kreise) || []).filter(kr => kr.pfade.length && e.steuer && e.steuer.aktiv[kr.id]);
     const kreise = alle.filter(istGem).concat(alle.filter(kr => !istGem(kr)));
     const bl = []; let cur = null, col = 1;
     for (const kr of kreise) {
@@ -902,7 +902,8 @@ const PLAN = (() => {
     const sgK = pf.map(p => p.verbraucher && e.abgaenge[p.verbraucher.g]).find(x => x && x.schalt);
     const k = sgK ? stKnoten(v, pf.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] === sgK).verbraucher.g) : kr.quelle && stKnoten(v, kr.quelle.kid);
     const titel = kr.name || (k ? [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') : '');
-    text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' });
+    passend(text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' }),
+      pf.length * R.sb - 4);     // nicht in den nächsten Kreis hinein
     const anN = pf.map((p, j) => !zweig(j) || zweig(j).bis >= ST_PL);
     if (!gem) {
       // eigene Schienen bis zum letzten angeschlossenen Pfad

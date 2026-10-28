@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -40,6 +40,26 @@ with sync_playwright() as p:
                 werte = sorted(set(ys)); haupt = max(set(ys), key=ys.count)
                 ab = [y for y in werte if y > haupt + 0.01 and y - haupt not in (1.5,)]
                 if any(y - haupt > 2 for y in ab): fehler.append(f'{name} {t}: Pfad endet tiefer als die Steckdosen ({haupt} mm): {ab}')
+        # alle Eingabebildschirme des ersten Verteilers einmal aufbauen (Skriptfehler fallen auf)
+        fehler += [f'{name}: Bildschirm {x}' for x in pg.evaluate("""() => { const v = P.verteiler[0], st = v.steuerung || {}, aus = [];
+            const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }];
+            (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }));
+            (st.geraete || []).forEach(g => seiten.push({ s: 'sgeraet', vid: v.id, gid: g.id }));
+            alleKnoten(v, k => { if (k.typ === 'abgang') seiten.push({ s: 'abgang', vid: v.id, kid: k.id }); });
+            for (const s of seiten) { try { stapel = [{ s: 'start' }, s]; zeichne(); } catch (e) { aus.push(JSON.stringify(s) + ': ' + e.message); } }
+            stapel = [{ s: 'start' }]; zeichne(); return aus; }""")]
+        if name == 'eingabe':
+            # Platz per Klick belegen: Kreis -Q4, Platz 3 → Taster Schließer → neues Gerät „Mitte“
+            pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1);
+                stapel = [{ s: 'start' }, { s: 'kreis', vid: v.id, krid: kr.id }]; zeichne(); }""")
+            pg.locator('button.zeile', has_text='Platz 3').first.click()
+            pg.locator('.wahl button', has_text='Taster Schließer').click(); pg.wait_for_timeout(100)
+            pg.locator('.wahl button', has_text='+ neu').click(); pg.wait_for_timeout(100)
+            pg.locator('.fenster input').fill('Mitte'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
+            ok = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[2];
+                const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return !!g && g.zeichen === 'taster_s' && g.bez === 'Mitte'; }""")
+            if not ok: fehler.append('eingabe: Platz per Klick belegen hat nicht geklappt')
+            pg.evaluate("BEISPIELE.eingabe(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()

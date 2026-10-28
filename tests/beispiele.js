@@ -62,4 +62,15 @@ window.BEISPIELE = {
   bruecke0: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
     const sls = neuerSteuerLs(); hv.knoten.push(sls);
     hv.steuerung.spannung = { art: 'bruecke', quelle: sls.id, leiste: 'eigen' }; sichern(); zeichne(); },
+  // wie schalt, Kreise so angelegt wie über die Eingabe (v1.11): je Schaltgerät ein Kreis mit der
+  // Spule; Herd mit Aus/Ein und Selbsthaltung; gemeinsame Steuerspannung vom Steuer-LS, durchgeschliffen
+  eingabe: () => { BEISPIELE.schalt(); const [hv] = P.verteiler, e = berechne(hv);
+    schaltAbgaenge(hv, e).forEach(k => kreisAnlegen(hv, k));
+    const herd = schaltAbgaenge(hv, e).find(k => k.ziel.bez === 'Herd'), kr = kreisVon(hv, herd.id);
+    const aus = neuesSteuerGeraet(hv, 'taster_oe'), ein = neuesSteuerGeraet(hv, 'taster_s');
+    aus.bez = 'Aus'; aus.ort = 'Küche'; ein.bez = 'Ein'; ein.ort = 'Küche';
+    kr.pfade[0].plaetze[0] = { g: aus.id }; kr.pfade[0].plaetze[1] = { g: ein.id };
+    const zw = neuerPfad(null, { von: 1, bis: 1 }); zw.plaetze[1] = { g: herd.id, z: 'hilfs_s' }; kr.pfade.push(zw);
+    const sls = neuerSteuerLs(); hv.knoten.push(sls); stDaten(hv).spannung = { art: 'durch', quelle: sls.id };
+    sichern(); zeichne(); },
 };

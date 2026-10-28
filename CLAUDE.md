@@ -118,16 +118,25 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
 
 **Detailvorschlag (abgestimmt 28.10.2026)** – Teil-Etappen je mit eigener Version:
 C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur über das
-Beispiel `steuerung` (Aussehen festlegen); C2 v1.10 Strompfad-Editor mit geteilter
-Ansicht; C3 v1.11 Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais;
-C4 v1.12 Vorlagen.
+Beispiel `steuerung` (Aussehen festlegen); C1b v1.10 Steuerspannung wählbar (Beispiele
+`gemeinsam`, `bruecke`, `bruecke0`); C2 v1.11 Strompfad-Editor mit geteilter Ansicht
+(dann auch Eingabe des Steuer-LS); C3 v1.12 Warnungen, Klemmen über -X1, Leitungen -W,
+eigenständiges Zeitrelais; C4 v1.13 Vorlagen.
 - Eigene Blätter je Verteiler direkt hinter dessen Stromlaufplan, ein Kreis je
   Schaltgerät hintereinander (ein Kreis wird nicht geteilt), ein Pfad je Rahmenspalte.
 - Je Pfad **6 Kontaktplätze** und darunter ein Verbraucherplatz (Spule, Meldeleuchte);
   parallele Zweige neben dem Pfad links davon, von Platz a bis Platz b.
-- Steuerspannung: L (erster Außenleiter) und N hinter dem Schutzorgan des Abgangs
-  abgegriffen, im Stromlaufplan mit gehendem, im Steuerstromkreis mit kommendem
-  Querverweis; ein eigener Steuer-LS wird von der Schiene mit Querverweis gespeist.
+- Steuerspannung je Verteiler wählbar, je Kreis Ausnahme „eigener Abgriff“:
+  **je Abgang** (jeder Kreis eigene kurze L/N-Schienen), **gemeinsam durchgeschliffen**
+  (eine durchgehende L- und N-Leitung, Verbindungspunkte genügen) oder **gemeinsam über
+  gebrückte Klemmen** (je Anschluss an L bzw. N eine Klemme, erst alle L, dann alle N;
+  wahlweise auf -X1 hinter den Abgangsklemmen oder auf eigener Leiste -X0 mit eigenem
+  Klemmenplan). Quelle der gemeinsamen Spannung wahlweise ein vorhandener Abgang oder ein
+  **Steuer-LS** (Abgang ohne Leitung mit `steuer: true`, nur L und N).
+- Abgriff: L (erster Außenleiter) und N hinter dem Schutzorgan, im Stromlaufplan mit
+  gehendem, im Steuerstromkreis mit kommendem Querverweis.
+- Steuertrafo als dritte Quelle später; Zeichen dafür zuerst über ein Auswahlblatt
+  (in der Bibliothek v1.4 gibt es keinen Trafo).
 - Kontaktspiegel unter der Spule (Hauptkontakte 1–2 …, Hilfskontakte Schließer n3–n4,
   dann Öffner n1–n2), genutzte mit `/Blatt.Spalte`; Hauptkontakte im Stromlaufplan
   tragen den Verweis auf die Spule. Befehlsgeber: Schließer 13–14, Öffner 11–12.

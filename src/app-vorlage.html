@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.10: Etappe C1b – Steuerspannung je Verteiler wählbar: je Abgang, gemeinsam durchgeschliffen
+           oder über gebrückte Klemmen (-X1 oder eigene Leiste -X0); Quelle Abgang oder Steuer-LS
+           (Abgang ohne Leitung); je Kreis eigener Abgriff möglich (Eingabe noch ohne Editor)
      v1.9: Etappe C1 – Blatt „Steuerstromkreis“ je Verteiler hinter seinem Stromlaufplan:
            Pfade mit 6 Kontaktplätzen und Verbraucherplatz, Zweige, Kontaktspiegel, Querverweise;
            Abgriff der Steuerspannung im Abgang; Befehlsgeber -S, Meldeleuchte -H
@@ -238,6 +241,11 @@ function neuerAbgang() {
   return { id: id(), typ: 'abgang', geraet: { zeichen: 'ls1', kennlinie: 'B', nenn: '16' }, phase: 'auto',
     leitung: { typ: 'NYM-J', quer: '2,5' }, ziel: { bez: '', ort: '', anschluss: 'steckdose3' }, speist: null, klemmen: 'verteiler' };
 }
+// Steuer-LS (ab v1.10): Abgang ohne Leitung, liefert die gemeinsame Steuerspannung
+function neuerSteuerLs() {
+  return Object.assign(neuerAbgang(), { steuer: true, geraet: { zeichen: 'ls1', kennlinie: 'B', nenn: '6' }, klemmen: 'nein',
+    ziel: { bez: 'Steuerspannung', ort: '', anschluss: 'fest' } });
+}
 function neueGruppe() {
   return { id: id(), typ: 'gruppe', geraet: { zeichen: 'fi4', nenn: '40', idn: '30', fityp: 'A' }, kinder: [] };
 }
@@ -295,6 +303,7 @@ function berechne(v) {
     else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
     else a.phase = { t: null, auto: true };
     a.leiter = a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
+    if (k.steuer) a.leiter = ['L', 'N'];     // Steuer-LS: nur L und N, ohne Leitung und Klemmen
     // Schaltgerät hinter dem Schutzorgan: geschaltet werden die Außenleiter, N nur auf Wunsch
     const sg = k.schalt && k.schalt.typ ? k.schalt : null;
     if (sg) a.schalt = { typ: sg.typ, bmk: bmk(sg.typ === 'zeitrelais' ? 'K' : 'Q', sg.bmk),
@@ -305,10 +314,10 @@ function berechne(v) {
     if (v.leiter === '1NPE' && gp === 3) a.warn = 'Gerät ist 3-polig, der Verteiler aber 1/N/PE.';
     if (a.drei && einLeiterGruppe(eltern)) a.warn = 'Dreiphasiger Abgang hinter einem 2-poligen FI.';
     // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
-    a.mitKlemmen = k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste');
+    a.mitKlemmen = !k.steuer && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
     if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + a.leiter.length, bmk: '-X1' }; klemme += a.leiter.length; }
     else a.klemmen = null;
-    a.w = bmk('W', k.leitung.bmk);
+    a.w = k.steuer ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
     // Kennzeichen des Leitungsendes: Steckdose -XD, Anschlussdose -X (ab -X2), Leuchte -E
     if (!k.speist) {
       if (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') a.xd = bmk('XD', k.ziel.bmk);
@@ -333,12 +342,16 @@ function berechne(v) {
     if (a.phase.auto) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1'); last[p]++; a.phase.t = p; }
   });
   e.last = last;
-  e.steuer = berechneSteuerung(v, e, bmk);
+  e.steuer = berechneSteuerung(v, e, bmk, klemme);
   return e;
 }
 // Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise }.
 //   geraete: Befehlsgeber und Meldeleuchten, { id, zeichen, bez, ort, bmk }
-//   kreise:  je Schaltgerät ein Kreis, { id, quelle: { art: 'abgang', kid }, pfade }
+//   spannung: { art: 'abgang' (je Kreis eigener Abgriff) | 'durch' (gemeinsam, durchgeschliffen)
+//              | 'bruecke' (gemeinsam über gebrückte Klemmen), quelle: Abgang oder Steuer-LS,
+//              leiste: 'X1' (hinter den Abgangsklemmen) | 'eigen' (eigene Leiste, bmk, sonst -X0) }
+//   kreise:  je Schaltgerät ein Kreis, { id, quelle: { art: 'abgang', kid }, eigen, pfade }
+//            eigen: true – eigener Abgriff trotz gemeinsamer Steuerspannung
 //   pfad:    { id, zweig: null | { von, bis }, plaetze: [6 × null | { g, z }], verbraucher: null | { g } }
 //            zweig: parallel zum Pfad links daneben von Platz von bis Platz bis (0 … 5, 6 = Verbraucher)
 //            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Hilfskontakts
@@ -346,12 +359,28 @@ function berechne(v) {
 // Hilfskontakte (Schließer n3/n4 zuerst, dann Öffner n1/n2), Abgriff im Abgang, Warnungen
 const ST_KZ = { meldeleuchte: 'H' };
 const istOeffner = z => /_oe/.test(z);
-function berechneSteuerung(v, e, bmk) {
-  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [] }, st = v.steuerung;
+function berechneSteuerung(v, e, bmk, klemme) {
+  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], gemeinsam: null }, st = v.steuerung;
   if (!st) return r;
   (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
+  // gemeinsame Steuerspannung (durchgeschliffen oder über gebrückte Klemmen) aus einer Quelle
+  const sp = st.spannung || { art: 'abgang' };
+  if (sp.art !== 'abgang' && e.abgaenge[sp.quelle]) {
+    r.gemeinsam = { art: sp.art, quelle: sp.quelle, kreise: (st.kreise || []).filter(kr => !kr.eigen).map(kr => kr.id) };
+    e.abgaenge[sp.quelle].abgriff = '*';
+  }
+  const gemeinsam = kr => r.gemeinsam && r.gemeinsam.kreise.includes(kr.id);
+  // gebrückte Klemmen: je Anschluss an die L- bzw. N-Leitung eine Klemme; erst alle L, dann
+  // alle N (je eine gebrückte Reihe), auf -X1 hinter den Abgangsklemmen oder eigener Leiste -X0
+  if (r.gemeinsam && sp.art === 'bruecke') {
+    const eigen = sp.leiste === 'eigen', kl = r.gemeinsam.klemmen = { bmk: eigen ? (sp.bmk || '-X0') : '-X1', l: {}, n: {} };
+    let nr = eigen ? 0 : klemme;
+    const ks = st.kreise.filter(gemeinsam);
+    ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig)) kl.l[p.id] = ++nr; }));
+    ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig) || p.zweig.bis >= 6) kl.n[p.id] = ++nr; }));
+  }
   (st.kreise || []).forEach(kr => {
-    if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+    if (!gemeinsam(kr) && kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
     kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => {
       const a = pl && e.abgaenge[pl.g]; if (!a || !a.schalt) return;
       const n = r.genutzt[pl.g] = r.genutzt[pl.g] || { s: [], o: [] }, oe = istOeffner(pl.z);
@@ -376,6 +405,7 @@ function bemessung(g) {
 const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
+  if (k.steuer) return '';
   const adern = a.drei ? 5 : 3;
   return `${k.leitung.typ || 'NYM-J'} ${adern}×${k.leitung.quer || '?'}`;
 }

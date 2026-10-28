@@ -16,7 +16,8 @@
        je Verteiler ein Abschnitt, Abgänge im halben Spaltenraster, Leiterzahl
        als Schrägstrich mit Zahl, Beschriftung unten senkrecht
      - hinter dem Stromlaufplan je Verteiler (falls vorhanden) die Steuerstromkreise,
-       ab v1.9: ein Kreis je Schaltgerät, ein Pfad je Spalte, Kontaktspiegel unter der Spule
+       ab v1.9: ein Kreis je Schaltgerät, ein Pfad je Spalte, Kontaktspiegel unter der Spule;
+       ab v1.10 wahlweise mit gemeinsamer L-/N-Leitung (durchgeschliffen oder gebrückte Klemmen)
      - Leiterfarben: N blau, PE grün; Schrift immer schwarz */
 const PLAN = (() => {
   const NS = 'http://www.w3.org/2000/svg';
@@ -207,7 +208,7 @@ const PLAN = (() => {
   function abgangArten(k, a, v) {
     if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
-    return [ph, 'N', 'PE'];
+    return k.steuer ? [ph, 'N'] : [ph, 'N', 'PE'];
   }
   // greift ein Steuerstromkreis seine Spannung im Abgang ab, braucht der Abgang
   // rechts Platz für die gehenden Querverweise (rund drei Leiterabstände)
@@ -244,12 +245,20 @@ const PLAN = (() => {
     if (a.abgriff) {
       const y1 = Math.max(yS, cursor + 2), iN = arten.indexOf('N'), xr = xs[xs.length - 1] + 4;
       const ziel = ctx.steuer && ctx.steuer.kreise[a.abgriff], ref = ziel ? `/${ziel.blatt}.${ziel.spalte}` : '';
+      // Steuer-LS: L und N enden im Abgriff (Ecke, kein Verbindungspunkt)
+      if (k.steuer) { leiter(g, xs[0], enden[0], xs[0], y1, arten[0]); leiter(g, xs[iN], enden[iN], xs[iN], y1 + 3, 'N'); }
       [[0, y1], [iN, y1 + 3]].forEach(([i, y]) => {
-        punkt(g, xs[i], y, arten[i]); leiter(g, xs[i], y, xr, y, arten[i]);
+        if (!k.steuer) punkt(g, xs[i], y, arten[i]);
+        leiter(g, xs[i], y, xr, y, arten[i]);
         setze(g, 'qv_gehend', xr, y, t => t.richtung === 'w', arten[i]);
         text(g, xr + 4.5, y + 0.9, ref, 2.2);
       });
       yS = y1;
+      if (k.steuer) {
+        const ty = y1 + 9;
+        passend(text(g, x0 + ABSTAND / 2, ty, k.ziel.bez || 'Steuerspannung', 2.5, 'middle', { 'font-weight': 'bold' }), breite - 2);
+        return { unten: ty + 2, natur: y1 + 6 };
+      }
       if (!a.schalt) { bis(y1 + 3); cursor = y1 + 3; }
     }
     const spule = ctx.steuer && ctx.steuer.spulen[k.id];
@@ -558,7 +567,7 @@ const PLAN = (() => {
       senk(-2.2, `→ ${u ? u.name : 'Verteiler'}${u ? ` /${u.blatt}.${u.spalte}` : ''}`, 2.2, true);
     } else senk(-2.2, k.ziel.bez || '', 2.5, true);
     senk(0.9, k.ziel.ort || '', 2.2);
-    senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}`, 2.2);
+    if (!k.steuer) senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}`, 2.2);
   }
   // ein Abgang an einer Schiene auf ySrc: Gerät auf yG, Ende auf yE.
   // Gibt das untere Ende vor der Ableitung zum Ende zurück.
@@ -724,6 +733,26 @@ const PLAN = (() => {
       bloecke.push({ kenn: a.f ? a.f.t : '', zeilen });
     };
     v.knoten.forEach(k => k.typ === 'abgang' ? abgang(k, null) : k.kinder.forEach(c => c.typ === 'abgang' && abgang(c, k)));
+    bloecke.forEach(b => b.leiste = '-X1');
+    // gebrückte Klemmen der gemeinsamen Steuerspannung (ab v1.10): eine Reihe L, eine Reihe N;
+    // die erste Klemme jeder Reihe kommt von der Quelle, die übrigen über die Brücke
+    const gem = e.steuer && e.steuer.gemeinsam, kl = gem && gem.klemmen;
+    if (kl) {
+      const q = e.abgaenge[gem.quelle], qk = stKnoten(v, gem.quelle), lName = stLeiter(v, q), ziel = {};
+      const grp = v.knoten.find(g => g.typ === 'gruppe' && g.kinder.includes(qk));     // Quelle in einer Gruppe?
+      v.steuerung.kreise.filter(kr => gem.kreise.includes(kr.id)).forEach(kr => {
+        const sg = kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
+        kr.pfade.forEach(pf => ziel[pf.id] = 'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''));
+      });
+      const reihe = (nrn, l) => Object.entries(nrn).sort((x, y) => x[1] - y[1]).map(([pid, nr], i) => {
+        const ll = l === 'N' ? 'N' : 'L';
+        const intern = i ? 'Brücke' : (ausgang(qk.geraet.zeichen, q.f && q.f.t, ll, lName)
+          || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, ll, lName)) || schiene(ll, lName));
+        const art = l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
+        return [String(nr), l === 'N' ? 'N' : lName, art + ', gebrückt', intern, '', '', ziel[pid] || ''];
+      });
+      bloecke.push({ kenn: '', leiste: kl.bmk, zeilen: reihe(kl.l, 'L') }, { kenn: '', leiste: kl.bmk, zeilen: reihe(kl.n, 'N') });
+    }
     return bloecke;
   }
   let hilfK = { name: () => '' };
@@ -737,9 +766,9 @@ const PLAN = (() => {
     }
     return bl;
   }
-  function zeichneKlemmenplan(g, F, v, bloecke, teil, teile) {
+  function zeichneKlemmenplan(g, F, v, bloecke, teil, teile, leiste = '-X1') {
     const x0 = RAND_L, x1 = F.w - RAND, w = x1 - x0 - 20, xa = x0 + 10;
-    text(g, xa, RAND + 13, `Klemmenplan -X1 · ${v.name}` + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
+    text(g, xa, RAND + 13, `Klemmenplan ${leiste} · ${v.name}` + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
     const sp = [['Klemme', 0.07], ['Leiter', 0.07], ['Klemmenart', 0.15], ['intern', 0.12], ['Leitung', 0.2], ['Ader', 0.07], ['Ziel', 0.32]];
     const xs = []; let x = xa; sp.forEach(([, a]) => { xs.push(x); x += w * a; });
     const zeile = (yy, werte, kopf) => werte.forEach((t, i) =>
@@ -778,21 +807,26 @@ const PLAN = (() => {
   }
   const ST_LINKS = 19;                              // Pfad in der Spalte: Platz links für Kennzeichen und Text
   const stKnoten = (v, kid) => { let r = null; const such = l => l.forEach(k => { if (k.id === kid) r = k; if (k.kinder) such(k.kinder); }); such(v.knoten); return r; };
-  // Kreise auf Blätter verteilen; ein Kreis wird nicht geteilt
-  function stPlane(v, F) {
-    const kreise = ((v.steuerung && v.steuerung.kreise) || []).filter(kr => kr.pfade.length);
+  // Kreise auf Blätter verteilen; ein Kreis wird nicht geteilt. Bei gemeinsamer
+  // Steuerspannung stehen die daran hängenden Kreise vorn, Kreise mit eigenem Abgriff dahinter.
+  function stPlane(v, F, e) {
+    const gem = e.steuer && e.steuer.gemeinsam, istGem = kr => !!gem && gem.kreise.includes(kr.id);
+    const alle = ((v.steuerung && v.steuerung.kreise) || []).filter(kr => kr.pfade.length);
+    const kreise = alle.filter(istGem).concat(alle.filter(kr => !istGem(kr)));
     const bl = []; let cur = null, col = 1;
     for (const kr of kreise) {
       const w = kr.pfade.length;
       if (!cur || (col + w - 1 > F.sp && cur.kreise.length)) { cur = { kreise: [] }; bl.push(cur); col = 1; }
-      cur.kreise.push({ kr, col }); col += w;
+      cur.kreise.push({ kr, col, gem: istGem(kr) }); col += w;
     }
     return bl;
   }
-  // Lage aller Spulen, Kontakte und Kreise für die Querverweise
+  // Lage aller Spulen, Kontakte und Kreise für die Querverweise; '*' ist der Anfang
+  // der gemeinsamen Steuerspannung
   function stLagen(p, st) {
-    p.st.forEach((b, i) => b.kreise.forEach(({ kr, col }) => {
+    p.st.forEach((b, i) => b.kreise.forEach(({ kr, col, gem }) => {
       st.kreise[kr.id] = { blatt: p.stStart + i, spalte: col };
+      if (gem && !st.kreise['*']) st.kreise['*'] = { blatt: p.stStart + i, spalte: 1 };
       kr.pfade.forEach((pf, j) => {
         const lg = { blatt: p.stStart + i, spalte: col + j };
         pf.plaetze.forEach((pl, n) => { if (pl) st.kontakte[pf.id + ':' + n] = lg; });
@@ -800,37 +834,100 @@ const PLAN = (() => {
       });
     }));
   }
-  function stKreis(g, ctx, v, e, kr, col, R) {
+  // Name des Außenleiters, den ein Abgang als Steuerspannung liefert
+  const stLeiter = (v, a) => !a ? 'L' : v.leiter === '1NPE' ? 'L' : a.drei ? 'L1' : (a.phase.t || 'L1');
+  // Lage der L- und N-Leitung: bei gebrückten Klemmen liegt die gemeinsame Leitung
+  // eine Klemmenhöhe (5 mm) über bzw. unter dem Pfad
+  const ST_KL = 5;
+  function stSchienen(bruecke) { return { yL: bruecke ? ST_YL - ST_KL : ST_YL, yN: bruecke ? ST_YN + ST_KL : ST_YN }; }
+
+  // ein Blatt Steuerstromkreise
+  function stBlatt(g, ctx, v, e, b, R, F, blattNr, letztesGem) {
+    const segs = [];
+    const lt = (x1, y1, x2, y2, art, unsichtbar) => {
+      if (Math.abs(x1 - x2) + Math.abs(y1 - y2) < 0.01) return;
+      if (!unsichtbar) leiter(g, x1, y1, x2, y2, art);
+      segs.push({ x1, y1, x2, y2, art });
+    };
+    const gem = e.steuer && e.steuer.gemeinsam;
+    const anG = { L: [], N: [] };                    // Anschlüsse an die gemeinsame Leitung
+    b.kreise.forEach(({ kr, col, gem: g1 }) => stKreis(g, ctx, v, e, kr, col, R, lt, g1 ? gem : null, anG));
+    // gemeinsame L- und N-Leitung über die Kreise; geht es auf dem nächsten Blatt
+    // weiter, bis an den rechten Rand mit gehendem Querverweis
+    if (b.kreise.some(k => k.gem)) {
+      const { yL, yN } = stSchienen(gem.art === 'bruecke');
+      const a = e.abgaenge[gem.quelle], lName = stLeiter(v, a), xA = R.x0 + 7, la = ctx.lage[gem.quelle];
+      const erstes = ctx.steuer.kreise['*'] && ctx.steuer.kreise['*'].blatt === blattNr;
+      const weiter = blattNr < letztesGem, xE = R.x1 - 12;
+      [[yL, lName, anG.L], [yN, 'N', anG.N]].forEach(([y, art, an]) => {
+        lt(xA, y, weiter ? xE : Math.max(...an), y, art);
+        setze(g, 'qv_kommend', xA, y, t => t.richtung === 'e', art);
+        if (weiter) { setze(g, 'qv_gehend', xE, y, t => t.richtung === 'w', art); text(g, xE + 4.5, y + 0.9, `/${blattNr + 1}.1`, 2.2); }
+      });
+      const ref = erstes ? (la ? `/${la.blatt}.${la.spalte}` : '') : `/${blattNr - 1}.${F.sp}`;
+      text(g, xA - 4.5, yL - 1.6, [lName, erstes && a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
+      text(g, xA - 4.5, yN + 3.4, ['N', ref].join(' '), 2.2);
+    }
+    // Verbindungspunkte, wo drei oder mehr Linien zusammentreffen
+    const nah = (p, q) => Math.abs(p - q) < 0.01;
+    const pkt = [];
+    segs.forEach(s => [[s.x1, s.y1], [s.x2, s.y2]].forEach(([px, py]) => { if (!pkt.some(q => nah(q[0], px) && nah(q[1], py))) pkt.push([px, py, s.art]); }));
+    pkt.forEach(([px, py, art]) => {
+      let n = 0;
+      segs.forEach(s => {
+        const ende = (nah(s.x1, px) && nah(s.y1, py)) || (nah(s.x2, px) && nah(s.y2, py));
+        const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, px) && py > Math.min(s.y1, s.y2) && py < Math.max(s.y1, s.y2)
+          : nah(s.y1, s.y2) && nah(s.y1, py) && px > Math.min(s.x1, s.x2) && px < Math.max(s.x1, s.x2));
+        n += ende ? 1 : innen ? 2 : 0;
+      });
+      if (n >= 3) punkt(g, px, py, art);
+    });
+  }
+  // ein Kreis; lt zeichnet Leitungen (für die Verbindungspunkte gesammelt). gem: gemeinsame
+  // Steuerspannung, dann ohne eigene Schienen, Anschlüsse in anG (bei Brücke über Klemmen)
+  function stKreis(g, ctx, v, e, kr, col, R, lt, gem, anG) {
     const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);
     const xA = R.x0 + (col - 1) * R.sb + 7;        // Schienenanfang (kommender Querverweis)
     const haupt = pf.map((_, j) => { let h = j; while (h > 0 && pf[h].zweig) h--; return h; });
     const zweig = j => j > 0 && pf[j].zweig ? pf[j].zweig : null;
-    const segs = [];                                 // Leitungen für die Verbindungspunkte
-    const lt = (x1, y1, x2, y2, art) => { if (Math.abs(x1 - x2) + Math.abs(y1 - y2) < 0.01) return; leiter(g, x1, y1, x2, y2, art); segs.push({ x1, y1, x2, y2, art }); };
-    // Quelle: Abgriff im Abgang
-    const kid = kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
-    const a = kid && e.abgaenge[kid], k = kid && stKnoten(v, kid), la = kid && ctx.lage[kid];
+    // Quelle: eigener Abgriff im Abgang oder gemeinsame Steuerspannung
+    const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
+    const a = kid && e.abgaenge[kid], la = kid && ctx.lage[kid];
     const ref = la ? `/${la.blatt}.${la.spalte}` : '';
-    const lName = !a ? 'L' : v.leiter === '1NPE' ? 'L' : a.drei ? 'L1' : (a.phase.t || 'L1');
+    const lName = stLeiter(v, a);
+    const st = e.steuer || { geraete: {}, kontakte: {} }, kl = gem && gem.klemmen;
+    const { yN } = stSchienen(!!kl);
     // Überschrift: Schaltgerät und Abgang
     const sgK = pf.map(p => p.verbraucher && e.abgaenge[p.verbraucher.g]).find(x => x && x.schalt);
+    const k = sgK ? stKnoten(v, pf.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] === sgK).verbraucher.g) : kr.quelle && stKnoten(v, kr.quelle.kid);
     const titel = kr.name || (k ? [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') : '');
     text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' });
-    // Schienen bis zum letzten angeschlossenen Pfad
     const anN = pf.map((p, j) => !zweig(j) || zweig(j).bis >= ST_PL);
-    const xLe = Math.max(...xs.filter((_, j) => !zweig(j))), xNe = Math.max(...xs.filter((_, j) => anN[j]));
-    lt(xA, ST_YL, xLe, ST_YL, lName); lt(xA, ST_YN, xNe, ST_YN, 'N');
-    setze(g, 'qv_kommend', xA, ST_YL, t => t.richtung === 'e', lName);
-    setze(g, 'qv_kommend', xA, ST_YN, t => t.richtung === 'e', 'N');
-    text(g, xA - 4.5, ST_YL - 1.6, [lName, a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
-    text(g, xA - 4.5, ST_YN + 3.4, ['N', ref].filter(Boolean).join(' '), 2.2);
-    // Pfade
-    const st = e.steuer || { geraete: {}, kontakte: {} };
+    if (!gem) {
+      // eigene Schienen bis zum letzten angeschlossenen Pfad
+      const xLe = Math.max(...xs.filter((_, j) => !zweig(j))), xNe = Math.max(...xs.filter((_, j) => anN[j]));
+      lt(xA, ST_YL, xLe, ST_YL, lName); lt(xA, ST_YN, xNe, ST_YN, 'N');
+      setze(g, 'qv_kommend', xA, ST_YL, t => t.richtung === 'e', lName);
+      setze(g, 'qv_kommend', xA, ST_YN, t => t.richtung === 'e', 'N');
+      text(g, xA - 4.5, ST_YL - 1.6, [lName, a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
+      text(g, xA - 4.5, ST_YN + 3.4, ['N', ref].filter(Boolean).join(' '), 2.2);
+    }
+    // Anschluss an die gemeinsame Leitung: durchgeschliffen direkt, sonst über eine Klemme
+    const klemme = (x, yOben, nr, art, erste) => {
+      setze(g, 'klemme', x, yOben, null, art);
+      lt(x, yOben, x, yOben + ST_KL, art, true);   // für die Verbindungspunkte
+      text(g, x + 1.8, yOben + 3.3, String(nr), 1.8);
+      if (erste) text(g, x - 2, yOben + 3.5, kl.bmk, 2.5, 'end', { 'font-weight': 'bold' });
+    };
     pf.forEach((p, j) => {
       const x = xs[j], zw = zweig(j);
       const von = zw ? zw.von : 0, bis = zw ? zw.bis : ST_PL;
       let y = zw ? stB(von) : ST_YL;
-      if (zw) { lt(xs[haupt[j]], y, x, y, lName); }
+      if (zw) lt(xs[haupt[j]], y, x, y, lName);
+      else if (gem) {
+        anG.L.push(x);
+        if (kl) klemme(x, ST_YL - ST_KL, kl.l[p.id], lName, !anG.L.slice(0, -1).length);
+      }
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
         const sa = e.abgaenge[pl.g], ger = !sa && ((v.steuerung.geraete || []).find(d => d.id === pl.g));
@@ -863,29 +960,16 @@ const PLAN = (() => {
           if (sa) {
             const sg = sa.schalt;
             bmk(g, x - li - 1, ST_YV + 4, sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? `t = ${sg.zr.zeit}` : '']);
-            stSpiegel(g, ctx, e, vb.g, x, ST_YN + 4);
+            stSpiegel(g, ctx, e, vb.g, x, yN + 4);
           } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
           text(g, x + re + 0.8, ST_YV + 2.2, sa ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa ? 'A2' : 'X2', 1.8);
         }
         lt(x, y, x, ST_YN, 'N');
+        if (gem) { anG.N.push(x); if (kl) klemme(x, ST_YN, kl.n[p.id], 'N', anG.N.length === 1); }
       } else {
         const yb = stB(bis + 1);
         lt(x, y, x, yb, lName); lt(x, yb, xs[haupt[j]], yb, lName);
       }
-    });
-    // Verbindungspunkte, wo drei oder mehr Linien zusammentreffen
-    const nah = (p, q) => Math.abs(p - q) < 0.01;
-    const pkt = [];
-    segs.forEach(s => [[s.x1, s.y1], [s.x2, s.y2]].forEach(([px, py]) => { if (!pkt.some(q => nah(q[0], px) && nah(q[1], py))) pkt.push([px, py, s.art]); }));
-    pkt.forEach(([px, py, art]) => {
-      let n = 0;
-      segs.forEach(s => {
-        const ende = (nah(s.x1, px) && nah(s.y1, py)) || (nah(s.x2, px) && nah(s.y2, py));
-        const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, px) && py > Math.min(s.y1, s.y2) && py < Math.max(s.y1, s.y2)
-          : nah(s.y1, s.y2) && nah(s.y1, py) && px > Math.min(s.x1, s.x2) && px < Math.max(s.x1, s.x2));
-        n += ende ? 1 : innen ? 2 : 0;
-      });
-      if (n >= 3) punkt(g, px, py, nah(py, ST_YN) ? 'N' : art);
     });
   }
   // Kontaktspiegel unter der Spule: Hauptkontakte, dann alle Hilfskontakte der
@@ -961,7 +1045,7 @@ const PLAN = (() => {
         if (it.art === 'abgang') return zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], 0, bars, yG, it.w * R.sb).unten;
         return zeichneGruppe(g, ctx, v, e, it.k, 0, bars, yG, it.w, R, F.h - RAND - SF_H - 24);
       };
-      return { v, e, blaetter: planeVerteiler(v, e, F, R, probe), st: stPlane(v, F) };
+      return { v, e, blaetter: planeVerteiler(v, e, F, R, probe), st: stPlane(v, F, e) };
     });
     zuBegrenzen.length = 0;      // Texte aus dem Probezeichnen verwerfen
     // Blattnummern durchgehend; Einspeisungsspalte jedes Verteilers für Querverweise
@@ -974,7 +1058,14 @@ const PLAN = (() => {
     // Klemmenplan je Verteiler mit Klemmleiste
     const mitKl = P.projekt.klemmenplan !== false;
     hilfK = { name: id => (P.verteiler.find(x => x.id === id) || {}).name };
-    plaene.forEach(p => { p.kl = mitKl ? klemmenBlaetter(klemmenBloecke(p.v, p.e), F) : []; });
+    // je Klemmleiste (-X1, ggf. eigene Leiste der Steuerspannung) eigene Blätter
+    plaene.forEach(p => {
+      p.kl = [];
+      if (!mitKl) return;
+      const alle = klemmenBloecke(p.v, p.e);
+      [...new Set(alle.map(b => b.leiste))].forEach(leiste => klemmenBlaetter(alle.filter(b => b.leiste === leiste), F)
+        .forEach((bl, i, arr) => p.kl.push({ leiste, bloecke: bl, teil: i, teile: arr.length })));
+    });
     const klZahl = plaene.reduce((s, p) => s + p.kl.length, 0);
     const planZahl = ueZahl + klZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
     const zProBlatt = Math.floor((F.h - RAND - SF_H - 4 - INH_Y0 - INH_ZH) / INH_ZH);
@@ -1044,7 +1135,7 @@ const PLAN = (() => {
         eintraege.push({ nr: p.stStart + i, verteiler: p.v.name, inhalt: 'Steuerstromkreis' + (kz.length ? ' ' + kz.join(', ') : '') });
       }));
       plaene.forEach(p => p.kl.forEach((b, i) => eintraege.push({ nr: p.klStart + i, verteiler: p.v.name,
-        inhalt: 'Klemmenplan -X1' + (i ? ' (Fortsetzung)' : '') })));
+        inhalt: 'Klemmenplan ' + b.leiste + (b.teil ? ' (Fortsetzung)' : '') })));
       eintraege.sort((x, y) => x.nr - y.nr);
       const { svg, g } = neuesBlatt();
       zeichneDeckblatt(g, F, P, plaene.map(p => p.v.name));
@@ -1109,14 +1200,14 @@ const PLAN = (() => {
       });
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
-        b.kreise.forEach(({ kr, col }) => stKreis(g, ctx, v, e, kr, col, R));
+        stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung' });
       });
     }
     for (const p of plaene) p.kl.forEach((b, i) => {
       const blattNr = p.klStart + i, { svg, g } = neuesBlatt();
-      zeichneKlemmenplan(g, F, p.v, b, i, p.kl.length);
+      zeichneKlemmenplan(g, F, p.v, b.bloecke, b.teil, b.teile, b.leiste);
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));
       aus.push({ svg, verteiler: p.v.name, titel: p.v.name, nr: blattNr, art: 'klemmen' });
     });

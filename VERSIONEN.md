@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.10 | Etappe C1b: Steuerspannung je Verteiler wählbar – je Abgang, gemeinsam durchgeschliffen oder über gebrückte Klemmen (-X1 oder eigene Leiste -X0 mit eigenem Klemmenplan); Quelle Abgang oder Steuer-LS; je Kreis eigener Abgriff möglich |
 | v1.9 | Etappe C1: Blatt „Steuerstromkreis“ je Verteiler (6 Kontaktplätze + Verbraucher je Pfad, Zweige, Kontaktspiegel, Querverweise), Abgriff der Steuerspannung im Abgang, Kennzeichen -S und Meldeleuchte -H; Eingabe vorerst nur über das Beispiel `steuerung` |
 | v1.8 | Namensnennung der QElectroTech-Schaltzeichen (CC BY 3.0) auf dem Startbildschirm und dem Deckblatt |
 | v1.7 | Schaltgeräte je Abgang (Schütz, Stromstoßschalter, Zeitrelais), Kennzeichen -Q bzw. -K, N mitschalten, Ausstattung an Hilfskontakten; Hauptkontakte im Stromlaufplan, Schützzeichen im Übersichtsschaltplan, Herkunft im Klemmenplan, Zusatz im Türzettel; Verdichtung nur bei Platzmangel |

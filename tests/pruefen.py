@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)

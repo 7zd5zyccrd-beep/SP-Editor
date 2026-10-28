@@ -49,4 +49,17 @@ window.BEISPIELE = {
     const tl = ger('taster_s', 'Licht', 'Lager 1');
     hv.steuerung.kreise.push({ id: id(), quelle: { art: 'abgang', kid: lager.id }, pfade: [pfad([{ g: tl }], { g: lager.id })] });
     sichern(); zeichne(); },
+  // wie steuerung, gemeinsame Steuerspannung durchgeschliffen vom Steuer-LS; das Zeitrelais
+  // behält seinen eigenen Abgriff
+  gemeinsam: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
+    const sls = neuerSteuerLs(); hv.knoten.push(sls);
+    hv.steuerung.spannung = { art: 'durch', quelle: sls.id };
+    hv.steuerung.kreise[2].eigen = true; sichern(); zeichne(); },
+  // wie steuerung, gemeinsame Steuerspannung aus dem Abgang Licht Büro über gebrückte Klemmen auf -X1
+  bruecke: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
+    hv.steuerung.spannung = { art: 'bruecke', quelle: hv.steuerung.kreise[0].quelle.kid, leiste: 'X1' }; sichern(); zeichne(); },
+  // wie steuerung, Steuer-LS und gebrückte Klemmen auf eigener Leiste -X0
+  bruecke0: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
+    const sls = neuerSteuerLs(); hv.knoten.push(sls);
+    hv.steuerung.spannung = { art: 'bruecke', quelle: sls.id, leiste: 'eigen' }; sichern(); zeichne(); },
 };

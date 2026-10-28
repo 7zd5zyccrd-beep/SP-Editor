@@ -126,6 +126,13 @@ Palette antippen, dann Zelle; ohne Werkzeug wählt ein Tippen die Zelle; ab 1000
 Vorschau rechts, sonst darunter einklappbar); C3 v1.13
 Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais, Kreis ohne
 Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
+- C3 (v1.13): Befehlsgeber stehen voreingestellt „im Feld“, Meldeleuchten „im Verteiler“
+  (je Gerät umstellbar). Feldgeräte laufen bei Klemmleiste über -X1: je Kontakt zwei Klemmen
+  (nach den Abgangs- und Brückenklemmen), im Steuerstromkreis als kleiner Klemmenkreis mit
+  `X1:nr` am Kontakt, je Gerät eine Leitung -W (Adern = Klemmen, Voreinstellung NYM-J 1,5).
+  Eigenständiges Zeitrelais -K (Funktion, Zeit, verzögerte Schließer n7/n8 und Öffner n5/n6)
+  als Verbraucher eines Kreises ohne Schaltgerät; verzögerte Kontakte auch an Zeitrelais im
+  Abgang. Warnungen stehen im Verteiler, unter „Steuerstromkreise“ und im Raster.
 - Ein Kreis entsteht automatisch mit der Wahl des Schaltgeräts (leerer Pfad, Spule auf dem
   Verbraucherplatz); Kreise, deren Schaltgerät entfernt wurde, bleiben in den Daten, werden
   aber nicht gezeichnet. Befehlsgeber entstehen beim Belegen eines Platzes oder vorab in der

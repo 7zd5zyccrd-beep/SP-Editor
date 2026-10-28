@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.13 | Etappe C3: Warnungen; Feldgeräte über -X1 (zwei Klemmen je Kontakt, Leitung -W, Klemmenplan); eigenständiges Zeitrelais -K mit verzögerten Kontakten und Kontaktspiegel; Kreise ohne Schaltgerät (Meldeleuchte, Zeitrelais) |
 | v1.12 | Etappe C2b: Raster-Editor für Steuerstromkreise – Palette, Raster mit Pfaden und Zweigen, Werkzeugleiste, Rückgängig/Wiederholen, Tastenkürzel (Entf, Strg+Z/Y, Strg+C/V, Pfeile, Alt+↑/↓, Esc); geteilte Ansicht mit Vorschau des Blatts |
 | v1.11 | Etappe C2a: Eingabe der Steuerstromkreise in Bildschirmen – Steuerspannung/Quelle/Klemmen je Verteiler, Kreise mit Pfaden, Plätzen, Verbraucher und Zweigen, Befehlsgeber und Meldeleuchten, Steuer-LS im Abgangsbaum; Kreis entsteht mit der Wahl des Schaltgeräts |
 | v1.10 | Etappe C1b: Steuerspannung je Verteiler wählbar – je Abgang, gemeinsam durchgeschliffen oder über gebrückte Klemmen (-X1 oder eigene Leiste -X0 mit eigenem Klemmenplan); Quelle Abgang oder Steuer-LS; je Kreis eigener Abgriff möglich; im Steuerstromkreis nur die N-Leitung blau |

@@ -16,6 +16,11 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.13: Etappe C3 – Warnungen (zu wenige Kontakte, Schaltgerät ohne Kreis, Kreis ohne Kontakte,
+           Pfad ohne Verbraucher, Stromstoß ohne Taster, Spule mehrfach, Quelle/Abgriff fehlt …);
+           Feldgeräte (Einbauort „im Feld“) bei Klemmleiste über -X1 mit je zwei Klemmen je Kontakt und
+           eigener Leitung -W, im Steuerstromkreis und im Klemmenplan; eigenständiges Zeitrelais -K
+           (Funktion, Zeit, verzögerte Kontakte n7/n8, n5/n6) mit Kontaktspiegel; Kreise ohne Schaltgerät
      v1.12: Etappe C2b – Raster-Editor je Steuerstromkreis: Palette (Befehlsgeber, Hilfskontakte,
            Zeitrelais-Kontakte, Spule, Meldeleuchte, Radierer), Raster aus Pfaden/Zweigen × Plätzen
            und Verbraucher, Auswahl mit Werkzeugleiste (Gerät ändern, Löschen, ↑/↓, Kopieren/Einfügen,
@@ -391,25 +396,39 @@ function berechne(v) {
   e.steuer = berechneSteuerung(v, e, bmk, klemme);
   return e;
 }
-// Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise }.
-//   geraete: Befehlsgeber und Meldeleuchten, { id, zeichen, bez, ort, bmk }
+// Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise, spannung }.
+//   geraete: Befehlsgeber, Meldeleuchten und eigenständige Zeitrelais,
+//            { id, zeichen, bez, ort, bmk, feld, leitung: { typ, quer, bmk } }
+//            feld: true – im Feld, bei Klemmleiste über -X1 angeschlossen (Voreinstellung
+//            Befehlsgeber), false – im Verteiler (Voreinstellung Meldeleuchte)
+//            Zeitrelais (zeichen 'zeitrelais'): { fkt, zeit, hs, ho } mit verzögerten Kontakten
 //   spannung: { art: 'abgang' (je Kreis eigener Abgriff) | 'durch' (gemeinsam, durchgeschliffen)
 //              | 'bruecke' (gemeinsam über gebrückte Klemmen), quelle: Abgang oder Steuer-LS,
 //              leiste: 'X1' (hinter den Abgangsklemmen) | 'eigen' (eigene Leiste, bmk, sonst -X0) }
-//   kreise:  je Schaltgerät ein Kreis, { id, quelle: { art: 'abgang', kid }, eigen, pfade }
+//   kreise:  { id, name, quelle: { art: 'abgang', kid }, eigen, pfade }; je Schaltgerät einer,
+//            dazu Kreise ohne Schaltgerät (Verbraucher Meldeleuchte oder eigenständiges Zeitrelais)
 //            eigen: true – eigener Abgriff trotz gemeinsamer Steuerspannung
 //   pfad:    { id, zweig: null | { von, bis }, plaetze: [6 × null | { g, z }], verbraucher: null | { g } }
 //            zweig: parallel zum Pfad links daneben von Platz von bis Platz bis (0 … 5, 6 = Verbraucher)
-//            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Hilfskontakts
-// Ergebnis: Kennzeichen (-S Befehlsgeber, -H Meldeleuchte, traditionell statt -P wie der Zähler), Anschlussnummern der
-// Hilfskontakte (Schließer n3/n4 zuerst, dann Öffner n1/n2), Abgriff im Abgang, Warnungen
-const ST_KZ = { meldeleuchte: 'H' };
+//            g: Gerät (Abgang mit Schaltgerät oder Eintrag in geraete), z: Zeichen eines Kontakts
+// Ergebnis: Kennzeichen (-S Befehlsgeber, -H Meldeleuchte, traditionell statt -P wie der Zähler,
+// -K eigenständige Zeitrelais), Anschlussnummern (Hilfskontakte Schließer n3/n4, Öffner n1/n2;
+// verzögerte Kontakte Schließer n7/n8, Öffner n5/n6), Abgriff im Abgang, Klemmen und Leitungen
+// der Feldgeräte (ab v1.13), Warnungen
+const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K' };
 const istOeffner = z => /_oe/.test(z);
+const istVerzoegert = z => /^k_/.test(z);
+const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais');
 function berechneSteuerung(v, e, bmk, klemme) {
-  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], gemeinsam: null, aktiv: {} }, st = v.steuerung;
+  const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], gemeinsam: null, aktiv: {}, feld: {}, feldListe: [], leitung: {} }, st = v.steuerung;
   if (!st) return r;
-  // gezeichnet werden nur Kreise, deren Schaltgerät (Spule) es noch gibt
-  (st.kreise || []).forEach(kr => { if (kr.pfade.some(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt)) r.aktiv[kr.id] = true; });
+  const geraet = id => (st.geraete || []).find(g => g.id === id);
+  // Kontaktgeber eines Platzes: Schaltgerät eines Abgangs oder eigenständiges Zeitrelais
+  const relais = id => { const a = e.abgaenge[id]; if (a && a.schalt) return { bmk: a.schalt.bmk, hs: a.schalt.hs, ho: a.schalt.ho, zr: a.schalt.typ === 'zeitrelais' };
+    const g = geraet(id); return g && g.zeichen === 'zeitrelais' ? { bmk: null, hs: g.hs === undefined ? 1 : g.hs, ho: g.ho || 0, zr: true, g } : null; };
+  // gezeichnet werden Kreise, deren Verbraucher es gibt (Spule eines Schaltgeräts, Meldeleuchte, Zeitrelais)
+  const verbraucherDa = p => p.verbraucher && ((e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt) || geraet(p.verbraucher.g));
+  (st.kreise || []).forEach(kr => { if (kr.pfade.some(verbraucherDa)) r.aktiv[kr.id] = true; });
   const kreise = (st.kreise || []).filter(kr => r.aktiv[kr.id]);
   (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
   // gemeinsame Steuerspannung (durchgeschliffen oder über gebrückte Klemmen) aus einer Quelle
@@ -417,29 +436,79 @@ function berechneSteuerung(v, e, bmk, klemme) {
   if (sp.art !== 'abgang' && e.abgaenge[sp.quelle]) {
     r.gemeinsam = { art: sp.art, quelle: sp.quelle, kreise: kreise.filter(kr => !kr.eigen).map(kr => kr.id) };
     e.abgaenge[sp.quelle].abgriff = '*';
-  }
+  } else if (sp.art !== 'abgang') r.warn.push('Gemeinsame Steuerspannung ohne Quelle – jeder Kreis greift in seinem Abgang ab.');
   const gemeinsam = kr => r.gemeinsam && r.gemeinsam.kreise.includes(kr.id);
   // gebrückte Klemmen: je Anschluss an die L- bzw. N-Leitung eine Klemme; erst alle L, dann
   // alle N (je eine gebrückte Reihe), auf -X1 hinter den Abgangsklemmen oder eigener Leiste -X0
+  let nrX1 = klemme;
   if (r.gemeinsam && sp.art === 'bruecke') {
     const eigen = sp.leiste === 'eigen', kl = r.gemeinsam.klemmen = { bmk: eigen ? (sp.bmk || '-X0') : '-X1', l: {}, n: {} };
     let nr = eigen ? 0 : klemme;
     const ks = kreise.filter(gemeinsam);
     ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig)) kl.l[p.id] = ++nr; }));
     ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig) || p.zweig.bis >= 6) kl.n[p.id] = ++nr; }));
+    if (!eigen) nrX1 = nr;
   }
-  kreise.forEach(kr => {
-    if (!gemeinsam(kr) && kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
-    kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => {
-      const a = pl && e.abgaenge[pl.g]; if (!a || !a.schalt) return;
-      const n = r.genutzt[pl.g] = r.genutzt[pl.g] || { s: [], o: [] }, oe = istOeffner(pl.z);
-      const liste = oe ? n.o : n.s, nr = liste.length + 1, frei = oe ? a.schalt.ho : a.schalt.hs;
-      const ord = nr <= frei ? (oe ? a.schalt.hs + nr : nr) : null;
-      liste.push(p.id + ':' + i);
-      r.kontakte[p.id + ':' + i] = ord ? { ord, an: oe ? [`${ord}1`, `${ord}2`] : [`${ord}3`, `${ord}4`] } : { ord: null, an: ['?', '?'] };
-      if (!ord) r.warn.push(`${a.schalt.bmk.t}: mehr Hilfs${oe ? 'öffner' : 'schließer'} genutzt als vorhanden (${frei}).`);
-    }));
+  // Reihenfolge wie im Plan: Kreise an der gemeinsamen Spannung zuerst
+  const geordnet = kreise.filter(gemeinsam).concat(kreise.filter(kr => !gemeinsam(kr)));
+  const mitLeiste = v.klemmen === 'leiste' || klemme > 0;
+  const name = id => { const a = e.abgaenge[id]; if (a && a.schalt) return a.schalt.bmk.t; return (r.geraete[id] || {}).t || '?'; };
+  geordnet.forEach(kr => {
+    const vp = kr.pfade.find(verbraucherDa), t = kr.name || (vp ? name(vp.verbraucher.g) : 'ohne Verbraucher');
+    if (!gemeinsam(kr)) {
+      if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+      else r.warn.push(`${t}: Kreis ohne Abgriff der Steuerspannung.`);
+    }
+    let kontakte = 0, taster = 0, spule = null;
+    kr.pfade.forEach((p, j) => {
+      const zw = j > 0 && p.zweig;
+      p.plaetze.forEach((pl, i) => {
+        if (!pl) return;
+        if (zw && (i < zw.von || i > zw.bis)) return;          // außerhalb des Zweigs: nicht gezeichnet
+        kontakte++;
+        const key = p.id + ':' + i, g = geraet(pl.g), rl = relais(pl.g);
+        if (!e.abgaenge[pl.g] && !g) { r.warn.push(`Ein Platz verweist auf ein gelöschtes Gerät.`); return; }
+        if (g && g.zeichen !== 'zeitrelais') {
+          if (ST_ZEICHEN[g.zeichen] && ST_ZEICHEN[g.zeichen][1] === 'bg') taster++;
+          // Feldgerät: zwei Klemmen auf -X1 (oben und unten am Kontakt)
+          if (mitLeiste && stFeld(g)) { r.feld[key] = [++nrX1, ++nrX1]; r.feldListe.push({ key, gid: g.id, kr: kr.id, p: p.id, z: g.zeichen }); }
+          return;
+        }
+        if (!rl) { r.warn.push(`Hilfskontakt eines Abgangs ohne Schaltgerät.`); return; }
+        const z = pl.z || 'hilfs_s', vz = istVerzoegert(z);
+        if (vz && !rl.zr) r.warn.push(`${name(pl.g)}: verzögerter Kontakt an einem Gerät, das kein Zeitrelais ist.`);
+        if (rl.g && !vz) r.warn.push(`${name(pl.g)}: ein eigenständiges Zeitrelais hat nur verzögerte Kontakte.`);
+        const n = r.genutzt[pl.g] = r.genutzt[pl.g] || { s: [], o: [] }, oe = istOeffner(z);
+        const liste = oe ? n.o : n.s, nr = liste.length + 1, frei = oe ? rl.ho : rl.hs;
+        const ord = nr <= frei ? (oe ? rl.hs + nr : nr) : null;
+        liste.push(key);
+        const an = !ord ? ['?', '?'] : vz ? (oe ? [`${ord}5`, `${ord}6`] : [`${ord}7`, `${ord}8`]) : (oe ? [`${ord}1`, `${ord}2`] : [`${ord}3`, `${ord}4`]);
+        r.kontakte[key] = { ord, an, vz };
+        if (!ord) r.warn.push(`${name(pl.g)}: mehr ${oe ? 'Öffner' : 'Schließer'} genutzt als vorhanden (${frei}).`);
+      });
+      // Verbraucher
+      const bisN = !zw || zw.bis >= 6;
+      if (bisN && !p.verbraucher) r.warn.push(`${t}: ein Pfad ohne Verbraucher verbindet L direkt mit N.`);
+      if (bisN && p.verbraucher) {
+        const g = geraet(p.verbraucher.g), a = e.abgaenge[p.verbraucher.g];
+        if (a && a.schalt) spule = spule || a.schalt.typ;
+        if (g && mitLeiste && stFeld(g)) { const key = p.id + ':v'; r.feld[key] = [++nrX1, ++nrX1]; r.feldListe.push({ key, gid: g.id, kr: kr.id, p: p.id, z: g.zeichen }); }
+      }
+    });
+    // ohne Kontakte dauernd an – bei reinen Meldeleuchten (z. B. Spannungsanzeige) gewollt
+    const nurMelde = kr.pfade.every(p => !p.verbraucher || (geraet(p.verbraucher.g) || {}).zeichen === 'meldeleuchte');
+    if (!kontakte && !nurMelde) r.warn.push(`${t}: Kreis ohne Kontakte – der Verbraucher ist dauernd eingeschaltet.`);
+    else if (spule === 'stromstoss' && !taster) r.warn.push(`${t}: Stromstoßschalter ohne Taster.`);
   });
+  // Spulen: jede genau einmal; Schaltgeräte ohne Steuerstromkreis
+  const spulen = {};
+  kreise.forEach(kr => kr.pfade.forEach(p => { if (p.verbraucher) spulen[p.verbraucher.g] = (spulen[p.verbraucher.g] || 0) + 1; }));
+  Object.entries(spulen).forEach(([g, n]) => { if (n > 1) r.warn.push(`${name(g)}: Spule bzw. Verbraucher ${n}-mal gesetzt.`); });
+  Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) r.warn.push(`${a.schalt.bmk.t}: Schaltgerät ohne Steuerstromkreis (Spule nicht gesetzt).`); });
+  // Leitungen der Feldgeräte: je Gerät eine, Adern = Zahl seiner Klemmen
+  r.feldListe.forEach(f => { const l = r.leitung[f.gid] = r.leitung[f.gid] || { adern: 0 }; l.adern += 2; });
+  (st.geraete || []).forEach(g => { if (r.leitung[g.id]) r.leitung[g.id].w = bmk('W', g.leitung && g.leitung.bmk); });
+  r.warn = [...new Set(r.warn)];
   return r;
 }
 // ---- Steuerstromkreise: Hilfen für die Eingabe (ab v1.11) -------------------
@@ -450,7 +519,7 @@ const ST_ZEICHEN = {          // was auf einen Kontaktplatz kommt; art: Befehlsg
   hilfs_s: ['Hilfsschließer', 'hk'], hilfs_oe: ['Hilfsöffner', 'hk'],
   k_s_ein: ['Schließer einschaltverzögert', 'zr'], k_s_aus: ['Schließer ausschaltverzögert', 'zr'], k_s_einaus: ['Schließer ein- und ausschaltverzögert', 'zr'],
   k_oe_ein: ['Öffner einschaltverzögert', 'zr'], k_oe_aus: ['Öffner ausschaltverzögert', 'zr'],
-  meldeleuchte: ['Meldeleuchte', 'ml'],
+  meldeleuchte: ['Meldeleuchte', 'ml'], zeitrelais: ['Zeitrelais (eigenständig)', 'zg'],
 };
 const ST_ART = { abgang: 'je Abgang', durch: 'gemeinsam, durchgeschliffen', bruecke: 'gemeinsam, gebrückte Klemmen' };
 function stDaten(v) {
@@ -467,7 +536,20 @@ function kreisAnlegen(v, k) {         // ein leerer Pfad mit der Spule auf dem V
   if (!kr) { kr = { id: id(), quelle: { art: 'abgang', kid: k.id }, pfade: [neuerPfad({ g: k.id })] }; st.kreise.push(kr); }
   return kr;
 }
-function neuesSteuerGeraet(v, zeichen) { const g = { id: id(), zeichen, bez: '', ort: '' }; stDaten(v).geraete.push(g); return g; }
+function neuesSteuerGeraet(v, zeichen) {
+  const g = { id: id(), zeichen, bez: '', ort: '' };
+  if (zeichen === 'zeitrelais') Object.assign(g, { fkt: 'aus', zeit: '3 min', hs: 1, ho: 0 });
+  stDaten(v).geraete.push(g); return g;
+}
+// Kreis ohne Schaltgerät, z. B. nur eine Meldeleuchte oder ein eigenständiges Zeitrelais (ab v1.13)
+function kreisOhneSchaltgeraet(v) { const kr = { id: id(), quelle: null, pfade: [neuerPfad()] }; stDaten(v).kreise.push(kr); return kr; }
+// Verbraucher eines Kreises für Überschriften: Schaltgerät eines Abgangs oder Gerät
+function kreisKopf(v, e, kr) {
+  for (const p of kr.pfade) { const a = p.verbraucher && e.abgaenge[p.verbraucher.g]; if (a && a.schalt) return { bmk: a.schalt.bmk, name: abgangName(knoten(v, p.verbraucher.g).k), art: SCHALT[a.schalt.typ] }; }
+  for (const p of kr.pfade) { const g = p.verbraucher && ((v.steuerung && v.steuerung.geraete) || []).find(x => x.id === p.verbraucher.g);
+    if (g) return { bmk: e.steuer.geraete[g.id], name: [g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], art: ST_ZEICHEN[g.zeichen][0] }; }
+  return null;
+}
 // Abgänge mit Schaltgerät (für Hilfskontakte und Spulen)
 function schaltAbgaenge(v, e) { const r = []; alleKnoten(v, k => { if (k.typ === 'abgang' && e.abgaenge[k.id] && e.abgaenge[k.id].schalt) r.push(k); }); return r; }
 const abgangName = k => k.steuer ? (k.ziel.bez || 'Steuerspannung') : (k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') || 'ohne Bezeichnung');
@@ -905,18 +987,16 @@ function bSteuerung(b) {
   // Kreise, je Schaltgerät einer
   const l = h('div', { class: 'liste' }), gem = e.steuer.gemeinsam;
   st.kreise.forEach(kr => {
-    const pf = kr.pfade.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
-    const nP = kr.pfade.filter((p, j) => !(j > 0 && p.zweig)).length;
-    if (!pf) { l.append(zeile(kr.name || 'Kreis ohne Schaltgerät', `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
-      { rot: true, un: 'Das Schaltgerät gibt es nicht mehr; der Kreis wird nicht gezeichnet.' })); return; }
-    const a = e.abgaenge[pf.verbraucher.g], k = knoten(v, pf.verbraucher.g).k;
-    const qa = !gem || kr.eigen ? e.abgaenge[(kr.quelle && kr.quelle.kid) || k.id] : null;
-    l.append(zeile(kr.name || abgangName(k), `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'raster', vid: v.id, krid: kr.id }),
-      { bmk: a.schalt.bmk, un: `${SCHALT[a.schalt.typ]} · ` + (gem && !kr.eigen ? 'gemeinsame Steuerspannung' : `Abgriff ${(qa && qa.f) ? qa.f.t : 'im Abgang'}`) }));
+    const kk = kreisKopf(v, e, kr), nP = kr.pfade.filter((p, j) => !(j > 0 && p.zweig)).length;
+    const qa = !gem || kr.eigen ? kr.quelle && e.abgaenge[kr.quelle.kid] : null;
+    l.append(zeile(kr.name || (kk ? kk.name : 'Kreis ohne Verbraucher'), `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'raster', vid: v.id, krid: kr.id }),
+      kk ? { bmk: kk.bmk, un: `${kk.art} · ` + (gem && !kr.eigen ? 'gemeinsame Steuerspannung' : qa ? `Abgriff ${qa.f ? qa.f.t : 'im Abgang'}` : 'Abgriff fehlt') }
+         : { rot: true, un: 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.' }));
   });
   schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id)).forEach(k => l.append(h('button', { class: 'neu inliste', on: { click: () => {
     const kr = kreisAnlegen(v, k); sichern(); geh({ s: 'raster', vid: v.id, krid: kr.id }); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
-  if (!st.kreise.length && !schaltAbgaenge(v, e).length) l.append(h('p', { class: 'hinweis' }, 'Noch kein Abgang mit Schaltgerät (Schütz, Stromstoßschalter, Zeitrelais).'));
+  l.append(h('button', { class: 'neu inliste', on: { click: () => { const kr = kreisOhneSchaltgeraet(v); sichern(); geh({ s: 'raster', vid: v.id, krid: kr.id }); } } },
+    '+ Kreis ohne Schaltgerät (z. B. Meldeleuchte, eigenständiges Zeitrelais)'));
   m.append(h('h2', {}, 'Kreise'), l);
   e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, '⚠ ' + w)));
   // Befehlsgeber und Meldeleuchten
@@ -924,9 +1004,9 @@ function bSteuerung(b) {
   st.geraete.forEach(g => gl.append(zeile([g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], null,
     () => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), { bmk: e.steuer.geraete[g.id], un: ST_ZEICHEN[g.zeichen][0] + ` · ${stVerwendet(v, g.id)}× verwendet` })));
   gl.append(h('button', { class: 'neu inliste', on: { click: () => wahlFeld('Neues Gerät',
-    Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml').map(([z, [n]]) => [z, n]), '',
-    w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) } }, '+ Befehlsgeber oder Meldeleuchte'));
-  m.append(h('h2', {}, 'Befehlsgeber und Meldeleuchten'), gl);
+    Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml' || art === 'zg').map(([z, [n]]) => [z, n]), '',
+    w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) } }, '+ Befehlsgeber, Meldeleuchte oder Zeitrelais'));
+  m.append(h('h2', {}, 'Befehlsgeber, Meldeleuchten, Zeitrelais'), gl);
   app.append(m);
 }
 // wie oft ein Gerät auf Plätzen oder als Verbraucher vorkommt
@@ -941,8 +1021,8 @@ function bKreis(b) {
   const v = vById(b.vid), st = v && v.steuerung, kr = st && st.kreise.find(x => x.id === b.krid); if (!kr) { zurueck(); return; }
   const e = berechne(v), sp = st.spannung || { art: 'abgang' };
   const spP = kr.pfade.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
-  const sa = spP && e.abgaenge[spP.verbraucher.g], sk = spP && knoten(v, spP.verbraucher.g).k;
-  app.append(kopf(sa ? `Steuerstromkreis ${sa.schalt.bmk.t}` : 'Steuerstromkreis'));
+  const sa = spP && e.abgaenge[spP.verbraucher.g], sk = spP && knoten(v, spP.verbraucher.g).k, kk = kreisKopf(v, e, kr);
+  app.append(kopf(kk ? `Steuerstromkreis ${kk.bmk.t}` : 'Steuerstromkreis'));
   const m = h('main');
   // Kreis und Steuerspannung
   const gem = sp.art !== 'abgang' && sp.quelle && knoten(v, sp.quelle);
@@ -960,7 +1040,7 @@ function bKreis(b) {
   }
   kz.push(zeile('Im Raster bearbeiten', null, () => geh({ s: 'raster', vid: v.id, krid: kr.id }), { un: 'Palette antippen, dann Plätze; mit Vorschau des Blatts' }));
   m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
-  if (!sa) m.append(h('p', { class: 'warnung' }, 'Das Schaltgerät dieses Kreises gibt es nicht mehr; der Kreis wird nicht gezeichnet.'));
+  if (!kk) m.append(h('p', { class: 'warnung' }, 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.'));
   // Pfade und Zweige
   let nr = 0;
   kr.pfade.forEach((p, j) => {
@@ -987,7 +1067,7 @@ function bKreis(b) {
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, h('button', { class: 'neu inliste', on: { click: () => { kr.pfade.push(neuerPfad()); sichern(); zeichne(); } } }, '+ Pfad')));
   m.append(h('p', { class: 'hinweis' }, 'Plätze 1–6 von oben (L) nach unten, darunter der Verbraucher (Spule, Meldeleuchte) an N. Ein Zweig liegt parallel zum Pfad links daneben.'));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Kreis löschen', null, () => frage('Kreis löschen',
-    'Den Steuerstromkreis löschen? Das Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    'Den Steuerstromkreis löschen? Ein Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); stapel.pop(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 // Beschriftung eines Platzes: Zeichen, Gerät und Anschlüsse
@@ -1004,7 +1084,7 @@ function platzZeile(v, e, p, i) {
 }
 function verbraucherZeile(v, e, p) {
   const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g], g = vb && !sa && ((v.steuerung.geraete || []).find(x => x.id === vb.g));
-  const wert = sa && sa.schalt ? `Spule ${SCHALT[sa.schalt.typ]}` : g ? 'Meldeleuchte' : '—';
+  const wert = sa && sa.schalt ? `Spule ${SCHALT[sa.schalt.typ]}` : g ? (g.zeichen === 'zeitrelais' ? 'Spule Zeitrelais' : 'Meldeleuchte') : '—';
   return zeile('Verbraucher', wert, () => verbraucherWahl(v, e, p), {
     bmk: sa && sa.schalt ? sa.schalt.bmk : g ? e.steuer.geraete[g.id] : null,
     un: sa ? abgangName(knoten(v, vb.g).k) : g ? [g.bez, g.ort].filter(Boolean).join(', ') : 'Pfad ohne Verbraucher wäre ein Kurzschluss', rot: !vb });
@@ -1014,7 +1094,7 @@ function platzWahl(v, e, p, i) {
   const cur = p.plaetze[i], g0 = cur && (v.steuerung.geraete || []).find(x => x.id === cur.g);
   const curZ = cur ? (cur.z || (g0 && g0.zeichen) || '') : '';
   const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakt eines Schaltgeräts', zr: 'verzögerter Kontakt eines Zeitrelais' };
-  wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml')
+  wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml' && a !== 'zg')
     .map(([z, [n, a]]) => [z, n, art[a]])), curZ, z => {
     if (!z) { p.plaetze[i] = null; return; }
     setTimeout(() => geraetWahl(v, e, z, cur, gid => { p.plaetze[i] = ST_ZEICHEN[z][1] === 'bg' ? { g: gid } : { g: gid, z }; }), 0);
@@ -1033,20 +1113,26 @@ function geraetWahl(v, e, z, cur, setzen) {
     return;
   }
   const opts = schaltAbgaenge(v, e).filter(k => art === 'hk' || e.abgaenge[k.id].schalt.typ === 'zeitrelais')
-    .map(k => [k.id, `${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]]);
-  if (!opts.length) { meldung(art === 'zr' ? 'Kein Zeitrelais im Verteiler' : 'Kein Schaltgerät im Verteiler'); return; }
-  wahlFeld('Schaltgerät', opts, cur ? cur.g : '', setzen,
+    .map(k => [k.id, `${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]])
+    .concat(art === 'zr' ? st.geraete.filter(g => g.zeichen === 'zeitrelais').map(g => [g.id, [(e.steuer.geraete[g.id] || {}).t, g.bez].filter(Boolean).join(' '), 'Zeitrelais (eigenständig)'])
+      .concat([['+', '+ neues Zeitrelais (eigenständig)', 'Spule in einem eigenen Kreis']]) : []);
+  if (!opts.length) { meldung('Kein Schaltgerät im Verteiler'); return; }
+  wahlFeld(art === 'zr' ? 'Zeitrelais' : 'Schaltgerät', opts, cur ? cur.g : '', w => { if (w === '+') { const g = neuesSteuerGeraet(v, 'zeitrelais'); setzen(g.id); } else setzen(w); },
     { text: art === 'hk' ? 'Die Anschlüsse (13/14, 21/22 …) werden aus der Ausstattung des Geräts vergeben.' : null });
 }
 function verbraucherWahl(v, e, p, nur = null) {    // nur: 'spule' oder 'meldeleuchte' (aus der Palette)
   const st = stDaten(v), vb = p.verbraucher;
   const opts = (nur ? [] : [['', 'keiner', 'nur bei Zweigen sinnvoll, die nicht bis N reichen']])
     .concat(nur === 'meldeleuchte' ? [] : schaltAbgaenge(v, e).map(k => ['k' + k.id, `Spule ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]]))
+    .concat(nur === 'meldeleuchte' ? [] : st.geraete.filter(g => g.zeichen === 'zeitrelais').map(g => ['g' + g.id, `Spule Zeitrelais ${[(e.steuer.geraete[g.id] || {}).t, g.bez].filter(Boolean).join(' ')}`, 'eigenständig']))
     .concat(nur === 'spule' ? [] : st.geraete.filter(g => g.zeichen === 'meldeleuchte').map(g => ['g' + g.id, `Meldeleuchte ${[(e.steuer.geraete[g.id] || {}).t, g.bez].filter(Boolean).join(' ')}`]))
+    .concat(nur === 'meldeleuchte' ? [] : [['+z', '+ neues Zeitrelais (eigenständig)']])
     .concat(nur === 'spule' ? [] : [['+', '+ neue Meldeleuchte']]);
   const cur = !vb ? '' : (e.abgaenge[vb.g] ? 'k' : 'g') + vb.g;
   wahlFeld('Verbraucher', opts, cur, w => {
     if (!w) p.verbraucher = null;
+    else if (w === '+z') { const g = neuesSteuerGeraet(v, 'zeitrelais'); p.verbraucher = { g: g.id };
+      setTimeout(() => textFeld('Bezeichnung', '', x => g.bez = x, { platz: 'z. B. Treppenlicht' }), 0); }
     else if (w === '+') { const g = neuesSteuerGeraet(v, 'meldeleuchte'); p.verbraucher = { g: g.id };
       setTimeout(() => textFeld('Bezeichnung', '', x => g.bez = x, { platz: 'z. B. Betrieb, Störung' }), 0); }
     else p.verbraucher = { g: w.slice(1) };
@@ -1056,15 +1142,35 @@ function verbraucherWahl(v, e, p, nur = null) {    // nur: 'spule' oder 'meldele
 function bSGeraet(b) {
   const v = vById(b.vid), st = v && v.steuerung, g = st && st.geraete.find(x => x.id === b.gid); if (!g) { zurueck(); return; }
   const e = berechne(v), bmk = e.steuer.geraete[g.id];
-  app.append(kopf(ST_ZEICHEN[g.zeichen][1] === 'ml' ? 'Meldeleuchte' : 'Befehlsgeber'));
+  const art = ST_ZEICHEN[g.zeichen][1];
+  app.append(kopf(art === 'ml' ? 'Meldeleuchte' : art === 'zg' ? 'Zeitrelais' : 'Befehlsgeber'));
   const m = h('main');
-  const arten = Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a === ST_ZEICHEN[g.zeichen][1]).map(([z, [n]]) => [z, n]);
+  const arten = Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a === art).map(([z, [n]]) => [z, n]);
   m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
     arten.length > 1 ? zeile('Art', ST_ZEICHEN[g.zeichen][0], () => wahlFeld('Art', arten, g.zeichen, w => g.zeichen = w)) : null,
-    zeile('Bezeichnung', g.bez || '—', () => textFeld('Bezeichnung', g.bez, w => g.bez = w, { platz: 'z. B. Ein, Aus, Tür, Betrieb' })),
+    zeile('Bezeichnung', g.bez || '—', () => textFeld('Bezeichnung', g.bez, w => g.bez = w, { platz: art === 'zg' ? 'z. B. Treppenlicht' : 'z. B. Ein, Aus, Tür, Betrieb' })),
     zeile('Ort', g.ort || '—', () => textFeld('Ort', g.ort, w => g.ort = w, { platz: 'z. B. Werkstatt, Tür HV' })),
     zeile('Kennzeichen', bmk.t, () => bmkFeld('Kennzeichen', g, bmk.hand ? '' : bmk.t)),
     zeile('Verwendet', `${stVerwendet(v, g.id)}×`, () => {}, { ohnePfeil: true })));
+  if (art === 'zg') {         // eigenständiges Zeitrelais: Funktion, Zeit, verzögerte Kontakte
+    const anz = [0, 1, 2, 3, 4].map(n => [String(n), String(n)]);
+    m.append(h('h2', {}, 'Zeitrelais'), h('div', { class: 'liste' },
+      zeile('Funktion', ZR_FKT[g.fkt || 'aus'], () => wahlFeld('Funktion', Object.entries(ZR_FKT), g.fkt || 'aus', w => g.fkt = w)),
+      zeile('Zeit', g.zeit || '—', () => textFeld('Zeit', g.zeit, w => g.zeit = w, { platz: 'z. B. 3 min, 30 s' })),
+      zeile('Verzögerte Schließer', String(g.hs === undefined ? 1 : g.hs), () => wahlFeld('Verzögerte Schließer (n7/n8)', anz, String(g.hs === undefined ? 1 : g.hs), w => g.hs = +w)),
+      zeile('Verzögerte Öffner', String(g.ho || 0), () => wahlFeld('Verzögerte Öffner (n5/n6)', anz, String(g.ho || 0), w => g.ho = +w))));
+  } else {                    // Einbauort; Feldgeräte laufen bei Klemmleiste über -X1 und bekommen eine Leitung
+    const feld = stFeld(g), lt = e.steuer.leitung[g.id];
+    g.leitung = g.leitung || {};
+    m.append(h('h2', {}, 'Anschluss'), h('div', { class: 'liste' },
+      zeile('Einbauort', feld ? 'im Feld' : 'im Verteiler', () => wahlFeld('Einbauort', [
+        ['feld', 'im Feld', 'bei Klemmleiste über -X1, mit eigener Leitung'], ['vt', 'im Verteiler', 'z. B. in der Tür; ohne Klemmen']],
+        feld ? 'feld' : 'vt', w => g.feld = w === 'feld')),
+      feld ? zeile('Leitungstyp', g.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYY-J', 'H05VV-F', 'J-Y(St)Y', 'LiYY'], g.leitung.typ || 'NYM-J', w => g.leitung.typ = w)) : null,
+      feld ? zeile('Querschnitt', (g.leitung.quer || '1,5') + ' mm²', () => wahlFeld('Querschnitt', ['0,5', '0,75', '1', '1,5', '2,5'].map(x => [x, x + ' mm²']), g.leitung.quer || '1,5', w => g.leitung.quer = w)) : null,
+      feld && lt ? zeile('Kennzeichen Leitung', lt.w.t, () => bmkFeld('Kennzeichen Leitung', g.leitung, lt.w.hand ? '' : lt.w.t), { un: `${lt.adern} Adern` }) : null));
+    if (feld && !lt) m.append(h('p', { class: 'hinweis' }, 'Ohne Klemmleiste im Verteiler wird das Feldgerät direkt angeschlossen (keine Klemmen, keine Leitung im Plan).'));
+  }
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Gerät löschen', null, () => frage('Gerät löschen',
     'Das Gerät löschen? Seine Plätze in den Kreisen werden leer.', () => {
       st.geraete = st.geraete.filter(x => x !== g);
@@ -1197,7 +1303,8 @@ function bRaster(b) {
   const spP = pf.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
   const sa = spP && e.abgaenge[spP.verbraucher.g];
   if (b.sel && (!pf[b.sel.j] || b.sel.i > 6)) b.sel = null;
-  app.append(kopf(sa ? `Steuerstromkreis ${sa.schalt.bmk.t}` : 'Steuerstromkreis',
+  const kk = kreisKopf(v, e, kr);
+  app.append(kopf(kk ? `Steuerstromkreis ${kk.bmk.t}` : 'Steuerstromkreis',
     h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'kreis', vid: v.id, krid: kr.id }) } }, 'Liste')));
   const m = h('main', { class: 'geteilt' }), links = h('div');
   // Palette
@@ -1246,7 +1353,8 @@ function bRaster(b) {
         }
       } else if (p.verbraucher && aktiv) {
         const vb = p.verbraucher, sa2 = e.abgaenge[vb.g], g = !sa2 && (st.geraete || []).find(x => x.id === vb.g);
-        const z = sa2 && sa2.schalt ? ({ schuetz: 'spule', stromstoss: 'stromstoss' }[sa2.schalt.typ] || 'spule_' + ((sa2.schalt.zr && sa2.schalt.zr.fkt) || 'aus')) : 'meldeleuchte';
+        const z = sa2 && sa2.schalt ? ({ schuetz: 'spule', stromstoss: 'stromstoss' }[sa2.schalt.typ] || 'spule_' + ((sa2.schalt.zr && sa2.schalt.zr.fkt) || 'aus'))
+          : g && g.zeichen === 'zeitrelais' ? 'spule_' + (g.fkt || 'aus') : 'meldeleuchte';
         inh = h('span', { class: 'inh' }, zeichenIcon(z), h('span', { class: 'kz' }, sa2 && sa2.schalt ? sa2.schalt.bmk.t : g ? (e.steuer.geraete[g.id] || {}).t : '?'));
       }
       grid.append(h('button', { class: 'zelle' + (aktiv ? ' ziel' : ' aus') + (inh ? '' : ' leer'), 'data-j': j, 'data-i': i,
@@ -1284,7 +1392,7 @@ function bRaster(b) {
   const vs = h('details', { class: 'vorschau', open: b.vorschau !== false ? true : null }, h('summary', {}, bl ? `Vorschau · Blatt ${bl.nr}` : 'Vorschau'));
   vs.addEventListener('toggle', () => { b.vorschau = vs.open; });
   if (bl) { bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height'); vs.append(bl.svg); }
-  else vs.append(h('p', { class: 'hinweis' }, 'Dieser Kreis wird nicht gezeichnet (kein Schaltgerät).'));
+  else vs.append(h('p', { class: 'hinweis' }, 'Dieser Kreis wird noch nicht gezeichnet – erst mit einem Verbraucher (Spule, Meldeleuchte, Zeitrelais).'));
   m.append(vs);
   app.append(m);
   if (res) requestAnimationFrame(() => res.begrenzen());

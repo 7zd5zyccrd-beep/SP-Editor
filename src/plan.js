@@ -753,6 +753,22 @@ const PLAN = (() => {
       });
       bloecke.push({ kenn: '', leiste: kl.bmk, zeilen: reihe(kl.l, 'L') }, { kenn: '', leiste: kl.bmk, zeilen: reihe(kl.n, 'N') });
     }
+    // Feldgeräte der Steuerstromkreise (ab v1.13): je Kontakt bzw. Meldeleuchte zwei Klemmen
+    const sf = e.steuer || {}, ader = {};
+    (sf.feldListe || []).forEach(f => {
+      const g = v.steuerung.geraete.find(x => x.id === f.gid), kz = (sf.geraete[f.gid] || {}).t || '', nrn = sf.feld[f.key];
+      const kr = v.steuerung.kreise.find(x => x.id === f.kr);
+      const sg = kr && kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
+      const ml = f.z === 'meldeleuchte', an = ml ? ['X1', 'X2'] : /_oe|notaus/.test(f.z) ? ['11', '12'] : ['13', '14'];
+      const lt = sf.leitung[f.gid], le = g.leitung || {}, leitung = lt ? `${lt.w.t} ${le.typ || 'NYM-J'} ${lt.adern}×${le.quer || '1,5'}` : '';
+      const zeilen = nrn.map((nr, i) => {
+        ader[f.gid] = (ader[f.gid] || 0) + 1;
+        return [String(nr), ml && i ? 'N' : '', ml && i ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme',
+          'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''), leitung, String(ader[f.gid]),
+          `${kz}:${an[i]} ${[g.bez, g.ort].filter(Boolean).join(', ')}`.trim()];
+      });
+      bloecke.push({ kenn: kz, leiste: '-X1', zeilen });
+    });
     return bloecke;
   }
   let hilfK = { name: () => '' };
@@ -901,8 +917,10 @@ const PLAN = (() => {
     // Überschrift: Schaltgerät und Abgang
     const sgK = pf.map(p => p.verbraucher && e.abgaenge[p.verbraucher.g]).find(x => x && x.schalt);
     const k = sgK ? stKnoten(v, pf.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] === sgK).verbraucher.g) : kr.quelle && stKnoten(v, kr.quelle.kid);
-    const titel = kr.name || (k ? [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') : '');
-    passend(text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' }),
+    const gerVon = id => (v.steuerung.geraete || []).find(d => d.id === id);
+    const vG = !sgK && pf.map(p => p.verbraucher && gerVon(p.verbraucher.g)).find(Boolean);   // Kreis ohne Schaltgerät
+    const titel = kr.name || (sgK && k ? [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') : vG ? [vG.bez, vG.ort].filter(Boolean).join(' ') : '');
+    passend(text(g, xA - 4, RAND + 6, [sgK ? sgK.schalt.bmk.t : vG && st.geraete[vG.id] ? st.geraete[vG.id].t : '', titel].filter(Boolean).join(' '), 2.5, 'start', { 'font-weight': 'bold' }),
       pf.length * R.sb - 4);     // nicht in den nächsten Kreis hinein
     const anN = pf.map((p, j) => !zweig(j) || zweig(j).bis >= ST_PL);
     if (!gem) {
@@ -924,6 +942,12 @@ const PLAN = (() => {
       text(g, x + 1.8, yOben + 3.3, String(nr), 1.8);
       if (erste) text(g, x - 2, yOben + 3.5, kl.bmk, 2.5, 'end', { 'font-weight': 'bold' });
     };
+    // Klemme eines Feldgeräts auf -X1: kleiner Kreis im Leiter, Nummer links daneben
+    const feldKlemme = (x, y, nr, rechts = false) => {     // rechts: am Verbraucher, links steht dort dessen Beschriftung
+      el('circle', { cx: x, cy: y, r: 0.625, fill: '#fff', stroke: '#000', 'stroke-width': 0.25 }, g);
+      text(g, x + (rechts ? 1.1 : -1.1), y + 0.7, `X1:${nr}`, 1.8, rechts ? 'start' : 'end');
+    };
+    const leitungText = gid => st.leitung && st.leitung[gid] ? st.leitung[gid].w.t : '';
     pf.forEach((p, j) => {
       const x = xs[j], zw = zweig(j);
       const von = zw ? zw.von : 0, bis = zw ? zw.bis : ST_PL;
@@ -935,7 +959,7 @@ const PLAN = (() => {
       }
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
-        const sa = e.abgaenge[pl.g], ger = !sa && ((v.steuerung.geraete || []).find(d => d.id === pl.g));
+        const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g);
         const z = pl.z || (ger && ger.zeichen); if (!z || !ZEICHEN[z]) continue;
         const top = stB(i) + 0.5; lt(x, y, x, top, lName);
         const t = setze(g, z, x, top);
@@ -943,20 +967,24 @@ const PLAN = (() => {
         y = u ? u.y : top + 15;
         const [li, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
         let an;
-        if (sa && sa.schalt) {
+        const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && ger.zeichen === 'zeitrelais' && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
+        if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
           const sp = ctx.steuer.spulen[pl.g];
-          bmk(g, x - li - 1, top + 5, sa.schalt.bmk.t, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
+          bmk(g, x - li - 1, top + 5, relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
           an = kn ? kn.an : ['', ''];
         } else {
-          bmk(g, x - li - 1, top + 5, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
+          bmk(g, x - li - 1, top + 5, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : []);
           an = /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }
         text(g, x + re + 0.8, top + 2.2, an[0], 1.8); text(g, x + re + 0.8, y - 0.6, an[1], 1.8);
+        const fk = st.feld && st.feld[p.id + ':' + i];
+        if (fk) { feldKlemme(x, top + 1.2, fk[0]); feldKlemme(x, y - 1.2, fk[1]); }
       }
       if (bis >= ST_PL) {
         const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g];
-        const ger = vb && !sa && ((v.steuerung.geraete || []).find(d => d.id === vb.g));
-        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : ger ? ger.zeichen : null;
+        const ger = vb && !sa && gerVon(vb.g);
+        const zr = ger && ger.zeichen === 'zeitrelais';         // eigenständiges Zeitrelais
+        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : zr ? 'spule_' + (ger.fkt || 'aus') : ger ? ger.zeichen : null;
         if (z && ZEICHEN[z]) {
           lt(x, y, x, ST_YV, lName);
           const t = setze(g, z, x, ST_YV);
@@ -966,8 +994,13 @@ const PLAN = (() => {
             const sg = sa.schalt;
             bmk(g, x - li - 1, ST_YV + 4, sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? `t = ${sg.zr.zeit}` : '']);
             stSpiegel(g, ctx, e, vb.g, x, yN + 4);
-          } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
-          text(g, x + re + 0.8, ST_YV + 2.2, sa ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa ? 'A2' : 'X2', 1.8);
+          } else if (zr) {
+            bmk(g, x - li - 1, ST_YV + 4, st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? `t = ${ger.zeit}` : '']);
+            stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger);
+          } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
+          text(g, x + re + 0.8, ST_YV + 2.2, sa || zr ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa || zr ? 'A2' : 'X2', 1.8);
+          const fk = st.feld && st.feld[p.id + ':v'];
+          if (fk) { feldKlemme(x, ST_YV - 1.6, fk[0], true); feldKlemme(x, y + 1.6, fk[1], true); }
         }
         // Leitung vom Verbraucher bis zum Abzweig bzw. zur Klemme schwarz; blau ist nur die N-Leitung
         lt(x, y, x, ST_YN, lName);
@@ -980,17 +1013,21 @@ const PLAN = (() => {
   }
   // Kontaktspiegel unter der Spule: Hauptkontakte, dann alle Hilfskontakte der
   // Ausstattung; genutzte mit Querverweis, ungenutzte ohne
-  function stSpiegel(g, ctx, e, kid, x, y) {
-    const sg = e.abgaenge[kid].schalt, la = ctx.lage[kid], gen = (e.steuer.genutzt || {})[kid] || { s: [], o: [] };
+  // ger: eigenständiges Zeitrelais (ohne Hauptkontakte, nur verzögerte Kontakte)
+  function stSpiegel(g, ctx, e, kid, x, y, ger = null) {
+    const sg = ger ? { pole: [], hs: ger.hs === undefined ? 1 : ger.hs, ho: ger.ho || 0 } : e.abgaenge[kid].schalt;
+    const la = ctx.lage[kid], gen = (e.steuer.genutzt || {})[kid] || { s: [], o: [] };
     const lageText = key => { const l = ctx.steuer.kontakte[key]; return l ? `/${l.blatt}.${l.spalte}` : ''; };
     const haupt = sg.pole.map((_, i) => [`${2 * i + 1}–${2 * i + 2}`, la ? `/${la.blatt}.${la.spalte}` : '']);
+    // verzögert (Zeitrelais): Schließer n7–n8, Öffner n5–n6; sonst Hilfskontakte n3–n4, n1–n2
+    const vz = key => key ? !!(e.steuer.kontakte[key] || {}).vz : !!ger;
     const hilf = [];
-    for (let n = 1; n <= sg.hs; n++) hilf.push([`${n}3–${n}4`, gen.s[n - 1] ? lageText(gen.s[n - 1]) : '']);
-    for (let n = 1; n <= sg.ho; n++) hilf.push([`${sg.hs + n}1–${sg.hs + n}2`, gen.o[n - 1] ? lageText(gen.o[n - 1]) : '']);
+    for (let n = 1; n <= sg.hs; n++) { const k = gen.s[n - 1]; hilf.push([vz(k) ? `${n}7–${n}8` : `${n}3–${n}4`, k ? lageText(k) : '']); }
+    for (let n = 1; n <= sg.ho; n++) { const k = gen.o[n - 1], o = sg.hs + n; hilf.push([vz(k) ? `${o}5–${o}6` : `${o}1–${o}2`, k ? lageText(k) : '']); }
     let yy = y + 2.4;
     const zeile = ([nr, r]) => { text(g, x - 1, yy, nr, 2, 'end'); if (r) text(g, x + 1, yy, r, 2); yy += 2.8; };
     haupt.forEach(zeile);
-    if (hilf.length) { linie(g, x - 7, yy - 1.6, x + 7, yy - 1.6, 0.18); yy += 0.6; hilf.forEach(zeile); }
+    if (hilf.length) { if (haupt.length) { linie(g, x - 7, yy - 1.6, x + 7, yy - 1.6, 0.18); yy += 0.6; } hilf.forEach(zeile); }
     linie(g, x, y, x, yy - 1.8, 0.18);
   }
 
@@ -1136,8 +1173,10 @@ const PLAN = (() => {
         eintraege.push({ nr: p.start + i, verteiler: p.v.name, inhalt: teile.join(', ') });
       }));
       plaene.forEach(p => p.st.forEach((b, i) => {
-        const kz = b.kreise.map(({ kr }) => { const pf = kr.pfade.find(x => x.verbraucher && p.e.abgaenge[x.verbraucher.g]);
-          return pf ? p.e.abgaenge[pf.verbraucher.g].schalt.bmk.t : null; }).filter(Boolean);
+        const kz = b.kreise.map(({ kr }) => { const pf = kr.pfade.find(x => x.verbraucher && p.e.abgaenge[x.verbraucher.g] && p.e.abgaenge[x.verbraucher.g].schalt);
+          if (pf) return p.e.abgaenge[pf.verbraucher.g].schalt.bmk.t;
+          const pg = kr.pfade.find(x => x.verbraucher && p.e.steuer.geraete[x.verbraucher.g]);
+          return pg ? p.e.steuer.geraete[pg.verbraucher.g].t : null; }).filter(Boolean);
         eintraege.push({ nr: p.stStart + i, verteiler: p.v.name, inhalt: 'Steuerstromkreis' + (kz.length ? ' ' + kz.join(', ') : '') });
       }));
       plaene.forEach(p => p.kl.forEach((b, i) => eintraege.push({ nr: p.klStart + i, verteiler: p.v.name,

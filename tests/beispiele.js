@@ -73,4 +73,21 @@ window.BEISPIELE = {
     const zw = neuerPfad(null, { von: 1, bis: 1 }); zw.plaetze[1] = { g: herd.id, z: 'hilfs_s' }; kr.pfade.push(zw);
     const sls = neuerSteuerLs(); hv.knoten.push(sls); stDaten(hv).spannung = { art: 'durch', quelle: sls.id };
     sichern(); zeichne(); },
+  // C3 (v1.13): Treppenlicht mit eigenständigem Zeitrelais -K2 (zwei Taster), dessen verzögerter
+  // Kontakt den Schütz von Licht Flur schaltet; Kreis nur mit Meldeleuchte im Feld; Taster über -X1
+  zeitrelais: () => { BEISPIELE.schalt(); const [hv] = P.verteiler;
+    const flur = (() => { let r; alleKnoten(hv, k => { if (k.typ === 'abgang' && k.ziel.bez === 'Licht' && k.ziel.ort === 'Flur') r = k; }); return r; })();
+    flur.schalt = neuesSchalt('schuetz'); flur.schalt.hs = 0;
+    const krQ = kreisAnlegen(hv, flur);
+    const zr = neuesSteuerGeraet(hv, 'zeitrelais'); zr.bez = 'Treppenlicht'; zr.zeit = '2 min';
+    krQ.pfade[0].plaetze[0] = { g: zr.id, z: 'k_s_aus' };
+    const kT = kreisOhneSchaltgeraet(hv); kT.quelle = { art: 'abgang', kid: flur.id };
+    const t1 = neuesSteuerGeraet(hv, 'taster_s'), t2 = neuesSteuerGeraet(hv, 'taster_s');
+    Object.assign(t1, { bez: 'Treppe EG', ort: 'Flur' }); Object.assign(t2, { bez: 'Treppe OG', ort: 'Flur' });
+    kT.pfade[0].plaetze[0] = { g: t1.id }; kT.pfade[0].verbraucher = { g: zr.id };
+    const zw = neuerPfad(null, { von: 0, bis: 0 }); zw.plaetze[0] = { g: t2.id }; kT.pfade.push(zw);
+    const kM = kreisOhneSchaltgeraet(hv); kM.quelle = { art: 'abgang', kid: flur.id };
+    const h1 = neuesSteuerGeraet(hv, 'meldeleuchte'); Object.assign(h1, { bez: 'Spannung', ort: 'Flur', feld: true });
+    kM.pfade[0].verbraucher = { g: h1.id };
+    sichern(); zeichne(); },
 };

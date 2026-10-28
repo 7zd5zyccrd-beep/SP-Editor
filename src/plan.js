@@ -208,6 +208,7 @@ const PLAN = (() => {
   function abgangArten(k, a, v) {
     if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
+    if (k.trafo && k.trafo.prim === '400') return ['L1', 'L2'];
     return k.steuer ? [ph, 'N'] : [ph, 'N', 'PE'];
   }
   // greift ein Steuerstromkreis seine Spannung im Abgang ab, braucht der Abgang
@@ -221,6 +222,7 @@ const PLAN = (() => {
   // (für Untersammelschienen, die erst danach ihre Länge kennen).
   // Gibt { unten, natur } zurück: unteres Ende und die eigene, unangeglichene Endhöhe.
   function zeichneAbgang(g, ctx, v, k, a, xSp, bars, yG, breite, yEnde = null, tap = null) {
+    if (k.trafo) return zeichneTrafo(g, ctx, v, k, a, xSp, bars, yG, breite, tap);
     const arten = abgangArten(k, a, v);
     const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
     const z = k.geraet.zeichen, pole = z ? POLE[z] : 0;
@@ -330,6 +332,52 @@ const PLAN = (() => {
     // nicht geschaltete Leiter (N, PE) laufen durch
     arten.forEach((art, i) => { if (i >= n && enden[i] < unten) { leiter(g, xs[i], enden[i], xs[i], unten, art); enden[i] = unten; } });
     return unten;
+  }
+  // Steuertrafo (ab v1.16): Primär-LS (230 V: auf L, N läuft durch; 400 V: auf L1 und L2),
+  // Trafo -T, Sekundär-LS auf der Spannungsseite, Rückleitung „0 V“ wahlweise an PE geerdet;
+  // darunter der Abgriff mit gehenden Querverweisen zum Steuerstromkreis
+  function zeichneTrafo(g, ctx, v, k, a, xSp, bars, yG, breite, tap) {
+    const T = k.trafo, prim = abgangArten(k, a, v), x0 = xSp + LINKS, xs = [x0, x0 + ABSTAND, x0 + 2 * ABSTAND];
+    prim.forEach((art, i) => { const yq = bars[quelle(art, bars)]; if (tap) tap(art, xs[i], yq); else punkt(g, xs[i], yq, art); leiter(g, xs[i], yq, xs[i], yG, art); });
+    const z = k.geraet.zeichen || 'ls1', pole = POLE[z] || 1;
+    const enden = [yG, yG];
+    if (pole >= 2) unten(setze(g, z, x0, yG, null, prim)).forEach((p, i) => { if (i < 2) enden[i] = p.y; });
+    else {
+      enden[0] = unten(setze(g, z, x0, yG, null, [prim[0]]))[0].y;
+      // zweiter Außenleiter: zweites Schaltglied daneben (wie der LS 3-polig der Bibliothek ohne eigene Kopplungslinie)
+      if (T.prim === '400') enden[1] = unten(setze(g, z, xs[1], yG, null, [prim[1]]))[0].y;
+    }
+    let cursor = kennzeichen(g, z, x0, yG, Math.max(...enden), a.f && a.f.t, bemZeilen(k.geraet));
+    // Trafo
+    const yT = cursor + 4;
+    prim.forEach((art, i) => leiter(g, xs[i], enden[i], xs[i], yT, art));
+    const tt = unten(setze(g, 'trafo', x0, yT));
+    const yS = Math.max(...tt.map(p => p.y));
+    bmk(g, x0 - 5, yT + 1, a.t && a.t.t, [`${T.prim}/${T.sek} V`, T.va ? `${T.va} VA` : '']);
+    // Rückleitung 0 V, geerdet: PE von der Schiene rechts herunter
+    const yE = yS + 3;
+    if (T.erde && bars.PE !== undefined || T.erde && bars.PEN !== undefined) {
+      const yPe = bars[quelle('PE', bars)];
+      if (tap) tap('PE', xs[2], yPe); else punkt(g, xs[2], yPe, 'PE');
+      leiter(g, xs[2], yPe, xs[2], yE, 'PE'); leiter(g, xs[2], yE, xs[1], yE, 'PE'); punkt(g, xs[1], yE, 'PE');
+    }
+    // Sekundär-LS auf der Spannungsseite
+    const zl = (T.ls && T.ls.zeichen) || 'ls1', ySL = yE + 4;
+    leiter(g, xs[0], yS, xs[0], ySL, 'M');
+    const ts = unten(setze(g, zl, x0, ySL));
+    cursor = kennzeichen(g, zl, x0, ySL, ts[0].y, a.f2 && a.f2.t, bemZeilen(T.ls));
+    // Abgriff: Spannung und 0 V mit gehendem Querverweis, Leitungen enden dort (Ecke)
+    const y1 = cursor + 2, xr = xs[2] + 4;
+    const ziel = ctx.steuer && ctx.steuer.kreise[a.abgriff], ref = ziel ? `/${ziel.blatt}.${ziel.spalte}` : '';
+    leiter(g, xs[0], ts[0].y, xs[0], y1, 'M'); leiter(g, xs[1], yS, xs[1], y1 + 3, 'M');
+    if (a.abgriff) [[0, y1], [1, y1 + 3]].forEach(([i, y]) => {
+      leiter(g, xs[i], y, xr, y, 'M');
+      setze(g, 'qv_gehend', xr, y, t => t.richtung === 'w');
+      text(g, xr + 4.5, y + 0.9, ref, 2.2);
+    });
+    const ty = y1 + 9;
+    passend(text(g, x0 + ABSTAND / 2, ty, `${k.ziel.bez || 'Steuertrafo'} ${T.sek} V`, 2.5, 'middle', { 'font-weight': 'bold' }), breite - 2);
+    return { unten: ty + 2, natur: y1 + 6 };
   }
   // eigene Endhöhe eines Abgangs, ohne etwas zu zeichnen
   function naturEnde(ctx, v, k, a, bars, yG) {
@@ -566,7 +614,7 @@ const PLAN = (() => {
       const u = ctx.ue[k.speist];
       senk(-2.2, `→ ${u ? u.name : 'Verteiler'}${u ? ` /${u.blatt}.${u.spalte}` : ''}`, 2.2, true);
     } else senk(-2.2, k.ziel.bez || '', 2.5, true);
-    senk(0.9, k.ziel.ort || '', 2.2);
+    senk(0.9, k.trafo ? `${k.trafo.prim}/${k.trafo.sek} V` : k.ziel.ort || '', 2.2);
     if (!k.steuer) senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}`, 2.2);
   }
   // ein Abgang an einer Schiene auf ySrc: Gerät auf yG, Ende auf yE.
@@ -581,6 +629,17 @@ const PLAN = (() => {
       const r = ueGeraet(g, k.geraet.zeichen, x, yG, a.f && a.f.t, bemZeilen(k.geraet), P);
       y = r.unten; var frei = r.frei;
     } else var frei = y;
+    if (k.trafo) {      // Steuertrafo: Trafo einpolig, darunter der Sekundär-LS
+      const top = Math.max(frei, y) + 3;
+      linie(g, x, y, x, top, 0.25);
+      const t = setze(g, 'ue_trafo', x, top);
+      ueBmk(g, x - 6.5, top + 4, a.t && a.t.t, [`${k.trafo.prim}/${k.trafo.sek} V`], P - 7.5);
+      y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y));
+      const ls = k.trafo.ls && k.trafo.ls.zeichen || 'ls1', top2 = y + 2.5;
+      linie(g, x, y, x, top2, 0.25);
+      const r2 = ueGeraet(g, ls, x, top2, a.f2 && a.f2.t, bemZeilen(k.trafo.ls), P);
+      y = r2.unten; frei = r2.frei;
+    }
     if (a.schalt) {     // Schaltgerät einpolig mit dem Schützzeichen
       const top = Math.max(frei, y) + (eng && frei <= y ? 0.5 : 3);   // unter einer FI-Beschriftung bleibt Abstand
       linie(g, x, y, x, top, 0.25);
@@ -738,7 +797,7 @@ const PLAN = (() => {
     // die erste Klemme jeder Reihe kommt von der Quelle, die übrigen über die Brücke
     const gem = e.steuer && e.steuer.gemeinsam, kl = gem && gem.klemmen;
     if (kl) {
-      const q = e.abgaenge[gem.quelle], qk = stKnoten(v, gem.quelle), lName = stLeiter(v, q), ziel = {};
+      const q = e.abgaenge[gem.quelle], qk = stKnoten(v, gem.quelle), qu = stQuelle(v, e, gem.quelle), lName = stLeiter(v, q), ziel = {};
       const grp = v.knoten.find(g => g.typ === 'gruppe' && g.kinder.includes(qk));     // Quelle in einer Gruppe?
       v.steuerung.kreise.filter(kr => gem.kreise.includes(kr.id)).forEach(kr => {
         const sg = kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
@@ -746,6 +805,10 @@ const PLAN = (() => {
       });
       const reihe = (nrn, l) => Object.entries(nrn).sort((x, y) => x[1] - y[1]).map(([pid, nr], i) => {
         const ll = l === 'N' ? 'N' : 'L';
+        if (qk.trafo) {        // Steuertrafo: L vom Sekundär-LS, 0 V vom Trafo
+          const intern = i ? 'Brücke' : ll === 'N' ? `${q.t.t}:0V` : `${q.f2.t}:2`;
+          return [String(nr), ll === 'N' ? qu.nName : qu.lName, 'Durchgangsklemme, gebrückt', intern, '', '', ziel[pid] || ''];
+        }
         const intern = i ? 'Brücke' : (ausgang(qk.geraet.zeichen, q.f && q.f.t, ll, lName)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, ll, lName)) || schiene(ll, lName));
         const art = l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
@@ -852,6 +915,13 @@ const PLAN = (() => {
   }
   // Name des Außenleiters, den ein Abgang als Steuerspannung liefert
   const stLeiter = (v, a) => !a ? 'L' : v.leiter === '1NPE' ? 'L' : a.drei ? 'L1' : (a.phase.t || 'L1');
+  // Leiter der Steuerspannung einer Quelle: beim Steuertrafo „24 V“ und „0 V“ (schwarz, kein N),
+  // Schutzorgan ist dann der Sekundär-LS
+  function stQuelle(v, e, kid) {
+    const a = kid && e.abgaenge[kid], k = kid && stKnoten(v, kid);
+    if (k && k.trafo) return { a, lName: `${k.trafo.sek} V`, nArt: 'M', nName: '0 V', f: a && a.f2 };
+    return { a, lName: stLeiter(v, a), nArt: 'N', nName: 'N', f: a && a.f };
+  }
   // Lage der L- und N-Leitung: bei gebrückten Klemmen liegt die gemeinsame Leitung
   // eine Klemmenhöhe (5 mm) über bzw. unter dem Pfad
   const ST_KL = 5;
@@ -872,17 +942,17 @@ const PLAN = (() => {
     // weiter, bis an den rechten Rand mit gehendem Querverweis
     if (b.kreise.some(k => k.gem)) {
       const { yL, yN } = stSchienen(gem.art === 'bruecke');
-      const a = e.abgaenge[gem.quelle], lName = stLeiter(v, a), xA = R.x0 + 7, la = ctx.lage[gem.quelle];
+      const qu = stQuelle(v, e, gem.quelle), lName = qu.lName, xA = R.x0 + 7, la = ctx.lage[gem.quelle];
       const erstes = ctx.steuer.kreise['*'] && ctx.steuer.kreise['*'].blatt === blattNr;
       const weiter = blattNr < letztesGem, xE = R.x1 - 12;
-      [[yL, lName, anG.L], [yN, 'N', anG.N]].forEach(([y, art, an]) => {
+      [[yL, lName, anG.L], [yN, qu.nArt, anG.N]].forEach(([y, art, an]) => {
         lt(xA, y, weiter ? xE : Math.max(...an), y, art);
         setze(g, 'qv_kommend', xA, y, t => t.richtung === 'e', art);
         if (weiter) { setze(g, 'qv_gehend', xE, y, t => t.richtung === 'w', art); text(g, xE + 4.5, y + 0.9, `/${blattNr + 1}.1`, 2.2); }
       });
       const ref = erstes ? (la ? `/${la.blatt}.${la.spalte}` : '') : `/${blattNr - 1}.${F.sp}`;
-      text(g, xA - 4.5, yL - 1.6, [lName, erstes && a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
-      text(g, xA - 4.5, yN + 3.4, ['N', ref].join(' '), 2.2);
+      text(g, xA - 4.5, yL - 1.6, [lName, erstes && qu.f ? qu.f.t : '', ref].filter(Boolean).join(' '), 2.2);
+      text(g, xA - 4.5, yN + 3.4, [qu.nName, ref].join(' '), 2.2);
     }
     // Verbindungspunkte, wo drei oder mehr Linien zusammentreffen
     const nah = (p, q) => Math.abs(p - q) < 0.01;
@@ -909,9 +979,9 @@ const PLAN = (() => {
     const zweig = j => j > 0 && pf[j].zweig ? pf[j].zweig : null;
     // Quelle: eigener Abgriff im Abgang oder gemeinsame Steuerspannung
     const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
-    const a = kid && e.abgaenge[kid], la = kid && ctx.lage[kid];
+    const qu = stQuelle(v, e, kid), la = kid && ctx.lage[kid];
     const ref = la ? `/${la.blatt}.${la.spalte}` : '';
-    const lName = stLeiter(v, a);
+    const lName = qu.lName, nArt = qu.nArt;
     const st = e.steuer || { geraete: {}, kontakte: {} }, kl = gem && gem.klemmen;
     const { yN } = stSchienen(!!kl);
     // Überschrift: Schaltgerät und Abgang
@@ -926,11 +996,11 @@ const PLAN = (() => {
     if (!gem) {
       // eigene Schienen bis zum letzten angeschlossenen Pfad
       const xLe = Math.max(...xs.filter((_, j) => !zweig(j))), xNe = Math.max(...xs.filter((_, j) => anN[j]));
-      lt(xA, ST_YL, xLe, ST_YL, lName); lt(xA, ST_YN, xNe, ST_YN, 'N');
+      lt(xA, ST_YL, xLe, ST_YL, lName); lt(xA, ST_YN, xNe, ST_YN, nArt);
       setze(g, 'qv_kommend', xA, ST_YL, t => t.richtung === 'e', lName);
-      setze(g, 'qv_kommend', xA, ST_YN, t => t.richtung === 'e', 'N');
-      text(g, xA - 4.5, ST_YL - 1.6, [lName, a && a.f ? a.f.t : '', ref].filter(Boolean).join(' '), 2.2);
-      text(g, xA - 4.5, ST_YN + 3.4, ['N', ref].filter(Boolean).join(' '), 2.2);
+      setze(g, 'qv_kommend', xA, ST_YN, t => t.richtung === 'e', nArt);
+      text(g, xA - 4.5, ST_YL - 1.6, [lName, qu.f ? qu.f.t : '', ref].filter(Boolean).join(' '), 2.2);
+      text(g, xA - 4.5, ST_YN + 3.4, [qu.nName, ref].filter(Boolean).join(' '), 2.2);
     }
     // Anschluss an die gemeinsame Leitung: durchgeschliffen direkt, sonst über eine Klemme
     const klemme = (x, yOben, nr, art, erste) => {
@@ -1008,7 +1078,7 @@ const PLAN = (() => {
         }
         // Leitung vom Verbraucher bis zum Abzweig bzw. zur Klemme schwarz; blau ist nur die N-Leitung
         lt(x, y, x, ST_YN, lName);
-        if (gem) { anG.N.push(x); if (kl) klemme(x, ST_YN, kl.n[p.id], 'N', anG.N.length === 1); }
+        if (gem) { anG.N.push(x); if (kl) klemme(x, ST_YN, kl.n[p.id], nArt, anG.N.length === 1); }
       } else {
         const yb = stB(bis + 1);
         lt(x, y, x, yb, lName); lt(x, yb, xs[haupt[j]], yb, lName);

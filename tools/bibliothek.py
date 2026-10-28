@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.5'
+FASSUNG = 'v1.6'
 STAND = '2026-10-28'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -86,8 +86,8 @@ AUSWAHL = [
  ('Steuerung – Zeitrelais', 'k_oe_aus',        'Öffner ausschaltverzögert',           '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_04.elmt', False),
  ('Steuerung – Zeitrelais', 'k_s_einaus',      'Schließer ein- und ausschaltverzögert', '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_05.elmt', False),
  ('Melden', 'meldeleuchte',                    'Meldeleuchte',                        'bau:meldeleuchte', False),
- ('Steuertrafo', 'trafo',                    'Transformator mit getrennten Wicklungen', '10_allpole/330_transformers_power_supplies/10_transformers/transformator_1f_2.elmt', True),
- ('Steuertrafo', 'ue_trafo',                 'Transformator mit zwei Wicklungen (einpolig)', '91_en_60617/en_60617_06/en_60617_06_09/en_60617_06_09_01.elmt', True),
+ ('Steuertrafo', 'trafo',                    'Transformator mit getrennten Wicklungen', '10_allpole/330_transformers_power_supplies/10_transformers/transformator_1f_2.elmt', False),
+ ('Steuertrafo', 'ue_trafo',                 'Transformator mit zwei Wicklungen (einpolig)', 'bau:ue_trafo', True),
 ]
 
 def daten():

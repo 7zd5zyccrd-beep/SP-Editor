@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.16 | Steuertrafo als dritte Quelle der Steuerspannung (Primär-LS 230 V oder 400 V, Trafo -T, Sekundär-LS, 0 V geerdet/ungeerdet; Leitungen „24 V“/„0 V“); Bibliothek v1.6 |
 | v1.15 | Bibliothek v1.5 mit dem Steuertrafo (noch ohne Verwendung) |
 | v1.14 | Etappe C4: Vorlagen – Taster parallel (Stromstoß, Treppenlicht), Selbsthaltung Ein/Aus, mit Not-Aus, mit/ohne Betriebsmeldung, Hand-0-Automatik; Befehlsgeber-Anschlüsse je Gerät fortlaufend |
 | v1.13 | Etappe C3: Warnungen; Feldgeräte über -X1 (zwei Klemmen je Kontakt, Leitung -W, Klemmenplan); eigenständiges Zeitrelais -K mit verzögerten Kontakten und Kontaktspiegel; Kreise ohne Schaltgerät (Meldeleuchte, Zeitrelais) |
@@ -34,6 +35,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.6 | Transformator einpolig (`ue_trafo`) im EN-Baukasten nachgebaut: Form 1 nach 06-09-01, Maßstab der einpoligen Zeichen, ohne Text |
 | v1.5 | Steuertrafo nach Auswahl „Trafo v0.1“: Transformator mit getrennten Wicklungen (allpolig), Transformator mit zwei Wicklungen (einpolig, EN 60617 06-09-01) |
 | v1.4 | Steuerstromkreise nach Auswahl „Steuerung v0.2“: Befehlsgeber, Hilfskontakte, Zeitrelais-Spulen, verzögerte Kontakte, Meldeleuchte |
 | v1.3 | einpolige Zeichen für den Übersichtsschaltplan |

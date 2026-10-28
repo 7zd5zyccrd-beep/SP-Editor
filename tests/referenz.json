@@ -482,5 +482,113 @@
    "13 HV klemmen",
    "c4de2f55aca2214185ba0761f203afd1"
   ]
+ ],
+ "trafo": [
+  [
+   "1 Deckblatt deckblatt",
+   "6890d2d1d4af404b9342e81cbb471f26"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "5b824f5ae2f876be57e23a32607f5fda"
+  ],
+  [
+   "3 HV uebersicht",
+   "d7f07232ac7321d01bf8e7285ac285c7"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "e120f03e7a66962c4a127df81c2214b4"
+  ],
+  [
+   "5 HV einspeisung",
+   "b0dbf0f508d1077cd3e61b6098b9db59"
+  ],
+  [
+   "6 HV abgang",
+   "fcda00fb0491d4929474dd6a261a17c1"
+  ],
+  [
+   "7 HV abgang",
+   "044124c4ff886e086de54efb10005d4d"
+  ],
+  [
+   "8 HV abgang",
+   "da5049749cbd5bb6ba10de0b992206d5"
+  ],
+  [
+   "9 HV steuerung",
+   "2e4f3bec442f6bbacd2e17641a853025"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "f3b424ae8d0405f2ca74e3a23de2cad5"
+  ],
+  [
+   "11 HV klemmen",
+   "e56f9923ab3f420d5b1797d4ee69d27e"
+  ],
+  [
+   "12 HV klemmen",
+   "6d1ee90406b8bdbab9b3fcd4d0d02f20"
+  ],
+  [
+   "13 HV klemmen",
+   "c4de2f55aca2214185ba0761f203afd1"
+  ]
+ ],
+ "trafo400": [
+  [
+   "1 Deckblatt deckblatt",
+   "6890d2d1d4af404b9342e81cbb471f26"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "5d125830afcec9c33f3f3eb2da59df8e"
+  ],
+  [
+   "3 HV uebersicht",
+   "acb7034480c2f74979243e95668bef20"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "e120f03e7a66962c4a127df81c2214b4"
+  ],
+  [
+   "5 HV einspeisung",
+   "b0dbf0f508d1077cd3e61b6098b9db59"
+  ],
+  [
+   "6 HV abgang",
+   "fcda00fb0491d4929474dd6a261a17c1"
+  ],
+  [
+   "7 HV abgang",
+   "0a1ae2b3f2ea3466214d5d498b746eb4"
+  ],
+  [
+   "8 HV abgang",
+   "342814bf3e0d930efd9584bed7539929"
+  ],
+  [
+   "9 HV steuerung",
+   "2edf656f9c2dc3c83dd4a011bcdb4b1d"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "f3b424ae8d0405f2ca74e3a23de2cad5"
+  ],
+  [
+   "11 HV klemmen",
+   "e56f9923ab3f420d5b1797d4ee69d27e"
+  ],
+  [
+   "12 HV klemmen",
+   "8b0d8e8fadde96c9bc0332954ecbfb26"
+  ],
+  [
+   "13 HV klemmen",
+   "e2f57eb427936229c8ab5dba4c802d87"
+  ]
  ]
 }

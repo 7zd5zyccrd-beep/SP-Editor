@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.16: Steuertrafo als Quelle der Steuerspannung: Abgang mit Primär-LS (230 V L–N oder 400 V L1–L2),
+           Trafo -T (Sekundärspannung, Leistung, 0 V geerdet oder ungeerdet) und Sekundär-LS; im
+           Steuerstromkreis Leitungen „24 V“/„0 V“ (schwarz), Klemmenplan und Übersichtsschaltplan;
+           Bibliothek v1.6 (Trafo einpolig aus dem EN-Baukasten)
      v1.15: Bibliothek v1.5 mit dem Steuertrafo (allpolig und einpolig; noch ohne Verwendung im Plan)
      v1.14: Etappe C4 – Vorlagen für Steuerstromkreise (im Raster „Vorlage …“, im Kreis „Vorlage einsetzen“):
            Taster parallel (Stromstoß, Treppenlicht), Selbsthaltung Ein/Aus, Selbsthaltung mit Not-Aus,
@@ -298,6 +302,12 @@ function neuerAbgang() {
     leitung: { typ: 'NYM-J', quer: '2,5' }, ziel: { bez: '', ort: '', anschluss: 'steckdose3' }, speist: null, klemmen: 'verteiler' };
 }
 // Steuer-LS (ab v1.10): Abgang ohne Leitung, liefert die gemeinsame Steuerspannung
+// Steuertrafo (ab v1.16): Primär-LS, Trafo -T, Sekundär-LS; liefert eine eigene Steuerspannung
+// (z. B. 24 V / 0 V), die Rückleitung heißt „0 V“ (nicht N); M wahlweise geerdet
+function neuerSteuerTrafo() {
+  return Object.assign(neuerSteuerLs(), { trafo: { prim: '230', sek: '24', va: '63', erde: true, ls: { zeichen: 'ls1', kennlinie: 'B', nenn: '2' } },
+    ziel: { bez: 'Steuertrafo', ort: '', anschluss: 'fest' } });
+}
 function neuerSteuerLs() {
   return Object.assign(neuerAbgang(), { steuer: true, geraet: { zeichen: 'ls1', kennlinie: 'B', nenn: '6' }, klemmen: 'nein',
     ziel: { bez: 'Steuerspannung', ort: '', anschluss: 'fest' } });
@@ -333,7 +343,7 @@ function istDrei(k, v) {
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, H: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, H: 0, T: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -355,11 +365,13 @@ function berechne(v) {
     a.drei = istDrei(k, v);
     if (a.drei) a.phase = { t: 'L1–L3', auto: false };
     else if (v.leiter === '1NPE') a.phase = { t: 'L', auto: false };
+    else if (k.trafo && k.trafo.prim === '400') a.phase = { t: 'L1–L2', auto: false };   // Steuertrafo 400 V: fest zwischen L1 und L2
     else if (einLeiterGruppe(eltern)) a.phase = { t: null, auto: false, gruppe: eltern.id };
     else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
     else a.phase = { t: null, auto: true };
     a.leiter = a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
     if (k.steuer) a.leiter = ['L', 'N'];     // Steuer-LS: nur L und N, ohne Leitung und Klemmen
+    if (k.trafo && k.trafo.prim === '400') a.leiter = ['L1', 'L2'];
     // Schaltgerät hinter dem Schutzorgan: geschaltet werden die Außenleiter, N nur auf Wunsch
     const sg = k.schalt && k.schalt.typ ? k.schalt : null;
     if (sg) a.schalt = { typ: sg.typ, bmk: bmk(sg.typ === 'zeitrelais' ? 'K' : 'Q', sg.bmk),
@@ -374,6 +386,8 @@ function berechne(v) {
     if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + a.leiter.length, bmk: '-X1' }; klemme += a.leiter.length; }
     else a.klemmen = null;
     a.w = k.steuer ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
+    // Steuertrafo (ab v1.16): -T und der Sekundär-LS -F hinter dem Primär-LS
+    if (k.trafo) { a.t = bmk('T', k.trafo.bmk); a.f2 = bmk('F', k.trafo.ls && k.trafo.ls.bmk); }
     // Kennzeichen des Leitungsendes: Steckdose -XD, Anschlussdose -X (ab -X2), Leuchte -E
     if (!k.speist) {
       if (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') a.xd = bmk('XD', k.ziel.bmk);
@@ -562,7 +576,7 @@ function kreisKopf(v, e, kr) {
 }
 // Abgänge mit Schaltgerät (für Hilfskontakte und Spulen)
 function schaltAbgaenge(v, e) { const r = []; alleKnoten(v, k => { if (k.typ === 'abgang' && e.abgaenge[k.id] && e.abgaenge[k.id].schalt) r.push(k); }); return r; }
-const abgangName = k => k.steuer ? (k.ziel.bez || 'Steuerspannung') : (k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') || 'ohne Bezeichnung');
+const abgangName = k => k.trafo ? `${k.ziel.bez || 'Steuertrafo'} ${k.trafo.prim}/${k.trafo.sek} V` : k.steuer ? (k.ziel.bez || 'Steuerspannung') : (k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') || 'ohne Bezeichnung');
 
 function bemessung(g) {
   if (!g || !g.zeichen) return '';
@@ -768,7 +782,8 @@ function bVerteiler(b) {
   baumZeilen(v, e, v.knoten, l, 0);
   l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = neuerAbgang(); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
            h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'),
-           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS (gemeinsame Steuerspannung)'));
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS (gemeinsame Steuerspannung)'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo (z. B. 230/24 V)'));
   m.append(l);
   if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Einphasige Abgänge je Außenleiter: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));
   const nKreise = Object.keys(e.steuer.aktiv).length;
@@ -893,6 +908,7 @@ function geraetZeilen(ge) {
 function bAbgang(b) {
   const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
   const k = r.k, e = berechne(v), a = e.abgaenge[k.id], ge = k.geraet;
+  if (k.trafo) return bSteuerTrafo(v, r, e, a);
   if (k.steuer) return bSteuerLs(v, r, e, a);
   app.append(kopf(a.f ? `Abgang ${a.f.t}` : 'Abgang'));
   const m = h('main');
@@ -983,8 +999,9 @@ function bSteuerung(b) {
     ['bruecke', 'gemeinsam, gebrückte Klemmen', 'je Anschluss eine Klemme; L und N je eine gebrückte Reihe']], sp.art, w => sp.art = w))];
   if (sp.art !== 'abgang') {
     z.push(zeile('Quelle', q ? qName(q.k) : 'nicht gewählt', () => wahlFeld('Quelle der Steuerspannung',
-      quellen.map(k => [k.id, qName(k), k.steuer ? 'Steuer-LS' : '']).concat([['+', '+ neuer Steuer-LS', 'an der Hauptschiene']]), sp.quelle || '',
-      w => { if (w === '+') { const s = neuerSteuerLs(); v.knoten.push(s); sp.quelle = s.id; } else sp.quelle = w; }), { rot: !q }));
+      quellen.map(k => [k.id, qName(k), k.trafo ? 'Steuertrafo' : k.steuer ? 'Steuer-LS' : '']).concat([['+', '+ neuer Steuer-LS', 'an der Hauptschiene'],
+        ['+t', '+ neuer Steuertrafo', '230/24 V, 63 VA']]), sp.quelle || '',
+      w => { if (w === '+' || w === '+t') { const s = w === '+t' ? neuerSteuerTrafo() : neuerSteuerLs(); v.knoten.push(s); sp.quelle = s.id; } else sp.quelle = w; }), { rot: !q }));
     if (sp.art === 'bruecke') {
       z.push(zeile('Klemmen', sp.leiste === 'eigen' ? `eigene Leiste ${sp.bmk || '-X0'}` : 'auf -X1', () => wahlFeld('Klemmen der Steuerspannung', [
         ['X1', 'auf -X1', 'hinter den Abgangsklemmen, im Klemmenplan -X1'], ['eigen', 'eigene Leiste', 'mit eigenem Klemmenplan']],
@@ -1191,6 +1208,43 @@ function bSGeraet(b) {
   app.append(m);
 }
 
+// Steuertrafo: Primär-LS, Trafo -T (Spannungen, Leistung, Erdung), Sekundär-LS
+const TRAFO_SEK = ['12', '24', '42', '48', '110', '230'], TRAFO_VA = ['25', '40', '63', '100', '160', '250', '400', '630', '1000'];
+function bSteuerTrafo(v, r, e, a) {
+  const k = r.k, ge = k.geraet, T = k.trafo, sp = v.steuerung && v.steuerung.spannung;
+  T.ls = T.ls || { zeichen: 'ls1', kennlinie: 'B', nenn: '2' };
+  app.append(kopf(a.t ? `Steuertrafo ${a.t.t}` : 'Steuertrafo'));
+  const m = h('main');
+  m.append(h('h2', {}, 'Steuertrafo'), h('div', { class: 'liste' },
+    zeile('Bezeichnung', k.ziel.bez || 'Steuertrafo', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w || 'Steuertrafo')),
+    zeile('Primärspannung', T.prim === '400' ? '400 V (L1–L2)' : '230 V (L–N)', () => wahlFeld('Primärspannung', [
+      ['230', '230 V', 'zwischen einem Außenleiter und N'], ['400', '400 V', 'zwischen L1 und L2']], T.prim, w => T.prim = w)),
+    zeile('Sekundärspannung', `${T.sek} V`, () => wahlFeld('Sekundärspannung', TRAFO_SEK.map(x => [x, x + ' V']), T.sek, w => T.sek = w)),
+    zeile('Leistung', T.va ? `${T.va} VA` : '—', () => wahlFeld('Leistung', TRAFO_VA.map(x => [x, x + ' VA']), T.va, w => T.va = w)),
+    zeile('Erdung', T.erde ? '0 V geerdet' : 'ungeerdet', () => wahlFeld('Erdung der Sekundärseite', [
+      ['ja', '0 V geerdet', 'Rückleitung einseitig an PE'], ['nein', 'ungeerdet', 'z. B. mit Isolationsüberwachung']], T.erde ? 'ja' : 'nein', w => T.erde = w === 'ja')),
+    zeile('Kennzeichen', a.t.t, () => bmkFeld('Kennzeichen', T, a.t.hand ? '' : a.t.t)),
+    zeile('Verwendet', sp && sp.art !== 'abgang' && sp.quelle === k.id ? 'Quelle der gemeinsamen Steuerspannung' : 'noch nicht als Quelle gewählt',
+      () => geh({ s: 'steuerung', vid: v.id }), { un: 'einstellen unter Steuerstromkreise' })));
+  m.append(h('h2', {}, 'Primär-LS'), h('div', { class: 'liste' },
+    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Primär-LS', ['ls1', 'fils1n', 'sich1'].map(x => [x, gName(x)]), ge.zeichen, w => {
+      ge.zeichen = w; if (GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; })),
+    ...geraetZeilen(ge),
+    a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null,
+    T.prim === '400' ? zeile('Außenleiter', 'L1–L2', () => {}, { ohnePfeil: true }) : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => {}, { ohnePfeil: true })
+      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+        () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w),
+        { ohnePfeil: v.leiter === '1NPE' })));
+  if (T.prim === '400' && ge.zeichen !== 'ls1') m.append(h('p', { class: 'warnung' }, 'Bei 400 V wird der Primär-LS als zwei 1-polige Schaltglieder gezeichnet; bitte LS 1-polig wählen.'));
+  m.append(h('h2', {}, 'Sekundär-LS'), h('div', { class: 'liste' },
+    zeile('Gerät', gName(T.ls.zeichen), () => wahlFeld('Sekundär-LS', ['ls1', 'sich1'].map(x => [x, gName(x)]), T.ls.zeichen, w => {
+      T.ls.zeichen = w; if (GERAETE[w].kennlinie && !T.ls.kennlinie) T.ls.kennlinie = 'B'; if (GERAETE[w].sicherung && !T.ls.art) T.ls.art = 'gG'; })),
+    ...geraetZeilen(T.ls),
+    zeile('Kennzeichen', a.f2.t, () => bmkFeld('Kennzeichen', T.ls, a.f2.hand ? '' : a.f2.t))));
+  m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuertrafo löschen', null, () => frage('Steuertrafo löschen', 'Den Steuertrafo löschen?', () => {
+    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; stapel.pop(); }), { rot: true, ohnePfeil: true })));
+  app.append(m);
+}
 // Steuer-LS: Abgang ohne Leitung, Quelle der gemeinsamen Steuerspannung
 function bSteuerLs(v, r, e, a) {
   const k = r.k, ge = k.geraet, sp = v.steuerung && v.steuerung.spannung;
@@ -1569,7 +1623,8 @@ function tuerzettel(v) {
     }
     const a = e.abgaenge[k.id];
     zeileT(tiefe ? 'ein' : '', a.f ? a.f.t : '—', k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
-      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]})` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
+      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
+    if (k.trafo) zeileT('ein', a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, '', `Steuerspannung ${k.trafo.sek} V`, '', '');
   });
   const herkunft = sp ? `gespeist aus ${sp.v.name}${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t ? ' ' + berechne(sp.v).abgaenge[sp.k.id].f.t : ''}`
                       : `Einspeisung ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;

@@ -99,4 +99,11 @@ window.BEISPIELE = {
     vorlageEinsetzen(hv, kr('Herd Küche'), 'hand0auto', { melder: 'daemmerung' });
     vorlageEinsetzen(hv, kr('Steckdosen Lager 1'), 'taster', { n: 2 });
     sichern(); zeichne(); },
+  // v1.16: wie vorlagen, gemeinsame Steuerspannung durchgeschliffen vom Steuertrafo 230/24 V, 0 V geerdet
+  trafo: () => { BEISPIELE.vorlagen(); const [hv] = P.verteiler;
+    const t = neuerSteuerTrafo(); hv.knoten.push(t); stDaten(hv).spannung = { art: 'durch', quelle: t.id }; sichern(); zeichne(); },
+  // v1.16: wie steuerung, Steuertrafo 400/230 V ungeerdet, gebrückte Klemmen auf -X1
+  trafo400: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
+    const t = neuerSteuerTrafo(); Object.assign(t.trafo, { prim: '400', sek: '230', va: '250', erde: false }); t.trafo.ls.nenn = '4'; hv.knoten.push(t);
+    hv.steuerung.spannung = { art: 'bruecke', quelle: t.id, leiste: 'X1' }; sichern(); zeichne(); },
 };

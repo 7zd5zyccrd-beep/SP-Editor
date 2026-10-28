@@ -155,8 +155,11 @@ Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
   **Steuer-LS** (Abgang ohne Leitung mit `steuer: true`, nur L und N).
 - Abgriff: L (erster Außenleiter) und N hinter dem Schutzorgan, im Stromlaufplan mit
   gehendem, im Steuerstromkreis mit kommendem Querverweis.
-- Steuertrafo als dritte Quelle später; Zeichen dafür zuerst über ein Auswahlblatt
-  (Bibliothek v1.5: `trafo` allpolig, `ue_trafo` einpolig, ausgewählt über „Trafo v0.1“):
+- Steuertrafo (v1.16) als dritte Quelle: Abgang mit `steuer: true` und `trafo: { prim: '230' | '400',
+  sek, va, erde, ls }` – Primär-LS (230 V auf L, N läuft durch; 400 V zwei Schaltglieder auf
+  L1/L2), Trafo -T, Sekundär-LS -F; Steuerspannung heißt „24 V“ usw. und „0 V“ (schwarz,
+  kein N), 0 V wahlweise an PE geerdet. Zeichen: Bibliothek v1.6 `trafo` (allpolig, Sammlung)
+  und `ue_trafo` (einpolig, EN-Baukasten nach 06-09-01), ausgewählt über „Trafo v0.1“:
   `python3 tools/auswahl_bauen.py kandidaten-trafo.json build/trafo-auswahl-v0.1.html 'Trafo v0.1' 'Stromlaufplan · Etappe C · Auswahl Steuertrafo' 'slp.trafo.auswahl.v1'`
 - Kontaktspiegel unter der Spule (Hauptkontakte 1–2 …, Hilfskontakte Schließer n3–n4,
   dann Öffner n1–n2), genutzte mit `/Blatt.Spalte`; Hauptkontakte im Stromlaufplan

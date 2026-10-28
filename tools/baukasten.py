@@ -357,6 +357,16 @@ def geraet_leuchte_ein():
     b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
     return b
 
+def geraet_trafo_ein():
+    """Transformator mit zwei Wicklungen einpolig (Form 1 nach 06-09-01): zwei sich
+    überschneidende Kreise, im Maßstab der übrigen einpoligen Zeichen (Durchmesser 20)."""
+    b = Bau('Transformator mit zwei Wicklungen einpolig')
+    b._q('06_09_01', 'Form 1, verkleinert, ohne Text')
+    b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
+    b.ellipse(-10, 0, 20, 20); b.ellipse(-10, 14, 20, 20)
+    b.linie(0, 34, 0, 50); b.anschluss(0, 50, 's')      # Anschluss im 10er-Raster
+    return b
+
 def geraet_ue_schaltgeraet(name, kontakt, spule, kontakt_bem='', rand=20):
     """Einpolig für den Übersichtsschaltplan: Schaltglied im Leiter, Antrieb
     links daneben, Wirkverbindung waagerecht durch das Schaltstück."""
@@ -422,6 +432,7 @@ BAUTEILE = {
     'ue_spd':          (lambda: geraet_spd_ein(), 'Ableiter mit Erde'),
     'ue_steckdose':    (lambda: geraet_steckdose('Steckdose einpolig', 1), 'ein Buchsenpol'),
     'ue_leuchte':      (lambda: geraet_leuchte_ein(), 'Lampe 08-10-01, Leitung von oben'),
+    'ue_trafo':        (lambda: geraet_trafo_ein(), 'Form 1 nach 06-09-01, verkleinert auf die einpoligen Zeichen, ohne Text'),
     'leuchte':         (lambda: geraet_leuchte(), 'Lampe 08-10-01 zwischen L und N'),
     'erde_raster':     (lambda: geraet_einzeln('Erde', TERRE, dy=1, bem='ins Raster gesetzt'), 'Form unverändert, um 1 verschoben (Anschluss im Raster)'),
     'schutzerde_de':   (lambda: geraet_schutzerde_de(), 'Erde wie gewählt, Kreis eng und mittig'),

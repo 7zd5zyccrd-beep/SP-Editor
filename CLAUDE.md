@@ -156,7 +156,8 @@ Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
 - Abgriff: L (erster Außenleiter) und N hinter dem Schutzorgan, im Stromlaufplan mit
   gehendem, im Steuerstromkreis mit kommendem Querverweis.
 - Steuertrafo als dritte Quelle später; Zeichen dafür zuerst über ein Auswahlblatt
-  (in der Bibliothek v1.4 gibt es keinen Trafo).
+  (in der Bibliothek v1.4 gibt es keinen Trafo). Auswahlblatt „Trafo v0.1“:
+  `python3 tools/auswahl_bauen.py kandidaten-trafo.json build/trafo-auswahl-v0.1.html 'Trafo v0.1' 'Stromlaufplan · Etappe C · Auswahl Steuertrafo' 'slp.trafo.auswahl.v1'`
 - Kontaktspiegel unter der Spule (Hauptkontakte 1–2 …, Hilfskontakte Schließer n3–n4,
   dann Öffner n1–n2), genutzte mit `/Blatt.Spalte`; Hauptkontakte im Stromlaufplan
   tragen den Verweis auf die Spule. Befehlsgeber: Schließer 13–14, Öffner 11–12.

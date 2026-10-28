@@ -114,7 +114,7 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
   Hilfsschließern/-öffnern je Gerät; **gezeichnet werden nur die genutzten
   Hilfskontakte**, der Kontaktspiegel nennt alle.
 
-## Etappe C – Steuerstromkreise (abgestimmt, in Arbeit)
+## Etappe C – Steuerstromkreise (umgesetzt bis C4, v1.14; Abnahme durch Jean steht aus)
 
 **Detailvorschlag (abgestimmt 28.10.2026)** – Teil-Etappen je mit eigener Version:
 C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur über das
@@ -133,6 +133,11 @@ Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
   Eigenständiges Zeitrelais -K (Funktion, Zeit, verzögerte Schließer n7/n8 und Öffner n5/n6)
   als Verbraucher eines Kreises ohne Schaltgerät; verzögerte Kontakte auch an Zeitrelais im
   Abgang. Warnungen stehen im Verteiler, unter „Steuerstromkreise“ und im Raster.
+- C4 (v1.14): Vorlagen ersetzen die Pfade eines Kreises (Rückgängig möglich) und legen die
+  Geräte neu an: Taster parallel (1–5), Selbsthaltung Ein/Aus bzw. mit Not-Aus, je mit/ohne
+  Meldeleuchte „Betrieb“ (Hilfsschließer werden bei Bedarf ergänzt), Hand-0-Automatik
+  (Wahlschalter -S als zwei Schließer desselben Geräts, „im Verteiler“; Automatik in Reihe mit
+  Melder). Mehrfach genutzte Befehlsgeber zählen ihre Anschlüsse fort (13/14, 23/24 …).
 - Ein Kreis entsteht automatisch mit der Wahl des Schaltgeräts (leerer Pfad, Spule auf dem
   Verbraucherplatz); Kreise, deren Schaltgerät entfernt wurde, bleiben in den Daten, werden
   aber nicht gezeichnet. Befehlsgeber entstehen beim Belegen eines Platzes oder vorab in der

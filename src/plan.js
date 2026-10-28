@@ -759,7 +759,7 @@ const PLAN = (() => {
       const g = v.steuerung.geraete.find(x => x.id === f.gid), kz = (sf.geraete[f.gid] || {}).t || '', nrn = sf.feld[f.key];
       const kr = v.steuerung.kreise.find(x => x.id === f.kr);
       const sg = kr && kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
-      const ml = f.z === 'meldeleuchte', an = ml ? ['X1', 'X2'] : /_oe|notaus/.test(f.z) ? ['11', '12'] : ['13', '14'];
+      const ml = f.z === 'meldeleuchte', an = ml ? ['X1', 'X2'] : (sf.kontakte[f.key] || {}).an || (/_oe|notaus/.test(f.z) ? ['11', '12'] : ['13', '14']);
       const lt = sf.leitung[f.gid], le = g.leitung || {}, leitung = lt ? `${lt.w.t} ${le.typ || 'NYM-J'} ${lt.adern}×${le.quer || '1,5'}` : '';
       const zeilen = nrn.map((nr, i) => {
         ader[f.gid] = (ader[f.gid] || 0) + 1;
@@ -973,8 +973,12 @@ const PLAN = (() => {
           bmk(g, x - li - 1, top + 5, relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
           an = kn ? kn.an : ['', ''];
         } else {
-          bmk(g, x - li - 1, top + 5, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : []);
-          an = /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
+          const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
+          if (/^(daemmerung|bewegung|praesenz)$/.test(z)) {     // Melder: links sitzt der Sensorkasten, Beschriftung rechts
+            text(g, x + 2.5, top + 6, kz, 2.5, 'start', { 'font-weight': 'bold' });
+            zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, top + 9.2 + 2.8 * n, s, 2.2, 'start'));
+          } else bmk(g, x - li - 1, top + 5, kz, zl);
+          an = kn ? kn.an : /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }
         text(g, x + re + 0.8, top + 2.2, an[0], 1.8); text(g, x + re + 0.8, y - 0.6, an[1], 1.8);
         const fk = st.feld && st.feld[p.id + ':' + i];

@@ -428,5 +428,59 @@
    "12 HV klemmen",
    "6ae5c7be5946f3132a4c3b7002e772b6"
   ]
+ ],
+ "vorlagen": [
+  [
+   "1 Deckblatt deckblatt",
+   "6890d2d1d4af404b9342e81cbb471f26"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "619f463abe991873735cd0f2d694221f"
+  ],
+  [
+   "3 HV uebersicht",
+   "709bd11ea5fa83fcbeca47079bbb0425"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "e120f03e7a66962c4a127df81c2214b4"
+  ],
+  [
+   "5 HV einspeisung",
+   "b0dbf0f508d1077cd3e61b6098b9db59"
+  ],
+  [
+   "6 HV abgang",
+   "ec88ec9e3173e310e2a9089a18f77b12"
+  ],
+  [
+   "7 HV abgang",
+   "b048118144841643f1c527229d43db38"
+  ],
+  [
+   "8 HV abgang",
+   "49abc1d42e2dec71fe72d6058ba2c067"
+  ],
+  [
+   "9 HV steuerung",
+   "4ee0d136075dd0a3eb1871c35c73f7b4"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "a483ee04bc70f0cf41ee2b46f4e829d0"
+  ],
+  [
+   "11 HV klemmen",
+   "e56f9923ab3f420d5b1797d4ee69d27e"
+  ],
+  [
+   "12 HV klemmen",
+   "6d1ee90406b8bdbab9b3fcd4d0d02f20"
+  ],
+  [
+   "13 HV klemmen",
+   "c4de2f55aca2214185ba0761f203afd1"
+  ]
  ]
 }

@@ -90,4 +90,13 @@ window.BEISPIELE = {
     const h1 = neuesSteuerGeraet(hv, 'meldeleuchte'); Object.assign(h1, { bez: 'Spannung', ort: 'Flur', feld: true });
     kM.pfade[0].verbraucher = { g: h1.id };
     sichern(); zeichne(); },
+  // C4 (v1.14): Kreise aus Vorlagen – Stromstoß mit 3 Tastern (Licht Büro), Selbsthaltung mit Not-Aus und
+  // Betriebsmeldung (CEE), Hand-0-Automatik mit Dämmerungsschalter (Herd), Treppenlicht mit 2 Tastern (Lager 1)
+  vorlagen: () => { BEISPIELE.schalt(); const [hv] = P.verteiler, e = berechne(hv);
+    const kr = bez => { const k = schaltAbgaenge(hv, e).find(k => abgangName(k) === bez); return kreisAnlegen(hv, k); };
+    vorlageEinsetzen(hv, kr('Licht Büro'), 'taster', { n: 3 });
+    vorlageEinsetzen(hv, kr('CEE 32 A Werkstatt'), 'selbstnot', { notaus: true, meldung: true });
+    vorlageEinsetzen(hv, kr('Herd Küche'), 'hand0auto', { melder: 'daemmerung' });
+    vorlageEinsetzen(hv, kr('Steckdosen Lager 1'), 'taster', { n: 2 });
+    sichern(); zeichne(); },
 };

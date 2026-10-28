@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.14: Etappe C4 – Vorlagen für Steuerstromkreise (im Raster „Vorlage …“, im Kreis „Vorlage einsetzen“):
+           Taster parallel (Stromstoß, Treppenlicht), Selbsthaltung Ein/Aus, Selbsthaltung mit Not-Aus,
+           je mit oder ohne Betriebsmeldung, Hand-0-Automatik mit Melder; Befehlsgeber-Anschlüsse je
+           Gerät fortlaufend (13/14, 23/24 …); Melder beschriftet rechts vom Kontakt
      v1.13: Etappe C3 – Warnungen (zu wenige Kontakte, Schaltgerät ohne Kreis, Kreis ohne Kontakte,
            Pfad ohne Verbraucher, Stromstoß ohne Taster, Spule mehrfach, Quelle/Abgriff fehlt …);
            Feldgeräte (Einbauort „im Feld“) bei Klemmleiste über -X1 mit je zwei Klemmen je Kontakt und
@@ -470,6 +474,11 @@ function berechneSteuerung(v, e, bmk, klemme) {
         if (!e.abgaenge[pl.g] && !g) { r.warn.push(`Ein Platz verweist auf ein gelöschtes Gerät.`); return; }
         if (g && g.zeichen !== 'zeitrelais') {
           if (ST_ZEICHEN[g.zeichen] && ST_ZEICHEN[g.zeichen][1] === 'bg') taster++;
+          // Befehlsgeber: Anschlüsse je Gerät fortlaufend – Schließer 13/14, 23/24 …, Öffner (auch Not-Aus) 11/12, 21/22 …
+          const nb = r.genutzt[g.id] = r.genutzt[g.id] || { s: [], o: [] }, oeB = istOeffner(g.zeichen) || g.zeichen === 'notaus';
+          (oeB ? nb.o : nb.s).push(key);
+          const ordB = nb.s.length + nb.o.length;
+          r.kontakte[key] = { ord: ordB, an: oeB ? [`${ordB}1`, `${ordB}2`] : [`${ordB}3`, `${ordB}4`], bg: true };
           // Feldgerät: zwei Klemmen auf -X1 (oben und unten am Kontakt)
           if (mitLeiste && stFeld(g)) { r.feld[key] = [++nrX1, ++nrX1]; r.feldListe.push({ key, gid: g.id, kr: kr.id, p: p.id, z: g.zeichen }); }
           return;
@@ -1039,6 +1048,7 @@ function bKreis(b) {
       kr.quelle ? kr.quelle.kid : '', w => kr.quelle = { art: 'abgang', kid: w }), { rot: !qk }));
   }
   kz.push(zeile('Im Raster bearbeiten', null, () => geh({ s: 'raster', vid: v.id, krid: kr.id }), { un: 'Palette antippen, dann Plätze; mit Vorschau des Blatts' }));
+  kz.push(zeile('Vorlage einsetzen', null, () => vorlageWahl(v, kr), { un: VORLAGEN.map(x => x[1]).join(', ') }));
   m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
   if (!kk) m.append(h('p', { class: 'warnung' }, 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.'));
   // Pfade und Zweige
@@ -1201,6 +1211,59 @@ function bSteuerLs(v, r, e, a) {
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuer-LS löschen', null, () => frage('Steuer-LS löschen', 'Den Steuer-LS löschen?', () => {
     r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; stapel.pop(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
+}
+
+// ---- Vorlagen für Steuerstromkreise (ab v1.14, Etappe C4) ----------------------
+// Ersetzen die Pfade eines Kreises; der Verbraucher (Spule) bleibt, Geräte werden neu angelegt.
+const VORLAGEN = [
+  ['taster', 'Taster parallel', 'Stromstoßschalter oder Treppenlicht: mehrere Taster auf die Spule'],
+  ['selbst', 'Selbsthaltung Ein/Aus', 'Aus- und Ein-Taster, Hilfsschließer parallel zum Ein-Taster'],
+  ['selbstnot', 'Selbsthaltung mit Not-Aus', 'wie Selbsthaltung, Not-Aus davor'],
+  ['hand0auto', 'Hand-0-Automatik', 'Wahlschalter: „Hand“ schaltet direkt, „Automatik“ über einen Melder']];
+function vorlageWahl(v, kr) {
+  const vb = (kr.pfade.find(p => p.verbraucher) || {}).verbraucher;
+  if (!vb) { meldung('Zuerst einen Verbraucher (Spule) setzen'); return; }
+  const e = berechne(v), sa = e.abgaenge[vb.g];
+  wahlFeld('Vorlage', VORLAGEN, '', art => setTimeout(() => {
+    const los = o => { const voll = kr.pfade.some(p => p.plaetze.some(Boolean) || (p.zweig && true));
+      const tun = () => { rasterMerken(v); vorlageEinsetzen(v, kr, art, o); sichern(); zeichne(); };
+      if (voll) frage('Vorlage einsetzen', 'Die vorhandenen Pfade dieses Kreises werden ersetzt.', tun, 'Ersetzen'); else tun(); };
+    if (art === 'taster') wahlFeld('Wie viele Taster?', [1, 2, 3, 4, 5].map(n => [String(n), `${n} Taster`]), '', n => setTimeout(() => los({ n: +n }), 0));
+    else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
+      z => setTimeout(() => los({ melder: z }), 0));
+    else if (!sa || !sa.schalt) meldung('Selbsthaltung braucht ein Schaltgerät mit Hilfsschließer');
+    else wahlFeld('Betriebsmeldung?', [['ja', 'mit Meldeleuchte „Betrieb“', 'über einen weiteren Hilfsschließer'], ['nein', 'ohne Meldeleuchte']], '',
+      w => setTimeout(() => los({ notaus: art === 'selbstnot', meldung: w === 'ja' }), 0));
+  }, 0));
+}
+function vorlageEinsetzen(v, kr, art, o) {
+  const vb = { ...(kr.pfade.find(p => p.verbraucher) || {}).verbraucher };
+  const alt = new Set(); kr.pfade.forEach(p => p.plaetze.forEach(pl => { if (pl) alt.add(pl.g); }));
+  const neu = (z, bez) => { const g = neuesSteuerGeraet(v, z); g.bez = bez; return g.id; };
+  const pfade = [], haupt = neuerPfad(vb);
+  pfade.push(haupt);
+  if (art === 'taster') {
+    haupt.plaetze[0] = { g: neu('taster_s', 'Taster 1') };
+    for (let i = 2; i <= (o.n || 1); i++) { const zw = neuerPfad(null, { von: 0, bis: 0 }); zw.plaetze[0] = { g: neu('taster_s', `Taster ${i}`) }; pfade.push(zw); }
+  } else if (art === 'selbst' || art === 'selbstnot') {
+    let i = 0;
+    if (o.notaus) haupt.plaetze[i++] = { g: neu('notaus', 'Not-Aus') };
+    haupt.plaetze[i++] = { g: neu('taster_oe', 'Aus') };
+    const iEin = i; haupt.plaetze[i] = { g: neu('taster_s', 'Ein') };
+    const zw = neuerPfad(null, { von: iEin, bis: iEin }); zw.plaetze[iEin] = { g: vb.g, z: 'hilfs_s' }; pfade.push(zw);
+    let hs = 1;
+    if (o.meldung) { const pm = neuerPfad({ g: neu('meldeleuchte', 'Betrieb') }); pm.plaetze[0] = { g: vb.g, z: 'hilfs_s' }; pfade.push(pm); hs = 2; }
+    const k = knoten(v, vb.g); if (k && k.k.schalt && (k.k.schalt.hs || 0) < hs) k.k.schalt.hs = hs;    // Ausstattung reicht sonst nicht
+  } else if (art === 'hand0auto') {
+    const s = neu('schalter_hand', 'Hand-0-Auto');
+    stDaten(v).geraete.find(g => g.id === s).feld = false;        // Wahlschalter in der Verteilertür
+    haupt.plaetze[0] = { g: s };                                // Stellung „Hand“
+    const zw = neuerPfad(null, { von: 0, bis: 1 }); zw.plaetze[0] = { g: s }; zw.plaetze[1] = { g: neu(o.melder || 'daemmerung', { daemmerung: 'Dämmerung', bewegung: 'Bewegung', praesenz: 'Präsenz', endschalter_s: 'Endschalter' }[o.melder || 'daemmerung']) };
+    pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Melder
+  }
+  kr.pfade = pfade;
+  // Geräte, die nur in den ersetzten Pfaden vorkamen, entfallen
+  const st = stDaten(v); st.geraete = st.geraete.filter(g => !alt.has(g.id) || stVerwendet(v, g.id) > 0);
 }
 
 // ---- Raster-Editor der Steuerstromkreise (ab v1.12, Etappe C2b) -------------
@@ -1380,6 +1443,7 @@ function bRaster(b) {
     zw ? k('Zweig: Anfang hier', 'anfang', { aus: !zelle }) : null, zw ? k('Zweig: Ende hier', 'ende', { aus: !zelle }) : null,
     s ? k(zw ? 'Zweig löschen' : 'Pfad löschen', 'spalteLoeschen', { rot: true }) : null);
   const allg = h('div', { class: 'leiste' }, k('+ Pfad', 'pfad'),
+    h('button', { on: { click: () => vorlageWahl(v, kr) } }, 'Vorlage …'),
     h('button', { title: 'Strg+Z', on: { click: () => rasterRueck(v, false) } }, 'Rückgängig'),
     h('button', { title: 'Strg+Y', on: { click: () => rasterRueck(v, true) } }, 'Wiederholen'));
   links.append(leiste, allg, h('p', { class: 'hinweis' }, s ? (s.i === -1 ? 'Spalte gewählt.' : `Gewählt: ${s.i === 6 ? 'Verbraucher' : 'Platz ' + (s.i + 1)} in Spalte ${s.j + 1}.`)

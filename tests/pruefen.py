@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -74,6 +74,14 @@ with sync_playwright() as p:
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(100)
             if pg.evaluate(platz) != 'Raster': fehler.append('eingabe: Raster – Strg+Z hat nicht wiederhergestellt')
             if not pg.locator('.vorschau svg').count(): fehler.append('eingabe: Raster – keine Vorschau')
+            # Vorlage per Klick: Taster parallel, 2 Taster, Ersetzen bestätigen
+            pg.locator('.leiste button', has_text='Vorlage').click(); pg.wait_for_timeout(100)
+            pg.locator('.wahl button', has_text='Taster parallel').click(); pg.wait_for_timeout(150)
+            pg.locator('.wahl button', has_text='2 Taster').click(); pg.wait_for_timeout(150)
+            pg.locator('.fenster .knopf.rot').click(); pg.wait_for_timeout(150)
+            n = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.id === stapel[stapel.length - 1].krid);
+                return kr.pfade.length + ':' + kr.pfade.filter(p => p.plaetze[0]).length; }""")
+            if n != '2:2': fehler.append(f'eingabe: Vorlage per Klick ergab {n}')
             pg.screenshot(path=str(AUS / 'eingabe_raster.png'), full_page=True)
             pg.evaluate("BEISPIELE.eingabe(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)

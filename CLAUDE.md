@@ -121,7 +121,9 @@ C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur 
 Beispiel `steuerung` (Aussehen festlegen); C1b v1.10 Steuerspannung wählbar (Beispiele
 `gemeinsam`, `bruecke`, `bruecke0`); C2a v1.11 Eingabe in Bildschirmen wie bisher
 (Steuerspannung, Kreise mit Pfadliste, Befehlsgeber/Meldeleuchten, Steuer-LS; Beispiel
-`eingabe`); C2b v1.12 Raster-Editor mit geteilter Ansicht und Vorschau; C3 v1.13
+`eingabe`); C2b v1.12 Raster-Editor mit geteilter Ansicht und Vorschau (Bildschirm `raster`;
+Palette antippen, dann Zelle; ohne Werkzeug wählt ein Tippen die Zelle; ab 1000 px Breite
+Vorschau rechts, sonst darunter einklappbar); C3 v1.13
 Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais, Kreis ohne
 Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
 - Ein Kreis entsteht automatisch mit der Wahl des Schaltgeräts (leerer Pfad, Spule auf dem

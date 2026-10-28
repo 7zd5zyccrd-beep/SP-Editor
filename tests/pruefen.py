@@ -43,7 +43,7 @@ with sync_playwright() as p:
         # alle Eingabebildschirme des ersten Verteilers einmal aufbauen (Skriptfehler fallen auf)
         fehler += [f'{name}: Bildschirm {x}' for x in pg.evaluate("""() => { const v = P.verteiler[0], st = v.steuerung || {}, aus = [];
             const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }];
-            (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }));
+            (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }, { s: 'raster', vid: v.id, krid: kr.id }));
             (st.geraete || []).forEach(g => seiten.push({ s: 'sgeraet', vid: v.id, gid: g.id }));
             alleKnoten(v, k => { if (k.typ === 'abgang') seiten.push({ s: 'abgang', vid: v.id, kid: k.id }); });
             for (const s of seiten) { try { stapel = [{ s: 'start' }, s]; zeichne(); } catch (e) { aus.push(JSON.stringify(s) + ': ' + e.message); } }
@@ -59,6 +59,22 @@ with sync_playwright() as p:
             ok = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[2];
                 const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return !!g && g.zeichen === 'taster_s' && g.bez === 'Mitte'; }""")
             if not ok: fehler.append('eingabe: Platz per Klick belegen hat nicht geklappt')
+            # Raster: Werkzeug Taster Schließer, Zelle Pfad 1/Platz 4, neues Gerät „Raster“; dann Entf und Strg+Z
+            pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1);
+                stapel = [{ s: 'start' }, { s: 'raster', vid: v.id, krid: kr.id }]; zeichne(); }""")
+            pg.locator('.werkzeug', has_text='Taster Schließer').click()
+            pg.locator('.zelle[data-j="0"][data-i="3"]').click(); pg.wait_for_timeout(100)
+            pg.locator('.wahl button', has_text='+ neu').click(); pg.wait_for_timeout(100)
+            pg.locator('.fenster input').fill('Raster'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
+            platz = """() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[3];
+                const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return g ? g.bez : null; }"""
+            if pg.evaluate(platz) != 'Raster': fehler.append('eingabe: Raster – Platz belegen hat nicht geklappt')
+            pg.keyboard.press('Escape'); pg.locator('.zelle[data-j="0"][data-i="3"]').click(); pg.keyboard.press('Delete'); pg.wait_for_timeout(100)
+            if pg.evaluate(platz) is not None: fehler.append('eingabe: Raster – Entf hat nicht gelöscht')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(100)
+            if pg.evaluate(platz) != 'Raster': fehler.append('eingabe: Raster – Strg+Z hat nicht wiederhergestellt')
+            if not pg.locator('.vorschau svg').count(): fehler.append('eingabe: Raster – keine Vorschau')
+            pg.screenshot(path=str(AUS / 'eingabe_raster.png'), full_page=True)
             pg.evaluate("BEISPIELE.eingabe(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')

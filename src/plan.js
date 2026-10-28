@@ -1208,7 +1208,7 @@ const PLAN = (() => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
-        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung' });
+        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
       });
     }
     for (const p of plaene) p.kl.forEach((b, i) => {

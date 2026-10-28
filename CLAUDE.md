@@ -145,6 +145,7 @@ eigenständiges Zeitrelais; C4 v1.13 Vorlagen.
 - Meldeleuchten tragen traditionell **-H** (nicht -P wie der Zähler).
 - Im Steuerstromkreis ist nur die N-Leitung blau (mit Klemmen und Abzweigpunkten); die
   Leitungen von den Verbrauchern bis zur Klemme bzw. zum Abzweig sind schwarz.
+  Im Stromlaufplan bleibt der N-Abgriff zum Steuerstromkreis blau.
 
 
 Mischweg: Hauptstromkreis bleibt generiert; Steuerstromkreise mit einem

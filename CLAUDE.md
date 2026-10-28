@@ -143,6 +143,8 @@ eigenständiges Zeitrelais; C4 v1.13 Vorlagen.
 - Datenmodell `v.steuerung = { geraete, kreise }`, beschrieben bei `berechneSteuerung()`
   in `src/app-vorlage.html`.
 - Meldeleuchten tragen traditionell **-H** (nicht -P wie der Zähler).
+- Im Steuerstromkreis ist nur die N-Leitung blau (mit Klemmen und Abzweigpunkten); die
+  Leitungen von den Verbrauchern bis zur Klemme bzw. zum Abzweig sind schwarz.
 
 
 Mischweg: Hauptstromkreis bleibt generiert; Steuerstromkreise mit einem

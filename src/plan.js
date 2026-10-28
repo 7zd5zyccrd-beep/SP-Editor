@@ -873,14 +873,15 @@ const PLAN = (() => {
     const pkt = [];
     segs.forEach(s => [[s.x1, s.y1], [s.x2, s.y2]].forEach(([px, py]) => { if (!pkt.some(q => nah(q[0], px) && nah(q[1], py))) pkt.push([px, py, s.art]); }));
     pkt.forEach(([px, py, art]) => {
-      let n = 0;
+      let n = 0, mitN = false;    // Farbe des Punkts: N, wenn eine N-Leitung beteiligt ist
       segs.forEach(s => {
         const ende = (nah(s.x1, px) && nah(s.y1, py)) || (nah(s.x2, px) && nah(s.y2, py));
         const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, px) && py > Math.min(s.y1, s.y2) && py < Math.max(s.y1, s.y2)
           : nah(s.y1, s.y2) && nah(s.y1, py) && px > Math.min(s.x1, s.x2) && px < Math.max(s.x1, s.x2));
         n += ende ? 1 : innen ? 2 : 0;
+        if ((ende || innen) && s.art === 'N') mitN = true;
       });
-      if (n >= 3) punkt(g, px, py, art);
+      if (n >= 3) punkt(g, px, py, mitN ? 'N' : art);
     });
   }
   // ein Kreis; lt zeichnet Leitungen (für die Verbindungspunkte gesammelt). gem: gemeinsame
@@ -964,7 +965,8 @@ const PLAN = (() => {
           } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort] : []);
           text(g, x + re + 0.8, ST_YV + 2.2, sa ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa ? 'A2' : 'X2', 1.8);
         }
-        lt(x, y, x, ST_YN, 'N');
+        // Leitung vom Verbraucher bis zum Abzweig bzw. zur Klemme schwarz; blau ist nur die N-Leitung
+        lt(x, y, x, ST_YN, lName);
         if (gem) { anG.N.push(x); if (kl) klemme(x, ST_YN, kl.n[p.id], 'N', anG.N.length === 1); }
       } else {
         const yb = stB(bis + 1);

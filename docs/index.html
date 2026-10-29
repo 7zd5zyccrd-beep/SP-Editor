@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.20 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.20.1 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,8 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.20.1: Ausschneiden und Einfügen verschiebt das Teil samt Steuerstromkreis (Kennungen bleiben);
+           Kopieren legt auch die Steuerstromkreise der Schaltgeräte mit neuen Befehlsgebern an
      v1.20: Etappe D4 – Ziehen im Plan-Editor: Abgänge/Gruppen auf eine Marke „+“ oder hinter einen Abgang,
            Kontakte und Verbraucher auf einen anderen Platz (belegt: tauschen); Maus nach kurzer
            Bewegung, Finger/Pencil nach kurzem Halten (Wischen blättert weiter); Tasten ←/→ wählen
@@ -1800,7 +1802,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.20';
+const FASSUNG = 'v1.20.1';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3103,7 +3105,9 @@ const EDITOR_PALETTE = [
   ['steckdose', 'Steckdose 1~', 'steckdose3'], ['cee', 'CEE 3~', 'steckdose5'], ['leuchte', 'Leuchte', 'leuchte'],
   ['dose', 'Geräte\u00adanschluss', 'endklemme'], ['uv', 'Unter\u00adverteiler', 'ls3'], ['gruppe', 'FI-Gruppe', 'fi4'],
   ['steuerls', 'Steuer-LS', 'ls1'], ['trafo', 'Steuer\u00adtrafo', 'trafo']];
-let editorAblage = null;           // kopiertes oder ausgeschnittenes Teil
+// Ablage (ab v1.20.1): { k, aus, vid, kreise, geraete } – das Teil samt den Steuerstromkreisen seiner
+// Schaltgeräte; Ausschneiden verschiebt (Kennungen bleiben), Kopieren legt alles mit neuen Kennungen an
+let editorAblage = null;
 function editorNeu(v, tool) {
   const a = neuerAbgang();
   switch (tool) {
@@ -3114,14 +3118,54 @@ function editorNeu(v, tool) {
     case 'gruppe': { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; return g; }
     case 'steuerls': return neuerSteuerLs();
     case 'trafo': return neuerSteuerTrafo();
-    case 'ablage': return kopieMitNeuenIds(editorAblage);
+    case 'ablage': return ablageHolen(v);
     default: a.ziel.bez = 'Steckdosen'; return a;
   }
 }
-function kopieMitNeuenIds(k) {      // Kopie mit neuen Kennungen; ein Unterverteiler wird nicht doppelt gespeist
-  const c = JSON.parse(JSON.stringify(k));
-  const neu = x => { x.id = id(); if (x.speist) x.speist = null; (x.kinder || []).forEach(neu); };
-  neu(c); return c;
+const kopie = x => JSON.parse(JSON.stringify(x));
+function knotenIds(k) { const s = new Set(), f = x => { s.add(x.id); (x.kinder || []).forEach(f); }; f(k); return s; }
+// Steuerstromkreise, deren Verbraucher (Spule) ein Schaltgerät im Teil ist, und die Geräte darin
+function teilKreise(v, ids) {
+  const st = v.steuerung || {}, kreise = (st.kreise || []).filter(kr => kr.pfade.some(p => p.verbraucher && ids.has(p.verbraucher.g)));
+  const gids = new Set(); kreise.forEach(kr => kr.pfade.forEach(p => [...p.plaetze, p.verbraucher].forEach(pl => { if (pl) gids.add(pl.g); })));
+  return { kreise, geraete: (st.geraete || []).filter(g => gids.has(g.id)) };
+}
+function ablageSetzen(v, k, aus) {
+  const tk = teilKreise(v, knotenIds(k));
+  editorAblage = { k: kopie(k), aus, vid: v.id, kreise: kopie(tk.kreise), geraete: kopie(tk.geraete) };
+}
+// Teil aus der Ablage für Verteiler v: Ausgeschnittenes einmal mit seinen Kennungen, sonst eine Kopie
+function ablageHolen(v) {
+  const A = editorAblage, st = stDaten(v);
+  if (A.aus) {
+    editorAblage = null;
+    const q = vById(A.vid);
+    if (q && q !== v && q.steuerung) {        // in einen anderen Verteiler: die Kreise ziehen mit
+      const ids = new Set(A.kreise.map(kr => kr.id));
+      const weg = q.steuerung.kreise.filter(kr => ids.has(kr.id));
+      q.steuerung.kreise = q.steuerung.kreise.filter(kr => !ids.has(kr.id));
+      const genutzt = new Set(); q.steuerung.kreise.forEach(kr => kr.pfade.forEach(p => [...p.plaetze, p.verbraucher].forEach(pl => { if (pl) genutzt.add(pl.g); })));
+      const um = {};
+      A.geraete.forEach(g0 => { const g = q.steuerung.geraete.find(x => x.id === g0.id); if (!g) return;
+        if (genutzt.has(g.id)) { const c = Object.assign(kopie(g), { id: id(), bmk: undefined }); um[g.id] = c.id; st.geraete.push(c); }
+        else { q.steuerung.geraete = q.steuerung.geraete.filter(x => x !== g); st.geraete.push(g); } });
+      weg.forEach(kr => { kr.pfade.forEach(p => { p.plaetze = p.plaetze.map(pl => pl && um[pl.g] ? { ...pl, g: um[pl.g] } : pl);
+        if (p.verbraucher && um[p.verbraucher.g]) p.verbraucher = { g: um[p.verbraucher.g] }; }); st.kreise.push(kr); });
+    }
+    return A.k;
+  }
+  // Kopie: neue Kennungen für Abgänge, Kreise, Pfade und Befehlsgeber; ein Unterverteiler wird nicht doppelt gespeist
+  const um = {}, c = kopie(A.k);
+  const neu = x => { const n = id(); um[x.id] = n; x.id = n; if (x.speist) x.speist = null; if (x.schalt) x.schalt.bmk = undefined; (x.kinder || []).forEach(neu); };
+  neu(c);
+  A.geraete.forEach(g0 => { const g = Object.assign(kopie(g0), { id: id(), bmk: undefined }); if (g.leitung) g.leitung.bmk = undefined; um[g0.id] = g.id; st.geraete.push(g); });
+  const da = new Set(); alleKnoten(v, x => da.add(x.id));
+  const ref = pl => pl && (um[pl.g] ? { ...pl, g: um[pl.g] } : da.has(pl.g) ? pl : null);
+  A.kreise.forEach(kr0 => { const kr = kopie(kr0); kr.id = id(); kr.name = undefined;
+    if (kr.quelle && kr.quelle.kid) kr.quelle = { art: 'abgang', kid: um[kr.quelle.kid] || kr.quelle.kid };
+    kr.pfade.forEach(p => { p.id = id(); p.plaetze = p.plaetze.map(ref); p.verbraucher = ref(p.verbraucher); });
+    st.kreise.push(kr); });
+  return c;
 }
 // an der Marke einfügen: vor:id / nach:id im selben Zweig, in:id in eine leere Gruppe
 function editorEinfuegen(v, b, marke) {
@@ -3130,7 +3174,6 @@ function editorEinfuegen(v, b, marke) {
   if (art === 'in') { liste = knoten(v, id).k.kinder; idx = liste.length; }
   else { const r = knoten(v, id); liste = r.liste; idx = r.i + (art === 'nach' ? 1 : 0); if (r.eltern && k.typ === 'gruppe') { meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); return; } }
   liste.splice(idx, 0, k); sichern();
-  if (b.tool === 'ablage' && editorAblage && editorAblage.aus) editorAblage = null;     // Ausgeschnittenes nur einmal einfügen
   b.sel = 'k:' + k.id; b.tool = null; zeichne();
 }
 // Aktionen für das gewählte Teil (auch über Tasten)
@@ -3145,8 +3188,8 @@ function editorAktion(v, b, was) {
       const j = r.i + (was === 'links' ? -1 : 1); if (j < 0 || j >= r.liste.length) return;
       [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; sichern(); return zeichne();
     }
-    case 'kopieren': editorAblage = JSON.parse(JSON.stringify(r.k)); return meldung('Kopiert – „Einfügen“ und eine Marke antippen');
-    case 'ausschneiden': editorAblage = Object.assign(JSON.parse(JSON.stringify(r.k)), { aus: true });
+    case 'kopieren': ablageSetzen(v, r.k, false); return meldung('Kopiert – „Einfügen“ und eine Marke antippen');
+    case 'ausschneiden': ablageSetzen(v, r.k, true);
       r.liste.splice(r.i, 1); b.sel = null; sichern(); meldung('Ausgeschnitten – „Einfügen“ und eine Marke antippen'); return zeichne();
     case 'loeschen': return frage(r.k.typ === 'gruppe' ? 'Gruppe löschen' : 'Abgang löschen', r.k.typ === 'gruppe' ? 'Gruppe mit allen ihren Abgängen löschen?' : 'Diesen Abgang löschen?',
       () => { r.liste.splice(r.i, 1); b.sel = null; });

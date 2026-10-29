@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.20.1 | Fehlerbehebung: Ausschneiden/Einfügen im Plan-Editor verschiebt das Teil samt Steuerstromkreis; Kopieren legt die Steuerstromkreise mit an |
 | v1.20 | Etappe D4: Ziehen im Plan-Editor (Abgänge auf Marken, Kontakte auf Plätze; Finger/Pencil nach kurzem Halten), Tastenkürzel ←/→, Alt+←/→, +/−, Übersicht der Kürzel |
 | v1.19 | Etappe D3: Steuerstromkreise direkt im Plan-Editor (Reiter „Steuerung“, Plätze im Blatt antippen, Zweige, Vorlagen); Raster-Bildschirm entfällt |
 | v1.18 | Etappe D2: Plan-Editor – Palette und Einfügemarken, Verschieben, Kopieren/Ausschneiden/Einfügen, Löschen; Rückgängig/Wiederholen über das ganze Projekt; Tastenkürzel |

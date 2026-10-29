@@ -118,6 +118,20 @@ with sync_playwright() as p:
             if n != '2:2': fehler.append(f'eingabe: Vorlage per Klick ergab {n}')
             pg.screenshot(path=str(AUS / 'eingabe_editor.png'), full_page=False)
             pg.evaluate("BEISPIELE.eingabe(); P.projekt.datum = '2026-10-24'")
+        if name == 'steuerung':
+            # Ausschneiden/Einfügen verschiebt (Steuerstromkreis bleibt), Kopieren legt einen eigenen Kreis an (ab v1.20.1)
+            r = pg.evaluate("""() => { const v = P.verteiler[0], e = berechne(v), b = { s: 'editor', vid: v.id };
+                const k = schaltAbgaenge(v, e)[0], kr0 = kreisVon(v, k.id), n0 = v.steuerung.kreise.length;
+                const ziel = v.knoten.at(-1).id === k.id ? v.knoten[0].id : v.knoten.at(-1).id;
+                b.sel = 'k:' + k.id; editorAktion(v, b, 'ausschneiden'); b.tool = 'ablage'; editorEinfuegen(v, b, 'nach:' + ziel);
+                const ok1 = !!knoten(v, k.id) && kreisVon(v, k.id) === kr0 && v.steuerung.kreise.length === n0 && Object.keys(berechne(v).steuer.aktiv).includes(kr0.id);
+                b.sel = 'k:' + k.id; editorAktion(v, b, 'kopieren'); b.tool = 'ablage'; editorEinfuegen(v, b, 'nach:' + k.id);
+                const neu = knoten(v, b.sel.slice(2)).k, kr1 = kreisVon(v, neu.id);
+                const ok2 = neu.id !== k.id && !!kr1 && kr1 !== kr0 && v.steuerung.kreise.length === n0 + 1;
+                return [ok1, ok2]; }""")
+            if not r[0]: fehler.append('steuerung: Ausschneiden/Einfügen hat den Steuerstromkreis verloren')
+            if not r[1]: fehler.append('steuerung: Kopieren/Einfügen hat keinen eigenen Steuerstromkreis angelegt')
+            pg.evaluate("BEISPIELE.steuerung(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()

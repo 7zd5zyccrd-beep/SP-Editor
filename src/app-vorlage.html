@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.17: Etappe D1 – Plan-Editor: Blätter eines Verteilers mit Antippflächen (Einspeisung, Abgänge,
+           Gruppen, Überspannungsschutz, Steuerstromkreise), Eigenschaften daneben (iPad hoch: darunter)
+           mit denselben Feldern wie die Bildschirme, Zoom; „Plan bearbeiten“ auf dem Startbildschirm
+           und oben im Verteiler
      v1.16: Steuertrafo als Quelle der Steuerspannung: Abgang mit Primär-LS (230 V L–N oder 400 V L1–L2),
            Trafo -T (Sekundärspannung, Leistung, 0 V geerdet oder ungeerdet) und Sekundär-LS; im
            Steuerstromkreis Leitungen „24 V“/„0 V“ (schwarz), Klemmenplan und Übersichtsschaltplan;
@@ -207,6 +211,16 @@ main.geteilt{max-width:1500px;display:grid;grid-template-columns:minmax(0,1fr);g
 .vorschau{background:#cfccc3;border-radius:12px;padding:10px}
 .vorschau summary{font-size:13px;color:#4a4842;cursor:pointer;margin:0 2px 6px}
 .vorschau svg{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+/* Plan-Editor (ab v1.17): Blätter mit Antippflächen, Eigenschaften daneben bzw. darunter */
+main.editor .zoomwrap{overflow:auto;-webkit-overflow-scrolling:touch;background:#fff}
+main.editor .blattkarte svg{width:100%;max-width:none}
+main.editor rect.ziel{cursor:pointer}
+main.editor rect.ziel:hover{fill:rgba(31,95,191,.06)}
+main.editor rect.ziel[data-sel]{fill:rgba(31,95,191,.10);stroke:#1f5fbf;stroke-width:.5}
+main.editor .eigen main{padding:0;max-width:none}
+main.editor .eigen .eigentitel{margin-top:4px}
+@media (min-width:1000px){main.editor{grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr)}
+  main.editor .eigen{position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}}
 #druck{display:none}
 @media print{
   body{background:#fff}
@@ -599,9 +613,11 @@ function leitungText(k, a) {
 // Oberfläche: Bildschirme als Stapel
 let stapel = [{ s: 'start' }];
 let sortieren = false;
-const app = document.getElementById('app');
+let app = document.getElementById('app');      // im Plan-Editor kurzzeitig auf die Eigenschaften-Leiste umgelenkt
 function geh(b) { stapel.push(b); sortieren = false; zeichne(); window.scrollTo(0, 0); }
 function zurueck() { stapel.pop(); sortieren = false; zeichne(); }
+// nach Löschen/Auflösen: im Plan-Editor nur die Auswahl aufheben, sonst zum vorigen Bildschirm
+function fertig() { const b = stapel[stapel.length - 1]; if (b.s === 'editor') b.sel = null; else stapel.pop(); }
 function h(tag, attr = {}, ...kinder) {
   const e = document.createElement(tag);
   for (const k in attr) {
@@ -674,7 +690,7 @@ function zeichne() {
   const b = stapel[stapel.length - 1];
   app.innerHTML = '';
   ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
-     steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, raster: bRaster }[b.s])(b);
+     steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, raster: bRaster, editor: bEditor }[b.s])(b);
 }
 
 function bStart() {
@@ -698,6 +714,7 @@ function bStart() {
   if (P.verteiler.length > 1)
     m.append(h('button', { class: 'neu', on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Sortieren beenden' : 'Reihenfolge ändern'));
   if (P.verteiler.length) m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
+    zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: P.verteiler[0].id }), { un: 'im Planblatt antippen und ändern' }),
     zeile('Stromlaufplan ansehen und drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${P.projekt.format || 'A4'} quer` }),
     zeile('Türzettel aller Verteiler', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' })));
   m.append(h('h2', {}, 'Stand'),
@@ -759,6 +776,7 @@ function bVerteiler(b) {
   const e = berechne(v);
   app.append(kopf(v.name, h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
   const m = h('main');
+  m.append(h('div', { class: 'liste' }, zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' })));
   // Einspeisung
   const sp = speisenderAbgang(v.id);
   const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
@@ -791,6 +809,7 @@ function bVerteiler(b) {
     zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
       { rot: e.steuer.warn.length > 0, un: (e.steuer.warn.length ? '⚠ ' : '') + 'Steuerspannung · ' + ST_ART[(v.steuerung && v.steuerung.spannung && v.steuerung.spannung.art) || 'abgang'] })));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
+    zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' }),
     zeile('Stromlaufplan', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts, dieser Verteiler zuerst sichtbar' }),
     zeile('Türzettel', null, () => geh({ s: 'tuer', vid: v.id }), { un: 'Sicherungsübersicht für die Verteilertür' }),
     zeile('Übersicht als Liste', null, () => geh({ s: 'liste', vid: v.id }), { un: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' })));
@@ -888,8 +907,8 @@ function bGruppe(b) {
   l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = neuerAbgang(); g.kinder.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang in dieser Gruppe'));
   m.append(l);
   m.append(h('h2', {}, ''), h('div', { class: 'liste' },
-    zeile('Gruppe auflösen', null, () => frage('Gruppe auflösen', 'Das Schutzorgan der Gruppe entfällt; die Abgänge bleiben und rücken an seine Stelle.', () => { r.liste.splice(r.i, 1, ...g.kinder); stapel.pop(); }, 'Auflösen'), { ohnePfeil: true }),
-    zeile('Gruppe löschen', null, () => frage('Gruppe löschen', 'Gruppe mit allen ihren Abgängen löschen?', () => { r.liste.splice(r.i, 1); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    zeile('Gruppe auflösen', null, () => frage('Gruppe auflösen', 'Das Schutzorgan der Gruppe entfällt; die Abgänge bleiben und rücken an seine Stelle.', () => { r.liste.splice(r.i, 1, ...g.kinder); fertig(); }, 'Auflösen'), { ohnePfeil: true }),
+    zeile('Gruppe löschen', null, () => frage('Gruppe löschen', 'Gruppe mit allen ihren Abgängen löschen?', () => { r.liste.splice(r.i, 1); fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 function geraetZeilen(ge) {
@@ -951,7 +970,7 @@ function bAbgang(b) {
       [['', 'nein']].concat(freie.map(w => [w.id, w.name])), k.speist || '', w => { k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
       { un: 'Der Unterverteiler zeigt diesen Abgang dann als seine Einspeisung.' })));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' },
-    zeile('Abgang löschen', null, () => frage('Abgang löschen', 'Diesen Abgang löschen?', () => { r.liste.splice(r.i, 1); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    zeile('Abgang löschen', null, () => frage('Abgang löschen', 'Diesen Abgang löschen?', () => { r.liste.splice(r.i, 1); fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 
@@ -1095,7 +1114,7 @@ function bKreis(b) {
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, h('button', { class: 'neu inliste', on: { click: () => { kr.pfade.push(neuerPfad()); sichern(); zeichne(); } } }, '+ Pfad')));
   m.append(h('p', { class: 'hinweis' }, 'Plätze 1–6 von oben (L) nach unten, darunter der Verbraucher (Spule, Meldeleuchte) an N. Ein Zweig liegt parallel zum Pfad links daneben.'));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Kreis löschen', null, () => frage('Kreis löschen',
-    'Den Steuerstromkreis löschen? Ein Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    'Den Steuerstromkreis löschen? Ein Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 // Beschriftung eines Platzes: Zeichen, Gerät und Anschlüsse
@@ -1242,7 +1261,7 @@ function bSteuerTrafo(v, r, e, a) {
     ...geraetZeilen(T.ls),
     zeile('Kennzeichen', a.f2.t, () => bmkFeld('Kennzeichen', T.ls, a.f2.hand ? '' : a.f2.t))));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuertrafo löschen', null, () => frage('Steuertrafo löschen', 'Den Steuertrafo löschen?', () => {
-    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 // Steuer-LS: Abgang ohne Leitung, Quelle der gemeinsamen Steuerspannung
@@ -1264,7 +1283,7 @@ function bSteuerLs(v, r, e, a) {
         () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w),
         { ohnePfeil: v.leiter === '1NPE' })));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuer-LS löschen', null, () => frage('Steuer-LS löschen', 'Den Steuer-LS löschen?', () => {
-    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; stapel.pop(); }), { rot: true, ohnePfeil: true })));
+    r.liste.splice(r.i, 1); if (sp && sp.quelle === k.id) sp.quelle = undefined; fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 
@@ -1538,6 +1557,74 @@ document.addEventListener('keydown', ev => {
     zeichne();
   });
 });
+
+// ---- Plan-Editor (ab v1.17, Etappe D1) ------------------------------------------
+// Die Blätter eines Verteilers mit Antippflächen; ein Tippen wählt Einspeisung, Abgang,
+// Gruppe, Überspannungsschutz oder Steuerstromkreis, rechts (iPad hoch: darunter) stehen
+// dessen Eigenschaften mit denselben Feldern wie in den Bildschirmen.
+// Bildschirm in die Eigenschaften-Leiste umlenken; sein Kopf wird zur Überschrift
+function eingebettet(f) {
+  const box = h('div', { class: 'eigen' }), alt = app;
+  app = box;
+  try { f(); } finally { app = alt; }
+  const k = box.querySelector('.kopf');
+  if (k) k.replaceWith(h('h2', { class: 'eigentitel' }, k.querySelector('h1').textContent));
+  return box;
+}
+function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
+  const [art, id] = (z || '').split(':');
+  if (art === 'k') return !!knoten(v, id);
+  if (art === 'kr') return !!(v.steuerung && v.steuerung.kreise.some(k => k.id === id));
+  return art === 'e' || art === 's';
+}
+function editorEigenschaften(v, z) {
+  const [art, id] = z.split(':');
+  if (art === 'k') { const r = knoten(v, id); return eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id })); }
+  if (art === 'kr') return eingebettet(() => bKreis({ s: 'editor', vid: v.id, krid: id }));
+  if (art === 's') return eingebettet(() => bKopf({ vid: v.id, feld: 'spd' }));
+  // Einspeisung: Herkunft und Geräte am Kopf des Verteilers
+  const e = berechne(v), sp = speisenderAbgang(v.id);
+  const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+  return h('div', { class: 'eigen' }, h('h2', { class: 'eigentitel' }, 'Einspeisung'), h('div', { class: 'liste' },
+    zeile('Einspeisung', eins, () => geh({ s: 'einspeisung', vid: v.id })),
+    kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung), kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
+    kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter), kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd)));
+}
+function bEditor(b) {
+  const v = vById(b.vid) || P.verteiler[0]; if (!v) { zurueck(); return; }
+  b.vid = v.id; b.zoom = b.zoom || 100;
+  if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
+  app.append(kopf(`Plan · ${v.name}`, h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'plan', vid: v.id }) } }, 'Drucken')));
+  const m = h('main', { class: 'geteilt editor' }), links = h('div');
+  // Werkzeuge: Verteiler, Zoom
+  const zoom = f => { b.zoom = Math.max(60, Math.min(300, Math.round(b.zoom * f / 10) * 10)); zeichne(); };
+  links.append(h('div', { class: 'leiste' },
+    P.verteiler.length > 1 ? h('button', { on: { click: () => wahlFeld('Verteiler', P.verteiler.map(w => [w.id, w.name]), v.id, w => { b.vid = w; b.sel = null; }) } }, `Verteiler: ${v.name}`) : null,
+    h('button', { title: 'kleiner', on: { click: () => zoom(1 / 1.25) } }, '−'),
+    h('button', { on: { click: () => { b.zoom = 100; zeichne(); } } }, `${b.zoom} %`),
+    h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+')));
+  // Blätter dieses Verteilers mit Antippflächen
+  let res = null;
+  try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }); }
+  catch (er) { links.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + er.message)); }
+  const arten = ['einspeisung', 'abgang', 'kombiniert', 'steuerung'];
+  (res ? res.blaetter.filter(bl => bl.verteiler === v.name && arten.includes(bl.art)) : []).forEach(bl => {
+    bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
+    bl.svg.style.width = `${b.zoom}%`;
+    bl.svg.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === b.sel) r.setAttribute('data-sel', ''); });
+    bl.svg.addEventListener('click', ev => { const z = ev.target.closest('[data-ziel]'); if (z) { b.sel = z.dataset.ziel; zeichne(); } });
+    links.append(h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'einspeisung' ? 'Einspeisung' : 'Stromlaufplan')),
+      h('div', { class: 'zoomwrap' }, bl.svg)));
+  });
+  if (!v.knoten.length) links.append(h('p', { class: 'hinweis' }, 'Noch keine Abgänge – unter dem Verteiler „+ Abgang“ wählen.'));
+  m.append(links);
+  // Eigenschaften des gewählten Teils
+  const rechts = b.sel ? editorEigenschaften(v, b.sel)
+    : h('div', { class: 'eigen' }, h('h2', { class: 'eigentitel' }, 'Eigenschaften'), h('p', { class: 'hinweis' }, 'Ein Teil im Plan antippen: Einspeisung, Abgang, Gruppe oder Steuerstromkreis.'));
+  m.append(rechts);
+  app.append(m);
+  if (res) requestAnimationFrame(() => res.begrenzen());
+}
 
 function bListe(b) {
   const v = vById(b.vid), e = berechne(v);

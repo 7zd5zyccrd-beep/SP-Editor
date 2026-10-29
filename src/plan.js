@@ -426,6 +426,7 @@ const PLAN = (() => {
     const artVonY = y => alle.find(a => ys[a] === y);
     const tap = (art, x, y) => { const ua = artVonY(y); if (ua) bereich[ua].push({ x, oben: false }); else punkt(g, x, y, art); };
     const yK = yU0 + ABSTAND * (alle.length - 1) + (eng ? 5 : VOR_GERAET);
+    letzteGruppeYK = yK;
     const kinder = grp.kinder.filter(k => k.typ === 'abgang');
     gruppenNatur = Math.max(0, ...kinder.map(k => naturEnde(ctx, v, k, e.abgaenge[k.id], unterBars, yK)));
     const yEnde = yEndeFest || gruppenNatur;
@@ -1147,7 +1148,11 @@ const PLAN = (() => {
   }
 
   // ---- Blätter zeichnen ---------------------------------------------------
-  function blaetter(P, BIB, hilf) {
+  // opt.ziele (ab v1.17, Plan-Editor): unsichtbare Antippflächen mit data-ziel über
+  // Einspeisung (e:), Abgängen und Gruppen (k:), Überspannungsschutz (s:) und Steuerstromkreisen (kr:)
+  const ziel = (g, x, y, w, h, id) => el('rect', { x, y, width: w, height: h, fill: 'transparent', class: 'ziel', 'data-ziel': id }, g);
+  let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
+  function blaetter(P, BIB, hilf, opt = {}) {
     ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z]));
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
@@ -1291,12 +1296,14 @@ const PLAN = (() => {
         if (b.art === 'einspeisung') {
           const ein = zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft);
           const y0 = ein.cursor + 10;
+          if (opt.ziele) ziel(g, R.x0, RAND, 3 * R.sb, y0 - RAND, 'e:' + v.id);
           ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n));
           zeichneSchienen(g, v, y0, ein.xs, xEnde, null, naechstes, false);
         } else {
           if (b.art === 'kombiniert') {
             const ein = zeichneEinspeisung(g, v, e, R.x0, 14, herkunft);
             ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n));
+            if (opt.ziele) ziel(g, R.x0, RAND, R.sb, b.y0 - RAND, 'e:' + v.id);
             bars = zeichneSchienen(g, v, b.y0, ein.xs, xEnde, null, naechstes, false);
           } else {
             const vorher = `/${blattNr - 1}.${F.sp}`;   // gehender Querverweis des Vorblatts steht in der letzten Spalte
@@ -1312,6 +1319,16 @@ const PLAN = (() => {
             if (it.art === 'spd') zeichneSpd(g, v, e, xSp, bars, yG);
             else if (it.art === 'abgang') zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde);
             else zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde);
+            if (opt.ziele) {
+              const yo = b.y0 + ABSTAND * schienenNamen(v).length, hh = F.h - RAND - SF_H - 2 - yo;
+              if (it.art === 'spd') ziel(g, xSp, yo, it.w * R.sb, hh, 's:' + v.id);
+              else ziel(g, xSp, yo, it.w * R.sb, hh, 'k:' + it.k.id);
+              if (it.art === 'gruppe') {     // Abgänge der Gruppe unterhalb der Untersammelschienen
+                let x = xSp; const yk = letzteGruppeYK - 2;
+                it.k.kinder.filter(c => c.typ === 'abgang').forEach(c => { const w = abgangSpalten(c, e.abgaenge[c.id], v, R) * R.sb;
+                  ziel(g, x, yk, w, F.h - RAND - SF_H - 2 - yk, 'k:' + c.id); x += w; });
+              }
+            }
           }
         }
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
@@ -1320,6 +1337,7 @@ const PLAN = (() => {
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
+        if (opt.ziele) b.kreise.forEach(({ kr, col }) => ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id));
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
       });

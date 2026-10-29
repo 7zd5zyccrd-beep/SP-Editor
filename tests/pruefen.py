@@ -42,12 +42,24 @@ with sync_playwright() as p:
                 if any(y - haupt > 2 for y in ab): fehler.append(f'{name} {t}: Pfad endet tiefer als die Steckdosen ({haupt} mm): {ab}')
         # alle Eingabebildschirme des ersten Verteilers einmal aufbauen (Skriptfehler fallen auf)
         fehler += [f'{name}: Bildschirm {x}' for x in pg.evaluate("""() => { const v = P.verteiler[0], st = v.steuerung || {}, aus = [];
-            const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }];
+            const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }, { s: 'editor', vid: v.id }];
+            // Plan-Editor: jedes Teil einmal gewählt
+            const zs = new Set(); PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }).blaetter.forEach(bl =>
+              bl.svg.querySelectorAll('[data-ziel]').forEach(r => zs.add(r.dataset.ziel)));
+            zs.forEach(z => seiten.push({ s: 'editor', vid: v.id, sel: z }));
             (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }, { s: 'raster', vid: v.id, krid: kr.id }));
             (st.geraete || []).forEach(g => seiten.push({ s: 'sgeraet', vid: v.id, gid: g.id }));
             alleKnoten(v, k => { if (k.typ === 'abgang') seiten.push({ s: 'abgang', vid: v.id, kid: k.id }); });
             for (const s of seiten) { try { stapel = [{ s: 'start' }, s]; zeichne(); } catch (e) { aus.push(JSON.stringify(s) + ': ' + e.message); } }
             stapel = [{ s: 'start' }]; zeichne(); return aus; }""")]
+        if name == 'grund':
+            # Plan-Editor per Klick: Abgang im Blatt antippen → Eigenschaften mit Schutzorgan
+            pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
+            pg.locator('button.zeile', has_text='Plan bearbeiten').first.click(); pg.wait_for_timeout(300)
+            pg.locator('rect.ziel[data-ziel^="k:"]').nth(1).dispatch_event('click'); pg.wait_for_timeout(300)
+            if not pg.locator('.eigen', has_text='Schutzorgan').count(): fehler.append('grund: Plan-Editor – Eigenschaften nach Antippen fehlen')
+            pg.screenshot(path=str(AUS / 'grund_editor.png'), full_page=False)
+            pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
         if name == 'eingabe':
             # Platz per Klick belegen: Kreis -Q4, Platz 3 → Taster Schließer → neues Gerät „Mitte“
             pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1);

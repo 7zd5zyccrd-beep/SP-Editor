@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.17 | Etappe D1: Plan-Editor – Teile im Planblatt antippen, Eigenschaften daneben ändern, Zoom; „Plan bearbeiten“ auf dem Startbildschirm und im Verteiler |
 | v1.16 | Steuertrafo als dritte Quelle der Steuerspannung (Primär-LS 230 V oder 400 V, Trafo -T, Sekundär-LS, 0 V geerdet/ungeerdet; Leitungen „24 V“/„0 V“); Bibliothek v1.6 |
 | v1.15 | Bibliothek v1.5 mit dem Steuertrafo (noch ohne Verwendung) |
 | v1.14 | Etappe C4: Vorlagen – Taster parallel (Stromstoß, Treppenlicht), Selbsthaltung Ein/Aus, mit Not-Aus, mit/ohne Betriebsmeldung, Hand-0-Automatik; Befehlsgeber-Anschlüsse je Gerät fortlaufend |

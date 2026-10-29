@@ -198,6 +198,19 @@ gespeicherte Abweichungen.
 - Steuerleitungen zu Tastern/Meldern laufen bei vorhandener Klemmleiste über -X1 und
   stehen im Klemmenplan.
 
+## Etappe D – Plan-Editor (abgestimmt 29.10.2026, in Arbeit)
+
+Der ganze Plan wird über die grafische Oberfläche bearbeitet; die Anordnung bleibt automatisch
+(kein freies Platzieren), die bisherigen Bildschirme bleiben parallel, der Startbildschirm
+bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben im Verteiler).
+- D1 v1.17: Bildschirm `editor` – Blätter eines Verteilers mit Antippflächen (`PLAN.blaetter(…,
+  { ziele: true })`, nur dort: data-ziel `e:` Einspeisung, `k:` Abgang/Gruppe, `s:` SPD, `kr:`
+  Steuerstromkreis), Eigenschaften-Leiste = eingebetteter Bildschirm (`eingebettet()`), Zoom.
+  Löschen im Editor hebt nur die Auswahl auf (`fertig()`).
+- D2: Palette und Einfügemarken, Verschieben, Kopieren, Löschen, Rückgängig über das Projekt.
+- D3: Steuerstromkreise direkt im Blatt (offen: Raster danach behalten oder abschaffen).
+- D4: Ziehen mit Finger/Pencil, Tastenkürzel.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

@@ -208,7 +208,8 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   Steuerstromkreis), Eigenschaften-Leiste = eingebetteter Bildschirm (`eingebettet()`), Zoom.
   Löschen im Editor hebt nur die Auswahl auf (`fertig()`).
 - D2: Palette und Einfügemarken, Verschieben, Kopieren, Löschen, Rückgängig über das Projekt.
-- D3: Steuerstromkreise direkt im Blatt (offen: Raster danach behalten oder abschaffen).
+- D3: Steuerstromkreise direkt im Blatt; das Raster (Bildschirm `raster`) wird dabei in den
+  Plan-Editor zusammengeführt und entfällt als eigener Bildschirm (Jean, 29.10.2026).
 - D4: Ziehen mit Finger/Pencil, Tastenkürzel.
 
 ## Technische Eckwerte

@@ -28,6 +28,7 @@ später in andere Apps (SF E-Plan, BDS E-Assistent) eingebunden wird, ist offen.
    stehen **nur Varianten derselben Bedeutung** – Schließer/Öffner, Masse/Erde,
    3 Sicherungen/Sicherungstrenner usw. sind getrennte Karten. Namen nach dem, was das
    Zeichen zeigt; die deutschen Namen der Sammlung sind teils falsch übersetzt.
+5. **Pushen:** jeden fertigen Stand immer direkt auf `main` pushen (Jean, 29.10.2026).
 
 ## Aufbau
 

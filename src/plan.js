@@ -1154,8 +1154,9 @@ const PLAN = (() => {
   // Einfügemarke „+“ (ab v1.18): vor:id / nach:id an einem Abgang bzw. einer Gruppe, in:id in einer leeren Gruppe
   function marke(g, x, y, id) {
     const m = el('g', { class: 'marke', 'data-ziel': id }, g);
-    el('circle', { cx: x, cy: y, r: 3, fill: '#fff', stroke: '#1f5fbf', 'stroke-width': 0.4 }, m);
-    linie(m, x - 1.7, y, x + 1.7, y, 0.4, '#1f5fbf'); linie(m, x, y - 1.7, x, y + 1.7, 0.4, '#1f5fbf');
+    el('circle', { cx: x, cy: y, r: 6, fill: 'transparent', class: 'treffer' }, m);     // Trefferfläche (ab v1.21)
+    el('circle', { cx: x, cy: y, r: 3.2, fill: '#fff', stroke: '#1f5fbf', 'stroke-width': 0.45 }, m);
+    linie(m, x - 1.8, y, x + 1.8, y, 0.5, '#1f5fbf'); linie(m, x, y - 1.8, x, y + 1.8, 0.5, '#1f5fbf');
   }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
@@ -1347,7 +1348,10 @@ const PLAN = (() => {
             }
           }
         }
+        if (opt.ziele && b.art !== 'einspeisung' && i === p.blaetter.findIndex(x => x.art !== 'einspeisung') && !v.knoten.length)
+          marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
+        if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: b.art });
       });
       p.st.forEach((b, i) => {
@@ -1361,6 +1365,7 @@ const PLAN = (() => {
             ziel(g, x, stB(ST_PL), R.sb, ST_YN - stB(ST_PL), `pl:${pf.id}:${ST_PL}`); });
         });
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
+        if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
       });
     }

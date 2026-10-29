@@ -16,6 +16,16 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.21: Neue Arbeitsfläche – Plan-Editor über den ganzen Bildschirm: Kopfleiste (Projektübersicht,
+           Verteiler wechseln/anlegen, Abgänge/Steuerung, benanntes Rückgängig, Drucken, Menü), Palette links
+           mit Gruppen und eigenen Bildzeichen (iPad hoch: Streifen), Eigenschaften rechts in voller Höhe
+           (einklappbar; iPad hoch: Fach von unten), Fußleiste mit Blattwahl, Hinweis und Zoom (100 % =
+           Blattbreite, Zwei-Finger-Zoom, Strg+Mausrad); Ausschnitt bleibt beim Ändern stehen; Marken „+“
+           immer sichtbar mit Einfügemenü und Anzahl; Kontextleiste am gewählten Teil (verschieben,
+           duplizieren, kopieren, ausschneiden, löschen; Platz: Gerät, ↑/↓, Zweig …); alle Bildschirme
+           (Einspeisung, Geräte, Steuerung, Befehlsgeber, Projekt – Schriftfeld antippen) erscheinen in der
+           Eigenschaften-Leiste; Auswahllisten am angetippten Feld, Text direkt in der Zeile; Esc schließt;
+           Teile mit Tab erreichbar; Startbildschirm mit Verteilerkarten (ein Tippen öffnet den Plan)
      v1.20.1: Ausschneiden und Einfügen verschiebt das Teil samt Steuerstromkreis (Kennungen bleiben);
            Kopieren legt auch die Steuerstromkreise der Schaltgeräte mit neuen Befehlsgebern an
      v1.20: Etappe D4 – Ziehen im Plan-Editor: Abgänge/Gruppen auf eine Marke „+“ oder hinter einen Abgang,
@@ -104,7 +114,7 @@
      sofort gespeichert, Zurück-Pfeil genügt.
      Gerätekennungen = Kennungen der Bibliothek v1.1. -->
 <style>
-:root{--grund:#f4f3ef;--karte:#fff;--tinte:#1c1c1a;--leise:#6b6a64;--linie:#e1ded6;--akzent:#1f5fbf;--akzent-hell:#e6eefb;--warn:#b45309;--rot:#b42318;--n:#1f5fd6;--pe:#1a8a3a}
+:root{--flaeche:#e7e5df;--hover:#f0eee8;--grund:#f4f3ef;--karte:#fff;--tinte:#1c1c1a;--leise:#6b6a64;--linie:#e1ded6;--akzent:#1f5fbf;--akzent-hell:#e6eefb;--warn:#b45309;--rot:#b42318;--n:#1f5fd6;--pe:#1a8a3a}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--grund);color:var(--tinte);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -189,39 +199,159 @@ table.ueb tr.gr td{background:#f7f6f2;font-weight:600}
 .tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt}
 .tzwrap{overflow-x:auto}
 .tzwrap .tz{min-width:600px}
-/* geteilte Ansicht (ab v1.12): links Arbeitsfläche, rechts Eigenschaften; Palette, Leisten */
-main.geteilt{max-width:1500px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
-@media (min-width:1000px){main.geteilt{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
-.palette{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 4px}
-.palette .trenn{width:1px;align-self:stretch;background:var(--linie);margin:0 4px}
-.werkzeug{display:flex;flex-direction:column;align-items:center;gap:1px;width:64px;padding:3px 2px;border:1px solid var(--linie);border-radius:8px;background:#fff;cursor:pointer;font-size:9.5px;line-height:1.1;text-align:center;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:anywhere}
-.werkzeug svg{width:28px;height:28px}
-.werkzeug[aria-pressed="true"]{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:600}
-.leiste{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
-.leiste button{border:1px solid var(--linie);background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer;font-size:14px;color:var(--akzent)}
+/* Leisten in der Eigenschaften-Leiste (Platz im Steuerstromkreis) */
+.leiste{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.leiste button{border:1px solid var(--linie);background:#fff;border-radius:9px;padding:7px 11px;min-height:38px;cursor:pointer;font-size:14px;color:var(--akzent)}
+.leiste button:hover{background:var(--hover)}
 .leiste button.rot{color:var(--rot)}
-.leiste button:disabled{opacity:.35;cursor:default}
-.leiste.reiter button[aria-pressed="true"]{background:var(--akzent);color:#fff;border-color:var(--akzent)}
-/* Plan-Editor (ab v1.17): Blätter mit Antippflächen, Eigenschaften daneben bzw. darunter */
-main.editor .zoomwrap{overflow:auto;-webkit-overflow-scrolling:touch;background:#fff}
-main.editor .blattkarte svg{width:100%;max-width:none}
-main.editor rect.ziel{cursor:pointer}
-main.editor rect.ziel:hover{fill:rgba(31,95,191,.06)}
-main.editor rect.ziel[data-sel]{fill:rgba(31,95,191,.10);stroke:#1f5fbf;stroke-width:.5}
-main.editor .marke{display:none;cursor:pointer}
-main.editor svg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-main.editor.ziehen rect.ziel{cursor:grabbing}
-main.editor [data-ueber]{fill:rgba(31,95,191,.22)}
-main.editor g.marke[data-ueber] circle{fill:#1f5fbf}
-.zieh{position:fixed;z-index:40;pointer-events:none;background:var(--akzent);color:#fff;font-size:13px;padding:4px 9px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.25);white-space:nowrap}
+.leiste button:disabled{opacity:.35;cursor:default;background:#fff}
+/* Startbildschirm (ab v1.21) */
+main.start{max-width:1040px}
+.abschnitt{display:flex;align-items:flex-end;justify-content:space-between}
+.abschnitt .kopfknopf{margin:0 4px 6px}
+.projektkarte{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:16px 20px;cursor:pointer;margin-top:10px}
+.projektkarte:hover,.vkarte:hover{border-color:#c9c5bb;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.pk-klein{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--leise)}
+.pk-titel{font-size:24px;font-weight:700;line-height:1.2}
+.pk-un{color:var(--leise);font-size:14px}
+.pk-aktion,.vk-aktion{color:var(--akzent);font-size:14.5px;font-weight:600;margin-top:8px}
+.vkarten{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.vkarte{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;min-height:132px;width:100%;border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:16px 18px;cursor:pointer}
+.vk-name{font-size:19px;font-weight:700}
+.vk-un{font-size:14px;color:var(--leise)}
+.vk-warn{font-size:13.5px;color:var(--warn)}
+.vk-aktion{margin-top:auto;padding-top:8px}
+.vkarte.neu{border:1.5px dashed #c9c5bb;background:none;align-items:center;justify-content:center;color:var(--leise);font-size:15px}
+.vk-plus{font-size:30px;line-height:1;color:var(--akzent)}
+.vkhalter{display:flex;flex-direction:column;gap:6px}
+/* Fenster am angetippten Feld (ab v1.21) */
+.schleier.pop{background:transparent;overflow:hidden}
+.fenster.pop{position:fixed;max-width:none;border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.07);display:flex;flex-direction:column}
+.fenster.pop h3{font-size:12px;font-weight:650;color:var(--leise);text-transform:uppercase;letter-spacing:.06em;padding:11px 14px 4px}
+.fenster.pop .inhalt{overflow-y:auto;padding:2px 6px 6px;min-height:0;-webkit-overflow-scrolling:touch}
+.fenster.pop .text{padding:0 8px;font-size:13.5px}
+.fenster.pop .wahl{max-height:none;border:0;border-radius:0;gap:1px}
+.fenster.pop .wahl button{border-top:0;border-radius:8px;padding:9px 10px}
+.wahl button:hover{background:var(--hover)}
+.wahl button[aria-checked="true"]:hover{background:var(--akzent-hell)}
+.wahl .trennlinie{height:1px;background:var(--linie);margin:5px 8px}
+.wahl button.an{color:var(--akzent);font-weight:650}
+.wahl button.gefahr{color:var(--rot)}
+.menue button{flex-direction:column;justify-content:center;gap:0}
+.menue button small{font-size:12.5px}
+.kacheln{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px}
+.anzahlzeile{display:flex;align-items:center;gap:6px;justify-content:flex-end;padding:8px 6px 2px;border-top:1px solid var(--linie);margin-top:4px;font-size:14px}
+.anzahl{min-width:26px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+/* Text direkt in der Zeile */
+.zeile.bearbeiten{cursor:default;background:var(--akzent-hell);flex-wrap:wrap}
+.zeile.bearbeiten .t{flex:1 1 140px}
+.zeile.bearbeiten input{flex:2 1 180px;min-width:0;font:inherit;padding:8px 10px;border:1.5px solid var(--akzent);border-radius:9px;background:#fff;outline:none}
+.knopf.klein{padding:5px 12px;font-size:13.5px;border-radius:8px}
+:focus-visible{outline:2px solid var(--akzent);outline-offset:2px}
+/* ---- Plan-Editor (ab v1.21): Arbeitsfläche über den ganzen Bildschirm ---- */
+body.imeditor{overflow:hidden;background:var(--flaeche)}
+.ed{position:fixed;inset:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"kopf kopf kopf" "pal flaeche eigen" "pal fuss eigen";background:var(--flaeche)}
+.edkopf{grid-area:kopf;display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top) + 6px) 10px 6px;background:var(--karte);border-bottom:1px solid var(--linie);min-height:58px;z-index:4}
+.edkopf .sep,.kontext .sep{width:1px;height:24px;background:var(--linie);margin:0 4px;flex:0 0 auto}
+.ikon{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:42px;height:42px;padding:0 9px;border:0;border-radius:10px;background:none;color:var(--tinte);cursor:pointer;flex:0 0 auto;font-size:14.5px}
+.ikon svg{width:22px;height:22px;flex:0 0 auto}
+.ikon:hover{background:var(--hover)}
+.ikon:disabled{opacity:.28;cursor:default;background:none}
+.ikon.rot{color:var(--rot)}
+.vwahl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:0;background:none;padding:2px 10px;height:46px;border-radius:10px;cursor:pointer;min-width:0;max-width:260px;text-align:left}
+.vwahl:hover{background:var(--hover)}
+.vw-pj{font-size:11.5px;color:var(--leise);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vw-name{font-size:16.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.segment{display:inline-flex;background:var(--grund);border:1px solid var(--linie);border-radius:11px;padding:3px;margin-left:10px;flex:0 0 auto}
+.segment button{border:0;background:none;padding:7px 16px;border-radius:8px;font-size:14.5px;font-weight:600;color:var(--leise);cursor:pointer;min-height:36px}
+.segment button[aria-selected="true"]{background:var(--karte);color:var(--tinte);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.luecke{flex:1}
+.edpal{grid-area:pal;width:104px;overflow-y:auto;overscroll-behavior:contain;background:var(--karte);border-right:1px solid var(--linie);padding:6px 6px 20px;z-index:2}
+.palgruppe{margin-bottom:8px}
+.paltitel{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--leise);margin:8px 4px 4px}
+.palkacheln{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+.palleer{font-size:12.5px;color:var(--leise);padding:8px 6px;line-height:1.35}
+.pallink{border:0;background:none;color:var(--akzent);font-size:13px;padding:8px 4px;cursor:pointer;text-align:left}
+.werkzeug{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;min-height:62px;padding:6px 4px;border:1.5px solid transparent;border-radius:10px;background:none;
+  cursor:pointer;font-size:11.5px;line-height:1.15;text-align:center;color:var(--tinte);hyphens:auto;-webkit-hyphens:auto;overflow-wrap:anywhere;position:relative}
+.werkzeug:hover{background:var(--hover)}
+.werkzeug svg{width:32px;height:32px;flex:0 0 auto}
+.werkzeug[aria-pressed="true"]{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent);font-weight:650}
+.wzusatz{position:absolute;top:5px;right:6px;font:700 10px/1 system-ui,sans-serif;background:var(--tinte);color:#fff;border-radius:5px;padding:3px 4px}
+.edflaeche{grid-area:flaeche;overflow:auto;position:relative;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.blaetter{position:relative;padding:18px 20px 48px;width:max-content;min-width:100%}
+.blatt{margin:0 auto 26px}
+.blatt .bt{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--leise);margin:0 2px 6px}
+.blatt svg{display:block;background:#fff;border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.10),0 8px 24px rgba(0,0,0,.08)}
+.ed svg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ed rect.ziel{cursor:pointer;outline:none}
+@media (hover:hover){.ed rect.ziel:hover{fill:rgba(31,95,191,.07)}}
+.ed rect.ziel[data-sel]{fill:rgba(31,95,191,.13);stroke:#1f5fbf;stroke-width:.7}
+.ed rect.ziel:focus-visible{stroke:#1f5fbf;stroke-width:.5;stroke-dasharray:1.4 .9}
+.ed .marke{cursor:pointer;outline:none}
+.ed .marke circle:not(.treffer){transition:fill .12s}
+.ed.einfuegen .marke circle:not(.treffer),.ed .marke:focus-visible circle:not(.treffer){fill:#1f5fbf}
+.ed.einfuegen .marke line,.ed .marke:focus-visible line{stroke:#fff}
+@media (hover:hover){.ed .marke:hover circle:not(.treffer){fill:#1f5fbf}.ed .marke:hover line{stroke:#fff}}
+.ed.ziehen rect.ziel{cursor:grabbing}
+.ed [data-ueber]{fill:rgba(31,95,191,.24)}
+.ed g.marke[data-ueber] circle:not(.treffer){fill:#0d3f8f}
+.kontext{position:absolute;z-index:3;display:flex;align-items:center;gap:1px;padding:4px;background:#1f2328;color:#fff;border-radius:13px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.kontext .ikon{color:#fff;min-width:40px;height:40px;font-size:14px}
+.kontext .ikon:hover{background:rgba(255,255,255,.14)}
+.kontext .ikon:disabled{opacity:.3}
+.kontext .ikon.rot{color:#ff9a8f}
+.kontext .sep{background:rgba(255,255,255,.22)}
+.edeigen{grid-area:eigen;width:384px;display:flex;flex-direction:column;min-height:0;background:var(--karte);border-left:1px solid var(--linie);z-index:2}
+.ed.eigenzu .edeigen{display:none}
+.eigenkopf{display:flex;align-items:center;gap:2px;padding:6px 8px 6px 16px;border-bottom:1px solid var(--linie);min-height:54px}
+.eigenkopf .ikon:first-child{margin-left:-10px}
+.eigenkopf h2.eigentitel{margin:0;flex:1;min-width:0;font-size:16px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--tinte);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eigeninhalt{flex:1;overflow-y:auto;padding:2px 14px 28px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.eigeninhalt main{padding:0;max-width:none;margin:0}
+.eigeninhalt h2{margin:18px 4px 7px}
+.edfuss{grid-area:fuss;display:flex;align-items:center;gap:8px;padding:3px 8px calc(env(safe-area-inset-bottom) + 3px);background:var(--karte);border-top:1px solid var(--linie);min-height:48px;font-size:13.5px;z-index:1}
+.blattnav,.zoomnav{display:flex;align-items:center;gap:0;flex:0 0 auto}
+.blattwahl,.zoomwert{border:0;background:none;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;white-space:nowrap;min-height:40px}
+.zoomwert{min-width:64px;font-variant-numeric:tabular-nums}
+.blattwahl:hover,.zoomwert:hover{background:var(--hover)}
+.hinweiszeile{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--leise);white-space:nowrap;overflow:hidden}
+.hinweiszeile.an{color:var(--akzent);font-weight:650}
+.hinweistext{min-width:0;overflow:hidden;text-overflow:ellipsis}
+body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
+.paltitel{overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}
+@media (max-width:1299px){.edeigen{width:340px}}
+.nurschmal{display:none}
+.zieh{position:fixed;z-index:40;pointer-events:none;background:var(--akzent);color:#fff;font-size:13px;padding:5px 10px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.25);white-space:nowrap}
 .fenster .taste{padding:3px 0;font-size:14.5px}
 .fenster .taste b{display:inline-block;min-width:130px}
-main.editor.einfuegen .marke{display:inline}
-main.editor.einfuegen .marke:hover circle{fill:#e6eefb}
-main.editor .eigen main{padding:0;max-width:none}
-main.editor .eigen .eigentitel{margin-top:4px}
-@media (min-width:1000px){main.editor{grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr)}
-  main.editor .eigen{position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}}
+@media (min-width:1500px){.edpal{width:184px}.palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}.edeigen{width:420px}}
+@media (pointer:fine){.zeile{min-height:42px;padding-top:8px;padding-bottom:8px}.edeigen .zeile{min-height:40px}}
+/* iPad hoch und schmaler: Palette als Streifen, Eigenschaften als Fach von unten */
+@media (max-width:999px){
+  .ed{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"kopf" "pal" "flaeche" "fuss";padding-bottom:56px}
+  .edpal{width:auto;display:flex;align-items:stretch;gap:4px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--linie);padding:4px 8px}
+  .palgruppe{display:flex;align-items:stretch;gap:2px;margin:0;flex:0 0 auto}
+  .paltitel{writing-mode:vertical-rl;transform:rotate(180deg);margin:2px 0;font-size:9.5px;text-align:center}
+  .palkacheln{display:flex;gap:2px}
+  .palleer{max-width:220px;flex:0 0 auto;align-self:center}
+  .pallink{flex:0 0 auto;white-space:nowrap}
+  .werkzeug{width:78px;min-height:58px}
+  .edeigen{position:fixed;left:0;right:0;bottom:0;width:auto;height:min(62vh,600px);border-left:0;border-radius:16px 16px 0 0;box-shadow:0 -6px 26px rgba(0,0,0,.18);
+    transform:translateY(calc(100% - 56px));transition:transform .22s ease;z-index:12;padding-bottom:env(safe-area-inset-bottom)}
+  .edeigen.auf{transform:none}
+  .ed.eigenzu .edeigen{display:flex}
+  .eigenkopf{cursor:pointer;min-height:56px;position:relative}
+  .eigenkopf::before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:#d4d1c8}
+  .nurschmal{display:inline-flex}.nurbreit{display:none}
+  .hinweiszeile{display:none}
+  .edfuss{justify-content:space-between}
+  .segment{margin-left:4px}.segment button{padding:7px 11px}
+  .vw-pj{display:none}
+  .ikon.mittext .ikontext{display:none}
+}
+@media (max-width:560px){.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
 #druck{display:none}
 @media print{
   body{background:#fff}
@@ -334,13 +464,16 @@ let P;
 try { P = JSON.parse(localStorage.getItem(SPEICHER)); } catch (e) { P = null; }
 if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // Rückgängig/Wiederholen über das ganze Projekt (ab v1.18): jeder gespeicherte Stand; Änderungen
-// kurz hintereinander (z. B. Tippen in einem Feld) zählen als ein Schritt; nur für die laufende Sitzung
-const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0 };
+// kurz hintereinander (z. B. Tippen in einem Feld) zählen als ein Schritt; nur für die laufende Sitzung.
+// Ab v1.21 trägt jeder Schritt einen Namen (aenderung() vor sichern()), z. B. „Nennstrom“, „Einfügen: Leuchte“.
+const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0, name: null };
+function aenderung(n) { verlauf.name = n; }
 function sichern() {
   const neu = JSON.stringify(P), jetzt = Date.now();
   if (verlauf.stand !== null && neu !== verlauf.stand) {
-    if (jetzt - verlauf.zeit > 800 || !verlauf.zurueck.length) { verlauf.zurueck.push(verlauf.stand); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    if (jetzt - verlauf.zeit > 800 || !verlauf.zurueck.length) { verlauf.zurueck.push({ s: verlauf.stand, n: verlauf.name || 'Änderung' }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
     verlauf.zeit = jetzt; verlauf.vor = [];
+    verlauf.name = null;
   }
   verlauf.stand = neu;
   try { localStorage.setItem(SPEICHER, neu); } catch (e) { meldung('Speichern im Gerät nicht möglich'); }
@@ -348,10 +481,11 @@ function sichern() {
 function projektRueck(vor) {
   const von = vor ? verlauf.vor : verlauf.zurueck, s = von.pop();
   if (s === undefined) { meldung(vor ? 'Nichts zu wiederholen' : 'Nichts rückgängig zu machen'); return; }
-  (vor ? verlauf.zurueck : verlauf.vor).push(verlauf.stand);
-  P = JSON.parse(s); verlauf.stand = s; verlauf.zeit = 0;
-  try { localStorage.setItem(SPEICHER, s); } catch (e) {}
+  (vor ? verlauf.zurueck : verlauf.vor).push({ s: verlauf.stand, n: s.n });
+  P = JSON.parse(s.s); verlauf.stand = s.s; verlauf.zeit = 0;
+  try { localStorage.setItem(SPEICHER, s.s); } catch (e) {}
   zeichne();
+  meldung((vor ? 'Wiederholt: ' : 'Rückgängig: ') + s.n);
 }
 verlauf.stand = JSON.stringify(P);
 
@@ -635,12 +769,16 @@ function leitungText(k, a) {
 let stapel = [{ s: 'start' }];
 let sortieren = false;
 let app = document.getElementById('app');      // im Plan-Editor kurzzeitig auf die Eigenschaften-Leiste umgelenkt
-function geh(b) { stapel.push(b); sortieren = false; zeichne(); window.scrollTo(0, 0); }
-function zurueck() { stapel.pop(); sortieren = false; zeichne(); }
-// nach Löschen/Auflösen: im Plan-Editor nur die Auswahl aufheben, sonst zum vorigen Bildschirm
+function geh(z) {
+  const b = stapel[stapel.length - 1];
+  if (b && b.s === 'editor' && editorGeh(b, z)) return;      // im Plan-Editor: Eigenschaften-Leiste wechselt
+  stapel.push(z); sortieren = false; zeichne(); window.scrollTo(0, 0);
+}
+function zurueck() { if (einbettung) return; stapel.pop(); sortieren = false; zeichne(); }
 // Steuerstromkreis im Plan-Editor öffnen: Kreis gewählt, Steuerungs-Palette, Blatt im Blick
 function imPlan(v, kr) { geh({ s: 'editor', vid: v.id, sel: 'kr:' + kr.id, palette: 'st', springen: true }); }
-function fertig() { const b = stapel[stapel.length - 1]; if (b.s === 'editor') b.sel = null; else stapel.pop(); }
+// nach Löschen/Auflösen: im Plan-Editor zur vorigen Ansicht der Eigenschaften-Leiste, sonst zum vorigen Bildschirm
+function fertig() { const b = stapel[stapel.length - 1]; if (b.s === 'editor') b.sel = (b.pz && b.pz.pop()) || null; else stapel.pop(); }
 function h(tag, attr = {}, ...kinder) {
   const e = document.createElement(tag);
   for (const k in attr) {
@@ -663,7 +801,7 @@ function svgZurueck() {
   return s;
 }
 function zeile(ob, wert, klick, opt = {}) {
-  return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), on: { click: klick } },
+  return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), on: { click: ev => { ankerZeile(ev.currentTarget); klick(ev); } } },
     opt.bmk ? h('span', { class: 'bmk' + (opt.bmk.hand ? ' hand' : '') }, opt.bmk.t) : null,
     h('span', { class: 't' }, h('span', { class: 'ob' + (opt.rot ? ' gefahr' : '') }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null),
     wert !== null && wert !== undefined ? h('span', { class: 'w' }, wert) : null,
@@ -671,36 +809,105 @@ function zeile(ob, wert, klick, opt = {}) {
 }
 
 // ---- Fenster: genau ein Feld, sofort gespeichert --------------------------
-function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null) {
-  const schl = () => { s.remove(); if (beimSchliessen) beimSchliessen(); zeichne(); window.scrollTo(0, merk); };
-  const merk = window.scrollY;
-  const fuss = h('div', { class: 'fuss' }, ...(knoepfe ? knoepfe(schl) : [h('button', { class: 'knopf', on: { click: schl } }, 'Fertig')]));
-  const f = h('div', { class: 'fenster', role: 'dialog' }, h('h3', {}, titel), h('div', { class: 'inhalt' }, inhalt), fuss);
-  const s = h('div', { class: 'schleier', on: { click: ev => { if (ev.target === s || ev.target.classList.contains('mitte')) schl(); } } }, h('div', { class: 'mitte' }, f));
-  document.body.appendChild(s);
+// Ab v1.21: Auswahllisten und Menüs öffnen sich als kleines Fenster am angetippten Feld (iPad und
+// Desktop; schmal: in der Mitte), Textfelder werden direkt in der Zeile bearbeitet; Esc schließt.
+let anker = null;            // zuletzt angetippt: { r: Rechteck, zeile, zeit }
+function ankerZeile(z) { anker = { r: z.getBoundingClientRect(), zeile: z, zeit: Date.now() }; }
+document.addEventListener('pointerdown', ev => {
+  const el = ev.target.closest && ev.target.closest('button, [data-ziel], .zeile');
+  anker = { r: el ? el.getBoundingClientRect() : new DOMRect(ev.clientX, ev.clientY, 1, 1), zeit: Date.now() };
+}, true);
+const ankerFrisch = () => anker && Date.now() - anker.zeit < 1500 ? anker : null;
+const fensterStapel = [];
+document.addEventListener('keydown', ev => {
+  if (!fensterStapel.length) return;
+  const s = fensterStapel[fensterStapel.length - 1];
+  if (ev.key === 'Escape') { ev.preventDefault(); ev.stopImmediatePropagation(); s(!s.still); return; }
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {          // in Listen mit den Pfeiltasten wandern
+    const kn = [...s.el.querySelectorAll('.wahl button, .kacheln button')]; if (!kn.length) return;
+    ev.preventDefault(); const i = kn.indexOf(document.activeElement);
+    kn[(i + (ev.key === 'ArrowDown' ? 1 : -1) + kn.length) % kn.length].focus();
+  }
+}, true);
+function popLage(f, r) {
+  const W = innerWidth, H = innerHeight, w = Math.min(Math.max(r.width > 220 ? Math.min(r.width, 400) : 320, f.dataset.breit ? 400 : 0), W - 16);
+  f.style.width = w + 'px';
+  const x = Math.max(8, Math.min(W - w - 8, r.width > 220 ? r.right - w : r.left + r.width / 2 - w / 2));
+  f.style.left = x + 'px';
+  const unten = H - r.bottom - 10, oben = r.top - 10, fh = Math.min(f.scrollHeight, 560);
+  if (unten >= fh || unten >= oben) { f.style.top = (r.bottom + 4) + 'px'; f.style.maxHeight = Math.max(160, unten) + 'px'; }
+  else { f.style.bottom = (H - r.top + 4) + 'px'; f.style.maxHeight = Math.max(160, oben) + 'px'; }
+}
+function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {}) {
+  const merk = window.scrollY, a = opt.pop ? ankerFrisch() : null, pop = !!a && innerWidth >= 700;
+  let zu = false;
+  const schl = (neu = true) => {
+    if (zu) return; zu = true; s.remove();
+    const i = fensterStapel.indexOf(schl); if (i >= 0) fensterStapel.splice(i, 1);
+    if (beimSchliessen) beimSchliessen();
+    if (neu) { zeichne(); if (!ED) window.scrollTo(0, merk); }
+  };
+  schl.still = !!opt.still;
+  const fuss = pop && opt.still ? null : h('div', { class: 'fuss' }, ...(knoepfe ? knoepfe(schl) : [h('button', { class: 'knopf', on: { click: () => schl() } }, 'Fertig')]));
+  const f = h('div', { class: 'fenster' + (pop ? ' pop' : '') + (opt.still ? ' still' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titel, 'data-breit': opt.breit ? '1' : null },
+    titel ? h('h3', {}, titel) : null, h('div', { class: 'inhalt' }, inhalt), fuss);
+  const s = h('div', { class: 'schleier' + (pop ? ' pop' : ''), on: { click: ev => { if (ev.target === s || ev.target.classList.contains('mitte')) schl(!opt.still); } } }, pop ? f : h('div', { class: 'mitte' }, f));
+  document.body.appendChild(s); fensterStapel.push(schl); schl.el = f;
+  if (pop) popLage(f, a.r);
+  setTimeout(() => { if (zu || f.contains(document.activeElement)) return;
+    const x = f.querySelector('[aria-checked="true"], .an') || f.querySelector('input, .wahl button, .kacheln button, .fuss .knopf'); if (x) x.focus({ preventScroll: true }); }, 30);
   return schl;
 }
 function textFeld(titel, wert, setzen, opt = {}) {
-  const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences' });
-  i.addEventListener('input', () => { setzen(i.value.trim()); sichern(); });
+  const a = ankerFrisch();
+  if (a && a.zeile && a.zeile.isConnected && opt.typ !== 'date' && Date.now() - a.zeit < 600) return textInline(a.zeile, titel, wert, setzen, opt);
+  const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
+  i.addEventListener('input', () => { setzen(i.value.trim()); aenderung(titel); sichern(); });
   const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i];
   const schl = fenster(titel, kids);
   i.addEventListener('keydown', ev => { if (ev.key === 'Enter') schl(); });
   setTimeout(() => i.focus(), 50);
 }
+// Text direkt in der Zeile ändern: Eingabe oder Verlassen übernimmt, Esc nimmt zurück
+function textInline(z, titel, wert, setzen, opt) {
+  const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
+  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null), i);
+  z.replaceWith(box);
+  let fertig = false;
+  const ende = zurueckNehmen => {
+    if (fertig) return; fertig = true;
+    if (zurueckNehmen) { setzen(wert || ''); sichern(); }
+    zeichne();
+  };
+  i.addEventListener('input', () => { setzen(i.value.trim()); aenderung(titel); sichern(); });
+  i.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); ende(false); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ende(true); }
+  });
+  i.addEventListener('blur', () => setTimeout(() => ende(false), 0));
+  i.focus(); i.select();
+}
 function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
   let schl;
   const liste = h('div', { class: 'wahl', role: 'radiogroup' }, optionen.map(o => {
     const [w, t, klein] = Array.isArray(o) ? o : [o, o];
-    return h('button', { role: 'radio', 'aria-checked': String(w) === String(wert ?? ''), on: { click: () => { setzen(w); sichern(); schl(); } } },
+    return h('button', { role: 'radio', 'aria-checked': String(w) === String(wert ?? ''), on: { click: () => { setzen(w); aenderung(titel); sichern(); schl(); } } },
       h('span', {}, t), klein ? h('small', {}, klein) : null);
   }));
-  schl = fenster(titel, [opt.text ? h('p', { class: 'text' }, opt.text) : null, liste], s => [h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen')]);
+  schl = fenster(titel, [opt.text ? h('p', { class: 'text' }, opt.text) : null, liste], s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen')], null, { pop: true, still: true });
+}
+// Menü: Einträge [Text, Aktion, { klein, an, rot }] oder '—' als Trennlinie; ändert selbst nichts
+function menue(titel, eintraege) {
+  let schl;
+  const liste = h('div', { class: 'wahl menue', role: 'menu' }, eintraege.filter(Boolean).map(x => x === '—' ? h('div', { class: 'trennlinie', role: 'separator' }) :
+    h('button', { role: 'menuitem', class: [x[2] && x[2].an ? 'an' : '', x[2] && x[2].rot ? 'gefahr' : ''].join(' ').trim() || null, on: { click: () => { schl(false); x[1](); } } },
+      h('span', {}, x[0]), x[2] && x[2].klein ? h('small', {}, x[2].klein) : null)));
+  schl = fenster(titel, liste, s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Schließen')], null, { pop: true, still: true });
 }
 function frage(titel, text, ja, jaText = 'Löschen') {
   fenster(titel, h('p', { class: 'text' }, text), s => [
-    h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen'),
-    h('button', { class: 'knopf rot', on: { click: () => { ja(); sichern(); s(); } } }, jaText)]);
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    h('button', { class: 'knopf rot', on: { click: () => { ja(); aenderung(titel); sichern(); s(); } } }, jaText)]);
 }
 // Kennzeichen: automatisch oder von Hand
 function bmkFeld(titel, objekt, auto) {
@@ -711,41 +918,47 @@ function bmkFeld(titel, objekt, auto) {
 // ---- Bildschirme -----------------------------------------------------------
 function zeichne() {
   const b = stapel[stapel.length - 1];
+  if (ED && ED.ro) ED.ro.disconnect();
+  ED = null;
   app.innerHTML = '';
+  document.body.classList.toggle('imeditor', b.s === 'editor');
   ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
      steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
 }
 
+// Startbildschirm (ab v1.21): Projekt, Verteiler als Karten – ein Tippen öffnet den Plan-Editor
 function bStart() {
-  app.append(kopf('Stromlaufplan'));
-  const m = h('main');
-  m.append(h('h2', {}, 'Projekt'),
-    h('div', { class: 'liste' }, zeile(P.projekt.projekt || 'Projektdaten', null, () => geh({ s: 'projekt' }),
-      { un: [P.projekt.firma, P.projekt.nummer].filter(Boolean).join(' · ') || 'Schriftfeld: Firma, Projekt, Ersteller …' })));
-  m.append(h('h2', {}, 'Verteiler'));
-  const l = h('div', { class: 'liste' });
+  app.append(kopf('Stromlaufplan', h('button', { class: 'kopfknopf', on: { click: () => menue('Datei', [
+    ['Projekt als Datei sichern', exportieren, { klein: 'JSON-Datei zum Weitergeben oder für ein anderes Gerät' }],
+    ['Projekt aus Datei öffnen', () => document.getElementById('datei').click(), { klein: 'ersetzt das Projekt auf diesem Gerät' }], '—',
+    ['Neues leeres Projekt', () => frage('Neues Projekt', 'Das Projekt auf diesem Gerät wird gelöscht. Vorher als Datei sichern?', () => { P = neuesProjekt(); }, 'Neu beginnen'), { rot: true }]]) } }, 'Datei')));
+  const m = h('main', { class: 'start' }), pj = P.projekt;
+  m.append(h('button', { class: 'projektkarte', on: { click: () => geh({ s: 'projekt' }) } },
+    h('span', { class: 'pk-klein' }, 'Projekt'),
+    h('span', { class: 'pk-titel' }, pj.projekt || 'Neues Projekt'),
+    h('span', { class: 'pk-un' }, [pj.firma, pj.nummer, pj.rev ? 'Rev. ' + pj.rev : '', datumDE(pj.datum)].filter(Boolean).join(' · ') || 'Projektdaten für das Schriftfeld eingeben'),
+    h('span', { class: 'pk-aktion' }, `Projektdaten ${PFEIL}`)));
+  m.append(h('div', { class: 'abschnitt' }, h('h2', {}, 'Verteiler'),
+    P.verteiler.length > 1 ? h('button', { class: 'kopfknopf', on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Reihenfolge') : null));
+  const grid = h('div', { class: 'vkarten' });
   P.verteiler.forEach((v, i) => {
-    const sp = speisenderAbgang(v.id);
-    const herkunft = sp ? `aus ${sp.v.name}` : `${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+    const sp = speisenderAbgang(v.id), e = berechne(v);
     let n = 0; alleKnoten(v, k => { if (k.typ === 'abgang') n++; });
-    const z = zeile(v.name, null, () => geh({ s: 'verteiler', vid: v.id }), { un: `${herkunft} · ${n} Abgänge` });
-    if (sortieren) { z.querySelector('.pfeil').replaceWith(sortKnoepfe(P.verteiler, i)); }
-    l.append(z);
+    const nk = Object.keys(e.steuer.aktiv).length, warn = e.steuer.warn.length + Object.values(e.abgaenge).filter(a => a.warn).length;
+    const karte = h('button', { class: 'vkarte', on: { click: () => { if (!sortieren) geh({ s: 'editor', vid: v.id }); } } },
+      h('span', { class: 'vk-name' }, v.name),
+      h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`),
+      h('span', { class: 'vk-un' }, `${n} Abgäng${n === 1 ? '' : 'e'}` + (nk ? ` · ${nk} Steuerstromkreis${nk === 1 ? '' : 'e'}` : '')),
+      warn ? h('span', { class: 'vk-warn' }, `⚠ ${warn} Hinweis${warn === 1 ? '' : 'e'}`) : null,
+      h('span', { class: 'vk-aktion' }, sortieren ? '' : `Plan bearbeiten ${PFEIL}`));
+    grid.append(sortieren ? h('div', { class: 'vkhalter' }, karte, sortKnoepfe(P.verteiler, i)) : karte);
   });
-  if (P.verteiler.length) m.append(l);
-  m.append(h('button', { class: 'neu', on: { click: neuerVerteilerFenster } }, '+ Verteiler hinzufügen'));
-  if (P.verteiler.length > 1)
-    m.append(h('button', { class: 'neu', on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Sortieren beenden' : 'Reihenfolge ändern'));
-  if (P.verteiler.length) m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
-    zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: P.verteiler[0].id }), { un: 'im Planblatt antippen und ändern' }),
-    zeile('Stromlaufplan ansehen und drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${P.projekt.format || 'A4'} quer` }),
+  grid.append(h('button', { class: 'vkarte neu', on: { click: neuerVerteilerFenster } }, h('span', { class: 'vk-plus' }, '+'), h('span', {}, 'Neuer Verteiler')));
+  m.append(grid);
+  if (P.verteiler.length) m.append(h('h2', {}, 'Ausgabe'), h('div', { class: 'liste' },
+    zeile('Stromlaufplan ansehen und drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${pj.format || 'A4'} quer, auch als PDF` }),
     zeile('Türzettel aller Verteiler', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' })));
-  m.append(h('h2', {}, 'Stand'),
-    h('div', { class: 'liste' },
-      zeile('Projekt als Datei sichern', null, exportieren, { un: 'JSON-Datei zum Weitergeben oder für ein anderes Gerät' }),
-      zeile('Projekt aus Datei öffnen', null, () => document.getElementById('datei').click(), { un: 'ersetzt das Projekt auf diesem Gerät' }),
-      zeile('Neues leeres Projekt', null, () => frage('Neues Projekt', 'Das Projekt auf diesem Gerät wird gelöscht. Vorher als Datei sichern?', () => { P = neuesProjekt(); }, 'Neu beginnen'), { rot: true, ohnePfeil: true })));
-  m.append(h('p', { class: 'hinweis' }, `Fassung ${FASSUNG}. Gespeichert wird automatisch auf diesem Gerät.`));
+  m.append(h('p', { class: 'hinweis' }, `Fassung ${FASSUNG}. Gespeichert wird automatisch auf diesem Gerät; „Datei“ sichert das Projekt als Datei.`));
   // Namensnennung nach CC BY 3.0 für die Schaltzeichen
   m.append(h('p', { class: 'hinweis lizenz' }, 'Schaltzeichen: ',
     h('a', { href: 'https://github.com/qelectrotech/qelectrotech-elements', target: '_blank', rel: 'noopener' }, 'Elementsammlung von QElectroTech'),
@@ -756,11 +969,11 @@ function bStart() {
 }
 function neuerVerteilerFenster() {
   let name = '';
-  const i = h('input', { type: 'text', placeholder: P.verteiler.length ? 'z. B. UV Werkstatt' : 'z. B. HV', autocapitalize: 'sentences' });
+  const i = h('input', { type: 'text', placeholder: P.verteiler.length ? 'z. B. UV Werkstatt' : 'z. B. HV', autocapitalize: 'sentences', 'aria-label': 'Name des Verteilers' });
   i.addEventListener('input', () => name = i.value.trim());
-  const anlegen = s => { if (!name) { i.focus(); return; } const v = neuerVerteiler(name); P.verteiler.push(v); sichern(); s(); geh({ s: 'verteiler', vid: v.id }); };
+  const anlegen = s => { if (!name) { i.focus(); return; } const v = neuerVerteiler(name); P.verteiler.push(v); aenderung('Neuer Verteiler'); sichern(); s(false); geh({ s: 'editor', vid: v.id }); };
   fenster('Neuer Verteiler', [h('p', { class: 'text' }, 'Name des Verteilers'), i], s => [
-    h('button', { class: 'knopf zweit', on: { click: s } }, 'Abbrechen'),
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
     h('button', { class: 'knopf', on: { click: () => anlegen(s) } }, 'Anlegen')]);
   i.addEventListener('keydown', ev => { if (ev.key === 'Enter') document.querySelector('.fenster .knopf:not(.zweit)').click(); });
   setTimeout(() => i.focus(), 50);
@@ -799,7 +1012,7 @@ function bVerteiler(b) {
   const e = berechne(v);
   app.append(kopf(v.name, h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
   const m = h('main');
-  m.append(h('div', { class: 'liste' }, zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' })));
+  if (!einbettung) m.append(h('div', { class: 'liste' }, zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' })));
   // Einspeisung
   const sp = speisenderAbgang(v.id);
   const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
@@ -832,14 +1045,14 @@ function bVerteiler(b) {
     zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
       { rot: e.steuer.warn.length > 0, un: (e.steuer.warn.length ? '⚠ ' : '') + 'Steuerspannung · ' + ST_ART[(v.steuerung && v.steuerung.spannung && v.steuerung.spannung.art) || 'abgang'] })));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
-    zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' }),
+    einbettung ? null : zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' }),
     zeile('Stromlaufplan', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts, dieser Verteiler zuerst sichtbar' }),
     zeile('Türzettel', null, () => geh({ s: 'tuer', vid: v.id }), { un: 'Sicherungsübersicht für die Verteilertür' }),
     zeile('Übersicht als Liste', null, () => geh({ s: 'liste', vid: v.id }), { un: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' })));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen', null, () => frage('Verteiler löschen', `„${v.name}“ mit allen Abgängen löschen?`, () => {
     P.verteiler = P.verteiler.filter(x => x !== v);
     for (const w of P.verteiler) alleKnoten(w, k => { if (k.speist === v.id) k.speist = null; });
-    stapel.pop();
+    const eb = stapel[stapel.length - 1]; if (eb.s !== 'editor') stapel.pop(); else if (!P.verteiler.length) stapel = [{ s: 'start' }]; else { eb.sel = null; eb.pz = []; }
   }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
@@ -1246,7 +1459,7 @@ function bSGeraet(b) {
       st.geraete = st.geraete.filter(x => x !== g);
       st.kreise.forEach(kr => kr.pfade.forEach(p => { p.plaetze = p.plaetze.map(pl => pl && pl.g === g.id ? null : pl);
         if (p.verbraucher && p.verbraucher.g === g.id) p.verbraucher = null; }));
-      stapel.pop(); }), { rot: true, ohnePfeil: true })));
+      fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 
@@ -1382,6 +1595,7 @@ function zeichenIcon(kennung) {
   const r = QET.zeichne(z.xml, { labels: false }), d = r.def;
   const w = +d.getAttribute('width'), hh = +d.getAttribute('height'), hx = +d.getAttribute('hotspot_x'), hy = +d.getAttribute('hotspot_y'), mm = Math.max(w, hh);
   s.setAttribute('viewBox', `${-hx - (mm - w) / 2} ${-hy - (mm - hh) / 2} ${mm} ${mm}`);
+  s.dataset.zuschnitt = kennung; s.setAttribute('aria-hidden', 'true');
   s.append(r.g); return s;
 }
 let platzAblage = null;      // kopierter Platz
@@ -1392,7 +1606,7 @@ function platzAktiv(pf, j, i) {
   return i >= zw.von && (i <= zw.bis) && (i < 6 || zw.bis >= 6);
 }
 function werkzeugAnwenden(v, e, p, i, tool) {
-  if (tool === 'leer') { if (i === 6) p.verbraucher = null; else p.plaetze[i] = null; sichern(); zeichne(); return; }
+  if (tool === 'leer') { if (i === 6) p.verbraucher = null; else p.plaetze[i] = null; aenderung('Platz leeren'); sichern(); zeichne(); return; }
   const verbr = tool === 'spule' || tool === 'meldeleuchte';
   if (i === 6 && !verbr) { meldung('Auf den Verbraucherplatz gehören Spule oder Meldeleuchte'); zeichne(); return; }
   if (i < 6 && verbr) { meldung('Spule und Meldeleuchte gehören auf den Verbraucherplatz'); zeichne(); return; }
@@ -1414,7 +1628,8 @@ function platzSel(b, kr) {
 // Aktionen für den gewählten Platz (auch über Tasten)
 function platzAktion(v, e, kr, b, was) {
   const s = b.sel, pf = kr.pfade, p = s && pf[s.j], zw = p && s.j > 0 && p.zweig;
-  const aendern = f => { f(); sichern(); zeichne(); };
+  const aendern = f => { aenderung({ loeschen: 'Platz leeren', hoch: 'Kontakt verschieben', runter: 'Kontakt verschieben', einfuegen: 'Kontakt einfügen', zweig: 'Zweig anlegen',
+    anfang: 'Zweig ändern', ende: 'Zweig ändern', pfad: 'Pfad anfügen' }[was] || 'Steuerstromkreis'); f(); sichern(); zeichne(); };
   switch (was) {
     case 'loeschen':
       if (!s) return;
@@ -1460,32 +1675,38 @@ function editorPlatz(v, b, pid, i) {
   let nr = 0; kr.pfade.slice(0, j + 1).forEach((q, n) => { if (!(n > 0 && q.zweig)) nr++; });
   const k = (t, was, opt = {}) => h('button', { class: opt.rot ? 'rot' : null, disabled: opt.aus ? true : null, title: opt.taste || null,
     on: { click: () => platzAktion(v, e, kr, ps, was) } }, t);
-  return h('div', { class: 'eigen' },
-    h('h2', { class: 'eigentitel' }, `${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)} · ${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr}${kk ? ' · ' + kk.bmk.t : ''}`),
+  return { titel: `${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)} · ${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr}${kk ? ' · ' + kk.bmk.t : ''}`, inhalt: h('div', {},
+    h('h2', {}, i === 6 ? 'Verbraucher' : 'Kontakt'),
     ak ? h('div', { class: 'liste' }, i === 6 ? verbraucherZeile(v, e, p) : platzZeile(v, e, p, i))
        : h('p', { class: 'hinweis' }, 'Dieser Platz liegt außerhalb des Zweigs – mit „Zweig: Anfang hier“ bzw. „Ende hier“ erweitern.'),
     h('div', { class: 'leiste' },
       k('Gerät ändern', 'geraet', { aus: !ak, taste: 'Eingabe' }), k('Leeren', 'loeschen', { aus: !ak, rot: true, taste: 'Entf' }),
       k('↑', 'hoch', { aus: !ak || i === 0 || i > 5, taste: 'Alt+↑' }), k('↓', 'runter', { aus: !ak || i >= 5, taste: 'Alt+↓' }),
       k('Kopieren', 'kopieren', { taste: 'Strg+C' }), k('Einfügen', 'einfuegen', { aus: !ak || !platzAblage, taste: 'Strg+V' })),
+    h('h2', {}, zw ? 'Zweig' : 'Pfad'),
     h('div', { class: 'leiste' },
       k('Zweig ab hier', 'zweig'),
       zw ? k('Zweig: Anfang hier', 'anfang') : null, zw ? k('Zweig: Ende hier', 'ende') : null,
       k('+ Pfad', 'pfad'), k(zw ? 'Zweig löschen' : 'Pfad löschen', 'spalteLoeschen', { rot: true }),
       h('button', { on: { click: () => vorlageWahl(v, kr) } }, 'Vorlage …')),
-    h('div', { class: 'liste' }, zeile('Einstellungen des Steuerstromkreises', kk ? kk.bmk.t : null, () => { b.sel = 'kr:' + kr.id; zeichne(); },
+    h('h2', {}, 'Steuerstromkreis'),
+    h('div', { class: 'liste' }, zeile('Einstellungen des Kreises', kk ? kk.bmk.t : null, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
       { un: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade als Liste' })),
-    ...e.steuer.warn.map(w => h('p', { class: 'warnung' }, '⚠ ' + w)));
+    ...e.steuer.warn.map(w => h('p', { class: 'warnung' }, '⚠ ' + w))) };
 }
-// Tastenkürzel im Plan-Editor (Desktop)
+// Tastenkürzel: Rückgängig/Wiederholen überall, alles andere im Plan-Editor (Desktop)
 document.addEventListener('keydown', ev => {
   const b = stapel[stapel.length - 1];
-  if (!b || b.s !== 'editor' || document.querySelector('.schleier') || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
-  const v = vById(b.vid); if (!v) return;
+  if (!b || fensterStapel.length || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
   const strg = ev.ctrlKey || ev.metaKey, t = ev.key.toLowerCase();
+  if (strg && (t === 'z' || t === 'y')) { ev.preventDefault(); return projektRueck(t === 'y' || ev.shiftKey); }
+  if (b.s !== 'editor' || !ED) return;
+  const v = ED.v;
+  // Teil im Blatt mit der Tastatur fokussiert: Eingabe/Leertaste wählt es
+  if ((t === 'enter' || t === ' ') && ev.target.closest && ev.target.closest('.ed svg [data-ziel]')) { ev.preventDefault(); return ev.target.closest('[data-ziel]').dispatchEvent(new MouseEvent('click', { bubbles: true })); }
   // gewählter Platz im Steuerstromkreis
   const m = /^pl:([^:]+):(\d)$/.exec(b.sel || '');
-  if (m && !(strg && (t === 'z' || t === 'y'))) {
+  if (m) {
     const r = kreisMitPfad(v, m[1]); if (!r) return;
     const ps = platzSel(b, r.kr), pa = was => { ev.preventDefault(); platzAktion(v, berechne(v), r.kr, ps, was); };
     if (strg && t === 'c') return pa('kopieren');
@@ -1494,69 +1715,313 @@ document.addEventListener('keydown', ev => {
     if (t === 'enter') return pa('geraet');
     if (ev.altKey && (t === 'arrowup' || t === 'arrowdown')) return pa(t === 'arrowup' ? 'hoch' : 'runter');
     const d = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
-    if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return zeichne(); }
-    if (t === 'escape') { ev.preventDefault(); b.tool = null; b.sel = null; return zeichne(); }
-    return;
+    if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return waehle(b.sel, { springen: true }); }
   }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
-  if (!strg && (t === 'arrowleft' || t === 'arrowright')) {       // Abgänge der Reihe nach wählen bzw. mit Alt verschieben
+  if (!m && !strg && (t === 'arrowleft' || t === 'arrowright')) {       // Abgänge der Reihe nach wählen bzw. mit Alt verschieben
     ev.preventDefault();
     if (ev.altKey) return editorAktion(v, b, t === 'arrowleft' ? 'links' : 'rechts');
-    const ids = [...new Set([...document.querySelectorAll('main.editor rect[data-ziel^="k:"]')].map(r => r.dataset.ziel))];
+    const ids = [...new Set([...ED.blaetter.querySelectorAll('rect[data-ziel^="k:"]')].map(r => r.dataset.ziel))];
     if (!ids.length) return;
     const i = ids.indexOf(b.sel);
-    b.sel = ids[i < 0 ? 0 : Math.max(0, Math.min(ids.length - 1, i + (t === 'arrowleft' ? -1 : 1)))]; b.springen = true; return zeichne();
+    return waehle(ids[i < 0 ? 0 : Math.max(0, Math.min(ids.length - 1, i + (t === 'arrowleft' ? -1 : 1)))], { springen: true });
   }
-  if (!strg && (t === '+' || t === '-' || t === '−')) { ev.preventDefault(); b.zoom = Math.max(60, Math.min(300, Math.round((b.zoom || 100) * (t === '+' ? 1.25 : 0.8) / 10) * 10)); return zeichne(); }
+  if (!strg && (t === '+' || t === '=' || t === '-' || t === '−')) { ev.preventDefault(); return zoomSetzen(ED.b.zoom * (t === '-' || t === '−' ? 0.8 : 1.25)); }
+  if (!strg && t === '0') { ev.preventDefault(); return zoomSetzen(100); }
   if (t === '?') { ev.preventDefault(); return tastenHilfe(); }
-  if (strg && t === 'z') return tun(ev.shiftKey ? 'vor' : 'rueck');
-  if (strg && t === 'y') return tun('vor');
+  if (m) { if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else waehle(null); } return; }
   if (strg && t === 'c') return tun('kopieren');
   if (strg && t === 'x') return tun('ausschneiden');
   if (strg && t === 'v') return tun('einfuegen');
+  if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
-  if (t === 'escape') { ev.preventDefault(); b.tool = null; b.sel = null; zeichne(); }
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel) waehle(null); }
 });
 
-// ---- Plan-Editor (ab v1.17, Etappe D1) ------------------------------------------
-// Die Blätter eines Verteilers mit Antippflächen; ein Tippen wählt Einspeisung, Abgang,
-// Gruppe, Überspannungsschutz oder Steuerstromkreis, rechts (iPad hoch: darunter) stehen
-// dessen Eigenschaften mit denselben Feldern wie in den Bildschirmen.
-// Bildschirm in die Eigenschaften-Leiste umlenken; sein Kopf wird zur Überschrift
+// ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
+// Kopfleiste (Projekt, Verteiler, Abgänge/Steuerung, Rückgängig, Drucken, Menü), links die
+// Palette, in der Mitte die Blätter des Verteilers mit Antippflächen, rechts die Eigenschaften
+// (iPad hoch: Fach von unten), unten Blattwahl, Hinweis und Zoom. Alle Bildschirme der Eingabe
+// erscheinen in der Eigenschaften-Leiste (geh() wird im Editor dorthin umgelenkt).
+let ED = null;                     // laufender Editor: { b, v, ed, pal, flaeche, blaetter, eigen, fuss, svgs, karten, … }
+const ANSICHT = 'slp.ansicht.v1';  // Vorlieben dieses Geräts (Eigenschaften-Leiste ein/aus)
+let ansicht = {}; try { ansicht = JSON.parse(localStorage.getItem(ANSICHT)) || {}; } catch (e) { ansicht = {}; }
+function ansichtMerken() { try { localStorage.setItem(ANSICHT, JSON.stringify(ansicht)); } catch (e) {} }
+const BLATT_ART = { einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis' };
+const ICONS = {
+  haus: 'M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10', rueck: 'M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11', vor: 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
+  drucken: 'M7 9V3h10v6M7 18H4v-8h16v8h-3M7 14h10v7H7z', menue: 'M5 12h.01M12 12h.01M19 12h.01', eigen: 'M3 4h18v16H3zM15 4v16',
+  minus: 'M5 12h14', plus: 'M12 5v14M5 12h14', breite: 'M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4', links: 'M15 5l-7 7 7 7', rechts: 'M9 5l7 7-7 7',
+  kopieren: 'M9 9h11v11H9zM5 15H4V4h11v1', schere: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.2 7.8L20 20M8.2 16.2L20 4',
+  duplizieren: 'M9 9h11v11H9zM5 15H4V4h11v1M14.5 12v5M12 14.5h5', loeschen: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  hoch: 'M12 19V5M6 11l6-6 6 6', runter: 'M12 5v14M6 13l6 6 6-6', zu: 'M6 6l12 12M18 6L6 18', auf: 'M6 15l6-6 6 6', ab: 'M6 9l6 6 6-6',
+  zweig: 'M8 3v18M8 7h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8', geraet: 'M4 20l4-1L19 8l-3-3L5 16l-1 4zM14 7l3 3', einfuegen: 'M9 4h6v3H9zM7 5H5v15h14V5h-2M12 10v7M8.5 13.5h7',
+  vorlage: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
+};
+function icon(n) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = `<path d="${ICONS[n]}" fill="none" stroke="currentColor" stroke-width="${n === 'menue' ? 3.2 : 1.9}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return s;
+}
+const ik = (name, label, f, opt = {}) => h('button', { class: 'ikon' + (opt.cls ? ' ' + opt.cls : ''), 'aria-label': label, title: label + (opt.taste ? ` (${opt.taste})` : ''),
+  disabled: opt.aus || null, 'data-w': opt.w || null, on: { click: f } }, icon(name), opt.text ? h('span', { class: 'ikontext' }, opt.text) : null);
+
+// Bildschirm in die Eigenschaften-Leiste umlenken; sein Kopf wird zur Überschrift der Leiste
+let einbettung = 0;
 function eingebettet(f) {
-  const box = h('div', { class: 'eigen' }), alt = app;
-  app = box;
-  try { f(); } finally { app = alt; }
-  const k = box.querySelector('.kopf');
-  if (k) k.replaceWith(h('h2', { class: 'eigentitel' }, k.querySelector('h1').textContent));
-  return box;
+  const box = h('div'), alt = app;
+  app = box; einbettung++;
+  try { f(); } finally { app = alt; einbettung--; }
+  const k = box.querySelector('.kopf'), titel = k ? k.querySelector('h1').textContent : '';
+  if (k) k.remove();
+  return { titel, inhalt: box };
+}
+// Bildschirmwechsel im Editor: statt eines neuen Bildschirms wechselt die Eigenschaften-Leiste
+function editorGeh(b, z) {
+  const ziel = { abgang: z => 'k:' + z.kid, gruppe: z => 'k:' + z.kid, kreis: z => 'kr:' + z.krid, einspeisung: z => 'e:' + (z.vid || b.vid),
+    kopf: z => 'kopf:' + z.feld, steuerung: () => 'st:', sgeraet: z => 'g:' + z.gid, projekt: () => 'p:', verteiler: () => null };
+  if (z.s === 'editor') {
+    if (z.vid && z.vid !== b.vid) { b.vid = z.vid; b.sx = b.sy = 0; }
+    b.pz = []; b.sel = z.sel || null; b.blatt = !!b.sel; if (z.palette) b.palette = z.palette; b.springen = true; zeichne(); return true;
+  }
+  if (!ziel[z.s]) return false;
+  if (z.vid && z.vid !== b.vid) { b.vid = z.vid; b.sx = b.sy = 0; b.pz = []; }
+  else (b.pz = b.pz || []).push(b.sel);
+  b.sel = ziel[z.s](z); b.blatt = true; b.springen = true;
+  if (/^(pl|kr):/.test(b.sel || '')) b.palette = 'st';
+  zeichne(); return true;
 }
 function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
   const [art, id] = (z || '').split(':');
   if (art === 'k') return !!knoten(v, id);
   if (art === 'kr') return !!(v.steuerung && v.steuerung.kreise.some(k => k.id === id));
   if (art === 'pl') return !!kreisMitPfad(v, id);
-  return art === 'e' || art === 's';
+  if (art === 'g') return !!(v.steuerung && v.steuerung.geraete.some(g => g.id === id));
+  if (art === 'kopf') return !!KOPF_TITEL[id];
+  return ['e', 's', 'st', 'p'].includes(art);
 }
+// Inhalt der Eigenschaften-Leiste: { titel, inhalt }
 function editorEigenschaften(v, z, b) {
-  const [art, id, zl] = z.split(':');
+  const [art, id, zl] = (z || '').split(':');
+  if (!z) return eingebettet(() => bVerteiler({ s: 'editor', vid: v.id }));
   if (art === 'pl') return editorPlatz(v, b, id, +zl);
   if (art === 'k') { const r = knoten(v, id); return eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id })); }
   if (art === 'kr') return eingebettet(() => bKreis({ s: 'editor', vid: v.id, krid: id }));
   if (art === 's') return eingebettet(() => bKopf({ vid: v.id, feld: 'spd' }));
-  // Einspeisung: Herkunft und Geräte am Kopf des Verteilers
-  const e = berechne(v), sp = speisenderAbgang(v.id);
-  const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
-  return h('div', { class: 'eigen' }, h('h2', { class: 'eigentitel' }, 'Einspeisung'), h('div', { class: 'liste' },
-    zeile('Einspeisung', eins, () => geh({ s: 'einspeisung', vid: v.id })),
+  if (art === 'kopf') return eingebettet(() => bKopf({ vid: v.id, feld: id }));
+  if (art === 'st') return eingebettet(() => bSteuerung({ vid: v.id }));
+  if (art === 'g') return eingebettet(() => bSGeraet({ vid: v.id, gid: id }));
+  if (art === 'p') return eingebettet(() => bProjekt());
+  // Einspeisung: Herkunft, Netz und die Geräte am Kopf des Verteilers
+  const r = eingebettet(() => bEinspeisung({ vid: v.id })), e = berechne(v);
+  r.inhalt.append(h('h2', {}, 'Geräte der Einspeisung'), h('div', { class: 'liste' },
     kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung), kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
     kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter), kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd)));
+  return r;
 }
-// Palette des Plan-Editors (ab v1.18): neue Teile mit sinnvollen Voreinstellungen
-const EDITOR_PALETTE = [
-  ['steckdose', 'Steckdose 1~', 'steckdose3'], ['cee', 'CEE 3~', 'steckdose5'], ['leuchte', 'Leuchte', 'leuchte'],
-  ['dose', 'Geräte\u00adanschluss', 'endklemme'], ['uv', 'Unter\u00adverteiler', 'ls3'], ['gruppe', 'FI-Gruppe', 'fi4'],
-  ['steuerls', 'Steuer-LS', 'ls1'], ['trafo', 'Steuer\u00adtrafo', 'trafo']];
+// Palette des Plan-Editors (ab v1.18; ab v1.21 mit Gruppen und Kennzeichnung 1~/3~)
+const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
+  ['steckdose', 'Steckdose', 'steckdose3', '1~', 'Abgänge'], ['cee', 'CEE-Steckdose', 'steckdose5', '3~', 'Abgänge'], ['leuchte', 'Leuchte', 'leuchte', '', 'Abgänge'],
+  ['dose', 'Geräte\u00adanschluss', 'endklemme', '', 'Abgänge'], ['uv', 'Unter\u00adverteiler', 'uv', '', 'Abgänge'], ['gruppe', 'FI-Gruppe', 'fi4', '', 'Gruppen'],
+  ['steuerls', 'Steuer-LS', 'ls1', 'S', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
+const PAL_NAME = t => t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
+// Bildzeichen der Abgangs-Palette (ab v1.21): eigene, gut unterscheidbare Bilder statt der Planzeichen
+const PIKTO = {
+  steckdose3: '<circle cx="20" cy="20" r="13"/><circle cx="14" cy="20" r="2.2" fill="currentColor"/><circle cx="26" cy="20" r="2.2" fill="currentColor"/><path d="M20 7v4M20 29v4"/>',
+  steckdose5: '<circle cx="20" cy="20" r="14"/><path d="M17 6h6v3h-6z" fill="currentColor"/><circle cx="20" cy="13" r="1.9" fill="currentColor"/><circle cx="13.6" cy="18" r="1.9" fill="currentColor"/><circle cx="26.4" cy="18" r="1.9" fill="currentColor"/><circle cx="15.8" cy="26" r="1.9" fill="currentColor"/><circle cx="24.2" cy="26" r="1.9" fill="currentColor"/>',
+  leuchte: '<circle cx="20" cy="20" r="11"/><path d="M12.2 12.2l15.6 15.6M27.8 12.2L12.2 27.8"/>',
+  endklemme: '<rect x="7" y="12" width="26" height="16" rx="3"/><circle cx="13.5" cy="20" r="2.6"/><circle cx="20" cy="20" r="2.6"/><circle cx="26.5" cy="20" r="2.6"/>',
+  uv: '<rect x="9" y="5" width="22" height="30" rx="2"/><path d="M13 11h14M13 15h14" stroke-width="1.4"/><text x="20" y="29.5" font-size="9" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">UV</text>',
+  fi4: '<rect x="9" y="4" width="22" height="13" rx="2"/><text x="20" y="13.8" font-size="8.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">FI</text><path d="M20 17v6M9 23h22M9 23v12M20 23v12M31 23v12"/>',
+  ls1: '<rect x="12" y="5" width="16" height="30" rx="2.5"/><path d="M20 11v8"/><rect x="16.5" y="18" width="7" height="5" rx="1" fill="currentColor"/><path d="M16 29h8" stroke-width="1.4"/>',
+  trafo: '<circle cx="20" cy="14" r="8.5"/><circle cx="20" cy="26" r="8.5"/>',
+  klemme: '<rect x="11" y="6" width="18" height="24" rx="2"/><path d="M15 6V3h10v3M16 14h8M16 19h8M16 24h5"/><path d="M24 30v6M21 33l3 3 3-3"/>',
+};
+function piktogramm(kennung) {
+  if (!PIKTO[kennung]) return zeichenIcon(kennung);
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 40 40'); s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PIKTO[kennung]}</g>`;
+  return s;
+}
+// Planzeichen in Kacheln auf ihren gezeichneten Inhalt zuschneiden (erst im Dokument messbar)
+const zuschnitt = {};
+function zuschneiden(wurzel) {
+  wurzel.querySelectorAll('svg[data-zuschnitt]').forEach(s => {
+    const k = s.dataset.zuschnitt;
+    if (!zuschnitt[k]) { let bb; try { bb = s.firstElementChild.getBBox(); } catch (e) { return; } if (!bb.width && !bb.height) return;
+      const m = Math.max(bb.width, bb.height) * 1.12 + 4; zuschnitt[k] = `${bb.x + bb.width / 2 - m / 2} ${bb.y + bb.height / 2 - m / 2} ${m} ${m}`; }
+    s.setAttribute('viewBox', zuschnitt[k]); s.removeAttribute('data-zuschnitt');
+  });
+}
+function kachel(name, zeichen, zusatz, klick, opt = {}) {
+  return h('button', { class: 'werkzeug', 'aria-pressed': opt.an !== undefined ? String(!!opt.an) : null, title: opt.titel || name.replace(/\u00ad/g, ''), on: { click: klick } },
+    piktogramm(zeichen), h('span', { class: 'wname' }, name), zusatz ? h('span', { class: 'wzusatz' }, zusatz) : null);
+}
+// Werkzeug wählen bzw. beenden (ohne das Blatt neu zu erzeugen)
+function werkzeug(t) {
+  if (!ED) { stapel[stapel.length - 1].tool = t; return; }
+  const b = ED.b; b.tool = t;
+  ED.ed.classList.toggle('einfuegen', !!t && !istSteuerWerkzeug(t));
+  paletteNeu(); fussNeu();
+}
+function paletteWahl(w) {
+  const b = ED.b; b.palette = w;
+  if (b.tool && istSteuerWerkzeug(b.tool) !== (w === 'st')) werkzeug(null);
+  ED.ed.querySelectorAll('.segment button').forEach(x => x.setAttribute('aria-selected', String(x.dataset.w === w)));
+  paletteNeu(); fussNeu();
+}
+function paletteNeu() {
+  const { b, v, pal } = ED; pal.innerHTML = '';
+  const gruppe = (titel, kids) => h('div', { class: 'palgruppe', role: 'group', 'aria-label': titel }, h('div', { class: 'paltitel' }, titel), h('div', { class: 'palkacheln' }, kids));
+  if (b.palette === 'st') {
+    const e = berechne(v), aktiv = Object.keys(e.steuer.aktiv).length;
+    if (!aktiv) pal.append(h('div', { class: 'palleer' }, 'Noch kein Steuerstromkreis. Einem Abgang ein Schaltgerät geben – oder unten einen eigenen Kreis anlegen.'));
+    ST_PALETTE.forEach(([grp, liste]) => pal.append(gruppe(grp === 'Verbraucher und Radierer' ? 'Verbraucher' : grp,
+      liste.map(z => kachel(WERKZEUG_NAME(z), z, '', () => werkzeug(b.tool === z ? null : z), { an: b.tool === z })))));
+    const neuKreis = z => () => { const kr = kreisOhneSchaltgeraet(v), g = neuesSteuerGeraet(v, z); kr.pfade[0].verbraucher = { g: g.id };
+      aenderung(z === 'zeitrelais' ? 'Neues Zeitrelais' : 'Neue Meldeleuchte'); sichern(); b.sel = `pl:${kr.pfade[0].id}:6`; b.blatt = true; b.springen = true; zeichne(); };
+    pal.append(gruppe('Neuer Kreis', [kachel('Melde\u00adleuchte', 'meldeleuchte', '+', neuKreis('meldeleuchte'), { titel: 'Kreis mit einer Meldeleuchte anlegen' }),
+      kachel('Zeit\u00adrelais', 'spule_aus', '+', neuKreis('zeitrelais'), { titel: 'Kreis mit einem eigenständigen Zeitrelais anlegen' })]),
+      h('button', { class: 'pallink', on: { click: () => waehle('st:') } }, 'Steuerspannung …'));
+    zuschneiden(pal);
+    return;
+  }
+  const leer = !v.knoten.length, gruppen = {};
+  EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => (gruppen[grp] = gruppen[grp] || []).push(kachel(name, zeichen, zusatz, () => {
+    if (leer) return editorEinfuegen(v, b, 'leer:' + v.id, tool);
+    werkzeug(b.tool === tool ? null : tool); }, { an: b.tool === tool })));
+  if (editorAblage) gruppen.Ablage = [kachel(PAL_NAME('ablage'), 'klemme', '', () => leer ? editorEinfuegen(v, b, 'leer:' + v.id, 'ablage') : werkzeug(b.tool === 'ablage' ? null : 'ablage'), { an: b.tool === 'ablage' })];
+  Object.entries(gruppen).forEach(([t, k]) => pal.append(gruppe(t, k)));
+  zuschneiden(pal);
+}
+// Auswahl ändern, ohne die Blätter neu zu erzeugen
+function waehle(sel, opt = {}) {
+  if (!ED) return;
+  const b = ED.b;
+  if (!opt.zurueck) b.pz = [];
+  b.sel = sel; b.blatt = !!sel || !!opt.offen;
+  const w = /^(pl|kr):/.test(sel || '') ? 'st' : /^k:/.test(sel || '') ? 'ab' : b.palette;
+  if (w !== b.palette) paletteWahl(w);
+  markieren(); eigenNeu(); kontextNeu();
+  if (opt.springen) zeigeAuswahl();
+}
+function markieren() {
+  ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
+  if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === ED.b.sel) r.setAttribute('data-sel', ''); });
+}
+function zeigeAuswahl() {
+  const s = ED.blaetter.querySelector('[data-sel]'); if (!s) return;
+  const f = ED.flaeche, F = f.getBoundingClientRect(), r = s.getBoundingClientRect();
+  const sichtbar = r.top >= F.top + 40 && r.top <= F.bottom - 120 && r.left >= F.left && r.right <= F.right;
+  if (!sichtbar) f.scrollTo({ top: f.scrollTop + r.top - F.top - 70, left: Math.max(0, f.scrollLeft + r.left - F.left - Math.max(20, (F.width - r.width) / 2)), behavior: 'smooth' });
+}
+function eigenNeu() {
+  const { b, v, eigen } = ED; eigen.innerHTML = '';
+  let r;
+  try { r = editorEigenschaften(v, b.sel, b); } catch (er) { r = { titel: 'Eigenschaften', inhalt: h('p', { class: 'warnung' }, er.message) }; fehler(er.message); }
+  const umschalten = ev => { if (ev.target.closest('button')) return; b.blatt = !b.blatt; eigen.classList.toggle('auf', b.blatt); };
+  eigen.append(h('div', { class: 'eigenkopf', on: { click: umschalten } },
+    b.pz && b.pz.length ? ik('links', 'Zurück', () => waehle(b.pz.pop(), { zurueck: true })) : null,
+    h('h2', { class: 'eigentitel' }, r.titel || (b.sel ? 'Eigenschaften' : v.name)),
+    b.sel ? ik('zu', 'Auswahl aufheben', () => waehle(null), { taste: 'Esc' }) : null,
+    ik(b.blatt ? 'ab' : 'auf', b.blatt ? 'Einklappen' : 'Ausklappen', () => { b.blatt = !b.blatt; eigenNeu(); }, { cls: 'nurschmal' })),
+    h('div', { class: 'eigeninhalt' }, r.inhalt));
+  eigen.classList.toggle('auf', !!b.blatt);
+}
+// Kontextleiste am gewählten Teil: Aktionen, die die Lage im Plan betreffen
+function kontextNeu() {
+  const { b, v, blaetter } = ED; const alt = blaetter.querySelector('.kontext'); if (alt) alt.remove();
+  if (!b.sel || zieh) return;
+  const [art, id] = b.sel.split(':'), kn = [], sep = () => h('span', { class: 'sep' });
+  if (art === 'k') {
+    const r = knoten(v, id); if (!r) return;
+    const a = was => () => editorAktion(v, b, was);
+    kn.push(ik('links', 'Nach links', a('links'), { aus: r.i === 0, taste: 'Alt+←' }), ik('rechts', 'Nach rechts', a('rechts'), { aus: r.i === r.liste.length - 1, taste: 'Alt+→' }), sep(),
+      ik('duplizieren', 'Duplizieren', a('duplizieren'), { taste: 'Strg+D' }), ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('schere', 'Ausschneiden', a('ausschneiden'), { taste: 'Strg+X' }), sep(),
+      ik('loeschen', 'Löschen', a('loeschen'), { cls: 'rot', taste: 'Entf' }));
+  } else if (art === 'pl') {
+    const r = kreisMitPfad(v, id); if (!r) return;
+    const e = berechne(v), ps = platzSel(b, r.kr), s = ps.sel, ak = platzAktiv(r.kr.pfade, s.j, s.i), a = was => () => platzAktion(v, e, r.kr, ps, was);
+    kn.push(ik('geraet', 'Gerät wählen', a('geraet'), { aus: !ak, taste: 'Eingabe', text: 'Gerät' }), sep(),
+      ik('hoch', 'Nach oben', a('hoch'), { aus: !ak || s.i === 0 || s.i > 5, taste: 'Alt+↑' }), ik('runter', 'Nach unten', a('runter'), { aus: !ak || s.i >= 5, taste: 'Alt+↓' }),
+      ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
+      ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
+      ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+  } else if (art === 'kr') {
+    const kr = v.steuerung.kreise.find(x => x.id === id);
+    kn.push(ik('vorlage', 'Vorlage einsetzen', () => vorlageWahl(v, kr), { text: 'Vorlage' }),
+      ik('plus', 'Pfad anfügen', () => { kr.pfade.push(neuerPfad()); aenderung('Pfad anfügen'); sichern(); b.sel = `pl:${kr.pfade.at(-1).id}:0`; zeichne(); }, { text: 'Pfad' }));
+  } else return;
+  blaetter.append(h('div', { class: 'kontext', role: 'toolbar', 'aria-label': 'Aktionen für die Auswahl' }, kn));
+  kontextLage();
+}
+function kontextLage() {
+  const L = ED && ED.blaetter.querySelector('.kontext'); if (!L) return;
+  const s = ED.blaetter.querySelector('[data-sel]'); if (!s) { L.remove(); return; }
+  const B = ED.blaetter.getBoundingClientRect(), r = s.getBoundingClientRect(), lw = L.offsetWidth, lh = L.offsetHeight;
+  const x = Math.max(4, Math.min(B.width - lw - 4, r.left - B.left + r.width / 2 - lw / 2));
+  let y = r.top - B.top - lh - 8; if (y < 4) y = r.bottom - B.top + 8;
+  L.style.left = x + 'px'; L.style.top = y + 'px';
+}
+// Zoom: 100 % = Blattbreite der Arbeitsfläche; Ausschnitt bleibt um den Bezugspunkt stehen
+function zoomAnwenden(halten = true, px = null, py = null) {
+  if (!ED) return;
+  const f = ED.flaeche, cw = f.clientWidth, ch = f.clientHeight, fx = px === null ? cw / 2 : px, fy = py === null ? ch / 2 : py;
+  const rx = (f.scrollLeft + fx) / (f.scrollWidth || 1), ry = (f.scrollTop + fy) / (f.scrollHeight || 1);
+  const breite = Math.max(280, cw - 40) * ED.b.zoom / 100;
+  ED.karten.forEach(k => { k.style.width = breite + 'px'; });
+  if (halten) { f.scrollLeft = rx * f.scrollWidth - fx; f.scrollTop = ry * f.scrollHeight - fy; }
+  if (ED.zoomKnopf) ED.zoomKnopf.textContent = `${Math.round(ED.b.zoom)} %`;
+  kontextLage();
+}
+function zoomSetzen(z, px = null, py = null) { if (!ED) return; ED.b.zoom = Math.max(40, Math.min(400, z)); zoomAnwenden(true, px, py); }
+// Blattwahl in der Fußleiste
+function aktuellesBlatt() { const f = ED.flaeche, y = f.scrollTop + f.clientHeight * 0.35; let i = 0; ED.karten.forEach((k, j) => { if (k.offsetTop <= y) i = j; }); return i; }
+function blattAnzeigen() {
+  if (!ED || !ED.blattKnopf) return;
+  const i = aktuellesBlatt(), bl = ED.liste[i]; ED.blattI = i;
+  ED.blattKnopf.textContent = bl ? `Blatt ${bl.nr} · ${BLATT_ART[bl.art]}` : 'keine Blätter';
+}
+function blattZeigen(i) { const k = ED.karten[i]; if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); }
+function fussNeu() {
+  const { b, fuss } = ED; fuss.innerHTML = '';
+  const stW = istSteuerWerkzeug(b.tool);
+  const hinweis = b.tool ? `${stW ? WERKZEUG_NAME(b.tool) : PAL_NAME(b.tool)}: ${stW ? 'Plätze im Steuerstromkreis antippen' : 'eine Marke „+“ antippen'}`
+    : b.palette === 'st' ? 'Platz antippen zum Bearbeiten · Werkzeug wählen und Plätze antippen' : 'Teil antippen zum Bearbeiten · „+“ im Blatt fügt ein';
+  ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', on: { click: () => menue('Blätter', ED.liste.map((bl, i) =>
+    [`Blatt ${bl.nr} · ${BLATT_ART[bl.art]}`, () => blattZeigen(i), { an: i === ED.blattI }])) } });
+  ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
+    ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
+  fuss.append(
+    h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
+    h('div', { class: 'hinweiszeile' + (b.tool ? ' an' : ''), 'aria-live': 'polite' }, h('span', { class: 'hinweistext' }, hinweis),
+      b.tool ? h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig') : null),
+    h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: '−' }), ED.zoomKnopf,
+      ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' })));
+  ED.zoomKnopf.textContent = `${Math.round(b.zoom)} %`;
+  blattAnzeigen();
+}
+// Menüs der Kopfleiste
+function verteilerMenue(v) {
+  menue('Verteiler', [...P.verteiler.map(w => [w.name, () => geh({ s: 'editor', vid: w.id }), { an: w === v, klein: speisenderAbgang(w.id) ? `aus ${speisenderAbgang(w.id).v.name}` : '' }]),
+    '—', ['+ Neuer Verteiler', neuerVerteilerFenster], ['Einstellungen dieses Verteilers', () => waehle(null, { offen: true })]]);
+}
+function druckMenue(v) {
+  menue('Drucken', [['Stromlaufplan drucken', drucken, { klein: `alle Blätter des Projekts, ${P.projekt.format || 'A4'} quer – auch als PDF` }],
+    ['Türzettel dieses Verteilers', () => tuerDrucken([v]), { klein: 'Sicherungsübersicht, A4 hoch' }],
+    ['Türzettel aller Verteiler', () => tuerDrucken(P.verteiler)], '—',
+    ['Alle Blätter ansehen', () => geh({ s: 'plan', vid: v.id })], ['Türzettel ansehen', () => geh({ s: 'tuer', vid: v.id })]]);
+}
+function editorMenue(v) {
+  menue('Weitere Funktionen', [
+    ['Projektdaten', () => waehle('p:', { springen: false }), { klein: 'Schriftfeld, Deckblatt, Übersicht, Klemmenplan' }],
+    ['Verteiler', () => waehle(null, { offen: true }), { klein: 'Name, Einspeisung, Klemmen, Abgänge als Liste' }],
+    ['Steuerstromkreise', () => waehle('st:'), { klein: 'Steuerspannung, Kreise, Befehlsgeber' }], '—',
+    ['Format', () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w), { klein: `${P.projekt.format || 'A4'} quer` }],
+    ['Übersicht als Tabelle', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }], '—',
+    ['Projekt als Datei sichern', exportieren], ['Projekt aus Datei öffnen', () => document.getElementById('datei').click()], '—',
+    ['Tastenkürzel', tastenHilfe, { klein: '?' }]]);
+}
 // Ablage (ab v1.20.1): { k, aus, vid, kreise, geraete } – das Teil samt den Steuerstromkreisen seiner
 // Schaltgeräte; Ausschneiden verschiebt (Kennungen bleiben), Kopieren legt alles mit neuen Kennungen an
 let editorAblage = null;
@@ -1619,118 +2084,146 @@ function ablageHolen(v) {
     st.kreise.push(kr); });
   return c;
 }
-// an der Marke einfügen: vor:id / nach:id im selben Zweig, in:id in eine leere Gruppe
-function editorEinfuegen(v, b, marke) {
-  const [art, id] = marke.split(':'), k = editorNeu(v, b.tool);
-  let liste, idx;
-  if (art === 'in') { liste = knoten(v, id).k.kinder; idx = liste.length; }
-  else { const r = knoten(v, id); liste = r.liste; idx = r.i + (art === 'nach' ? 1 : 0); if (r.eltern && k.typ === 'gruppe') { meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); return; } }
-  liste.splice(idx, 0, k); sichern();
-  b.sel = 'k:' + k.id; b.tool = null; zeichne();
+// Einfügemenü an einer Marke „+“: Teil wählen, Anzahl für Schnellerfassung
+function einfuegeMenue(v, b, marke) {
+  let n = 1, schl;
+  const zahl = h('span', { class: 'anzahl', 'aria-live': 'polite' }, '1');
+  const stell = d => () => { n = Math.max(1, Math.min(12, n + d)); zahl.textContent = n; };
+  const los = tool => () => { schl(false); editorEinfuegen(v, b, marke, tool, n); };
+  const k = EDITOR_PALETTE.map(([tool, name, zeichen, zusatz]) => kachel(name, zeichen, zusatz, los(tool)));
+  if (editorAblage) k.push(kachel(PAL_NAME('ablage'), 'klemme', '', los('ablage')));
+  schl = fenster('Einfügen', [h('div', { class: 'kacheln' }, k),
+    h('div', { class: 'anzahlzeile' }, h('span', { class: 'leise' }, 'Anzahl'), ik('minus', 'weniger', stell(-1)), zahl, ik('plus', 'mehr', stell(1)))], null, null, { pop: true, still: true, breit: true });
+  zuschneiden(schl.el);
 }
-// Aktionen für das gewählte Teil (auch über Tasten)
+// an der Marke einfügen: vor:id / nach:id im selben Zweig, in:id in eine leere Gruppe, leer:vid in einen leeren Verteiler
+function editorEinfuegen(v, b, marke, tool = b.tool, n = 1) {
+  const [art, mid] = marke.split(':');
+  let liste, idx, inGruppe = false;
+  if (art === 'leer') { liste = v.knoten; idx = liste.length; }
+  else if (art === 'in') { liste = knoten(v, mid).k.kinder; idx = liste.length; inGruppe = true; }
+  else { const r = knoten(v, mid); liste = r.liste; idx = r.i + (art === 'nach' ? 1 : 0); inGruppe = !!r.eltern; }
+  if (inGruppe && (tool === 'gruppe' || (tool === 'ablage' && editorAblage && editorAblage.k.typ === 'gruppe'))) { meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); return; }
+  const name = PAL_NAME(tool), neu = [];
+  for (let i = 0; i < n && (tool !== 'ablage' || editorAblage); i++) neu.push(editorNeu(v, tool));
+  liste.splice(idx, 0, ...neu); aenderung(`Einfügen: ${name}`); sichern();
+  if (tool === 'ablage' && !editorAblage && b.tool === 'ablage') b.tool = null;
+  b.sel = 'k:' + neu[0].id; b.pz = []; b.blatt = true;
+  zeichne();
+  meldung(neu.length > 1 ? `${neu.length}× ${name} eingefügt` : `${name} eingefügt`);
+}
+// Aktionen für das gewählte Teil (Kontextleiste und Tasten)
 function editorAktion(v, b, was) {
   const [art, id] = (b.sel || '').split(':'), r = art === 'k' ? knoten(v, id) : null;
   if (was === 'rueck') return projektRueck(false);
   if (was === 'vor') return projektRueck(true);
-  if (was === 'einfuegen') { if (!editorAblage) return meldung('Nichts kopiert'); b.tool = 'ablage'; return zeichne(); }
+  if (was === 'einfuegen') { if (!editorAblage) return meldung('Nichts kopiert');
+    if (r) return editorEinfuegen(v, b, 'nach:' + r.k.id, 'ablage');      // hinter das gewählte Teil
+    return werkzeug('ablage'); }
   if (!r) return;
   switch (was) {
     case 'links': case 'rechts': {
       const j = r.i + (was === 'links' ? -1 : 1); if (j < 0 || j >= r.liste.length) return;
-      [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; sichern(); return zeichne();
+      [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; aenderung('Verschieben'); sichern(); return zeichne();
     }
-    case 'kopieren': ablageSetzen(v, r.k, false); return meldung('Kopiert – „Einfügen“ und eine Marke antippen');
+    case 'kopieren': ablageSetzen(v, r.k, false); if (ED) paletteNeu(); return meldung('Kopiert – Strg+V oder Marke „+“ → Kopie');
     case 'ausschneiden': ablageSetzen(v, r.k, true);
-      r.liste.splice(r.i, 1); b.sel = null; sichern(); meldung('Ausgeschnitten – „Einfügen“ und eine Marke antippen'); return zeichne();
+      r.liste.splice(r.i, 1); b.sel = null; aenderung('Ausschneiden'); sichern(); meldung('Ausgeschnitten – Marke „+“ → Ausgeschnittenes'); return zeichne();
+    case 'duplizieren': { const alt = editorAblage; ablageSetzen(v, r.k, false); const c = ablageHolen(v); editorAblage = alt;
+      r.liste.splice(r.i + 1, 0, c); b.sel = 'k:' + c.id; aenderung('Duplizieren'); sichern(); return zeichne(); }
     case 'loeschen': return frage(r.k.typ === 'gruppe' ? 'Gruppe löschen' : 'Abgang löschen', r.k.typ === 'gruppe' ? 'Gruppe mit allen ihren Abgängen löschen?' : 'Diesen Abgang löschen?',
       () => { r.liste.splice(r.i, 1); b.sel = null; });
   }
 }
 function bEditor(b) {
-  const v = vById(b.vid) || P.verteiler[0]; if (!v) { zurueck(); return; }
-  b.vid = v.id; b.zoom = b.zoom || 100;
+  const v = vById(b.vid) || P.verteiler[0]; if (!v) { stapel = [{ s: 'start' }]; zeichne(); return; }
+  if (b.vid !== v.id) { b.vid = v.id; b.sx = b.sy = 0; }
+  b.zoom = b.zoom || 100; b.pz = b.pz || [];
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
-  app.append(kopf(`Plan · ${v.name}`, h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'plan', vid: v.id }) } }, 'Drucken')));
-  const stW = istSteuerWerkzeug(b.tool);
+  if (b.blatt === undefined) b.blatt = !!b.sel;
   if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : 'ab';
-  const m = h('main', { class: 'geteilt editor' + (b.tool && !stW ? ' einfuegen' : '') }), links = h('div');
-  // Werkzeuge: Verteiler, Zoom
-  const zoom = f => { b.zoom = Math.max(60, Math.min(300, Math.round(b.zoom * f / 10) * 10)); zeichne(); };
-  links.append(h('div', { class: 'leiste' },
-    P.verteiler.length > 1 ? h('button', { on: { click: () => wahlFeld('Verteiler', P.verteiler.map(w => [w.id, w.name]), v.id, w => { b.vid = w; b.sel = null; }) } }, `Verteiler: ${v.name}`) : null,
-    h('button', { title: 'kleiner', on: { click: () => zoom(1 / 1.25) } }, '−'),
-    h('button', { on: { click: () => { b.zoom = 100; zeichne(); } } }, `${b.zoom} %`),
-    h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+'),
-    h('button', { title: 'Strg+Z', on: { click: () => projektRueck(false) } }, 'Rückgängig'),
-    h('button', { title: 'Strg+Y', on: { click: () => projektRueck(true) } }, 'Wiederholen'),
-    h('button', { title: 'Übersicht der Tastenkürzel', on: { click: tastenHilfe } }, 'Tasten')));
-  // Paletten: Abgänge (einfügen über die Marken „+“) und Steuerung (Plätze im Steuerstromkreis antippen)
-  const leer = !v.knoten.length;
-  links.append(h('div', { class: 'leiste reiter' },
-    h('button', { 'aria-pressed': String(b.palette === 'ab'), on: { click: () => { b.palette = 'ab'; if (stW) b.tool = null; zeichne(); } } }, 'Abgänge'),
-    h('button', { 'aria-pressed': String(b.palette === 'st'), on: { click: () => { b.palette = 'st'; if (b.tool && !stW) b.tool = null; b.zuSteuerung = true; zeichne(); } } }, 'Steuerung')));
-  const pal = h('div', { class: 'palette' });
-  if (b.palette === 'st') {
-    ST_PALETTE.forEach(([grp, liste], gi) => {
-      if (gi) pal.append(h('span', { class: 'trenn', title: grp }));
-      liste.forEach(z => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === z), title: WERKZEUG_NAME(z),
-        on: { click: () => { b.tool = b.tool === z ? null : z; zeichne(); } } }, zeichenIcon(z), WERKZEUG_NAME(z))));
-    });
-  } else {
-    EDITOR_PALETTE.forEach(([tool, name, zeichen]) => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === tool), title: name.replace(/\u00ad/g, ''),
-      on: { click: () => { if (leer) { const k = editorNeu(v, tool); v.knoten.push(k); sichern(); b.sel = 'k:' + k.id; b.tool = null; }
-        else b.tool = b.tool === tool ? null : tool; zeichne(); } } }, zeichenIcon(zeichen), name)));
-    if (editorAblage) pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === 'ablage'), on: { click: () => { b.tool = b.tool === 'ablage' ? null : 'ablage'; zeichne(); } } },
-      zeichenIcon('klemme'), editorAblage.aus ? 'Aus\u00adgeschnittenes' : 'Kopie einfügen'));
-  }
-  links.append(pal, h('p', { class: 'hinweis' }, stW ? `Werkzeug ${WERKZEUG_NAME(b.tool)}: Plätze im Steuerstromkreis antippen. Esc oder erneutes Antippen beendet.`
-    : b.tool ? 'Jetzt eine Marke „+“ im Blatt antippen – dort wird eingefügt. Esc oder erneutes Antippen beendet.'
-    : b.palette === 'st' ? 'Werkzeug wählen und Plätze im Steuerstromkreis antippen – oder einen Platz antippen, um ihn zu bearbeiten.'
-    : 'Ein Teil antippen, um es zu ändern; zum Einfügen ein Werkzeug wählen.'));
-  // Aktionen für das gewählte Teil
-  const istK = (b.sel || '').startsWith('k:');
-  if (b.palette === 'ab') links.append(h('div', { class: 'leiste' },
-    h('button', { disabled: !istK || null, title: 'links', on: { click: () => editorAktion(v, b, 'links') } }, '← verschieben'),
-    h('button', { disabled: !istK || null, title: 'rechts', on: { click: () => editorAktion(v, b, 'rechts') } }, 'verschieben →'),
-    h('button', { disabled: !istK || null, title: 'Strg+C', on: { click: () => editorAktion(v, b, 'kopieren') } }, 'Kopieren'),
-    h('button', { disabled: !istK || null, title: 'Strg+X', on: { click: () => editorAktion(v, b, 'ausschneiden') } }, 'Ausschneiden'),
-    h('button', { disabled: !editorAblage || null, title: 'Strg+V', on: { click: () => editorAktion(v, b, 'einfuegen') } }, 'Einfügen'),
-    h('button', { class: 'rot', disabled: !istK || null, title: 'Entf', on: { click: () => editorAktion(v, b, 'loeschen') } }, 'Löschen')));
+  const nZ = verlauf.zurueck.length, nV = verlauf.vor.length;
+  const tab = (w, t) => h('button', { role: 'tab', 'data-w': w, 'aria-selected': String(b.palette === w), on: { click: () => {
+    paletteWahl(w); if (w === 'st') { const k = ED.karten.find(x => x.dataset.art === 'steuerung'); if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); } } } }, t);
+  const kopfL = h('header', { class: 'edkopf' },
+    ik('haus', 'Projektübersicht', () => { stapel = [{ s: 'start' }]; zeichne(); }),
+    h('button', { class: 'vwahl', 'aria-label': 'Verteiler wählen', on: { click: () => verteilerMenue(v) } },
+      h('span', { class: 'vw-pj' }, P.projekt.projekt || 'Projekt'), h('span', { class: 'vw-name' }, v.name, h('span', { class: 'leise' }, ' ▾'))),
+    h('div', { class: 'segment', role: 'tablist', 'aria-label': 'Palette' }, tab('ab', 'Abgänge'), tab('st', 'Steuerung')),
+    h('span', { class: 'luecke' }),
+    ik('rueck', nZ ? `Rückgängig: ${verlauf.zurueck[nZ - 1].n}` : 'Rückgängig', () => projektRueck(false), { aus: !nZ, taste: 'Strg+Z' }),
+    ik('vor', nV ? `Wiederholen: ${verlauf.vor[nV - 1].n}` : 'Wiederholen', () => projektRueck(true), { aus: !nV, taste: 'Strg+Y' }),
+    h('span', { class: 'sep' }),
+    ik('drucken', 'Drucken', () => druckMenue(v), { text: 'Drucken', cls: 'mittext' }),
+    ik('menue', 'Weitere Funktionen', () => editorMenue(v)),
+    ik('eigen', 'Eigenschaften ein- oder ausblenden', () => { ansicht.eigenZu = !ansicht.eigenZu; ansichtMerken(); ED.ed.classList.toggle('eigenzu', !!ansicht.eigenZu); }, { cls: 'nurbreit' }));
+  const ed = h('div', { class: 'ed' + (ansicht.eigenZu ? ' eigenzu' : '') + (b.tool && !istSteuerWerkzeug(b.tool) ? ' einfuegen' : '') });
+  const pal = h('aside', { class: 'edpal', 'aria-label': 'Palette' });
+  const flaeche = h('section', { class: 'edflaeche', 'aria-label': 'Planblätter' }), blaetter = h('div', { class: 'blaetter' });
+  const eigen = h('aside', { class: 'edeigen eigen', 'aria-label': 'Eigenschaften' }), fuss = h('footer', { class: 'edfuss' });
+  flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, eigen, fuss); app.append(ed);
+  ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, karten: [], liste: [], blattI: 0 };
   // Blätter dieses Verteilers mit Antippflächen
   let res = null;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }); }
-  catch (er) { links.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + er.message)); }
-  const arten = ['einspeisung', 'abgang', 'kombiniert', 'steuerung'];
-  (res ? res.blaetter.filter(bl => bl.verteiler === v.name && arten.includes(bl.art)) : []).forEach(bl => {
-    bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
-    bl.svg.style.width = `${b.zoom}%`;
-    bl.svg.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === b.sel) r.setAttribute('data-sel', ''); });
-    bl.svg.addEventListener('pointerdown', ev => ziehBereit(ev, v, b));
-    bl.svg.addEventListener('click', ev => {
-      if (ziehKlickSperre) return;
-      const z = ev.target.closest('[data-ziel]'); if (!z) return;
-      if (/^(vor|nach|in):/.test(z.dataset.ziel)) { if (b.tool && !stW) editorEinfuegen(v, b, z.dataset.ziel); return; }
-      b.sel = z.dataset.ziel;
-      const m = /^pl:([^:]+):(\d)$/.exec(b.sel);
-      if (m) { b.palette = 'st'; const r = kreisMitPfad(v, m[1]);
-        if (stW && platzAktiv(r.kr.pfade, r.j, +m[2])) return werkzeugAnwenden(v, berechne(v), r.kr.pfade[r.j], +m[2], b.tool);
-        if (stW) meldung('Außerhalb des Zweigs – Anfang/Ende in der Leiste einstellen'); }
-      zeichne();
+  catch (er) { blaetter.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + er.message)); }
+  const e = berechne(v);
+  ED.liste = res ? res.blaetter.filter(bl => bl.verteiler === v.name && BLATT_ART[bl.art]) : [];
+  ED.liste.forEach(bl => {
+    const svg = bl.svg; svg.removeAttribute('width'); svg.removeAttribute('height'); svg.style.width = '100%';
+    svg.setAttribute('role', 'group'); svg.setAttribute('aria-label', `Blatt ${bl.nr} ${BLATT_ART[bl.art]}`);
+    svg.querySelectorAll('[data-ziel]').forEach(r => {        // Tastatur: Teile und Marken mit Tab erreichbar
+      const z = r.dataset.ziel, [art, id] = z.split(':');
+      if (z === b.sel) r.setAttribute('data-sel', '');
+      if (art === 'pl' || art === 'p') return;
+      r.setAttribute('tabindex', '0'); r.setAttribute('role', 'button');
+      const kk = art === 'k' && knoten(v, id), a = kk && e.abgaenge[id];
+      r.setAttribute('aria-label', /^(vor|nach|in|leer)$/.test(art) ? 'Hier einfügen' : art === 'e' ? 'Einspeisung' : art === 's' ? 'Überspannungsschutz' : art === 'kr' ? 'Steuerstromkreis'
+        : kk ? (kk.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}` : `${a && a.f ? a.f.t + ' ' : ''}${abgangName(kk.k)}`) : z);
     });
-    links.append(h('div', { class: 'blattkarte', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'einspeisung' ? 'Einspeisung' : 'Stromlaufplan')),
-      h('div', { class: 'zoomwrap' }, bl.svg)));
+    svg.addEventListener('pointerdown', ev => ziehBereit(ev, v, b));
+    svg.addEventListener('click', ev => editorKlick(ev, v, b));
+    const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, BLATT_ART[bl.art])), svg);
+    ED.karten.push(karte); blaetter.append(karte);
   });
-  if (!v.knoten.length) links.append(h('p', { class: 'hinweis' }, 'Noch keine Abgänge – unter dem Verteiler „+ Abgang“ wählen.'));
-  m.append(links);
-  // Eigenschaften des gewählten Teils
-  const rechts = b.sel ? editorEigenschaften(v, b.sel, b)
-    : h('div', { class: 'eigen' }, h('h2', { class: 'eigentitel' }, 'Eigenschaften'), h('p', { class: 'hinweis' }, 'Ein Teil im Plan antippen: Einspeisung, Abgang, Gruppe oder Steuerstromkreis.'));
-  m.append(rechts);
-  app.append(m);
-  if (res) requestAnimationFrame(() => { res.begrenzen();
-    if (b.springen) { b.springen = false; const s = document.querySelector('main.editor [data-sel]'); if (s) s.scrollIntoView({ block: 'center' }); }
-    if (b.zuSteuerung) { b.zuSteuerung = false; const s = document.querySelector('main.editor .blattkarte[data-art="steuerung"]'); if (s) s.scrollIntoView({ block: 'start' }); } });
+  paletteNeu(); eigenNeu(); fussNeu();
+  zoomAnwenden(false);
+  flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
+  if (res) res.begrenzen();
+  kontextNeu(); blattAnzeigen();
+  if (b.springen) { b.springen = false; zeigeAuswahl(); }
+  let rafS = 0;
+  flaeche.addEventListener('scroll', () => { b.sx = flaeche.scrollLeft; b.sy = flaeche.scrollTop;
+    if (!rafS) rafS = requestAnimationFrame(() => { rafS = 0; blattAnzeigen(); }); }, { passive: true });
+  // Zoom mit zwei Fingern und mit Strg + Mausrad (Trackpad: Zusammenziehen)
+  let pinch = null;
+  const abst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  flaeche.addEventListener('touchstart', ev => { if (ev.touches.length === 2) { pinch = { d: abst(ev.touches), z: b.zoom }; if (zieh) { clearTimeout(zieh.timer); if (!zieh.aktiv) zieh = null; } } }, { passive: true });
+  flaeche.addEventListener('touchmove', ev => { if (!pinch || ev.touches.length !== 2) return; ev.preventDefault();
+    const R = flaeche.getBoundingClientRect(), mx = (ev.touches[0].clientX + ev.touches[1].clientX) / 2 - R.left, my = (ev.touches[0].clientY + ev.touches[1].clientY) / 2 - R.top;
+    zoomSetzen(pinch.z * abst(ev.touches) / pinch.d, mx, my); }, { passive: false });
+  flaeche.addEventListener('touchend', ev => { if (ev.touches.length < 2) pinch = null; });
+  flaeche.addEventListener('wheel', ev => { if (!ev.ctrlKey && !ev.metaKey) return; ev.preventDefault();
+    const R = flaeche.getBoundingClientRect(); zoomSetzen(b.zoom * Math.exp(-ev.deltaY * 0.0025), ev.clientX - R.left, ev.clientY - R.top); }, { passive: false });
+  ED.ro = new ResizeObserver(() => zoomAnwenden(true)); ED.ro.observe(flaeche);
+}
+function editorKlick(ev, v, b) {
+  if (ziehKlickSperre) return;
+  const z = ev.target.closest('[data-ziel]');
+  if (!z) return;
+  const id = z.dataset.ziel, stW = istSteuerWerkzeug(b.tool);
+  if (/^(vor|nach|in|leer):/.test(id)) {
+    if (b.tool && !stW) return editorEinfuegen(v, b, id);
+    anker = { r: z.getBoundingClientRect(), zeit: Date.now() };
+    return einfuegeMenue(v, b, id);
+  }
+  const m = /^pl:([^:]+):(\d)$/.exec(id);
+  if (m && stW) {
+    const r = kreisMitPfad(v, m[1]);
+    if (platzAktiv(r.kr.pfade, r.j, +m[2])) { b.sel = id; return werkzeugAnwenden(v, berechne(v), r.kr.pfade[r.j], +m[2], b.tool); }
+    meldung('Außerhalb des Zweigs – Anfang/Ende in der Leiste einstellen');
+  }
+  waehle(id);
 }
 
 // ---- Ziehen im Plan-Editor (ab v1.20, Etappe D4) ------------------------------
@@ -1754,7 +2247,8 @@ function platzInhalt(v, id) {         // was liegt auf dem Platz pl:pfad:zeile?
 function ziehAn() {
   if (!zieh) return;
   zieh.aktiv = true;
-  const m = document.querySelector('main.editor'); if (m) m.classList.add('ziehen', ...(zieh.id.startsWith('k:') ? ['einfuegen'] : []));
+  const m = document.querySelector('.ed'); if (m) m.classList.add('ziehen', ...(zieh.id.startsWith('k:') ? ['einfuegen'] : []));
+  const k0 = document.querySelector('.kontext'); if (k0) k0.remove();
   const e = berechne(zieh.v), [art, id] = zieh.id.split(':');
   const r = art === 'k' && knoten(zieh.v, id), a = r && e.abgaenge[id];
   const name = r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
@@ -1798,7 +2292,7 @@ function ziehEnde(ev) {
     const a1 = quelle.lesen(), a2 = ziel2.lesen(); quelle.setzen(a2); ziel2.setzen(a1);   // verschieben bzw. tauschen
     b.sel = t;
   }
-  sichern(); zeichne();
+  aenderung('Verschieben'); sichern(); zeichne();
 }
 function platzStelle(v, id) {
   const [, pid, zl] = id.split(':'), r = kreisMitPfad(v, pid), p = r.kr.pfade[r.j], i = +zl;
@@ -1823,9 +2317,9 @@ function tastenHilfe() {
   fenster('Tastenkürzel im Plan', h('div', { class: 'text' }, ...[
     ['← / →', 'vorigen / nächsten Abgang wählen'], ['Alt+← / Alt+→', 'Abgang verschieben'],
     ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt verschieben'],
-    ['Eingabe', 'Gerät des Platzes ändern'], ['Entf', 'löschen bzw. Platz leeren'],
-    ['Strg+C / X / V', 'kopieren, ausschneiden, einfügen'], ['Strg+Z / Y', 'rückgängig, wiederholen'],
-    ['+ / −', 'größer / kleiner'], ['Esc', 'Werkzeug und Auswahl aufheben'],
+    ['Tab, Eingabe', 'Teile im Blatt der Reihe nach, wählen'], ['Eingabe', 'Gerät des Platzes ändern'], ['Entf', 'löschen bzw. Platz leeren'],
+    ['Strg+C / X / V', 'kopieren, ausschneiden, einfügen (hinter das gewählte Teil)'], ['Strg+D', 'duplizieren'], ['Strg+Z / Y', 'rückgängig, wiederholen'],
+    ['+ / − / 0', 'größer / kleiner / Blattbreite'], ['Strg+Mausrad', 'zoomen'], ['Esc', 'Werkzeug beenden, Auswahl aufheben, Fenster schließen'],
     ['Ziehen', 'Abgang auf eine Marke „+“, Kontakt auf einen Platz; Finger/Pencil: kurz halten']]
     .map(([k, t]) => h('div', { class: 'taste' }, h('b', {}, k), ' ', t))));
 }

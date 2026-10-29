@@ -196,7 +196,7 @@ gespeicherte Abweichungen.
 - Steuerleitungen zu Tastern/Meldern laufen bei vorhandener Klemmleiste über -X1 und
   stehen im Klemmenplan.
 
-## Etappe D – Plan-Editor (abgestimmt 29.10.2026, umgesetzt bis D4 v1.20; Abnahme durch Jean steht aus)
+## Etappe D – Plan-Editor (abgestimmt 29.10.2026, umgesetzt bis D4 v1.20; Oberfläche ab v1.21 neu, siehe Etappe E)
 
 Der ganze Plan wird über die grafische Oberfläche bearbeitet; die Anordnung bleibt automatisch
 (kein freies Platzieren), die bisherigen Bildschirme bleiben parallel, der Startbildschirm
@@ -218,6 +218,21 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   (belegt: tauschen); Maus ab 6 px Bewegung, Finger/Pencil nach 0,35 s Halten (sonst Wischen =
   Blättern; `touchmove` wird nur während des Ziehens unterdrückt). Tasten: ←/→ Abgang wählen,
   Alt+←/→ verschieben, +/− Zoom, ? Übersicht (`tastenHilfe()`).
+
+## Etappe E – Bedienung neu (Jean 29.10.2026: „alles darf neu gedacht werden, nur das Planlayout bleibt“)
+
+- v1.20.1: Ausschneiden/Einfügen verschiebt samt Steuerstromkreis (Kennungen bleiben); Kopieren legt
+  die Kreise mit neuen Befehlsgebern an (`ablageSetzen()`, `ablageHolen()`).
+- v1.21 Arbeitsfläche: Editor als Vollbild-Raster `.ed` (Kopfleiste, Palette `.edpal`, Blätter
+  `.edflaeche`, Eigenschaften `.edeigen`, Fußleiste); ab < 1000 px Palette als Streifen und Eigenschaften
+  als Fach von unten. Startbildschirm: Verteilerkarten öffnen direkt den Editor. Im Editor lenkt
+  `geh()` über `editorGeh()` alle Bildschirme in die Eigenschaften-Leiste um (Auswahl-Arten `k: kr: pl:
+  e: s: kopf: st: g: p:`, null = Verteiler; `b.pz` = Zurück in der Leiste). `waehle()` ändert die Auswahl
+  ohne die Blätter neu zu erzeugen; `zeichne()` hält Ausschnitt und Zoom (`b.sx/sy`, `b.zoom` in % der
+  Blattbreite). Marken „+“ immer sichtbar (Einfügemenü mit Anzahl, `leer:` im leeren Verteiler,
+  Schriftfeld `p:`), Kontextleiste `kontextNeu()`. Rückgängig mit Namen (`aenderung(name)` vor
+  `sichern()`). `wahlFeld()`/`menue()` öffnen am angetippten Feld (`anker`), `textFeld()` bearbeitet in
+  der Zeile; Esc schließt Fenster (`fensterStapel`).
 
 ## Technische Eckwerte
 

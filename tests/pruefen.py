@@ -55,7 +55,7 @@ with sync_playwright() as p:
         if name == 'grund':
             # Plan-Editor per Klick: Abgang im Blatt antippen → Eigenschaften mit Schutzorgan
             pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
-            pg.locator('button.zeile', has_text='Plan bearbeiten').first.click(); pg.wait_for_timeout(300)
+            pg.locator('.vkarte').first.click(); pg.wait_for_timeout(300)
             pg.locator('rect.ziel[data-ziel^="k:"]').nth(1).dispatch_event('click'); pg.wait_for_timeout(300)
             if not pg.locator('.eigen', has_text='Schutzorgan').count(): fehler.append('grund: Plan-Editor – Eigenschaften nach Antippen fehlen')
             pg.screenshot(path=str(AUS / 'grund_editor.png'), full_page=False)
@@ -72,11 +72,31 @@ with sync_playwright() as p:
             pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
             erst = pg.evaluate("P.verteiler[0].knoten[0].id"); letzt = pg.evaluate("P.verteiler[0].knoten.at(-1).id")
             q = pg.locator(f'rect.ziel[data-ziel="k:{erst}"]').first; q.scroll_into_view_if_needed(); bx = q.bounding_box()
-            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + bx['height'] / 2); pg.mouse.down()
-            pg.mouse.move(bx['x'] + bx['width'] / 2 + 12, bx['y'] + bx['height'] / 2 + 4); pg.wait_for_timeout(100)
+            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + 20); pg.mouse.down()        # oben im Teil (die Mitte trägt eine Marke)
+            pg.mouse.move(bx['x'] + bx['width'] / 2 + 12, bx['y'] + 24); pg.wait_for_timeout(100)
             mk = pg.locator(f'g.marke[data-ziel="nach:{letzt}"]').first; mk.scroll_into_view_if_needed(); mb = mk.bounding_box()
             pg.mouse.move(mb['x'] + mb['width'] / 2, mb['y'] + mb['height'] / 2, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
             if pg.evaluate("P.verteiler[0].knoten.at(-1).id") != erst: fehler.append('grund: Plan-Editor – Ziehen hat den Abgang nicht verschoben')
+            # ab v1.21: Einfügemenü an der Marke „+“ mit Anzahl, Text direkt in der Zeile, Eigenschaften-Leiste wechselt im Editor
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
+            zahl = "(() => { let n = 0; alleKnoten(P.verteiler[1], () => n++); return n; })()"
+            n0 = pg.evaluate(zahl)
+            pg.locator('g.marke[data-ziel^="nach:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            for _ in range(2): pg.locator('.fenster .anzahlzeile button[aria-label="mehr"]').click()
+            pg.locator('.fenster .kacheln .werkzeug', has_text='Leuchte').click(); pg.wait_for_timeout(300)
+            if pg.evaluate(zahl) != n0 + 3: fehler.append(f'grund: Einfügemenü mit Anzahl 3 ergab {n0} → {pg.evaluate(zahl)}')
+            pg.locator('.edeigen button.zeile', has_text='Bezeichnung').first.click(); pg.wait_for_timeout(100)
+            pg.locator('.edeigen .zeile.bearbeiten input').fill('Werkbank 2'); pg.keyboard.press('Enter'); pg.wait_for_timeout(300)
+            if pg.evaluate("knoten(P.verteiler[1], stapel.at(-1).sel.slice(2)).k.ziel.bez") != 'Werkbank 2': fehler.append('grund: Bezeichnung direkt in der Zeile nicht übernommen')
+            pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
+            pg.locator('.edeigen button.zeile', has_text='Einspeisung').first.click(); pg.wait_for_timeout(300)
+            if pg.evaluate("stapel.length + ':' + stapel.at(-1).sel") != '2:e:' + pg.evaluate("P.verteiler[1].id"): fehler.append('grund: Einspeisung öffnet sich nicht in der Eigenschaften-Leiste')
+            pg.screenshot(path=str(AUS / 'grund_editor_einspeisung.png'), full_page=False)
+            # leerer Verteiler: Marke „+“ im leeren Blatt
+            pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
+            pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.locator('.fenster .kacheln .werkzeug', has_text='Steckdose').first.click(); pg.wait_for_timeout(300)
+            if pg.evaluate("P.verteiler.at(-1).knoten.length") != 1: fehler.append('grund: Einfügen in einen leeren Verteiler hat nicht geklappt')
             pg.evaluate("BEISPIELE.grund(); P.projekt.datum = '2026-10-24'")
             pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
         if name == 'eingabe':

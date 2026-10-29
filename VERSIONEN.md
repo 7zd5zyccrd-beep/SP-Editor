@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.19 | Etappe D3: Steuerstromkreise direkt im Plan-Editor (Reiter „Steuerung“, Plätze im Blatt antippen, Zweige, Vorlagen); Raster-Bildschirm entfällt |
 | v1.18 | Etappe D2: Plan-Editor – Palette und Einfügemarken, Verschieben, Kopieren/Ausschneiden/Einfügen, Löschen; Rückgängig/Wiederholen über das ganze Projekt; Tastenkürzel |
 | v1.17 | Etappe D1: Plan-Editor – Teile im Planblatt antippen, Eigenschaften daneben ändern, Zoom; „Plan bearbeiten“ auf dem Startbildschirm und im Verteiler |
 | v1.16 | Steuertrafo als dritte Quelle der Steuerspannung (Primär-LS 230 V oder 400 V, Trafo -T, Sekundär-LS, 0 V geerdet/ungeerdet; Leitungen „24 V“/„0 V“); Bibliothek v1.6 |

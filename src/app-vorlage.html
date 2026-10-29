@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.19: Etappe D3 – Steuerstromkreise direkt im Plan-Editor: Reiter „Steuerung“ mit der Palette,
+           Plätze und Verbraucherplätze im Blatt antippen, Leiste mit Gerät ändern, Leeren, ↑/↓,
+           Kopieren/Einfügen, Zweig, Pfad, Vorlage; der Raster-Bildschirm entfällt, alle Wege zu einem
+           Steuerstromkreis führen in den Plan-Editor
      v1.18: Etappe D2 – Plan-Editor: Palette (Steckdose, CEE, Leuchte, Geräteanschluss, Unterverteiler,
            FI-Gruppe, Steuer-LS, Steuertrafo), Einfügemarken „+“ im Blatt, Verschieben, Kopieren,
            Ausschneiden, Einfügen, Löschen; Rückgängig/Wiederholen über das ganze Projekt (50 Schritte,
@@ -179,42 +183,19 @@ table.ueb tr.gr td{background:#f7f6f2;font-weight:600}
 .tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt}
 .tzwrap{overflow-x:auto}
 .tzwrap .tz{min-width:600px}
-/* Raster-Editor der Steuerstromkreise (ab v1.12): links Raster, rechts Vorschau */
+/* geteilte Ansicht (ab v1.12): links Arbeitsfläche, rechts Eigenschaften; Palette, Leisten */
 main.geteilt{max-width:1500px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
-@media (min-width:1000px){main.geteilt{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
-  main.geteilt .vorschau{position:sticky;top:64px;align-self:start}
-  main.geteilt .vorschau summary{pointer-events:none;list-style:none}
-  main.geteilt .vorschau summary::-webkit-details-marker{display:none}}
+@media (min-width:1000px){main.geteilt{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
 .palette{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 4px}
 .palette .trenn{width:1px;align-self:stretch;background:var(--linie);margin:0 4px}
 .werkzeug{display:flex;flex-direction:column;align-items:center;gap:1px;width:64px;padding:3px 2px;border:1px solid var(--linie);border-radius:8px;background:#fff;cursor:pointer;font-size:9.5px;line-height:1.1;text-align:center;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:anywhere}
 .werkzeug svg{width:28px;height:28px}
 .werkzeug[aria-pressed="true"]{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:600}
-.rasterwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid var(--linie);border-radius:12px;padding:8px}
-.raster{display:grid;gap:0;min-width:max-content;justify-content:start}
-.raster .sk{font-size:11.5px;color:var(--leise);text-align:center;padding:2px 2px 4px;border:0;background:none;cursor:pointer}
-.raster .sk[aria-pressed="true"]{color:var(--akzent);font-weight:700}
-.raster .schiene{height:4px;background:var(--tinte);margin:4px 0;border-radius:2px}
-.raster .schiene.n{background:var(--n)}
-.raster .lb{font:600 12px ui-monospace,Menlo,monospace;color:var(--leise);padding:0 4px;align-self:center}
-.zelle{position:relative;width:88px;height:58px;border:0;background:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.zelle::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1.5px solid #8d897f;z-index:0}
-.zelle.aus{cursor:default}
-.zelle.aus::before{display:none}
-.zelle .inh{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;background:#fff;border-radius:8px;padding:2px 4px;min-width:44px}
-.zelle .inh svg{width:34px;height:34px}
-.zelle .inh .kz{font:600 11px ui-monospace,Menlo,monospace}
-.zelle .inh .kz.rot{color:var(--rot)}
-.zelle.leer .inh{background:none}
-.zelle[aria-selected="true"]{outline:2.5px solid var(--akzent);outline-offset:-3px;border-radius:10px}
-.zelle.ziel:not(.aus):hover{background:var(--akzent-hell);border-radius:10px}
 .leiste{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
 .leiste button{border:1px solid var(--linie);background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer;font-size:14px;color:var(--akzent)}
 .leiste button.rot{color:var(--rot)}
 .leiste button:disabled{opacity:.35;cursor:default}
-.vorschau{background:#cfccc3;border-radius:12px;padding:10px}
-.vorschau summary{font-size:13px;color:#4a4842;cursor:pointer;margin:0 2px 6px}
-.vorschau svg{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.leiste.reiter button[aria-pressed="true"]{background:var(--akzent);color:#fff;border-color:var(--akzent)}
 /* Plan-Editor (ab v1.17): Blätter mit Antippflächen, Eigenschaften daneben bzw. darunter */
 main.editor .zoomwrap{overflow:auto;-webkit-overflow-scrolling:touch;background:#fff}
 main.editor .blattkarte svg{width:100%;max-width:none}
@@ -644,6 +625,8 @@ let app = document.getElementById('app');      // im Plan-Editor kurzzeitig auf 
 function geh(b) { stapel.push(b); sortieren = false; zeichne(); window.scrollTo(0, 0); }
 function zurueck() { stapel.pop(); sortieren = false; zeichne(); }
 // nach Löschen/Auflösen: im Plan-Editor nur die Auswahl aufheben, sonst zum vorigen Bildschirm
+// Steuerstromkreis im Plan-Editor öffnen: Kreis gewählt, Steuerungs-Palette, Blatt im Blick
+function imPlan(v, kr) { geh({ s: 'editor', vid: v.id, sel: 'kr:' + kr.id, palette: 'st', springen: true }); }
 function fertig() { const b = stapel[stapel.length - 1]; if (b.s === 'editor') b.sel = null; else stapel.pop(); }
 function h(tag, attr = {}, ...kinder) {
   const e = document.createElement(tag);
@@ -717,7 +700,7 @@ function zeichne() {
   const b = stapel[stapel.length - 1];
   app.innerHTML = '';
   ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
-     steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, raster: bRaster, editor: bEditor }[b.s])(b);
+     steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
 }
 
 function bStart() {
@@ -1024,7 +1007,7 @@ function schaltZeilen(v, k, a) {
   z.push(zeile('Hilfsöffner', String(sg.ho || 0), () => wahlFeld('Hilfsöffner (21/22 …)', anz, String(sg.ho || 0), w => sg.ho = +w,
     { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
   z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
-  z.push(zeile('Steuerstromkreis bearbeiten', null, () => { const kr = kreisAnlegen(v, k); sichern(); geh({ s: 'raster', vid: v.id, krid: kr.id }); },
+  z.push(zeile('Steuerstromkreis bearbeiten', null, () => { const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); },
     { un: 'Kontakte, Taster, Meldeleuchten; Steuerspannung' }));
   return z;
 }
@@ -1062,13 +1045,13 @@ function bSteuerung(b) {
   st.kreise.forEach(kr => {
     const kk = kreisKopf(v, e, kr), nP = kr.pfade.filter((p, j) => !(j > 0 && p.zweig)).length;
     const qa = !gem || kr.eigen ? kr.quelle && e.abgaenge[kr.quelle.kid] : null;
-    l.append(zeile(kr.name || (kk ? kk.name : 'Kreis ohne Verbraucher'), `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => geh({ s: 'raster', vid: v.id, krid: kr.id }),
+    l.append(zeile(kr.name || (kk ? kk.name : 'Kreis ohne Verbraucher'), `${nP} Pfad${nP === 1 ? '' : 'e'}`, () => imPlan(v, kr),
       kk ? { bmk: kk.bmk, un: `${kk.art} · ` + (gem && !kr.eigen ? 'gemeinsame Steuerspannung' : qa ? `Abgriff ${qa.f ? qa.f.t : 'im Abgang'}` : 'Abgriff fehlt') }
          : { rot: true, un: 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.' }));
   });
   schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id)).forEach(k => l.append(h('button', { class: 'neu inliste', on: { click: () => {
-    const kr = kreisAnlegen(v, k); sichern(); geh({ s: 'raster', vid: v.id, krid: kr.id }); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
-  l.append(h('button', { class: 'neu inliste', on: { click: () => { const kr = kreisOhneSchaltgeraet(v); sichern(); geh({ s: 'raster', vid: v.id, krid: kr.id }); } } },
+    const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
+  l.append(h('button', { class: 'neu inliste', on: { click: () => { const kr = kreisOhneSchaltgeraet(v); sichern(); imPlan(v, kr); } } },
     '+ Kreis ohne Schaltgerät (z. B. Meldeleuchte, eigenständiges Zeitrelais)'));
   m.append(h('h2', {}, 'Kreise'), l);
   e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, '⚠ ' + w)));
@@ -1111,7 +1094,7 @@ function bKreis(b) {
       abg.map(k => [k.id, `${(e.abgaenge[k.id].f || {}).t || '—'} ${abgangName(k)}`, k === sk ? 'Abgang des Schaltgeräts' : '']),
       kr.quelle ? kr.quelle.kid : '', w => kr.quelle = { art: 'abgang', kid: w }), { rot: !qk }));
   }
-  kz.push(zeile('Im Raster bearbeiten', null, () => geh({ s: 'raster', vid: v.id, krid: kr.id }), { un: 'Palette antippen, dann Plätze; mit Vorschau des Blatts' }));
+  if (b.s !== 'editor') kz.push(zeile('Im Plan bearbeiten', null, () => imPlan(v, kr), { un: 'Plätze direkt im Blatt antippen' }));
   kz.push(zeile('Vorlage einsetzen', null, () => vorlageWahl(v, kr), { un: VORLAGEN.map(x => x[1]).join(', ') }));
   m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
   if (!kk) m.append(h('p', { class: 'warnung' }, 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.'));
@@ -1327,7 +1310,7 @@ function vorlageWahl(v, kr) {
   const e = berechne(v), sa = e.abgaenge[vb.g];
   wahlFeld('Vorlage', VORLAGEN, '', art => setTimeout(() => {
     const los = o => { const voll = kr.pfade.some(p => p.plaetze.some(Boolean) || (p.zweig && true));
-      const tun = () => { rasterMerken(v); vorlageEinsetzen(v, kr, art, o); sichern(); zeichne(); };
+      const tun = () => { vorlageEinsetzen(v, kr, art, o); sichern(); zeichne(); };
       if (voll) frage('Vorlage einsetzen', 'Die vorhandenen Pfade dieses Kreises werden ersetzt.', tun, 'Ersetzen'); else tun(); };
     if (art === 'taster') wahlFeld('Wie viele Taster?', [1, 2, 3, 4, 5].map(n => [String(n), `${n} Taster`]), '', n => setTimeout(() => los({ n: +n }), 0));
     else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
@@ -1367,14 +1350,16 @@ function vorlageEinsetzen(v, kr, art, o) {
   const st = stDaten(v); st.geraete = st.geraete.filter(g => !alt.has(g.id) || stVerwendet(v, g.id) > 0);
 }
 
-// ---- Raster-Editor der Steuerstromkreise (ab v1.12, Etappe C2b) -------------
-// Spalten = Pfade und Zweige, Zeilen = Plätze 1–6 und Verbraucher. Werkzeug aus der
-// Palette wählen und Zellen antippen; ohne Werkzeug wählt ein Tippen die Zelle aus.
-const RASTER_PALETTE = [
+// ---- Steuerstromkreise im Plan-Editor (ab v1.19, Etappe D3; vorher eigener Raster-Bildschirm) --
+// Im Blatt hat jeder Pfad sechs Plätze und den Verbraucherplatz als Antippfläche (pl:pfad:zeile,
+// Zeile 6 = Verbraucher). Werkzeug aus der Steuerungs-Palette wählen und Plätze antippen; ohne
+// Werkzeug wählt ein Tippen den Platz, die Aktionen stehen dann in der Eigenschaften-Leiste.
+const ST_PALETTE = [
   ['Befehlsgeber', Object.keys(ST_ZEICHEN).filter(z => ST_ZEICHEN[z][1] === 'bg')],
   ['Hilfskontakte', ['hilfs_s', 'hilfs_oe']],
   ['Zeitrelais-Kontakte', Object.keys(ST_ZEICHEN).filter(z => ST_ZEICHEN[z][1] === 'zr')],
   ['Verbraucher und Radierer', ['spule', 'meldeleuchte', 'leer']]];
+const istSteuerWerkzeug = t => !!t && (t === 'spule' || t === 'leer' || !!ST_ZEICHEN[t]);
 const WERKZEUG_NAME = z => z === 'spule' ? 'Spule' : z === 'leer' ? 'Radierer' : ST_ZEICHEN[z][0];
 function zeichenIcon(kennung) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1386,30 +1371,14 @@ function zeichenIcon(kennung) {
   s.setAttribute('viewBox', `${-hx - (mm - w) / 2} ${-hy - (mm - hh) / 2} ${mm} ${mm}`);
   s.append(r.g); return s;
 }
-// Rückgängig/Wiederholen: Stände der Steuerung je Verteiler, nur für die laufende Sitzung
-const rasterVerlauf = {};
-function rasterMerken(v) {
-  const vl = rasterVerlauf[v.id] = rasterVerlauf[v.id] || { zurueck: [], vor: [] }, s = JSON.stringify(v.steuerung);
-  if (vl.zurueck[vl.zurueck.length - 1] !== s) vl.zurueck.push(s);
-  if (vl.zurueck.length > 50) vl.zurueck.shift();
-  vl.vor = [];
-}
-function rasterRueck(v, vor) {
-  const vl = rasterVerlauf[v.id] || { zurueck: [], vor: [] }, jetzt = JSON.stringify(v.steuerung);
-  const von = vor ? vl.vor : vl.zurueck, nach = vor ? vl.zurueck : vl.vor;
-  let s; do { s = von.pop(); } while (s !== undefined && s === jetzt);     // abgebrochene Fenster hinterlassen gleiche Stände
-  if (s === undefined) { meldung(vor ? 'Nichts zu wiederholen' : 'Nichts rückgängig zu machen'); return; }
-  nach.push(jetzt); v.steuerung = JSON.parse(s); sichern(); zeichne();
-}
-let rasterAblage = null;     // kopierter Platz
+let platzAblage = null;      // kopierter Platz
 // ist Zeile i (0–5 Plätze, 6 Verbraucher) in Spalte j belegbar?
-function rasterAktiv(pf, j, i) {
+function platzAktiv(pf, j, i) {
   const zw = j > 0 && pf[j].zweig;
   if (!zw) return true;
   return i >= zw.von && (i <= zw.bis) && (i < 6 || zw.bis >= 6);
 }
 function werkzeugAnwenden(v, e, p, i, tool) {
-  rasterMerken(v);
   if (tool === 'leer') { if (i === 6) p.verbraucher = null; else p.plaetze[i] = null; sichern(); zeichne(); return; }
   const verbr = tool === 'spule' || tool === 'meldeleuchte';
   if (i === 6 && !verbr) { meldung('Auf den Verbraucherplatz gehören Spule oder Meldeleuchte'); zeichne(); return; }
@@ -1417,32 +1386,43 @@ function werkzeugAnwenden(v, e, p, i, tool) {
   if (verbr) verbraucherWahl(v, e, p, tool);
   else geraetWahl(v, e, tool, p.plaetze[i], gid => { p.plaetze[i] = ST_ZEICHEN[tool][1] === 'bg' ? { g: gid } : { g: gid, z: tool }; });
 }
-// Aktionen für die Auswahl (auch über Tasten)
-function rasterAktion(v, e, kr, b, was) {
+// Kreis und Lage eines Pfades
+function kreisMitPfad(v, pid) {
+  for (const kr of ((v.steuerung && v.steuerung.kreise) || [])) { const j = kr.pfade.findIndex(p => p.id === pid); if (j >= 0) return { kr, j }; }
+  return null;
+}
+// Auswahl im Plan-Editor (b.sel = 'pl:pfad:zeile') als { j, i } für die Platz-Aktionen
+function platzSel(b, kr) {
+  return {
+    get sel() { const m = /^pl:([^:]+):(\d)$/.exec(b.sel || ''); if (!m) return null; const j = kr.pfade.findIndex(p => p.id === m[1]); return j < 0 ? null : { j, i: +m[2] }; },
+    set sel(s) { b.sel = s ? `pl:${kr.pfade[s.j].id}:${s.i}` : 'kr:' + kr.id; },
+  };
+}
+// Aktionen für den gewählten Platz (auch über Tasten)
+function platzAktion(v, e, kr, b, was) {
   const s = b.sel, pf = kr.pfade, p = s && pf[s.j], zw = p && s.j > 0 && p.zweig;
-  const aendern = f => { rasterMerken(v); f(); sichern(); zeichne(); };
+  const aendern = f => { f(); sichern(); zeichne(); };
   switch (was) {
     case 'loeschen':
       if (!s) return;
-      if (s.i === -1) return rasterAktion(v, e, kr, b, 'spalteLoeschen');
       return aendern(() => { if (s.i === 6) p.verbraucher = null; else p.plaetze[s.i] = null; });
     case 'geraet':
-      if (!s || s.i < 0 || !rasterAktiv(pf, s.j, s.i)) return;
-      rasterMerken(v); return s.i === 6 ? verbraucherWahl(v, e, p) : platzWahl(v, e, p, s.i);
+      if (!s || !platzAktiv(pf, s.j, s.i)) return;
+      return s.i === 6 ? verbraucherWahl(v, e, p) : platzWahl(v, e, p, s.i);
     case 'hoch': case 'runter': {
-      if (!s || s.i < 0 || s.i > 5) return;
+      if (!s || s.i > 5) return;
       const n = s.i + (was === 'hoch' ? -1 : 1);
-      if (n < 0 || n > 5 || !rasterAktiv(pf, s.j, n)) return;
-      return aendern(() => { [p.plaetze[s.i], p.plaetze[n]] = [p.plaetze[n], p.plaetze[s.i]]; s.i = n; });
+      if (n < 0 || n > 5 || !platzAktiv(pf, s.j, n)) return;
+      return aendern(() => { [p.plaetze[s.i], p.plaetze[n]] = [p.plaetze[n], p.plaetze[s.i]]; b.sel = { j: s.j, i: n }; });
     }
     case 'kopieren':
-      if (!s || s.i < 0) return;
-      rasterAblage = s.i === 6 ? { verbraucher: p.verbraucher && { ...p.verbraucher } } : { platz: p.plaetze[s.i] && { ...p.plaetze[s.i] } };
+      if (!s) return;
+      platzAblage = s.i === 6 ? { verbraucher: p.verbraucher && { ...p.verbraucher } } : { platz: p.plaetze[s.i] && { ...p.plaetze[s.i] } };
       meldung('Kopiert'); return;
     case 'einfuegen':
-      if (!s || s.i < 0 || !rasterAblage || !rasterAktiv(pf, s.j, s.i)) return;
-      if ((s.i === 6) !== ('verbraucher' in rasterAblage)) { meldung(s.i === 6 ? 'Hier passt nur ein Verbraucher' : 'Hier passt nur ein Kontakt'); return; }
-      return aendern(() => { if (s.i === 6) p.verbraucher = rasterAblage.verbraucher && { ...rasterAblage.verbraucher }; else p.plaetze[s.i] = rasterAblage.platz && { ...rasterAblage.platz }; });
+      if (!s || !platzAblage || !platzAktiv(pf, s.j, s.i)) return;
+      if ((s.i === 6) !== ('verbraucher' in platzAblage)) { meldung(s.i === 6 ? 'Hier passt nur ein Verbraucher' : 'Hier passt nur ein Kontakt'); return; }
+      return aendern(() => { if (s.i === 6) p.verbraucher = platzAblage.verbraucher && { ...platzAblage.verbraucher }; else p.plaetze[s.i] = platzAblage.platz && { ...platzAblage.platz }; });
     case 'zweig': {      // Zweig neben dem Pfad, beginnend und endend in der gewählten Zeile
       if (!s) return;
       let h0 = s.j; while (h0 > 0 && pf[h0].zweig) h0--;
@@ -1450,117 +1430,39 @@ function rasterAktion(v, e, kr, b, was) {
       const zl = Math.max(0, s.i);
       return aendern(() => { pf.splice(k, 0, neuerPfad(null, { von: zl, bis: zl })); b.sel = { j: k, i: zl }; });
     }
-    case 'anfang': if (zw && s.i >= 0) aendern(() => { zw.von = s.i; if (zw.bis < s.i) zw.bis = s.i; }); return;
-    case 'ende': if (zw && s.i >= 0) aendern(() => { zw.bis = s.i; if (zw.von > s.i) zw.von = s.i; }); return;
+    case 'anfang': if (zw) aendern(() => { zw.von = s.i; if (zw.bis < s.i) zw.bis = s.i; }); return;
+    case 'ende': if (zw) aendern(() => { zw.bis = s.i; if (zw.von > s.i) zw.von = s.i; }); return;
     case 'spalteLoeschen':
       if (!s) return;
       return frage(zw ? 'Zweig löschen' : 'Pfad löschen', zw ? 'Diesen Zweig löschen?' : 'Diesen Pfad mit seinen Zweigen löschen?', () => {
-        rasterMerken(v);
         let n = 1; if (!zw) while (pf[s.j + n] && pf[s.j + n].zweig) n++;
         pf.splice(s.j, n); b.sel = null; });
     case 'pfad': return aendern(() => { pf.push(neuerPfad()); b.sel = { j: pf.length - 1, i: 0 }; });
   }
 }
-function bRaster(b) {
-  const v = vById(b.vid), st = v && v.steuerung, kr = st && st.kreise.find(x => x.id === b.krid); if (!kr) { zurueck(); return; }
-  const e = berechne(v), pf = kr.pfade;
-  const spP = pf.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
-  const sa = spP && e.abgaenge[spP.verbraucher.g];
-  if (b.sel && (!pf[b.sel.j] || b.sel.i > 6)) b.sel = null;
-  const kk = kreisKopf(v, e, kr);
-  app.append(kopf(kk ? `Steuerstromkreis ${kk.bmk.t}` : 'Steuerstromkreis',
-    h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'kreis', vid: v.id, krid: kr.id }) } }, 'Liste')));
-  const m = h('main', { class: 'geteilt' }), links = h('div');
-  // Palette
-  const pal = h('div', { class: 'palette' });
-  RASTER_PALETTE.forEach(([grp, liste], gi) => {
-    if (gi) pal.append(h('span', { class: 'trenn', title: grp }));      // Gruppen: Befehlsgeber | Hilfskontakte | Zeitrelais | Verbraucher
-    liste.forEach(z => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === z), title: WERKZEUG_NAME(z),
-      on: { click: () => { b.tool = b.tool === z ? null : z; zeichne(); } } }, zeichenIcon(z === 'spule' ? 'spule' : z), WERKZEUG_NAME(z))));
-  });
-  links.append(h('h2', {}, b.tool ? `Werkzeug: ${WERKZEUG_NAME(b.tool)} – Platz antippen` : 'Palette'), pal);
-  // Raster: Kopf, L, Plätze 1–6, Verbraucher, N
-  const lName = (() => { const sp = st.spannung || {}, gem = sp.art && sp.art !== 'abgang' && sp.quelle && !kr.eigen;
-    const a = e.abgaenge[gem ? sp.quelle : (kr.quelle && kr.quelle.kid)]; return !a ? 'L' : v.leiter === '1NPE' ? 'L' : a.drei ? 'L1' : (a.phase.t || 'L1'); })();
-  const grid = h('div', { class: 'raster', style: `grid-template-columns:30px repeat(${pf.length},88px)` });
-  let nr = 0;
-  grid.append(h('span'));
-  pf.forEach((p, j) => { const zw = j > 0 && p.zweig; if (!zw) nr++;
-    grid.append(h('button', { class: 'sk', 'aria-pressed': String(!!b.sel && b.sel.j === j && b.sel.i === -1),
-      on: { click: () => { b.sel = { j, i: -1 }; zeichne(); } } }, zw ? `Zweig ${nr}` : `Pfad ${nr}`)); });
-  grid.append(h('span', { class: 'lb' }, lName), h('div', { class: 'schiene', style: 'grid-column:2/-1' }));
-  const LINIE = '#8d897f', seg = (x, y) => `linear-gradient(${LINIE},${LINIE}) ${x} ${y}/50% 1.5px no-repeat`;
-  for (let i = 0; i <= 6; i++) {
-    grid.append(h('span', { class: 'lb' }, i === 6 ? 'V' : String(i + 1)));
-    pf.forEach((p, j) => {
-      const aktiv = rasterAktiv(pf, j, i), zw = j > 0 && p.zweig;
-      // waagerechte Verbindungen der Zweige: oben an „von“, unten an „bis“ (bis Verbraucher: an N)
-      const linien = [];
-      pf.forEach((q, k) => {
-        const zq = k > 0 && q.zweig; if (!zq) return;
-        let h0 = k; while (h0 > 0 && pf[h0].zweig) h0--;
-        if (j < h0 || j > k) return;
-        const halb = j === h0 ? 'right' : j === k ? 'left' : null;
-        const lagen = [];
-        if (zq.von === i) lagen.push('top');
-        if (zq.bis === i && zq.bis < 6) lagen.push('bottom');
-        lagen.forEach(y => { if (halb) linien.push(seg(halb, y)); else linien.push(seg('left', y), seg('right', y)); });
-      });
-      let inh;
-      if (i < 6) {
-        const pl = p.plaetze[i];
-        if (pl) {
-          const sa2 = e.abgaenge[pl.g], g = !sa2 && (st.geraete || []).find(x => x.id === pl.g);
-          const z = pl.z || (g && g.zeichen), kn = e.steuer.kontakte[p.id + ':' + i];
-          const kz = sa2 && sa2.schalt ? sa2.schalt.bmk.t : g ? (e.steuer.geraete[g.id] || {}).t : '?';
-          inh = h('span', { class: 'inh' }, zeichenIcon(z), h('span', { class: 'kz' + ((!sa2 && !g) || (kn && !kn.ord) ? ' rot' : '') }, kz));
-        }
-      } else if (p.verbraucher && aktiv) {
-        const vb = p.verbraucher, sa2 = e.abgaenge[vb.g], g = !sa2 && (st.geraete || []).find(x => x.id === vb.g);
-        const z = sa2 && sa2.schalt ? ({ schuetz: 'spule', stromstoss: 'stromstoss' }[sa2.schalt.typ] || 'spule_' + ((sa2.schalt.zr && sa2.schalt.zr.fkt) || 'aus'))
-          : g && g.zeichen === 'zeitrelais' ? 'spule_' + (g.fkt || 'aus') : 'meldeleuchte';
-        inh = h('span', { class: 'inh' }, zeichenIcon(z), h('span', { class: 'kz' }, sa2 && sa2.schalt ? sa2.schalt.bmk.t : g ? (e.steuer.geraete[g.id] || {}).t : '?'));
-      }
-      grid.append(h('button', { class: 'zelle' + (aktiv ? ' ziel' : ' aus') + (inh ? '' : ' leer'), 'data-j': j, 'data-i': i,
-        'aria-selected': String(!!b.sel && b.sel.j === j && b.sel.i === i), style: linien.length ? `background:${linien.join(',')}` : null,
-        on: { click: () => {
-          b.sel = { j, i };
-          if (b.tool && aktiv) werkzeugAnwenden(v, e, p, i, b.tool);
-          else { if (b.tool) meldung('Außerhalb des Zweigs – Anfang/Ende unten einstellen'); zeichne(); }
-        } } }, inh || null));
-    });
-  }
-  grid.append(h('span', { class: 'lb' }, 'N'), h('div', { class: 'schiene n', style: 'grid-column:2/-1' }));
-  links.append(h('h2', {}, kr.name || 'Raster'), h('div', { class: 'rasterwrap' }, grid));
-  // Werkzeugleiste zur Auswahl
-  const s = b.sel, p = s && pf[s.j], zw = p && s.j > 0 && p.zweig, zelle = s && s.i >= 0, ak = zelle && rasterAktiv(pf, s.j, s.i);
+// Eigenschaften-Leiste für einen Platz: Inhalt, Aktionen, Weg zu den Einstellungen des Kreises
+function editorPlatz(v, b, pid, i) {
+  const r = kreisMitPfad(v, pid), kr = r.kr, j = r.j, p = kr.pfade[j], e = berechne(v), ps = platzSel(b, kr);
+  const zw = j > 0 && p.zweig, ak = platzAktiv(kr.pfade, j, i), kk = kreisKopf(v, e, kr);
+  let nr = 0; kr.pfade.slice(0, j + 1).forEach((q, n) => { if (!(n > 0 && q.zweig)) nr++; });
   const k = (t, was, opt = {}) => h('button', { class: opt.rot ? 'rot' : null, disabled: opt.aus ? true : null, title: opt.taste || null,
-    on: { click: () => rasterAktion(v, e, kr, b, was) } }, t);
-  const leiste = h('div', { class: 'leiste' },
-    k('Gerät ändern', 'geraet', { aus: !ak, taste: 'Eingabe' }), k('Löschen', 'loeschen', { aus: !s, rot: true, taste: 'Entf' }),
-    k('↑', 'hoch', { aus: !ak || s.i === 0 || s.i > 5, taste: 'Alt+↑' }), k('↓', 'runter', { aus: !ak || s.i >= 5, taste: 'Alt+↓' }),
-    k('Kopieren', 'kopieren', { aus: !zelle, taste: 'Strg+C' }), k('Einfügen', 'einfuegen', { aus: !ak || !rasterAblage, taste: 'Strg+V' }),
-    k('Zweig ab hier', 'zweig', { aus: !s }),
-    zw ? k('Zweig: Anfang hier', 'anfang', { aus: !zelle }) : null, zw ? k('Zweig: Ende hier', 'ende', { aus: !zelle }) : null,
-    s ? k(zw ? 'Zweig löschen' : 'Pfad löschen', 'spalteLoeschen', { rot: true }) : null);
-  const allg = h('div', { class: 'leiste' }, k('+ Pfad', 'pfad'),
-    h('button', { on: { click: () => vorlageWahl(v, kr) } }, 'Vorlage …'),
-    h('button', { title: 'Strg+Z', on: { click: () => rasterRueck(v, false) } }, 'Rückgängig'),
-    h('button', { title: 'Strg+Y', on: { click: () => rasterRueck(v, true) } }, 'Wiederholen'));
-  links.append(leiste, allg, h('p', { class: 'hinweis' }, s ? (s.i === -1 ? 'Spalte gewählt.' : `Gewählt: ${s.i === 6 ? 'Verbraucher' : 'Platz ' + (s.i + 1)} in Spalte ${s.j + 1}.`)
-    + ' Tasten: Pfeile wählen, Entf löscht, Strg+Z/Y, Strg+C/V, Esc hebt Werkzeug und Auswahl auf.' : 'Werkzeug wählen und Plätze antippen, oder eine Zelle antippen, um sie zu bearbeiten.'));
-  e.steuer.warn.forEach(w => links.append(h('p', { class: 'warnung' }, '⚠ ' + w)));
-  m.append(links);
-  // Vorschau: das Blatt mit diesem Kreis
-  let res = null; try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); } catch (er) { links.append(h('p', { class: 'warnung' }, 'Vorschau nicht möglich: ' + er.message)); }
-  const bl = res && res.blaetter.find(x => x.art === 'steuerung' && x.kreise && x.kreise.includes(kr.id));
-  const vs = h('details', { class: 'vorschau', open: b.vorschau !== false ? true : null }, h('summary', {}, bl ? `Vorschau · Blatt ${bl.nr}` : 'Vorschau'));
-  vs.addEventListener('toggle', () => { b.vorschau = vs.open; });
-  if (bl) { bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height'); vs.append(bl.svg); }
-  else vs.append(h('p', { class: 'hinweis' }, 'Dieser Kreis wird noch nicht gezeichnet – erst mit einem Verbraucher (Spule, Meldeleuchte, Zeitrelais).'));
-  m.append(vs);
-  app.append(m);
-  if (res) requestAnimationFrame(() => res.begrenzen());
+    on: { click: () => platzAktion(v, e, kr, ps, was) } }, t);
+  return h('div', { class: 'eigen' },
+    h('h2', { class: 'eigentitel' }, `${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)} · ${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr}${kk ? ' · ' + kk.bmk.t : ''}`),
+    ak ? h('div', { class: 'liste' }, i === 6 ? verbraucherZeile(v, e, p) : platzZeile(v, e, p, i))
+       : h('p', { class: 'hinweis' }, 'Dieser Platz liegt außerhalb des Zweigs – mit „Zweig: Anfang hier“ bzw. „Ende hier“ erweitern.'),
+    h('div', { class: 'leiste' },
+      k('Gerät ändern', 'geraet', { aus: !ak, taste: 'Eingabe' }), k('Leeren', 'loeschen', { aus: !ak, rot: true, taste: 'Entf' }),
+      k('↑', 'hoch', { aus: !ak || i === 0 || i > 5, taste: 'Alt+↑' }), k('↓', 'runter', { aus: !ak || i >= 5, taste: 'Alt+↓' }),
+      k('Kopieren', 'kopieren', { taste: 'Strg+C' }), k('Einfügen', 'einfuegen', { aus: !ak || !platzAblage, taste: 'Strg+V' })),
+    h('div', { class: 'leiste' },
+      k('Zweig ab hier', 'zweig'),
+      zw ? k('Zweig: Anfang hier', 'anfang') : null, zw ? k('Zweig: Ende hier', 'ende') : null,
+      k('+ Pfad', 'pfad'), k(zw ? 'Zweig löschen' : 'Pfad löschen', 'spalteLoeschen', { rot: true }),
+      h('button', { on: { click: () => vorlageWahl(v, kr) } }, 'Vorlage …')),
+    h('div', { class: 'liste' }, zeile('Einstellungen des Steuerstromkreises', kk ? kk.bmk.t : null, () => { b.sel = 'kr:' + kr.id; zeichne(); },
+      { un: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade als Liste' })),
+    ...e.steuer.warn.map(w => h('p', { class: 'warnung' }, '⚠ ' + w)));
 }
 // Tastenkürzel im Plan-Editor (Desktop)
 document.addEventListener('keydown', ev => {
@@ -1568,6 +1470,21 @@ document.addEventListener('keydown', ev => {
   if (!b || b.s !== 'editor' || document.querySelector('.schleier') || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
   const v = vById(b.vid); if (!v) return;
   const strg = ev.ctrlKey || ev.metaKey, t = ev.key.toLowerCase();
+  // gewählter Platz im Steuerstromkreis
+  const m = /^pl:([^:]+):(\d)$/.exec(b.sel || '');
+  if (m && !(strg && (t === 'z' || t === 'y'))) {
+    const r = kreisMitPfad(v, m[1]); if (!r) return;
+    const ps = platzSel(b, r.kr), pa = was => { ev.preventDefault(); platzAktion(v, berechne(v), r.kr, ps, was); };
+    if (strg && t === 'c') return pa('kopieren');
+    if (strg && t === 'v') return pa('einfuegen');
+    if (t === 'delete' || t === 'backspace') return pa('loeschen');
+    if (t === 'enter') return pa('geraet');
+    if (ev.altKey && (t === 'arrowup' || t === 'arrowdown')) return pa(t === 'arrowup' ? 'hoch' : 'runter');
+    const d = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
+    if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return zeichne(); }
+    if (t === 'escape') { ev.preventDefault(); b.tool = null; b.sel = null; return zeichne(); }
+    return;
+  }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
   if (strg && t === 'z') return tun(ev.shiftKey ? 'vor' : 'rueck');
   if (strg && t === 'y') return tun('vor');
@@ -1576,28 +1493,6 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'v') return tun('einfuegen');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
   if (t === 'escape') { ev.preventDefault(); b.tool = null; b.sel = null; zeichne(); }
-});
-// Tastenkürzel im Raster (Desktop)
-document.addEventListener('keydown', ev => {
-  const b = stapel[stapel.length - 1];
-  if (!b || b.s !== 'raster' || document.querySelector('.schleier') || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
-  const v = vById(b.vid), kr = v && v.steuerung && v.steuerung.kreise.find(x => x.id === b.krid); if (!kr) return;
-  const strg = ev.ctrlKey || ev.metaKey, t = ev.key, e = () => berechne(v);
-  const tun = f => { ev.preventDefault(); f(); };
-  if (strg && t.toLowerCase() === 'z') return tun(() => rasterRueck(v, ev.shiftKey));
-  if (strg && t.toLowerCase() === 'y') return tun(() => rasterRueck(v, true));
-  if (strg && t.toLowerCase() === 'c') return tun(() => rasterAktion(v, e(), kr, b, 'kopieren'));
-  if (strg && t.toLowerCase() === 'v') return tun(() => rasterAktion(v, e(), kr, b, 'einfuegen'));
-  if (t === 'Escape') return tun(() => { b.tool = null; b.sel = null; zeichne(); });
-  if (t === 'Delete' || t === 'Backspace') return tun(() => rasterAktion(v, e(), kr, b, 'loeschen'));
-  if (t === 'Enter') return tun(() => { if (b.sel && b.tool && b.sel.i >= 0 && rasterAktiv(kr.pfade, b.sel.j, b.sel.i)) werkzeugAnwenden(v, e(), kr.pfade[b.sel.j], b.sel.i, b.tool); else rasterAktion(v, e(), kr, b, 'geraet'); });
-  if (ev.altKey && (t === 'ArrowUp' || t === 'ArrowDown')) return tun(() => rasterAktion(v, e(), kr, b, t === 'ArrowUp' ? 'hoch' : 'runter'));
-  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[t];
-  if (d) tun(() => {
-    const s = b.sel || { j: 0, i: 0 };
-    b.sel = b.sel ? { j: Math.max(0, Math.min(kr.pfade.length - 1, s.j + d[0])), i: Math.max(-1, Math.min(6, s.i + d[1])) } : s;
-    zeichne();
-  });
 });
 
 // ---- Plan-Editor (ab v1.17, Etappe D1) ------------------------------------------
@@ -1617,10 +1512,12 @@ function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
   const [art, id] = (z || '').split(':');
   if (art === 'k') return !!knoten(v, id);
   if (art === 'kr') return !!(v.steuerung && v.steuerung.kreise.some(k => k.id === id));
+  if (art === 'pl') return !!kreisMitPfad(v, id);
   return art === 'e' || art === 's';
 }
-function editorEigenschaften(v, z) {
-  const [art, id] = z.split(':');
+function editorEigenschaften(v, z, b) {
+  const [art, id, zl] = z.split(':');
+  if (art === 'pl') return editorPlatz(v, b, id, +zl);
   if (art === 'k') { const r = knoten(v, id); return eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id })); }
   if (art === 'kr') return eingebettet(() => bKreis({ s: 'editor', vid: v.id, krid: id }));
   if (art === 's') return eingebettet(() => bKopf({ vid: v.id, feld: 'spd' }));
@@ -1691,7 +1588,9 @@ function bEditor(b) {
   b.vid = v.id; b.zoom = b.zoom || 100;
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
   app.append(kopf(`Plan · ${v.name}`, h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'plan', vid: v.id }) } }, 'Drucken')));
-  const m = h('main', { class: 'geteilt editor' + (b.tool ? ' einfuegen' : '') }), links = h('div');
+  const stW = istSteuerWerkzeug(b.tool);
+  if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : 'ab';
+  const m = h('main', { class: 'geteilt editor' + (b.tool && !stW ? ' einfuegen' : '') }), links = h('div');
   // Werkzeuge: Verteiler, Zoom
   const zoom = f => { b.zoom = Math.max(60, Math.min(300, Math.round(b.zoom * f / 10) * 10)); zeichne(); };
   links.append(h('div', { class: 'leiste' },
@@ -1701,19 +1600,32 @@ function bEditor(b) {
     h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+'),
     h('button', { title: 'Strg+Z', on: { click: () => projektRueck(false) } }, 'Rückgängig'),
     h('button', { title: 'Strg+Y', on: { click: () => projektRueck(true) } }, 'Wiederholen')));
-  // Palette: Werkzeug wählen, dann eine Marke „+“ im Blatt antippen
+  // Paletten: Abgänge (einfügen über die Marken „+“) und Steuerung (Plätze im Steuerstromkreis antippen)
   const leer = !v.knoten.length;
+  links.append(h('div', { class: 'leiste reiter' },
+    h('button', { 'aria-pressed': String(b.palette === 'ab'), on: { click: () => { b.palette = 'ab'; if (stW) b.tool = null; zeichne(); } } }, 'Abgänge'),
+    h('button', { 'aria-pressed': String(b.palette === 'st'), on: { click: () => { b.palette = 'st'; if (b.tool && !stW) b.tool = null; b.zuSteuerung = true; zeichne(); } } }, 'Steuerung')));
   const pal = h('div', { class: 'palette' });
-  EDITOR_PALETTE.forEach(([tool, name, zeichen]) => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === tool), title: name.replace(/\u00ad/g, ''),
-    on: { click: () => { if (leer) { const k = editorNeu(v, tool); v.knoten.push(k); sichern(); b.sel = 'k:' + k.id; b.tool = null; }
-      else b.tool = b.tool === tool ? null : tool; zeichne(); } } }, zeichenIcon(zeichen), name)));
-  if (editorAblage) pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === 'ablage'), on: { click: () => { b.tool = b.tool === 'ablage' ? null : 'ablage'; zeichne(); } } },
-    zeichenIcon('klemme'), editorAblage.aus ? 'Aus\u00adgeschnittenes' : 'Kopie einfügen'));
-  links.append(pal, h('p', { class: 'hinweis' }, b.tool ? 'Jetzt eine Marke „+“ im Blatt antippen – dort wird eingefügt. Esc oder erneutes Antippen beendet.'
+  if (b.palette === 'st') {
+    ST_PALETTE.forEach(([grp, liste], gi) => {
+      if (gi) pal.append(h('span', { class: 'trenn', title: grp }));
+      liste.forEach(z => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === z), title: WERKZEUG_NAME(z),
+        on: { click: () => { b.tool = b.tool === z ? null : z; zeichne(); } } }, zeichenIcon(z), WERKZEUG_NAME(z))));
+    });
+  } else {
+    EDITOR_PALETTE.forEach(([tool, name, zeichen]) => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === tool), title: name.replace(/\u00ad/g, ''),
+      on: { click: () => { if (leer) { const k = editorNeu(v, tool); v.knoten.push(k); sichern(); b.sel = 'k:' + k.id; b.tool = null; }
+        else b.tool = b.tool === tool ? null : tool; zeichne(); } } }, zeichenIcon(zeichen), name)));
+    if (editorAblage) pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === 'ablage'), on: { click: () => { b.tool = b.tool === 'ablage' ? null : 'ablage'; zeichne(); } } },
+      zeichenIcon('klemme'), editorAblage.aus ? 'Aus\u00adgeschnittenes' : 'Kopie einfügen'));
+  }
+  links.append(pal, h('p', { class: 'hinweis' }, stW ? `Werkzeug ${WERKZEUG_NAME(b.tool)}: Plätze im Steuerstromkreis antippen. Esc oder erneutes Antippen beendet.`
+    : b.tool ? 'Jetzt eine Marke „+“ im Blatt antippen – dort wird eingefügt. Esc oder erneutes Antippen beendet.'
+    : b.palette === 'st' ? 'Werkzeug wählen und Plätze im Steuerstromkreis antippen – oder einen Platz antippen, um ihn zu bearbeiten.'
     : 'Ein Teil antippen, um es zu ändern; zum Einfügen ein Werkzeug wählen.'));
   // Aktionen für das gewählte Teil
   const istK = (b.sel || '').startsWith('k:');
-  links.append(h('div', { class: 'leiste' },
+  if (b.palette === 'ab') links.append(h('div', { class: 'leiste' },
     h('button', { disabled: !istK || null, title: 'links', on: { click: () => editorAktion(v, b, 'links') } }, '← verschieben'),
     h('button', { disabled: !istK || null, title: 'rechts', on: { click: () => editorAktion(v, b, 'rechts') } }, 'verschieben →'),
     h('button', { disabled: !istK || null, title: 'Strg+C', on: { click: () => editorAktion(v, b, 'kopieren') } }, 'Kopieren'),
@@ -1731,20 +1643,27 @@ function bEditor(b) {
     bl.svg.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === b.sel) r.setAttribute('data-sel', ''); });
     bl.svg.addEventListener('click', ev => {
       const z = ev.target.closest('[data-ziel]'); if (!z) return;
-      if (/^(vor|nach|in):/.test(z.dataset.ziel)) { if (b.tool) editorEinfuegen(v, b, z.dataset.ziel); return; }
-      b.sel = z.dataset.ziel; zeichne();
+      if (/^(vor|nach|in):/.test(z.dataset.ziel)) { if (b.tool && !stW) editorEinfuegen(v, b, z.dataset.ziel); return; }
+      b.sel = z.dataset.ziel;
+      const m = /^pl:([^:]+):(\d)$/.exec(b.sel);
+      if (m) { b.palette = 'st'; const r = kreisMitPfad(v, m[1]);
+        if (stW && platzAktiv(r.kr.pfade, r.j, +m[2])) return werkzeugAnwenden(v, berechne(v), r.kr.pfade[r.j], +m[2], b.tool);
+        if (stW) meldung('Außerhalb des Zweigs – Anfang/Ende in der Leiste einstellen'); }
+      zeichne();
     });
-    links.append(h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'einspeisung' ? 'Einspeisung' : 'Stromlaufplan')),
+    links.append(h('div', { class: 'blattkarte', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'einspeisung' ? 'Einspeisung' : 'Stromlaufplan')),
       h('div', { class: 'zoomwrap' }, bl.svg)));
   });
   if (!v.knoten.length) links.append(h('p', { class: 'hinweis' }, 'Noch keine Abgänge – unter dem Verteiler „+ Abgang“ wählen.'));
   m.append(links);
   // Eigenschaften des gewählten Teils
-  const rechts = b.sel ? editorEigenschaften(v, b.sel)
+  const rechts = b.sel ? editorEigenschaften(v, b.sel, b)
     : h('div', { class: 'eigen' }, h('h2', { class: 'eigentitel' }, 'Eigenschaften'), h('p', { class: 'hinweis' }, 'Ein Teil im Plan antippen: Einspeisung, Abgang, Gruppe oder Steuerstromkreis.'));
   m.append(rechts);
   app.append(m);
-  if (res) requestAnimationFrame(() => res.begrenzen());
+  if (res) requestAnimationFrame(() => { res.begrenzen();
+    if (b.springen) { b.springen = false; const s = document.querySelector('main.editor [data-sel]'); if (s) s.scrollIntoView({ block: 'center' }); }
+    if (b.zuSteuerung) { b.zuSteuerung = false; const s = document.querySelector('main.editor .blattkarte[data-art="steuerung"]'); if (s) s.scrollIntoView({ block: 'start' }); } });
 }
 
 function bListe(b) {

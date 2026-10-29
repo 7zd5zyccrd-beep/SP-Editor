@@ -47,7 +47,7 @@ with sync_playwright() as p:
             const zs = new Set(); PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }).blaetter.forEach(bl =>
               bl.svg.querySelectorAll('[data-ziel]').forEach(r => zs.add(r.dataset.ziel)));
             zs.forEach(z => seiten.push({ s: 'editor', vid: v.id, sel: z }));
-            (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }, { s: 'raster', vid: v.id, krid: kr.id }));
+            (st.kreise || []).forEach(kr => seiten.push({ s: 'kreis', vid: v.id, krid: kr.id }));
             (st.geraete || []).forEach(g => seiten.push({ s: 'sgeraet', vid: v.id, gid: g.id }));
             alleKnoten(v, k => { if (k.typ === 'abgang') seiten.push({ s: 'abgang', vid: v.id, kid: k.id }); });
             for (const s of seiten) { try { stapel = [{ s: 'start' }, s]; zeichne(); } catch (e) { aus.push(JSON.stringify(s) + ': ' + e.message); } }
@@ -81,30 +81,33 @@ with sync_playwright() as p:
             ok = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[2];
                 const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return !!g && g.zeichen === 'taster_s' && g.bez === 'Mitte'; }""")
             if not ok: fehler.append('eingabe: Platz per Klick belegen hat nicht geklappt')
-            # Raster: Werkzeug Taster Schließer, Zelle Pfad 1/Platz 4, neues Gerät „Raster“; dann Entf und Strg+Z
+            # Plan-Editor, Steuerung: Werkzeug Taster Schließer, Platz 4 im ersten Pfad, neues Gerät „Blatt“; dann Entf und Strg+Z
             pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1);
-                stapel = [{ s: 'start' }, { s: 'raster', vid: v.id, krid: kr.id }]; zeichne(); }""")
-            pg.locator('.werkzeug', has_text='Taster Schließer').click()
-            pg.locator('.zelle[data-j="0"][data-i="3"]').click(); pg.wait_for_timeout(100)
+                window.KR = kr.id; window.PF = kr.pfade[0].id; imPlan(v, kr); }""")
+            pg.wait_for_timeout(300)
+            pg.locator('.werkzeug', has_text='Taster Schließer').click(); pg.wait_for_timeout(200)
+            zel = lambda: pg.locator(f'rect.ziel[data-ziel="pl:{pg.evaluate("PF")}:3"]')
+            zel().dispatch_event('click'); pg.wait_for_timeout(200)
             pg.locator('.wahl button', has_text='+ neu').click(); pg.wait_for_timeout(100)
-            pg.locator('.fenster input').fill('Raster'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
-            platz = """() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[3];
+            pg.locator('.fenster input').fill('Blatt'); pg.keyboard.press('Enter'); pg.wait_for_timeout(200)
+            platz = """() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.id === KR), pl = kr.pfade[0].plaetze[3];
                 const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return g ? g.bez : null; }"""
-            if pg.evaluate(platz) != 'Raster': fehler.append('eingabe: Raster – Platz belegen hat nicht geklappt')
-            pg.keyboard.press('Escape'); pg.locator('.zelle[data-j="0"][data-i="3"]').click(); pg.keyboard.press('Delete'); pg.wait_for_timeout(100)
-            if pg.evaluate(platz) is not None: fehler.append('eingabe: Raster – Entf hat nicht gelöscht')
-            pg.keyboard.press('Control+z'); pg.wait_for_timeout(100)
-            if pg.evaluate(platz) != 'Raster': fehler.append('eingabe: Raster – Strg+Z hat nicht wiederhergestellt')
-            if not pg.locator('.vorschau svg').count(): fehler.append('eingabe: Raster – keine Vorschau')
-            # Vorlage per Klick: Taster parallel, 2 Taster, Ersetzen bestätigen
-            pg.locator('.leiste button', has_text='Vorlage').click(); pg.wait_for_timeout(100)
+            if pg.evaluate(platz) != 'Blatt': fehler.append('eingabe: Plan-Editor – Platz belegen hat nicht geklappt')
+            pg.keyboard.press('Escape'); pg.wait_for_timeout(100); zel().dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.keyboard.press('Delete'); pg.wait_for_timeout(200)
+            if pg.evaluate(platz) is not None: fehler.append('eingabe: Plan-Editor – Entf hat den Platz nicht geleert')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(200)
+            if pg.evaluate(platz) != 'Blatt': fehler.append('eingabe: Plan-Editor – Strg+Z hat nicht wiederhergestellt')
+            # Vorlage per Klick aus der Platz-Leiste: Taster parallel, 2 Taster, Ersetzen bestätigen
+            zel().dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.locator('.eigen .leiste button', has_text='Vorlage').click(); pg.wait_for_timeout(150)
             pg.locator('.wahl button', has_text='Taster parallel').click(); pg.wait_for_timeout(150)
             pg.locator('.wahl button', has_text='2 Taster').click(); pg.wait_for_timeout(150)
-            pg.locator('.fenster .knopf.rot').click(); pg.wait_for_timeout(150)
-            n = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.id === stapel[stapel.length - 1].krid);
+            pg.locator('.fenster .knopf.rot').click(); pg.wait_for_timeout(200)
+            n = pg.evaluate("""() => { const kr = P.verteiler[0].steuerung.kreise.find(k => k.id === KR);
                 return kr.pfade.length + ':' + kr.pfade.filter(p => p.plaetze[0]).length; }""")
             if n != '2:2': fehler.append(f'eingabe: Vorlage per Klick ergab {n}')
-            pg.screenshot(path=str(AUS / 'eingabe_raster.png'), full_page=True)
+            pg.screenshot(path=str(AUS / 'eingabe_editor.png'), full_page=False)
             pg.evaluate("BEISPIELE.eingabe(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')

@@ -1353,7 +1353,13 @@ const PLAN = (() => {
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
-        if (opt.ziele) b.kreise.forEach(({ kr, col }) => ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id));
+        if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
+          ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
+          // je Pfad die Plätze 1–6 und der Verbraucherplatz (pl:pfad:zeile, Zeile 6 = Verbraucher)
+          kr.pfade.forEach((pf, j) => { const x = R.x0 + (col - 1 + j) * R.sb;
+            for (let i = 0; i < ST_PL; i++) ziel(g, x, stB(i), R.sb, ST_H, `pl:${pf.id}:${i}`);
+            ziel(g, x, stB(ST_PL), R.sb, ST_YN - stB(ST_PL), `pl:${pf.id}:${ST_PL}`); });
+        });
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
       });

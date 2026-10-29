@@ -121,9 +121,7 @@ C1 v1.9 Blatt „Steuerstromkreis“ aus dem Datenmodell, Eingabe zunächst nur 
 Beispiel `steuerung` (Aussehen festlegen); C1b v1.10 Steuerspannung wählbar (Beispiele
 `gemeinsam`, `bruecke`, `bruecke0`); C2a v1.11 Eingabe in Bildschirmen wie bisher
 (Steuerspannung, Kreise mit Pfadliste, Befehlsgeber/Meldeleuchten, Steuer-LS; Beispiel
-`eingabe`); C2b v1.12 Raster-Editor mit geteilter Ansicht und Vorschau (Bildschirm `raster`;
-Palette antippen, dann Zelle; ohne Werkzeug wählt ein Tippen die Zelle; ab 1000 px Breite
-Vorschau rechts, sonst darunter einklappbar); C3 v1.13
+`eingabe`); C2b v1.12 Raster-Editor (seit v1.19 im Plan-Editor aufgegangen); C3 v1.13
 Warnungen, Klemmen über -X1, Leitungen -W, eigenständiges Zeitrelais, Kreis ohne
 Schaltgerät (z. B. nur Meldeleuchte); C4 v1.14 Vorlagen.
 - C3 (v1.13): Befehlsgeber stehen voreingestellt „im Feld“, Meldeleuchten „im Verteiler“
@@ -212,8 +210,10 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   im selben Zweig, Kopieren/Ausschneiden/Einfügen (neue Kennungen, Unterverteiler nicht doppelt
   gespeist), Löschen; Rückgängig/Wiederholen über das ganze Projekt in `sichern()` (50 Stände,
   Änderungen innerhalb 0,8 s zählen als ein Schritt).
-- D3: Steuerstromkreise direkt im Blatt; das Raster (Bildschirm `raster`) wird dabei in den
-  Plan-Editor zusammengeführt und entfällt als eigener Bildschirm (Jean, 29.10.2026).
+- D3 v1.19: Steuerstromkreise direkt im Blatt – Antippflächen je Platz `pl:pfad:zeile` (Zeile 6 =
+  Verbraucher), Reiter „Abgänge“/„Steuerung“ mit den beiden Paletten, Platz-Aktionen
+  (`platzAktion()` über `platzSel()`), Vorlagen; der Raster-Bildschirm ist entfallen (Jean,
+  29.10.2026), Wege zu einem Kreis führen über `imPlan()` in den Editor.
 - D4: Ziehen mit Finger/Pencil, Tastenkürzel.
 
 ## Technische Eckwerte

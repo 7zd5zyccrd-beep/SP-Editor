@@ -223,6 +223,7 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
 
 - v1.20.1: Ausschneiden/Einfügen verschiebt samt Steuerstromkreis (Kennungen bleiben); Kopieren legt
   die Kreise mit neuen Befehlsgebern an (`ablageSetzen()`, `ablageHolen()`).
+- v1.22: kurze Auswahlwerte als Raster (`.wahl.raster`).
 - v1.21 Arbeitsfläche: Editor als Vollbild-Raster `.ed` (Kopfleiste, Palette `.edpal`, Blätter
   `.edflaeche`, Eigenschaften `.edeigen`, Fußleiste); ab < 1000 px Palette als Streifen und Eigenschaften
   als Fach von unten. Startbildschirm: Verteilerkarten öffnen direkt den Editor. Im Editor lenkt

@@ -16,6 +16,8 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.22: Auswahl kurzer Werte (Nennstrom, Kennlinie, Querschnitt …) als Raster zum schnellen Antippen;
+           Feinschliff der Palette und der schmalen Kopfleiste
      v1.21: Neue Arbeitsfläche – Plan-Editor über den ganzen Bildschirm: Kopfleiste (Projektübersicht,
            Verteiler wechseln/anlegen, Abgänge/Steuerung, benanntes Rückgängig, Drucken, Menü), Palette links
            mit Gruppen und eigenen Bildzeichen (iPad hoch: Streifen), Eigenschaften rechts in voller Höhe
@@ -234,6 +236,10 @@ main.start{max-width:1040px}
 .fenster.pop .wahl button{border-top:0;border-radius:8px;padding:9px 10px}
 .wahl button:hover{background:var(--hover)}
 .wahl button[aria-checked="true"]:hover{background:var(--akzent-hell)}
+.wahl.raster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;border:0;max-height:none}
+.wahl.raster button{border:1px solid var(--linie);border-radius:9px;justify-content:center;padding:11px 4px;font-variant-numeric:tabular-nums}
+.fenster.pop .wahl.raster button{border:1px solid var(--linie)}
+.wahl.raster button[aria-checked="true"]{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:650}
 .wahl .trennlinie{height:1px;background:var(--linie);margin:5px 8px}
 .wahl button.an{color:var(--akzent);font-weight:650}
 .wahl button.gefahr{color:var(--rot)}
@@ -269,7 +275,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .luecke{flex:1}
 .edpal{grid-area:pal;width:104px;overflow-y:auto;overscroll-behavior:contain;background:var(--karte);border-right:1px solid var(--linie);padding:6px 6px 20px;z-index:2}
 .palgruppe{margin-bottom:8px}
-.paltitel{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--leise);margin:8px 4px 4px}
+.paltitel{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--leise);margin:8px 4px 4px}
 .palkacheln{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
 .palleer{font-size:12.5px;color:var(--leise);padding:8px 6px;line-height:1.35}
 .pallink{border:0;background:none;color:var(--akzent);font-size:13px;padding:8px 4px;cursor:pointer;text-align:left}
@@ -351,7 +357,7 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   .vw-pj{display:none}
   .ikon.mittext .ikontext{display:none}
 }
-@media (max-width:560px){.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
+@media (max-width:560px){.edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
 #druck{display:none}
 @media print{
   body{background:#fff}
@@ -889,7 +895,9 @@ function textInline(z, titel, wert, setzen, opt) {
 }
 function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
   let schl;
-  const liste = h('div', { class: 'wahl', role: 'radiogroup' }, optionen.map(o => {
+  // kurze Werte ohne Zusatz (Nennstrom, Kennlinie, Querschnitt …) als Raster zum schnellen Antippen
+  const raster = optionen.length > 3 && optionen.every(o => { const [, t, k] = Array.isArray(o) ? o : [o, o]; return !k && String(t).length <= 7; });
+  const liste = h('div', { class: 'wahl' + (raster ? ' raster' : ''), role: 'radiogroup' }, optionen.map(o => {
     const [w, t, klein] = Array.isArray(o) ? o : [o, o];
     return h('button', { role: 'radio', 'aria-checked': String(w) === String(wert ?? ''), on: { click: () => { setzen(w); aenderung(titel); sichern(); schl(); } } },
       h('span', {}, t), klein ? h('small', {}, klein) : null);

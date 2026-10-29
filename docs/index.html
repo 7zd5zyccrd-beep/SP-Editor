@@ -2030,7 +2030,9 @@ function aenderung(n) { verlauf.name = n; }
 function sichern() {
   const neu = JSON.stringify(P), jetzt = Date.now();
   if (verlauf.stand !== null && neu !== verlauf.stand) {
-    if (jetzt - verlauf.zeit > 800 || !verlauf.zurueck.length) { verlauf.zurueck.push({ s: verlauf.stand, n: verlauf.name || 'Änderung' }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    const name = verlauf.name || 'Änderung', letzt = verlauf.zurueck[verlauf.zurueck.length - 1];
+    // zusammenfassen nur, was kurz hintereinander am selben Feld geschieht (Tippen)
+    if (jetzt - verlauf.zeit > 800 || !letzt || letzt.n !== name) { verlauf.zurueck.push({ s: verlauf.stand, n: name }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
     verlauf.zeit = jetzt; verlauf.vor = [];
     verlauf.name = null;
   }

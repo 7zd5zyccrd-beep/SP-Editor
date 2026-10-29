@@ -196,7 +196,7 @@ gespeicherte Abweichungen.
 - Steuerleitungen zu Tastern/Meldern laufen bei vorhandener Klemmleiste über -X1 und
   stehen im Klemmenplan.
 
-## Etappe D – Plan-Editor (abgestimmt 29.10.2026, in Arbeit)
+## Etappe D – Plan-Editor (abgestimmt 29.10.2026, umgesetzt bis D4 v1.20; Abnahme durch Jean steht aus)
 
 Der ganze Plan wird über die grafische Oberfläche bearbeitet; die Anordnung bleibt automatisch
 (kein freies Platzieren), die bisherigen Bildschirme bleiben parallel, der Startbildschirm
@@ -214,7 +214,10 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   Verbraucher), Reiter „Abgänge“/„Steuerung“ mit den beiden Paletten, Platz-Aktionen
   (`platzAktion()` über `platzSel()`), Vorlagen; der Raster-Bildschirm ist entfallen (Jean,
   29.10.2026), Wege zu einem Kreis führen über `imPlan()` in den Editor.
-- D4: Ziehen mit Finger/Pencil, Tastenkürzel.
+- D4 v1.20: Ziehen – Abgänge/Gruppen auf Marke „+“ oder Abgang (dahinter), Kontakte auf Plätze
+  (belegt: tauschen); Maus ab 6 px Bewegung, Finger/Pencil nach 0,35 s Halten (sonst Wischen =
+  Blättern; `touchmove` wird nur während des Ziehens unterdrückt). Tasten: ←/→ Abgang wählen,
+  Alt+←/→ verschieben, +/− Zoom, ? Übersicht (`tastenHilfe()`).
 
 ## Technische Eckwerte
 

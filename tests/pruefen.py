@@ -68,6 +68,15 @@ with sync_playwright() as p:
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             n2 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
             if n2 != n0: fehler.append(f'grund: Plan-Editor – Strg+Z ergab {n2} statt {n0}')
+            # Ziehen mit der Maus: ersten Abgang (Gruppe -F3) hinter den letzten Abgang ziehen
+            pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
+            erst = pg.evaluate("P.verteiler[0].knoten[0].id"); letzt = pg.evaluate("P.verteiler[0].knoten.at(-1).id")
+            q = pg.locator(f'rect.ziel[data-ziel="k:{erst}"]').first; q.scroll_into_view_if_needed(); bx = q.bounding_box()
+            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + bx['height'] / 2); pg.mouse.down()
+            pg.mouse.move(bx['x'] + bx['width'] / 2 + 12, bx['y'] + bx['height'] / 2 + 4); pg.wait_for_timeout(100)
+            mk = pg.locator(f'g.marke[data-ziel="nach:{letzt}"]').first; mk.scroll_into_view_if_needed(); mb = mk.bounding_box()
+            pg.mouse.move(mb['x'] + mb['width'] / 2, mb['y'] + mb['height'] / 2, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
+            if pg.evaluate("P.verteiler[0].knoten.at(-1).id") != erst: fehler.append('grund: Plan-Editor – Ziehen hat den Abgang nicht verschoben')
             pg.evaluate("BEISPIELE.grund(); P.projekt.datum = '2026-10-24'")
             pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
         if name == 'eingabe':

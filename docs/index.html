@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.19 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.20 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.20: Etappe D4 – Ziehen im Plan-Editor: Abgänge/Gruppen auf eine Marke „+“ oder hinter einen Abgang,
+           Kontakte und Verbraucher auf einen anderen Platz (belegt: tauschen); Maus nach kurzer
+           Bewegung, Finger/Pencil nach kurzem Halten (Wischen blättert weiter); Tasten ←/→ wählen
+           Abgänge, Alt+←/→ verschiebt, +/− zoomt, „Tasten“ bzw. ? zeigt alle Kürzel
      v1.19: Etappe D3 – Steuerstromkreise direkt im Plan-Editor: Reiter „Steuerung“ mit der Palette,
            Plätze und Verbraucherplätze im Blatt antippen, Leiste mit Gerät ändern, Leeren, ↑/↓,
            Kopieren/Einfügen, Zweig, Pfad, Vorlage; der Raster-Bildschirm entfällt, alle Wege zu einem
@@ -203,6 +207,13 @@ main.editor rect.ziel{cursor:pointer}
 main.editor rect.ziel:hover{fill:rgba(31,95,191,.06)}
 main.editor rect.ziel[data-sel]{fill:rgba(31,95,191,.10);stroke:#1f5fbf;stroke-width:.5}
 main.editor .marke{display:none;cursor:pointer}
+main.editor svg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+main.editor.ziehen rect.ziel{cursor:grabbing}
+main.editor [data-ueber]{fill:rgba(31,95,191,.22)}
+main.editor g.marke[data-ueber] circle{fill:#1f5fbf}
+.zieh{position:fixed;z-index:40;pointer-events:none;background:var(--akzent);color:#fff;font-size:13px;padding:4px 9px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.25);white-space:nowrap}
+.fenster .taste{padding:3px 0;font-size:14.5px}
+.fenster .taste b{display:inline-block;min-width:130px}
 main.editor.einfuegen .marke{display:inline}
 main.editor.einfuegen .marke:hover circle{fill:#e6eefb}
 main.editor .eigen main{padding:0;max-width:none}
@@ -1789,7 +1800,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.19';
+const FASSUNG = 'v1.20';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3034,6 +3045,16 @@ document.addEventListener('keydown', ev => {
     return;
   }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
+  if (!strg && (t === 'arrowleft' || t === 'arrowright')) {       // Abgänge der Reihe nach wählen bzw. mit Alt verschieben
+    ev.preventDefault();
+    if (ev.altKey) return editorAktion(v, b, t === 'arrowleft' ? 'links' : 'rechts');
+    const ids = [...new Set([...document.querySelectorAll('main.editor rect[data-ziel^="k:"]')].map(r => r.dataset.ziel))];
+    if (!ids.length) return;
+    const i = ids.indexOf(b.sel);
+    b.sel = ids[i < 0 ? 0 : Math.max(0, Math.min(ids.length - 1, i + (t === 'arrowleft' ? -1 : 1)))]; b.springen = true; return zeichne();
+  }
+  if (!strg && (t === '+' || t === '-' || t === '−')) { ev.preventDefault(); b.zoom = Math.max(60, Math.min(300, Math.round((b.zoom || 100) * (t === '+' ? 1.25 : 0.8) / 10) * 10)); return zeichne(); }
+  if (t === '?') { ev.preventDefault(); return tastenHilfe(); }
   if (strg && t === 'z') return tun(ev.shiftKey ? 'vor' : 'rueck');
   if (strg && t === 'y') return tun('vor');
   if (strg && t === 'c') return tun('kopieren');
@@ -3147,7 +3168,8 @@ function bEditor(b) {
     h('button', { on: { click: () => { b.zoom = 100; zeichne(); } } }, `${b.zoom} %`),
     h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+'),
     h('button', { title: 'Strg+Z', on: { click: () => projektRueck(false) } }, 'Rückgängig'),
-    h('button', { title: 'Strg+Y', on: { click: () => projektRueck(true) } }, 'Wiederholen')));
+    h('button', { title: 'Strg+Y', on: { click: () => projektRueck(true) } }, 'Wiederholen'),
+    h('button', { title: 'Übersicht der Tastenkürzel', on: { click: tastenHilfe } }, 'Tasten')));
   // Paletten: Abgänge (einfügen über die Marken „+“) und Steuerung (Plätze im Steuerstromkreis antippen)
   const leer = !v.knoten.length;
   links.append(h('div', { class: 'leiste reiter' },
@@ -3189,7 +3211,9 @@ function bEditor(b) {
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
     bl.svg.style.width = `${b.zoom}%`;
     bl.svg.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === b.sel) r.setAttribute('data-sel', ''); });
+    bl.svg.addEventListener('pointerdown', ev => ziehBereit(ev, v, b));
     bl.svg.addEventListener('click', ev => {
+      if (ziehKlickSperre) return;
       const z = ev.target.closest('[data-ziel]'); if (!z) return;
       if (/^(vor|nach|in):/.test(z.dataset.ziel)) { if (b.tool && !stW) editorEinfuegen(v, b, z.dataset.ziel); return; }
       b.sel = z.dataset.ziel;
@@ -3212,6 +3236,103 @@ function bEditor(b) {
   if (res) requestAnimationFrame(() => { res.begrenzen();
     if (b.springen) { b.springen = false; const s = document.querySelector('main.editor [data-sel]'); if (s) s.scrollIntoView({ block: 'center' }); }
     if (b.zuSteuerung) { b.zuSteuerung = false; const s = document.querySelector('main.editor .blattkarte[data-art="steuerung"]'); if (s) s.scrollIntoView({ block: 'start' }); } });
+}
+
+// ---- Ziehen im Plan-Editor (ab v1.20, Etappe D4) ------------------------------
+// Abgänge und Gruppen auf eine Marke „+“ (oder auf einen Abgang: dahinter) ziehen, Kontakte und
+// Verbraucher auf einen anderen Platz (belegt: tauschen). Maus: Ziehen beginnt nach kurzer
+// Bewegung; Finger und Pencil: kurz halten (0,35 s), dann ziehen – Wischen blättert weiter.
+let zieh = null, ziehKlickSperre = false;
+function ziehBereit(ev, v, b) {
+  if (b.tool || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+  const z = ev.target.closest('[data-ziel]'); if (!z) return;
+  const id = z.dataset.ziel;
+  if (id.startsWith('pl:')) { if (!platzInhalt(v, id)) return; }
+  else if (!id.startsWith('k:')) return;
+  zieh = { id, v, b, x: ev.clientX, y: ev.clientY, aktiv: false, maus: ev.pointerType === 'mouse', timer: null };
+  if (!zieh.maus) zieh.timer = setTimeout(ziehAn, 350);
+}
+function platzInhalt(v, id) {         // was liegt auf dem Platz pl:pfad:zeile?
+  const [, pid, zl] = id.split(':'), r = kreisMitPfad(v, pid); if (!r) return null;
+  const p = r.kr.pfade[r.j]; return +zl === 6 ? p.verbraucher : p.plaetze[+zl];
+}
+function ziehAn() {
+  if (!zieh) return;
+  zieh.aktiv = true;
+  const m = document.querySelector('main.editor'); if (m) m.classList.add('ziehen', ...(zieh.id.startsWith('k:') ? ['einfuegen'] : []));
+  const e = berechne(zieh.v), [art, id] = zieh.id.split(':');
+  const r = art === 'k' && knoten(zieh.v, id), a = r && e.abgaenge[id];
+  const name = r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
+  zieh.geist = h('div', { class: 'zieh' }, name);
+  document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
+  if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) {}
+}
+function ziehGeist(x, y) { if (zieh && zieh.geist) { zieh.geist.style.left = (x + 14) + 'px'; zieh.geist.style.top = (y + 10) + 'px'; } }
+function ziehZiel(x, y) {             // erlaubtes Ziel unter dem Zeiger
+  const el = document.elementFromPoint(x, y), z = el && el.closest && el.closest('[data-ziel]'); if (!z) return null;
+  const t = z.dataset.ziel;
+  if (zieh.id.startsWith('k:')) return /^(vor|nach|in|k):/.test(t) && t !== zieh.id ? z : null;
+  if (!t.startsWith('pl:') || t === zieh.id) return null;
+  const [, pid, zl] = t.split(':'), r = kreisMitPfad(zieh.v, pid);
+  if (!r || !platzAktiv(r.kr.pfade, r.j, +zl) || (+zl === 6) !== (zieh.id.endsWith(':6'))) return null;
+  return z;
+}
+function ziehEnde(ev) {
+  const z = zieh; clearTimeout(z.timer);
+  if (!z.aktiv) { zieh = null; return; }
+  if (z.geist) z.geist.remove();
+  const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen
+  zieh = null;
+  document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
+  ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
+  if (!ziel) { zeichne(); return; }
+  const { v, b } = z, t = ziel.dataset.ziel;
+  if (z.id.startsWith('k:')) {
+    const kid = z.id.slice(2), r = knoten(v, kid), k = r.k;
+    let [art, tid] = t.split(':'); if (art === 'k') art = 'nach';
+    let innen = false; alleKnoten(v, x => { if (x.id === tid) innen = true; }, k.kinder || []);   // nicht in sich selbst
+    if (innen || tid === kid) { zeichne(); return; }
+    r.liste.splice(r.i, 1);
+    let liste, idx;
+    if (art === 'in') { liste = knoten(v, tid).k.kinder; idx = liste.length; }
+    else { const q = knoten(v, tid); liste = q.liste; idx = q.i + (art === 'nach' ? 1 : 0);
+      if (q.eltern && k.typ === 'gruppe') { r.liste.splice(r.i, 0, k); meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); zeichne(); return; } }
+    liste.splice(idx, 0, k); b.sel = 'k:' + kid;
+  } else {
+    const quelle = platzStelle(v, z.id), ziel2 = platzStelle(v, t);
+    const a1 = quelle.lesen(), a2 = ziel2.lesen(); quelle.setzen(a2); ziel2.setzen(a1);   // verschieben bzw. tauschen
+    b.sel = t;
+  }
+  sichern(); zeichne();
+}
+function platzStelle(v, id) {
+  const [, pid, zl] = id.split(':'), r = kreisMitPfad(v, pid), p = r.kr.pfade[r.j], i = +zl;
+  return { lesen: () => i === 6 ? p.verbraucher : p.plaetze[i], setzen: x => { if (i === 6) p.verbraucher = x || null; else p.plaetze[i] = x || null; } };
+}
+window.addEventListener('pointermove', ev => {
+  if (!zieh) return;
+  if (!zieh.aktiv) {
+    const d = Math.hypot(ev.clientX - zieh.x, ev.clientY - zieh.y);
+    if (zieh.maus && d > 6) ziehAn(); else if (!zieh.maus && d > 8) { clearTimeout(zieh.timer); zieh = null; }   // Wischen: blättern
+    return;
+  }
+  ziehGeist(ev.clientX, ev.clientY);
+  document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
+  const z = ziehZiel(ev.clientX, ev.clientY); if (z) z.setAttribute('data-ueber', '');
+});
+window.addEventListener('pointerup', ev => { if (zieh) ziehEnde(ev); });
+window.addEventListener('pointercancel', () => { if (zieh) ziehEnde(null); });
+document.addEventListener('touchmove', ev => { if (zieh && zieh.aktiv) ev.preventDefault(); }, { passive: false });
+// Übersicht der Tastenkürzel im Plan-Editor
+function tastenHilfe() {
+  fenster('Tastenkürzel im Plan', h('div', { class: 'text' }, ...[
+    ['← / →', 'vorigen / nächsten Abgang wählen'], ['Alt+← / Alt+→', 'Abgang verschieben'],
+    ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt verschieben'],
+    ['Eingabe', 'Gerät des Platzes ändern'], ['Entf', 'löschen bzw. Platz leeren'],
+    ['Strg+C / X / V', 'kopieren, ausschneiden, einfügen'], ['Strg+Z / Y', 'rückgängig, wiederholen'],
+    ['+ / −', 'größer / kleiner'], ['Esc', 'Werkzeug und Auswahl aufheben'],
+    ['Ziehen', 'Abgang auf eine Marke „+“, Kontakt auf einen Platz; Finger/Pencil: kurz halten']]
+    .map(([k, t]) => h('div', { class: 'taste' }, h('b', {}, k), ' ', t))));
 }
 
 function bListe(b) {

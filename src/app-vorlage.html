@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.18: Etappe D2 – Plan-Editor: Palette (Steckdose, CEE, Leuchte, Geräteanschluss, Unterverteiler,
+           FI-Gruppe, Steuer-LS, Steuertrafo), Einfügemarken „+“ im Blatt, Verschieben, Kopieren,
+           Ausschneiden, Einfügen, Löschen; Rückgängig/Wiederholen über das ganze Projekt (50 Schritte,
+           Sitzung), Tastenkürzel
      v1.17: Etappe D1 – Plan-Editor: Blätter eines Verteilers mit Antippflächen (Einspeisung, Abgänge,
            Gruppen, Überspannungsschutz, Steuerstromkreise), Eigenschaften daneben (iPad hoch: darunter)
            mit denselben Feldern wie die Bildschirme, Zoom; „Plan bearbeiten“ auf dem Startbildschirm
@@ -217,6 +221,9 @@ main.editor .blattkarte svg{width:100%;max-width:none}
 main.editor rect.ziel{cursor:pointer}
 main.editor rect.ziel:hover{fill:rgba(31,95,191,.06)}
 main.editor rect.ziel[data-sel]{fill:rgba(31,95,191,.10);stroke:#1f5fbf;stroke-width:.5}
+main.editor .marke{display:none;cursor:pointer}
+main.editor.einfuegen .marke{display:inline}
+main.editor.einfuegen .marke:hover circle{fill:#e6eefb}
 main.editor .eigen main{padding:0;max-width:none}
 main.editor .eigen .eigentitel{margin-top:4px}
 @media (min-width:1000px){main.editor{grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr)}
@@ -332,7 +339,27 @@ function neueGruppe() {
 let P;
 try { P = JSON.parse(localStorage.getItem(SPEICHER)); } catch (e) { P = null; }
 if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
-function sichern() { try { localStorage.setItem(SPEICHER, JSON.stringify(P)); } catch (e) { meldung('Speichern im Gerät nicht möglich'); } }
+// Rückgängig/Wiederholen über das ganze Projekt (ab v1.18): jeder gespeicherte Stand; Änderungen
+// kurz hintereinander (z. B. Tippen in einem Feld) zählen als ein Schritt; nur für die laufende Sitzung
+const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0 };
+function sichern() {
+  const neu = JSON.stringify(P), jetzt = Date.now();
+  if (verlauf.stand !== null && neu !== verlauf.stand) {
+    if (jetzt - verlauf.zeit > 800 || !verlauf.zurueck.length) { verlauf.zurueck.push(verlauf.stand); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    verlauf.zeit = jetzt; verlauf.vor = [];
+  }
+  verlauf.stand = neu;
+  try { localStorage.setItem(SPEICHER, neu); } catch (e) { meldung('Speichern im Gerät nicht möglich'); }
+}
+function projektRueck(vor) {
+  const von = vor ? verlauf.vor : verlauf.zurueck, s = von.pop();
+  if (s === undefined) { meldung(vor ? 'Nichts zu wiederholen' : 'Nichts rückgängig zu machen'); return; }
+  (vor ? verlauf.zurueck : verlauf.vor).push(verlauf.stand);
+  P = JSON.parse(s); verlauf.stand = s; verlauf.zeit = 0;
+  try { localStorage.setItem(SPEICHER, s); } catch (e) {}
+  zeichne();
+}
+verlauf.stand = JSON.stringify(P);
 
 // Hilfen im Baum
 const vById = vid => P.verteiler.find(v => v.id === vid);
@@ -1535,6 +1562,21 @@ function bRaster(b) {
   app.append(m);
   if (res) requestAnimationFrame(() => res.begrenzen());
 }
+// Tastenkürzel im Plan-Editor (Desktop)
+document.addEventListener('keydown', ev => {
+  const b = stapel[stapel.length - 1];
+  if (!b || b.s !== 'editor' || document.querySelector('.schleier') || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
+  const v = vById(b.vid); if (!v) return;
+  const strg = ev.ctrlKey || ev.metaKey, t = ev.key.toLowerCase();
+  const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
+  if (strg && t === 'z') return tun(ev.shiftKey ? 'vor' : 'rueck');
+  if (strg && t === 'y') return tun('vor');
+  if (strg && t === 'c') return tun('kopieren');
+  if (strg && t === 'x') return tun('ausschneiden');
+  if (strg && t === 'v') return tun('einfuegen');
+  if (t === 'delete' || t === 'backspace') return tun('loeschen');
+  if (t === 'escape') { ev.preventDefault(); b.tool = null; b.sel = null; zeichne(); }
+});
 // Tastenkürzel im Raster (Desktop)
 document.addEventListener('keydown', ev => {
   const b = stapel[stapel.length - 1];
@@ -1590,19 +1632,94 @@ function editorEigenschaften(v, z) {
     kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung), kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
     kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter), kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd)));
 }
+// Palette des Plan-Editors (ab v1.18): neue Teile mit sinnvollen Voreinstellungen
+const EDITOR_PALETTE = [
+  ['steckdose', 'Steckdose 1~', 'steckdose3'], ['cee', 'CEE 3~', 'steckdose5'], ['leuchte', 'Leuchte', 'leuchte'],
+  ['dose', 'Geräte\u00adanschluss', 'endklemme'], ['uv', 'Unter\u00adverteiler', 'ls3'], ['gruppe', 'FI-Gruppe', 'fi4'],
+  ['steuerls', 'Steuer-LS', 'ls1'], ['trafo', 'Steuer\u00adtrafo', 'trafo']];
+let editorAblage = null;           // kopiertes oder ausgeschnittenes Teil
+function editorNeu(v, tool) {
+  const a = neuerAbgang();
+  switch (tool) {
+    case 'cee': Object.assign(a.ziel, { bez: 'CEE 16 A', anschluss: 'steckdose5' }); a.geraet = { zeichen: 'fils3n', kennlinie: 'C', nenn: '16', idn: '30', fityp: 'A' }; return a;
+    case 'leuchte': Object.assign(a.ziel, { bez: 'Licht', anschluss: 'leuchte' }); a.geraet.nenn = '10'; a.leitung.quer = '1,5'; return a;
+    case 'dose': Object.assign(a.ziel, { bez: 'Gerät', anschluss: 'dose' }); a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'B', nenn: '16' }; return a;
+    case 'uv': Object.assign(a.ziel, { bez: '', anschluss: 'fest' }); a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'C', nenn: '32' }; a.leitung.quer = '6'; return a;
+    case 'gruppe': { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; return g; }
+    case 'steuerls': return neuerSteuerLs();
+    case 'trafo': return neuerSteuerTrafo();
+    case 'ablage': return kopieMitNeuenIds(editorAblage);
+    default: a.ziel.bez = 'Steckdosen'; return a;
+  }
+}
+function kopieMitNeuenIds(k) {      // Kopie mit neuen Kennungen; ein Unterverteiler wird nicht doppelt gespeist
+  const c = JSON.parse(JSON.stringify(k));
+  const neu = x => { x.id = id(); if (x.speist) x.speist = null; (x.kinder || []).forEach(neu); };
+  neu(c); return c;
+}
+// an der Marke einfügen: vor:id / nach:id im selben Zweig, in:id in eine leere Gruppe
+function editorEinfuegen(v, b, marke) {
+  const [art, id] = marke.split(':'), k = editorNeu(v, b.tool);
+  let liste, idx;
+  if (art === 'in') { liste = knoten(v, id).k.kinder; idx = liste.length; }
+  else { const r = knoten(v, id); liste = r.liste; idx = r.i + (art === 'nach' ? 1 : 0); if (r.eltern && k.typ === 'gruppe') { meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); return; } }
+  liste.splice(idx, 0, k); sichern();
+  if (b.tool === 'ablage' && editorAblage && editorAblage.aus) editorAblage = null;     // Ausgeschnittenes nur einmal einfügen
+  b.sel = 'k:' + k.id; b.tool = null; zeichne();
+}
+// Aktionen für das gewählte Teil (auch über Tasten)
+function editorAktion(v, b, was) {
+  const [art, id] = (b.sel || '').split(':'), r = art === 'k' ? knoten(v, id) : null;
+  if (was === 'rueck') return projektRueck(false);
+  if (was === 'vor') return projektRueck(true);
+  if (was === 'einfuegen') { if (!editorAblage) return meldung('Nichts kopiert'); b.tool = 'ablage'; return zeichne(); }
+  if (!r) return;
+  switch (was) {
+    case 'links': case 'rechts': {
+      const j = r.i + (was === 'links' ? -1 : 1); if (j < 0 || j >= r.liste.length) return;
+      [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; sichern(); return zeichne();
+    }
+    case 'kopieren': editorAblage = JSON.parse(JSON.stringify(r.k)); return meldung('Kopiert – „Einfügen“ und eine Marke antippen');
+    case 'ausschneiden': editorAblage = Object.assign(JSON.parse(JSON.stringify(r.k)), { aus: true });
+      r.liste.splice(r.i, 1); b.sel = null; sichern(); meldung('Ausgeschnitten – „Einfügen“ und eine Marke antippen'); return zeichne();
+    case 'loeschen': return frage(r.k.typ === 'gruppe' ? 'Gruppe löschen' : 'Abgang löschen', r.k.typ === 'gruppe' ? 'Gruppe mit allen ihren Abgängen löschen?' : 'Diesen Abgang löschen?',
+      () => { r.liste.splice(r.i, 1); b.sel = null; });
+  }
+}
 function bEditor(b) {
   const v = vById(b.vid) || P.verteiler[0]; if (!v) { zurueck(); return; }
   b.vid = v.id; b.zoom = b.zoom || 100;
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
   app.append(kopf(`Plan · ${v.name}`, h('button', { class: 'kopfknopf', on: { click: () => geh({ s: 'plan', vid: v.id }) } }, 'Drucken')));
-  const m = h('main', { class: 'geteilt editor' }), links = h('div');
+  const m = h('main', { class: 'geteilt editor' + (b.tool ? ' einfuegen' : '') }), links = h('div');
   // Werkzeuge: Verteiler, Zoom
   const zoom = f => { b.zoom = Math.max(60, Math.min(300, Math.round(b.zoom * f / 10) * 10)); zeichne(); };
   links.append(h('div', { class: 'leiste' },
     P.verteiler.length > 1 ? h('button', { on: { click: () => wahlFeld('Verteiler', P.verteiler.map(w => [w.id, w.name]), v.id, w => { b.vid = w; b.sel = null; }) } }, `Verteiler: ${v.name}`) : null,
     h('button', { title: 'kleiner', on: { click: () => zoom(1 / 1.25) } }, '−'),
     h('button', { on: { click: () => { b.zoom = 100; zeichne(); } } }, `${b.zoom} %`),
-    h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+')));
+    h('button', { title: 'größer', on: { click: () => zoom(1.25) } }, '+'),
+    h('button', { title: 'Strg+Z', on: { click: () => projektRueck(false) } }, 'Rückgängig'),
+    h('button', { title: 'Strg+Y', on: { click: () => projektRueck(true) } }, 'Wiederholen')));
+  // Palette: Werkzeug wählen, dann eine Marke „+“ im Blatt antippen
+  const leer = !v.knoten.length;
+  const pal = h('div', { class: 'palette' });
+  EDITOR_PALETTE.forEach(([tool, name, zeichen]) => pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === tool), title: name.replace(/\u00ad/g, ''),
+    on: { click: () => { if (leer) { const k = editorNeu(v, tool); v.knoten.push(k); sichern(); b.sel = 'k:' + k.id; b.tool = null; }
+      else b.tool = b.tool === tool ? null : tool; zeichne(); } } }, zeichenIcon(zeichen), name)));
+  if (editorAblage) pal.append(h('button', { class: 'werkzeug', 'aria-pressed': String(b.tool === 'ablage'), on: { click: () => { b.tool = b.tool === 'ablage' ? null : 'ablage'; zeichne(); } } },
+    zeichenIcon('klemme'), editorAblage.aus ? 'Aus\u00adgeschnittenes' : 'Kopie einfügen'));
+  links.append(pal, h('p', { class: 'hinweis' }, b.tool ? 'Jetzt eine Marke „+“ im Blatt antippen – dort wird eingefügt. Esc oder erneutes Antippen beendet.'
+    : 'Ein Teil antippen, um es zu ändern; zum Einfügen ein Werkzeug wählen.'));
+  // Aktionen für das gewählte Teil
+  const istK = (b.sel || '').startsWith('k:');
+  links.append(h('div', { class: 'leiste' },
+    h('button', { disabled: !istK || null, title: 'links', on: { click: () => editorAktion(v, b, 'links') } }, '← verschieben'),
+    h('button', { disabled: !istK || null, title: 'rechts', on: { click: () => editorAktion(v, b, 'rechts') } }, 'verschieben →'),
+    h('button', { disabled: !istK || null, title: 'Strg+C', on: { click: () => editorAktion(v, b, 'kopieren') } }, 'Kopieren'),
+    h('button', { disabled: !istK || null, title: 'Strg+X', on: { click: () => editorAktion(v, b, 'ausschneiden') } }, 'Ausschneiden'),
+    h('button', { disabled: !editorAblage || null, title: 'Strg+V', on: { click: () => editorAktion(v, b, 'einfuegen') } }, 'Einfügen'),
+    h('button', { class: 'rot', disabled: !istK || null, title: 'Entf', on: { click: () => editorAktion(v, b, 'loeschen') } }, 'Löschen')));
   // Blätter dieses Verteilers mit Antippflächen
   let res = null;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }); }
@@ -1612,7 +1729,11 @@ function bEditor(b) {
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
     bl.svg.style.width = `${b.zoom}%`;
     bl.svg.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === b.sel) r.setAttribute('data-sel', ''); });
-    bl.svg.addEventListener('click', ev => { const z = ev.target.closest('[data-ziel]'); if (z) { b.sel = z.dataset.ziel; zeichne(); } });
+    bl.svg.addEventListener('click', ev => {
+      const z = ev.target.closest('[data-ziel]'); if (!z) return;
+      if (/^(vor|nach|in):/.test(z.dataset.ziel)) { if (b.tool) editorEinfuegen(v, b, z.dataset.ziel); return; }
+      b.sel = z.dataset.ziel; zeichne();
+    });
     links.append(h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'einspeisung' ? 'Einspeisung' : 'Stromlaufplan')),
       h('div', { class: 'zoomwrap' }, bl.svg)));
   });

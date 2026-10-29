@@ -59,6 +59,16 @@ with sync_playwright() as p:
             pg.locator('rect.ziel[data-ziel^="k:"]').nth(1).dispatch_event('click'); pg.wait_for_timeout(300)
             if not pg.locator('.eigen', has_text='Schutzorgan').count(): fehler.append('grund: Plan-Editor – Eigenschaften nach Antippen fehlen')
             pg.screenshot(path=str(AUS / 'grund_editor.png'), full_page=False)
+            # Einfügen: Werkzeug Leuchte, Marke „+“ hinter dem ersten Abgang, dann Strg+Z
+            n0 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+            pg.locator('.werkzeug', has_text='Leuchte').click(); pg.wait_for_timeout(300)
+            pg.locator('g.marke[data-ziel^="nach:"]').first.dispatch_event('click'); pg.wait_for_timeout(300)
+            n1 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+            if n1 != n0 + 1: fehler.append(f'grund: Plan-Editor – Einfügen ergab {n0} → {n1}')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            n2 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+            if n2 != n0: fehler.append(f'grund: Plan-Editor – Strg+Z ergab {n2} statt {n0}')
+            pg.evaluate("BEISPIELE.grund(); P.projekt.datum = '2026-10-24'")
             pg.evaluate("stapel = [{ s: 'start' }]; zeichne()")
         if name == 'eingabe':
             # Platz per Klick belegen: Kreis -Q4, Platz 3 → Taster Schließer → neues Gerät „Mitte“

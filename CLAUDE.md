@@ -207,7 +207,11 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   { ziele: true })`, nur dort: data-ziel `e:` Einspeisung, `k:` Abgang/Gruppe, `s:` SPD, `kr:`
   Steuerstromkreis), Eigenschaften-Leiste = eingebetteter Bildschirm (`eingebettet()`), Zoom.
   Löschen im Editor hebt nur die Auswahl auf (`fertig()`).
-- D2: Palette und Einfügemarken, Verschieben, Kopieren, Löschen, Rückgängig über das Projekt.
+- D2 v1.18: Palette (neue Teile mit Voreinstellungen, `editorNeu()`), Einfügemarken „+“
+  (`vor:`/`nach:`/`in:` nur mit `ziele`, sichtbar, solange ein Werkzeug gewählt ist), Verschieben
+  im selben Zweig, Kopieren/Ausschneiden/Einfügen (neue Kennungen, Unterverteiler nicht doppelt
+  gespeist), Löschen; Rückgängig/Wiederholen über das ganze Projekt in `sichern()` (50 Stände,
+  Änderungen innerhalb 0,8 s zählen als ein Schritt).
 - D3: Steuerstromkreise direkt im Blatt; das Raster (Bildschirm `raster`) wird dabei in den
   Plan-Editor zusammengeführt und entfällt als eigener Bildschirm (Jean, 29.10.2026).
 - D4: Ziehen mit Finger/Pencil, Tastenkürzel.

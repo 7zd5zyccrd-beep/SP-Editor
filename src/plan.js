@@ -1151,6 +1151,12 @@ const PLAN = (() => {
   // opt.ziele (ab v1.17, Plan-Editor): unsichtbare Antippflächen mit data-ziel über
   // Einspeisung (e:), Abgängen und Gruppen (k:), Überspannungsschutz (s:) und Steuerstromkreisen (kr:)
   const ziel = (g, x, y, w, h, id) => el('rect', { x, y, width: w, height: h, fill: 'transparent', class: 'ziel', 'data-ziel': id }, g);
+  // Einfügemarke „+“ (ab v1.18): vor:id / nach:id an einem Abgang bzw. einer Gruppe, in:id in einer leeren Gruppe
+  function marke(g, x, y, id) {
+    const m = el('g', { class: 'marke', 'data-ziel': id }, g);
+    el('circle', { cx: x, cy: y, r: 3, fill: '#fff', stroke: '#1f5fbf', 'stroke-width': 0.4 }, m);
+    linie(m, x - 1.7, y, x + 1.7, y, 0.4, '#1f5fbf'); linie(m, x, y - 1.7, x, y + 1.7, 0.4, '#1f5fbf');
+  }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
     ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z]));
@@ -1319,14 +1325,24 @@ const PLAN = (() => {
             if (it.art === 'spd') zeichneSpd(g, v, e, xSp, bars, yG);
             else if (it.art === 'abgang') zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde);
             else zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde);
+            if (opt.ziele && it.art !== 'spd') {          // Einfügemarken über den Schienen, links und rechts des Teils
+              const ym = b.y0 - 5;
+              if (it === b.items.find(x => x.art !== 'spd')) marke(g, xSp, ym, 'vor:' + it.k.id);
+              marke(g, xSp + it.w * R.sb, ym, 'nach:' + it.k.id);
+            }
             if (opt.ziele) {
               const yo = b.y0 + ABSTAND * schienenNamen(v).length, hh = F.h - RAND - SF_H - 2 - yo;
               if (it.art === 'spd') ziel(g, xSp, yo, it.w * R.sb, hh, 's:' + v.id);
               else ziel(g, xSp, yo, it.w * R.sb, hh, 'k:' + it.k.id);
               if (it.art === 'gruppe') {     // Abgänge der Gruppe unterhalb der Untersammelschienen
-                let x = xSp; const yk = letzteGruppeYK - 2;
-                it.k.kinder.filter(c => c.typ === 'abgang').forEach(c => { const w = abgangSpalten(c, e.abgaenge[c.id], v, R) * R.sb;
+                let x = xSp; const yk = letzteGruppeYK - 2, kinder = it.k.kinder.filter(c => c.typ === 'abgang');
+                kinder.forEach(c => { const w = abgangSpalten(c, e.abgaenge[c.id], v, R) * R.sb;
                   ziel(g, x, yk, w, F.h - RAND - SF_H - 2 - yk, 'k:' + c.id); x += w; });
+                // Einfügemarken in der Gruppe, knapp über ihren Abgängen
+                x = xSp;
+                if (!kinder.length) marke(g, xSp + R.sb / 2, yk - 3, 'in:' + it.k.id);
+                kinder.forEach((c, j) => { if (!j) marke(g, x, yk - 3, 'vor:' + c.id);
+                  x += abgangSpalten(c, e.abgaenge[c.id], v, R) * R.sb; marke(g, x, yk - 3, 'nach:' + c.id); });
               }
             }
           }

@@ -1,0 +1,294 @@
+[
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "FI 2-polig (D1)",
+  "dateien": [
+   {
+    "bau": "fi2_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Klinge des LS, gleiche Höhe wie FI/LS"
+   },
+   {
+    "bau": "fi2",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "FI 4-polig (D1)",
+  "dateien": [
+   {
+    "bau": "fi4_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Klinge des LS, gleiche Höhe wie FI/LS"
+   },
+   {
+    "bau": "fi4",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "FI einpolig, Übersicht (D1)",
+  "dateien": [
+   {
+    "bau": "ue_fi_neu",
+    "en": true,
+    "zusatz": "Vorschlag: wie FI/LS einpolig ohne Auslöser"
+   },
+   {
+    "bau": "ue_fi",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "LS 1-polig (E5)",
+  "dateien": [
+   {
+    "bau": "ls1_neu",
+    "en": true,
+    "zusatz": "Vorschlag: ohne Klemmenziffern – Anschlüsse setzt künftig der Plan einheitlich"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct_m_1f.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "LS 3-polig (D5)",
+  "dateien": [
+   {
+    "bau": "ls3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: mit Wirkverbindung, ohne Klemmenziffern"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/11_circuit_breakers/disjonct_m_3f.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Motorschutzschalter 3-polig (D4)",
+  "dateien": [
+   {
+    "bau": "motorschutz3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: LS-Familie mit Handbetätigung"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/fa4202_disjoncteur_moteur_3p.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Sicherungstrennschalter 1-polig (D8)",
+  "dateien": [
+   {
+    "bau": "sichtrenn1_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Trennstrich 6 E"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_21/en_60617_07_21_08.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Sicherungstrennschalter 3-polig (D8, D9)",
+  "dateien": [
+   {
+    "bau": "sichtrenn3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Trennstrich 6 E, Wirkverbindung durch die Klingen"
+   },
+   {
+    "bau": "sichtrenn3",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Sicherungslasttrennschalter 1-polig (D8)",
+  "dateien": [
+   {
+    "bau": "sichlasttrenn1_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Lasttrennkreis Ø 4 wie Lasttrennschalter"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_21/en_60617_07_21_09.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Sicherungslasttrennschalter 3-polig (D8, D9)",
+  "dateien": [
+   {
+    "bau": "sichlasttrenn3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Lasttrennkreis Ø 4, Wirkverbindung durch die Klingen"
+   },
+   {
+    "bau": "sichlasttrenn3",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schalten",
+  "rolle": "Lasttrennschalter 3-polig (D8)",
+  "dateien": [
+   {
+    "bau": "lasttrenn3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Trennstrich 6 E wie Trennschalter"
+   },
+   {
+    "bau": "lasttrenn3",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schalten",
+  "rolle": "Stromstoßschalter, Spule (D7)",
+  "dateien": [
+   {
+    "bau": "stromstoss_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Kasten 40×20 wie Schützspule"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/01_coils/telerupteur.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Steuerung",
+  "rolle": "Hilfsschließer (D3)",
+  "dateien": [
+   {
+    "bau": "hilfs_s_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Form 1 ohne Kreis am Drehpunkt (auch Stromstoß-Hauptkontakt, Hilfsschalter Motorschutz)"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_02.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Steuerung",
+  "rolle": "Dämmerungsschalter (D3, D13)",
+  "dateien": [
+   {
+    "bau": "daemmerung_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Form 1, Kasten 20×20, Wirkverbindung wie Taster"
+   },
+   {
+    "bau": "daemmerung",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Steuerung",
+  "rolle": "Bewegungsmelder (D3, D13)",
+  "dateien": [
+   {
+    "bau": "bewegung_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Form 1, Kasten 20×20, Wirkverbindung wie Taster"
+   },
+   {
+    "bau": "bewegung",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Steuerung",
+  "rolle": "Präsenzmelder (D3, D13)",
+  "dateien": [
+   {
+    "bau": "praesenz_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Form 1, Kasten 20×20, Wirkverbindung wie Taster"
+   },
+   {
+    "bau": "praesenz",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Umformer",
+  "rolle": "Trennklemme (D14)",
+  "dateien": [
+   {
+    "bau": "trennklemme_neu",
+    "en": true,
+    "zusatz": "Vorschlag: Kreise Ø 5 wie Durchgangsklemme"
+   },
+   {
+    "bau": "trennklemme",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Klemmen und Umformer",
+  "rolle": "Frequenzumrichter (D15)",
+  "dateien": [
+   {
+    "bau": "umrichter3_neu",
+    "en": true,
+    "zusatz": "Vorschlag: ~ als Bögen wie Wechselrichter"
+   },
+   {
+    "bau": "umrichter3",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Motor einpolig (D12)",
+  "dateien": [
+   {
+    "bau": "ue_motor",
+    "en": true,
+    "zusatz": "Vorschlag: Kreis Ø 20 wie Leuchte/Trafo einpolig – heute: Motorzeichen verkleinert"
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "PV-Generator einpolig (D12)",
+  "dateien": [
+   {
+    "bau": "ue_pv",
+    "en": true,
+    "zusatz": "Vorschlag: Kasten 20×20 – heute: PV-Zeichen verkleinert"
+   }
+  ]
+ }
+]

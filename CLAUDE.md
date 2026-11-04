@@ -340,6 +340,9 @@ https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihe
   Schalt-/Steuerglieder), Schließer Form 1 ohne Drehpunkt-Kreis, Motorschutzschalter aus der LS-Familie, LS 3-polig mit
   Wirkverbindung, Stromstoß-Spule 40×20, einheitliche Kontaktkennzeichen, Wirkverbindung Sicherungstrenner, eine
   Strichelung, einpolige Übersichtszeichen für Motor/PV/Batterie, Kleinigkeiten D13–D15.
+  Auswahlblatt (wartet auf Jean): Vorschläge `…_neu`, `ue_motor`, `ue_pv` in `tools/baukasten.py` (`geraet_fi_neu`,
+  `geraet_ls_neu`, `geraet_sicherung_neu`, `geraet_kontakt_neu`, `geraet_melder_neu` …):
+  `python3 tools/auswahl_bauen.py kandidaten-angleichung.json build/angleichung-auswahl-v0.1.html 'Angleichung v0.1' 'Stromlaufplan · Prüfbericht E3 · Angleichung der Zeichenfamilien' 'slp.angleichung.auswahl.v1'`
 - E4 Beschriftungsregel in drei Schritten mit Vorher/Nachher zur Abnahme: R1 Oberkante erste Zeile = erste sichtbare
   Stelle des Zeichens, R5 Endgeräte-Grundlinie; R2 links (Ausnahmen IΔ-Kasten darunter, Melder/Schwimmer rechts), R3
   Textende 1,5 mm vor der gezeichneten linken Kante, Fluchtlinie je Spalte im Steuerstromkreis; R4 2,5 mm zwischen

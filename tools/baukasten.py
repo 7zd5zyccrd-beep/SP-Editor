@@ -558,7 +558,165 @@ def geraet_wallbox(name, art):
         b.anschluss(20 * i, -20, 'n')
     return b
 
+# --- Angleichung v0.1 (Prüfbericht E3, 04.11.2026): Vorschläge „…_neu“ neben den heutigen Zeichen ----------
+# Klingenregel: kurze LS-Klinge (0,10)→(−5,−10) für Schutzorgane (LS, FI, FI/LS, Sicherungstrenner, Motorschutz),
+# lange EN-Klinge (0,0)→(−8,−23) für Schalt- und Steuerglieder. Kontaktkennzeichen einheitlich: Trennstrich 6 E,
+# Lasttrennkreis Ø 4 tangential unter dem Strich. Wirkverbindung der kurzen Klinge auf y −8 (x −4,5 am Pol).
+def _ls_klinge(b, x, lasttrenn=True):
+    """Schaltglied der Schutzorgan-Familie am Pol x: Zuleitung, Kennzeichen am festen Kontakt, Klinge, Abgang bis 20."""
+    if lasttrenn:
+        b.linie(x, -20, x, -14); b.linie(x - 3, -14, x + 3, -14); b.ellipse(x - 2, -14, 4, 4)
+    else:
+        b.linie(x, -20, x, -12)
+    b.teile.append(f'<polygon x1="{x - 5}" y1="-10" x2="{x}" y2="10" x3="{x}" y3="20" closed="false" style="{STIL}" antialias="true"/>')
+
+def _fehlerstrom_kurz(b, n, xLetzt):
+    """Summenstromwandler und IΔ-Kasten wie beim FI/LS, Wirkverbindung bis an die Klinge auf y −8."""
+    y0 = 20; ym = y0 + 15
+    b._q('06_09_10', 'Summenstromwandler abgeleitet'); b._q('07_16_01', 'Auslöser abgeleitet')
+    for i in range(n):
+        b.linie(20 * i, y0, 20 * i, y0 + 30)
+    b.ellipse(-8, ym - 6, 20 * (n - 1) + 16, 12)
+    b.rect(-42, ym - 9, 24, 18); b.text(-38, ym + 4.5, 'IΔ'); b.linie(-18, ym, -8, ym)
+    b.wv(-30, ym - 9, -30, -8); b.wv(-30, -8, xLetzt - 4.5, -8)
+    for i in range(n):
+        b.anschluss(20 * i, -20, 'n'); b.anschluss(20 * i, 50, 's')
+
+def geraet_fi_neu(name, n):
+    """FI aus der LS-Klinge (Lasttrennkennzeichen am festen Kontakt): gleiche Höhe und Lage wie der FI/LS."""
+    b = Bau(name); b._q(LS_DE, 'Klinge wie der gewählte LS'); b._q('07_13_08', 'Lasttrennkennzeichen')
+    for i in range(n):
+        _ls_klinge(b, 20 * i)
+    _fehlerstrom_kurz(b, n, 20 * (n - 1))
+    return b
+
+def geraet_ls_neu(name, n, hand=False):
+    """LS aus der Sammlung ohne Klemmenziffern, mehrpolig mit Wirkverbindung auf y −8;
+    hand=True: Motorschutzschalter mit Handbetätigung 07-07-01 links."""
+    b = Bau(name)
+    b.setze(LS_DE if n == 1 else LS3_DE, ohne_tags=('text',), bem='ohne Klemmenziffern')
+    if hand:
+        b._q('07_07_01', 'Handbetätigung')
+        b.linie(-35, -13, -35, -3); b.wv(-35, -8, 20 * (n - 1) - 4.5, -8)
+    elif n > 1:
+        b.wv(-4.5, -8, 20 * (n - 1) - 4.5, -8)
+    return b
+
+def geraet_sicherung_neu(name, id_, n, last):
+    """Sicherungs(last)trenner mit einheitlichen Kennzeichen und Wirkverbindung durch die Klingen (y −8)."""
+    b = Bau(name)
+    weg = lambda tag, a: tag == 'ellipse' or (tag == 'line' and a.get('y1') == a.get('y2') and a.get('y1') in ('-10', '-13')) \
+        or (tag == 'line' and a.get('x1') == '0' and a.get('x2') == '0' and a.get('y1') in ('-13', '-10') and a.get('y2') == '-30')
+    for i in range(n):
+        x = 20 * i
+        b.setze(id_, dx=x, anschluesse=False, ausser=weg, bem='Kennzeichen am festen Kontakt vereinheitlicht')
+        if last:
+            b.linie(x, -14, x, -30); b.linie(x - 3, -14, x + 3, -14); b.ellipse(x - 2, -14, 4, 4)
+        else:
+            b.linie(x, -10, x, -30); b.linie(x - 3, -10, x + 3, -10)
+        b.anschluss(x, -30, 'n'); b.anschluss(x, 30, 's')
+    if n > 1:
+        b.wv(-4.5, -8, 20 * (n - 1) - 4.5, -8)
+    return b
+
+def geraet_kontakt_neu(name, art, n):
+    """Schaltglieder mit langer Klinge, Trennstrich 6 E breit (Lasttrenner wie Trenner)."""
+    b = Bau(name)
+    breit = lambda tag, a: a.update({'x1': str(float(a['x1']) - 1), 'x2': str(float(a['x2']) + 1)}) \
+        if tag == 'line' and a.get('y1') == a.get('y2') == '-24' else None
+    for i in range(n):
+        b.setze(KONTAKT[art], dx=20 * i, anschluesse=False, korr=breit)
+        b.anschluss(20 * i, -40, 'n'); b.anschluss(20 * i, 20, 's')
+    if n > 1:
+        b.wv(_wv_x(WV_Y), WV_Y, 20 * (n - 1) + _wv_x(WV_Y), WV_Y)
+    return b
+
+def _schliesser_form1(b):
+    """Schließer ohne Kontaktpunkt (Form 1, wie 07-07-02 ohne Betätigung)."""
+    b._q('07_02_01', 'Schließer Form 1')
+    b.linie(0, -20, 0, -40); b.linie(0, 0, 0, 20); b.linie(0, 0, -8, -23)
+    b.anschluss(0, -40, 'n'); b.anschluss(0, 20, 's')
+
+def geraet_hilfs_s_neu():
+    b = Bau('Hilfsschließer'); _schliesser_form1(b); return b
+
+def geraet_melder_neu(name, zeichen):
+    """Melder: Schließer Form 1, Kasten 20×20 links wie die Betätigungen der Familie A, Wirkverbindung y −10."""
+    b = Bau(name); _schliesser_form1(b)
+    b.rect(-46, -20, 20, 20); b.text(-45, -6.5, zeichen, 7)
+    b.wv(-26, -10, _wv_x(-10), -10)
+    return b
+
+def geraet_stromstoss_neu():
+    """Stromstoß-Spule im Kasten der Schützspule 07-15-01 (40×20), Stufenzeichen der Sammlung darin."""
+    b = Bau('Stromstoßschalter (Spule)')
+    b.setze('07_15_01', bem='Kasten wie Schützspule')
+    b._q('telerupteur', 'Stufenzeichen')
+    b.teile.append(f'<polygon x1="-9" y1="4" x2="0" y2="4" x3="0" y3="-4" x4="10" y4="-4" closed="false" style="{STIL}" antialias="false"/>')
+    return b
+
+def geraet_trennklemme_neu():
+    """Trennklemme mit Klemmenkreisen Ø 5 wie Durchgangsklemme und Endklemme."""
+    b = Bau('Trennklemme'); b._q('03_03_17', 'Kreise Ø 5')
+    b.ellipse(-2.5, -12.5, 5, 5); b.ellipse(-2.5, 7.5, 5, 5)
+    b.linie(-2.5, -10, -2.5, 10); b.linie(2.5, -10, 2.5, 10)
+    b.linie(0, -12.5, 0, -20); b.linie(0, 12.5, 0, 20)
+    b.anschluss(0, -20, 'n'); b.anschluss(0, 20, 's')
+    return b
+
+def geraet_umrichter_neu(name, n=3):
+    """Frequenzumrichter wie Wechselrichter: Wechselgröße als Bögen (~), Phasenzahl als Ziffer davor."""
+    b = Bau(name); b._q('06_14_01', 'Kasten verbreitert, ~ als Bögen')
+    w = max(40, 20 * n); x0 = -10
+    b.rect(x0, -40, w, 40); b.linie(x0, 0, x0 + w, -40)
+    def tilde(x, y):
+        b.teile.append(f'<arc x="{x:g}" y="{y:g}" width="10" height="5" start="0" angle="180" style="{STIL}" antialias="true"/>')
+        b.teile.append(f'<arc x="{x + 10:g}" y="{y:g}" width="10" height="5" start="180" angle="180" style="{STIL}" antialias="true"/>')
+    b.text(x0 + 3, -28, '3', 8); tilde(x0 + 9, -33)
+    b.text(x0 + w - 27, -5, '3', 8); tilde(x0 + w - 21, -10)
+    for i in range(n):
+        b.linie(20 * i, -40, 20 * i, -60); b.anschluss(20 * i, -60, 'n')
+        b.linie(20 * i, 0, 20 * i, 20); b.anschluss(20 * i, 20, 's')
+    return b
+
+def geraet_ue_maschine(name, buchst):
+    """Maschine einpolig für den Übersichtsschaltplan: Kreis Ø 20 wie die übrigen einpoligen Zeichen."""
+    b = Bau(name); b._q('06_08_01', 'einpolig, Kreis Ø 20')
+    b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
+    b.ellipse(-10, 0, 20, 20); b.text(-3.6, 13.5, buchst, 8)
+    return b
+
+def geraet_ue_pv():
+    """PV-Generator einpolig: Kasten 20×20 mit G, zwei Lichtpfeile links (verkleinert nach 06-18-06)."""
+    b = Bau('PV-Generator einpolig'); b._q('06_18_06', 'einpolig, Kasten 20×20')
+    b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
+    b.rect(-10, 0, 20, 20); b.text(-3.4, 13.5, 'G', 8)
+    for dy in (0, 4):
+        b.linie(-21, 3 + dy, -14, 10 + dy)
+        b.teile.append(f'<polygon x1="-12" y1="{12 + dy}" x2="-15.5" y2="{11 + dy}" x3="-13" y3="{8.5 + dy}" closed="true" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="true"/>')
+    return b
+
 BAUTEILE = {
+    'fi2_neu':         (lambda: geraet_fi_neu('FI 2-polig', 2), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
+    'fi4_neu':         (lambda: geraet_fi_neu('FI 4-polig', 4), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
+    'ue_fi_neu':       (lambda: geraet_fi_neu('FI einpolig', 1), 'einpolig, wie FI/LS einpolig ohne Auslöser'),
+    'ls1_neu':         (lambda: geraet_ls_neu('LS 1-polig', 1), 'ohne Klemmenziffern (Anschlüsse setzt der Plan)'),
+    'ls3_neu':         (lambda: geraet_ls_neu('LS 3-polig', 3), 'mit Wirkverbindung, ohne Klemmenziffern'),
+    'motorschutz3_neu': (lambda: geraet_ls_neu('Motorschutzschalter 3-polig', 3, hand=True), 'LS-Familie mit Handbetätigung'),
+    'sichtrenn1_neu':  (lambda: geraet_sicherung_neu('Sicherungstrennschalter 1-polig', '07_21_08', 1, False), 'Trennstrich 6 E'),
+    'sichtrenn3_neu':  (lambda: geraet_sicherung_neu('Sicherungstrennschalter 3-polig', '07_21_08', 3, False), 'Trennstrich 6 E, Wirkverbindung durch die Klingen'),
+    'sichlasttrenn1_neu': (lambda: geraet_sicherung_neu('Sicherungslasttrennschalter 1-polig', '07_21_09', 1, True), 'Lasttrennkreis Ø 4 wie Lasttrennschalter'),
+    'sichlasttrenn3_neu': (lambda: geraet_sicherung_neu('Sicherungslasttrennschalter 3-polig', '07_21_09', 3, True), 'Lasttrennkreis Ø 4, Wirkverbindung durch die Klingen'),
+    'lasttrenn3_neu':  (lambda: geraet_kontakt_neu('Lasttrennschalter 3-polig', 'lasttrenn', 3), 'Trennstrich 6 E wie Trennschalter'),
+    'hilfs_s_neu':     (lambda: geraet_hilfs_s_neu(), 'Form 1 ohne Kreis am Drehpunkt'),
+    'daemmerung_neu':  (lambda: geraet_melder_neu('Dämmerungsschalter', 'lx'), 'Form 1, Kasten 20×20, Wirkverbindung y −10'),
+    'bewegung_neu':    (lambda: geraet_melder_neu('Bewegungsmelder', 'PIR'), 'Form 1, Kasten 20×20, Wirkverbindung y −10'),
+    'praesenz_neu':    (lambda: geraet_melder_neu('Präsenzmelder', 'PM'), 'Form 1, Kasten 20×20, Wirkverbindung y −10'),
+    'stromstoss_neu':  (lambda: geraet_stromstoss_neu(), 'Kasten 40×20 wie Schützspule'),
+    'trennklemme_neu': (lambda: geraet_trennklemme_neu(), 'Kreise Ø 5 wie Durchgangsklemme'),
+    'umrichter3_neu':  (lambda: geraet_umrichter_neu('Frequenzumrichter 3~/3~'), '~ als Bögen wie Wechselrichter'),
+    'ue_motor':        (lambda: geraet_ue_maschine('Motor einpolig', 'M'), 'Kreis Ø 20 wie die anderen einpoligen Zeichen'),
+    'ue_pv':           (lambda: geraet_ue_pv(), 'Kasten 20×20 mit G und Lichtpfeilen'),
     'oe_thermisch':    (lambda: geraet_betaetigter_kontakt('Öffner, thermisch betätigt (95–96)', 'thermisch', 'oe'), 'Hilfsöffner mit thermischer Auslösung'),
     's_thermisch':     (lambda: geraet_betaetigter_kontakt('Schließer, thermisch betätigt (97–98)', 'thermisch', 's'), 'Hilfsschließer mit thermischer Auslösung'),
     'w_thermisch':     (lambda: geraet_betaetigter_kontakt('Wechsler, thermisch betätigt', 'thermisch', 'w'), 'Wechsler mit thermischer Auslösung'),

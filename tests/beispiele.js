@@ -170,6 +170,13 @@ window.BEISPIELE = {
     const c = neuerAbgang(); c.ziel = { bez: 'Kompressor', ort: 'Halle', anschluss: 'motor' }; c.motor = { art: '3', kw: '11', strom: '21' };
     c.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '32' }; c.leitung.quer = '4'; hv.knoten.splice(4, 0, c);
     schaltungSetzen(hv, c, 'sd'); c.schalt.ol = { bereich: '9–14' }; sichern(); zeichne(); },
+  // Etappe M5: wie motor; Pumpe Keller (Wechselstrom) mit Schütz und Überlastrelais, Vorlage Pumpe mit Trockenlaufschutz;
+  // dazu im Kreis ein Schwimmer-Wechsler (Öffnerseite) für die Meldeleuchte „Niveau hoch“
+  pumpe: () => { BEISPIELE.motor(); const [, uv] = P.verteiler;
+    const pu = uv.knoten.find(k => k.ziel && k.ziel.bez === 'Pumpe'); pu.schalt = neuesSchalt('schuetz'); pu.schalt.ol = { bereich: '4–6,3' };
+    const kr = kreisAnlegen(uv, pu); vorlageEinsetzen(uv, kr, 'pumpe', { trocken: true });
+    const w = neuesSteuerGeraet(uv, 'w_schwimmer'); w.bez = 'Niveau hoch'; const h = neuesSteuerGeraet(uv, 'meldeleuchte'); h.bez = 'Niveau hoch';
+    const pm = neuerPfad({ g: h.id }); pm.plaetze[0] = { g: w.id, z: 's_schwimmer' }; kr.pfade.push(pm); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

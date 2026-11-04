@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.40 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.41 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.41: Etappe M5 – Schwimmerschalter -B als Befehlsgeber (Schließer, Öffner, Wechsler aufgelöst mit 11–14 bzw. 11–12),
+           Vorlage „Pumpe Hand-0-Automatik“ (95–96, wahlweise Trockenlaufschutz als Schließer, Automatik über Schwimmer);
+           Beschriftung der Schwimmer rechts neben dem Kontakt; Beispiel `pumpe`
      v1.40: Etappe M4 – Schaltung des Drehstrommotors: Wendeschaltung (Schütze Rechts/Links, L1 und L3 getauscht) und
            Stern-Dreieck (Schütze Netz/Stern/Dreieck, Motor mit 6 Anschlüssen, zweite Leitung U2 V2 W2); Zusatzschütze als
            <abgang>~2/~3; Vorlagen mit Verriegelung und Zeitrelais; Zweige können an einem anderen Zweig hängen
@@ -2169,7 +2172,7 @@ const PLAN = (() => {
           an = kn ? kn.an : ['', ''];
         } else {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
-          if (/^(daemmerung|bewegung|praesenz)$/.test(z)) {     // Melder: links sitzt der Sensorkasten, Beschriftung rechts
+          if (/^(daemmerung|bewegung|praesenz|s_schwimmer|oe_schwimmer)$/.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
             text(g, x + 2.5, top + 6, kz, 2.5, 'start', { 'font-weight': 'bold' });
             zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, top + 9.2 + 2.8 * n, s, 2.2, 'start'));
           } else bmk(g, x - li - 1, top + 5, kz, zl);
@@ -2532,7 +2535,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.40';
+const FASSUNG = 'v1.41';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2879,7 +2882,7 @@ function berechne(v) {
 // der Feldgeräte (ab v1.13), Warnungen
 // Melder und Endschalter nach DIN EN IEC 81346-2:2019 als Sensoren -B (Jean, 04.11.2026); Taster, Schalter, Not-Aus -S
 const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B',
-  endschalter_s: 'B', endschalter_oe: 'B' };   // Endschalter als Positionssensoren (Jean, 04.11.2026)
+  endschalter_s: 'B', endschalter_oe: 'B', s_schwimmer: 'B', oe_schwimmer: 'B', w_schwimmer: 'B' };   // Endschalter als Positionssensoren (Jean, 04.11.2026)
 const istOeffner = z => /(^|_)oe(_|$)/.test(z);     // auch oe_thermisch (ab v1.38)
 const istVerzoegert = z => /^k_/.test(z);
 const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais');
@@ -2939,9 +2942,15 @@ function berechneSteuerung(v, e, bmk, klemme) {
           if (ST_ZEICHEN[g.zeichen] && ST_ZEICHEN[g.zeichen][1] === 'bg') taster++;
           // Befehlsgeber: Anschlüsse je Gerät fortlaufend – Schließer 13/14, 23/24 …, Öffner (auch Not-Aus) 11/12, 21/22 …
           const nb = r.genutzt[g.id] = r.genutzt[g.id] || { s: [], o: [] }, oeB = istOeffner(g.zeichen) || g.zeichen === 'notaus';
-          (oeB ? nb.o : nb.s).push(key);
-          const ordB = nb.s.length + nb.o.length;
-          r.kontakte[key] = { ord: ordB, an: oeB ? [`${ordB}1`, `${ordB}2`] : [`${ordB}3`, `${ordB}4`], bg: true };
+          if (/^w_/.test(g.zeichen)) {      // Wechsler (ab v1.41): Öffnerseite 11–12, Schließerseite 11–14
+            const oeW = istOeffner(pl.z || ''); (oeW ? nb.o : nb.s).push(key);
+            if ((oeW ? nb.o : nb.s).length > 1) r.warn.push(`${(r.geraete[g.id] || {}).t}: ${oeW ? 'Öffnerseite' : 'Schließerseite'} des Wechslers mehrfach genutzt.`);
+            r.kontakte[key] = { ord: 1, an: oeW ? ['11', '12'] : ['11', '14'], bg: true };
+          } else {
+            (oeB ? nb.o : nb.s).push(key);
+            const ordB = nb.s.length + nb.o.length;
+            r.kontakte[key] = { ord: ordB, an: oeB ? [`${ordB}1`, `${ordB}2`] : [`${ordB}3`, `${ordB}4`], bg: true };
+          }
           // Feldgerät: zwei Klemmen auf -X1 (oben und unten am Kontakt)
           if (mitLeiste && stFeld(g)) { r.feld[key] = [++nrX1, ++nrX1]; r.feldListe.push({ key, gid: g.id, kr: kr.id, p: p.id, z: g.zeichen }); }
           return;
@@ -3004,6 +3013,8 @@ const ST_ZEICHEN = {          // was auf einen Kontaktplatz kommt; art: Befehlsg
   taster_s: ['Taster Schließer', 'bg'], taster_oe: ['Taster Öffner', 'bg'], schalter_hand: ['Schalter handbetätigt', 'bg'],
   notaus: ['Not-Aus', 'bg'], daemmerung: ['Dämmerungsschalter', 'bg'], bewegung: ['Bewegungsmelder', 'bg'],
   praesenz: ['Präsenzmelder', 'bg'], endschalter_s: ['Endschalter Schließer', 'bg'], endschalter_oe: ['Endschalter Öffner', 'bg'],
+  // ab v1.41: Schwimmerschalter (-B); der Wechsler wird aufgelöst als Schließer- bzw. Öffnerseite (11–14, 11–12) gezeichnet
+  s_schwimmer: ['Schwimmerschalter Schließer', 'bg'], oe_schwimmer: ['Schwimmerschalter Öffner', 'bg'], w_schwimmer: ['Schwimmerschalter Wechsler', 'bg'],
   hilfs_s: ['Hilfsschließer', 'hk'], hilfs_oe: ['Hilfsöffner', 'hk'],
   // ab v1.38: Kontakte des Überlastrelais (95–96, 97–98) und Hilfsschalter des Motorschutzschalters (13–14, 21–22)
   oe_thermisch: ['Überlastrelais-Öffner 95–96', 'ol'], s_thermisch: ['Überlastrelais-Schließer 97–98', 'ol'],
@@ -3780,8 +3791,14 @@ function platzWahl(v, e, p, i) {
   wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml' && a !== 'zg')
     .map(([z, [n, a]]) => [z, n, art[a]])), curZ, z => {
     if (!z) { p.plaetze[i] = null; return; }
-    setTimeout(() => geraetWahl(v, e, z, cur, gid => { p.plaetze[i] = ST_ZEICHEN[z][1] === 'bg' ? { g: gid } : { g: gid, z }; }), 0);
+    setTimeout(() => geraetWahl(v, e, z, cur, gid => platzSetzen(p, i, z, gid)), 0);
   });
+}
+// Platz belegen: Befehlsgeber nur mit Gerät, sonst mit Kontaktart; beim Wechsler (ab v1.41) die Seite erfragen
+function platzSetzen(p, i, z, gid) {
+  if (/^w_/.test(z)) { const b = z.slice(2); setTimeout(() => wahlFeld('Seite des Wechslers', [['s_' + b, 'Schließerseite', '11–14'], ['oe_' + b, 'Öffnerseite', '11–12']], '',
+    w => { p.plaetze[i] = { g: gid, z: w }; sichern(); zeichne(); }), 0); return; }
+  p.plaetze[i] = ST_ZEICHEN[z][1] === 'bg' ? { g: gid } : { g: gid, z };
 }
 function geraetWahl(v, e, z, cur, setzen) {
   const art = ST_ZEICHEN[z][1], st = stDaten(v);
@@ -3937,6 +3954,7 @@ const VORLAGEN = [
   ['selbstnot', 'Selbsthaltung mit Not-Aus', 'wie Selbsthaltung, Not-Aus davor'],
   ['hand0auto', 'Hand-0-Automatik', 'Wahlschalter: „Hand“ schaltet direkt, „Automatik“ über einen Melder'],
   ['motor', 'Motor Ein/Aus', 'Selbsthaltung mit Überlastrelais-Öffner 95–96, Meldeleuchten „Betrieb“ und „Störung“'],
+  ['pumpe', 'Pumpe Hand-0-Automatik', 'Wahlschalter, „Automatik“ über Schwimmerschalter, wahlweise Trockenlaufschutz; 95–96, falls Überlastrelais'],
   ['wende', 'Wendeschaltung', 'Taster Rechts/Links mit Selbsthaltung und gegenseitiger Verriegelung (Motor mit Schaltung „Wende“)'],
   ['sterndreieck', 'Stern-Dreieck', 'Netz, Stern und Dreieck mit Zeitrelais und Verriegelung (Motor mit Schaltung „Stern-Dreieck“)']];
 function vorlageWahl(v, kr) {
@@ -3948,6 +3966,8 @@ function vorlageWahl(v, kr) {
       const tun = () => { vorlageEinsetzen(v, kr, art, o); sichern(); zeichne(); };
       if (voll) frage('Vorlage einsetzen', 'Die vorhandenen Pfade dieses Kreises werden ersetzt.', tun, 'Ersetzen'); else tun(); };
     if (art === 'taster') wahlFeld('Wie viele Taster?', [1, 2, 3, 4, 5].map(n => [String(n), `${n} Taster`]), '', n => setTimeout(() => los({ n: +n }), 0));
+    else if (art === 'pumpe') wahlFeld('Trockenlaufschutz?', [['ja', 'mit Trockenlaufschutz', 'Schwimmerschalter (Schließer, schließt bei Wasser) vor Hand und Automatik'], ['nein', 'ohne']], '',
+      w => setTimeout(() => los({ trocken: w === 'ja' }), 0));
     else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
       z => setTimeout(() => los({ melder: z }), 0));
     else if ((art === 'wende' || art === 'sterndreieck') && !(sa && sa[art === 'wende' ? 'wende' : 'sd'])) meldung(`Zuerst am Motor die Schaltung „${art === 'wende' ? 'Wendeschaltung' : 'Stern-Dreieck'}“ wählen`);
@@ -3968,6 +3988,17 @@ function vorlageEinsetzen(v, kr, art, o) {
   if (art === 'taster') {
     haupt.plaetze[0] = { g: neu('taster_s', 'Taster 1') };
     for (let i = 2; i <= (o.n || 1); i++) { const zw = neuerPfad(null, { von: 0, bis: 0 }); zw.plaetze[0] = { g: neu('taster_s', `Taster ${i}`) }; pfade.push(zw); }
+  } else if (art === 'pumpe') {        // Pumpe (ab v1.41): 95–96 und Trockenlauf gemeinsam, dann Hand bzw. Automatik mit Schwimmer
+    const a = berechne(v).abgaenge[vb.g];
+    let i = 0;
+    if (a && a.ol) haupt.plaetze[i++] = { g: vb.g, z: 'oe_thermisch' };
+    // Trockenlaufschutz: Schließer – unbetätigt (Schwimmer unten, kein Wasser) offen, die Pumpe läuft nur bei Wasser
+    if (o.trocken) haupt.plaetze[i++] = { g: neu('s_schwimmer', 'Trockenlauf') };
+    const s = neu('schalter_hand', 'Hand-0-Auto');
+    stDaten(v).geraete.find(g => g.id === s).feld = false;        // Wahlschalter in der Verteilertür
+    haupt.plaetze[i] = { g: s };                                // Stellung „Hand“
+    const zw = neuerPfad(null, { von: i, bis: i + 1 }); zw.plaetze[i] = { g: s }; zw.plaetze[i + 1] = { g: neu('s_schwimmer', 'Niveau') };
+    pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Schwimmer
   } else if (art === 'wende') {        // Wendeschaltung (ab v1.40): 95–96 und Aus gemeinsam, dann Rechts bzw. Links
     const q1 = vb.g, q2 = `${vb.g}~2`, k = knoten(v, vb.g);
     if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' };
@@ -4057,7 +4088,7 @@ function werkzeugAnwenden(v, e, p, i, tool) {
   if (i === 6 && !verbr) { meldung('Auf den Verbraucherplatz gehören Spule oder Meldeleuchte'); zeichne(); return; }
   if (i < 6 && verbr) { meldung('Spule und Meldeleuchte gehören auf den Verbraucherplatz'); zeichne(); return; }
   if (verbr) verbraucherWahl(v, e, p, tool);
-  else geraetWahl(v, e, tool, p.plaetze[i], gid => { p.plaetze[i] = ST_ZEICHEN[tool][1] === 'bg' ? { g: gid } : { g: gid, z: tool }; });
+  else geraetWahl(v, e, tool, p.plaetze[i], gid => platzSetzen(p, i, tool, gid));
 }
 // Kreis und Lage eines Pfades
 function kreisMitPfad(v, pid) {

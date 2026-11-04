@@ -1507,7 +1507,7 @@ const PLAN = (() => {
           an = kn ? kn.an : ['', ''];
         } else {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
-          if (/^(daemmerung|bewegung|praesenz)$/.test(z)) {     // Melder: links sitzt der Sensorkasten, Beschriftung rechts
+          if (/^(daemmerung|bewegung|praesenz|s_schwimmer|oe_schwimmer)$/.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
             text(g, x + 2.5, top + 6, kz, 2.5, 'start', { 'font-weight': 'bold' });
             zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, top + 9.2 + 2.8 * n, s, 2.2, 'start'));
           } else bmk(g, x - li - 1, top + 5, kz, zl);

@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.41 | Etappe M5: Schwimmerschalter -B (Schließer, Öffner, Wechsler), Vorlage „Pumpe Hand-0-Automatik“ mit Trockenlaufschutz; Beispiel `pumpe` |
 | v1.40 | Etappe M4: Wendeschaltung und Stern-Dreieck mit Zusatzschützen, Vorlagen mit Verriegelung und Zeitrelais, zweite Leitung U2 V2 W2; Beispiel `schaltungen`; Prüfung: Steckdosenunterkante als Maßstab |
 | v1.39 | Etappe M3: Frequenzumrichter -T, geschirmte Motorleitung mit Schirmzeichen; Klemmenplan mit Umrichter/Überlastrelais als Herkunft; Beispiel `umrichter` |
 | v1.38 | Etappe M2: Überlastrelais -F mit 95–96 (automatisch im Spulenpfad) und 97–98, Hilfsschalter des Motorschutzschalters, Vorlage „Motor Ein/Aus“; Beispiel `motorsteuerung` |

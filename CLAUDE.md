@@ -99,7 +99,7 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
   -F Schutzorgane, -P Zähler, -X1 Klemmleiste im Verteiler, -X2 … Geräteanschlussdosen,
   -XD Steckdosen, -E Leuchten, -W Leitungen; Steuerstromkreise: -S Taster, Schalter, Not-Aus,
   Wahlschalter; -B Melder (Dämmerung, Bewegung, Präsenz; seit v1.33) und Endschalter (seit v1.33.1), später auch
-  Schwimmerschalter (alle nach 81346-2:2019, Jean
+  Schwimmerschalter (seit v1.41; alle nach 81346-2:2019, Jean
   04.11.2026); -H Meldeleuchten.
 
 **Eingabe und Daten**
@@ -322,6 +322,9 @@ und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
   (`a.zusatz`, Rollen `SCHALT_ROLLEN`, Daten `k.motor.q2/q3/w2`); `knoten()` löst `~n` auf; plan.js `zeichneWende()`,
   `zeichneSternDreieck()`, `zusatzKontakte()`, Motor `motor6` mit U2 V2 W2 von unten (`SD_H`); Zweige mit `zweig.an`
   (Elternpfad) für die Verriegelung; Vorlagen `wende`, `sterndreieck` (Zeitrelais -K einschaltverzögert, 5 s).
+- M5 v1.41: Schwimmerschalter `s_schwimmer`, `oe_schwimmer`, `w_schwimmer` als Befehlsgeber -B; Wechsler-Plätze tragen
+  `z: 's_…' | 'oe_…'` (`platzSetzen()` fragt die Seite), Anschlüsse 11–14 bzw. 11–12; Vorlage `pumpe`. Trockenlaufschutz
+  als Schließer (unbetätigt = Schwimmer unten = trocken = offen) – im Vorschlag stand irrtümlich „Öffner“.
 
 ## Technische Eckwerte
 

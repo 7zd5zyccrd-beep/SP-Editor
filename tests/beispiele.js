@@ -171,7 +171,7 @@ window.BEISPIELE = {
     c.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '32' }; c.leitung.quer = '4'; hv.knoten.splice(4, 0, c);
     schaltungSetzen(hv, c, 'sd'); c.schalt.ol = { bereich: '9–14' }; sichern(); zeichne(); },
   // Etappe M5: wie motor; Pumpe Keller (Wechselstrom) mit Schütz und Überlastrelais, Vorlage Pumpe mit Trockenlaufschutz;
-  // dazu im Kreis ein Schwimmer-Wechsler (Öffnerseite) für die Meldeleuchte „Niveau hoch“
+  // dazu im Kreis ein Schwimmer-Wechsler (Schließerseite 11–14) für die Meldeleuchte „Niveau hoch“
   pumpe: () => { BEISPIELE.motor(); const [, uv] = P.verteiler;
     const pu = uv.knoten.find(k => k.ziel && k.ziel.bez === 'Pumpe'); pu.schalt = neuesSchalt('schuetz'); pu.schalt.ol = { bereich: '4–6,3' };
     const kr = kreisAnlegen(uv, pu); vorlageEinsetzen(uv, kr, 'pumpe', { trocken: true });

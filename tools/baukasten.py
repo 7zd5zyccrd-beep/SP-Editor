@@ -574,6 +574,7 @@ BAUTEILE = {
     'generator3_pe':   (lambda: geraet_maschine('Generator Drehstrom mit PE', buchst='G', pe=True), 'Kreis wie 06-08-01 mit G, PE rechts'),
     'generator3':      (lambda: geraet_maschine('Generator Drehstrom', buchst='G'), 'Kreis wie 06-08-01 mit G'),
     'ueberlast3':      (lambda: geraet_ueberlastrelais('Überlastrelais 3-polig', 3), 'thermische Auslöser 07-15-21, Polabstand 20'),
+    'ueberlast1':      (lambda: geraet_ueberlastrelais('Überlastrelais 1-polig', 1), 'wie 3-polig, ein Pol (Wechselstrommotor)'),
     'batterie':        (lambda: geraet_mit_anschluessen('Batterie', '06_15_01', r=1, extra=lambda b: (b.linie(0, -20, 0, -10), b.linie(0, 15, 0, 20),
                         b.anschluss(0, -20, 'n'), b.anschluss(0, 20, 's'))), 'senkrecht, Anschlüsse oben und unten'),
     'pv':              (lambda: geraet_mit_anschluessen('PV-Generator', '06_18_06', unten=(10, 30), y_unten=40), 'Anschlüsse + und − unten'),

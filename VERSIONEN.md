@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.42 | Prüfbericht E1: Fehler behoben (Überlastrelais 1~, Stern-Dreieck-Abgriff, Spiegel-Spalten je Pol, Abgriff mit allen Kreisen, Texte am Rahmen, Hand/Auto, Stern-Dreieck-Leitungszeile, Trafo-Platzhalter); Bibliothek v1.10 |
 | v1.41 | Etappe M5: Schwimmerschalter -B (Schließer, Öffner, Wechsler), Vorlage „Pumpe Hand-0-Automatik“ mit Trockenlaufschutz; Beispiel `pumpe` |
 | v1.40 | Etappe M4: Wendeschaltung und Stern-Dreieck mit Zusatzschützen, Vorlagen mit Verriegelung und Zeitrelais, zweite Leitung U2 V2 W2; Beispiel `schaltungen`; Prüfung: Steckdosenunterkante als Maßstab |
 | v1.39 | Etappe M3: Frequenzumrichter -T, geschirmte Motorleitung mit Schirmzeichen; Klemmenplan mit Umrichter/Überlastrelais als Herkunft; Beispiel `umrichter` |
@@ -62,6 +63,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.10 | Überlastrelais 1-polig (gleiche Zeichnung wie 3-polig); Platzhaltertexte „_“ aus Sammlungszeichen entfernt (Steuertrafo) |
 | v1.9 | Wallbox nach Auswahl „Wallbox v0.1“: Steckbuchsen wie Steckdose 3/N/PE im Kasten, „Typ 2“ (Anschlussleitungen bis an die Buchsen ergänzt) |
 | v1.8 | Für Etappe G (von Jean freigegeben, 04.11.2026): Wechselrichter 1/N/PE und 3/N/PE mit AC oben, Hybrid-Wechselrichter (PV und Batterie), PV-Generator mit Anschlüssen oben, Lasttrennschalter 2-polig – gleiche Zeichnung wie die ausgewählten Zeichen |
 | v1.7 | Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (29 Zeichen): Erzeugung und Speicher, Motoren, Überlastrelais-Kontakte, Schwimmer- und Schlüsselschalter (je gleiche Familie für Schließer/Öffner/Wechsler), Klingel/Gong/Summer/Hupe, Türöffner, Diode, Funkenstrecke, Schirm, Erdungsschiene (Anschlüsse ins Raster gelegt) |

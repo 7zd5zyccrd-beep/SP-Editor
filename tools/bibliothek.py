@@ -1,11 +1,11 @@
 """Schreibt die feste Bibliothek (Jeans Auswahl vom 24.10.2026) als JSON und
 als Ansichtsseite. Aufruf: python3 -I bibliothek.py bibliothek-v1.3.html"""
-import json, pathlib, sys
+import json, pathlib, re, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.9'
+FASSUNG = 'v1.10'
 STAND = '2026-11-04'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -99,6 +99,7 @@ AUSWAHL = [
  ('Motoren', 'motor1',          'Motor Wechselstrom mit PE',                  'bau:motor1_pe', True),
  ('Motoren', 'motorschutz3',    'Motorschutzschalter 3-polig',                '10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/fa4202_disjoncteur_moteur_3p.elmt', True),
  ('Motoren', 'ueberlast3',      'Überlastrelais 3-polig (Hauptkreis)',        'bau:ueberlast3', True),
+ ('Motoren', 'ueberlast1',      'Überlastrelais 1-polig (Wechselstrommotor)', 'bau:ueberlast1', True),
  ('Motoren', 'umrichter3',      'Frequenzumrichter',                          'bau:umrichter3', True),
  ('Steuerung – Hilfskontakte', 'oe_thermisch', 'Überlastrelais-Öffner (95/96)',  'bau:oe_thermisch', True),
  ('Steuerung – Hilfskontakte', 's_thermisch',  'Überlastrelais-Schließer (97/98)', 'bau:s_thermisch', True),
@@ -135,10 +136,14 @@ def daten():
                             quellen=b['quellen'], bem=b['bem'], neu=neu, xml=b['xml']))
         else:
             f = SAMMLUNG / quelle
+            xml = f.read_text(encoding='utf-8')
+            bem = 'unverändert'
+            # Platzhaltertexte der Sammlung (z. B. „_“ im Trafo) würden im Plan als Zeichen erscheinen (ab v1.10)
+            ohne = re.sub(r'\s*<text\b[^>]*\btext="_"[^>]*/>', '', xml)
+            if ohne != xml: xml, bem = ohne, 'Platzhaltertext „_“ entfernt'
             aus.append(dict(gruppe=gruppe, kennung=kenn, name=name,
                             herkunft='EN-Satz' if quelle.startswith('91_en') else 'Sammlung',
-                            quellen=[quelle.split('/')[-1]], bem='unverändert', neu=neu,
-                            xml=f.read_text(encoding='utf-8')))
+                            quellen=[quelle.split('/')[-1]], bem=bem, neu=neu, xml=xml))
     return aus
 
 if __name__ == '__main__':

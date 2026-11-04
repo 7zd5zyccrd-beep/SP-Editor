@@ -326,6 +326,30 @@ und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
   `z: 's_…' | 'oe_…'` (`platzSetzen()` fragt die Seite), Anschlüsse 11–14 bzw. 11–12; Vorlage `pumpe`. Trockenlaufschutz
   als Schließer (unbetätigt = Schwimmer unten = trocken = offen) – im Vorschlag stand irrtümlich „Öffner“.
 
+## Etappe P – Prüfbericht v1.41 (Jean 04.11.2026: „Alle ja“)
+
+Prüfung aller Plankombinationen durch Layout, Zeichen-Design und Schaltplantechnik (Bericht:
+https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihenfolge:
+- E1 Fehler beheben: Überlastrelais am Wechselstrommotor nur im Außenleiter, Stern-Dreieck-Abgriff zwischen Netzschütz
+  und Überlastrelais, Kontaktspiegel mit Spalte je Pol, Abgriff nennt alle Kreise, Steuerstromkreis-Texte auf die
+  Spalte begrenzt (umbrechen, höchstens 85 % stauchen), Hand-0-Automatik je Kontakt „Hand“/„Auto“, Stern-Dreieck
+  Leitungen in einer Zeile, Steuertrafo ohne Platzhaltertext.
+- E2 Warnungen (ändern keinen Plan): TN-C hinter getrenntem N/PE, PEN < 10 mm², ungeerdeter Steuerkreis, Hinweis vor
+  dem Drucken bei unvollständigen Kreisen.
+- E3 Auswahlblatt „Angleichung v0.1“ (alt/neu): FI aus der LS-Klinge, Klingenregel (kurz = Schutzorgane, lang =
+  Schalt-/Steuerglieder), Schließer Form 1 ohne Drehpunkt-Kreis, Motorschutzschalter aus der LS-Familie, LS 3-polig mit
+  Wirkverbindung, Stromstoß-Spule 40×20, einheitliche Kontaktkennzeichen, Wirkverbindung Sicherungstrenner, eine
+  Strichelung, einpolige Übersichtszeichen für Motor/PV/Batterie, Kleinigkeiten D13–D15.
+- E4 Beschriftungsregel in drei Schritten mit Vorher/Nachher zur Abnahme: R1 Oberkante erste Zeile = erste sichtbare
+  Stelle des Zeichens, R5 Endgeräte-Grundlinie; R2 links (Ausnahmen IΔ-Kasten darunter, Melder/Schwimmer rechts), R3
+  Textende 1,5 mm vor der gezeichneten linken Kante, Fluchtlinie je Spalte im Steuerstromkreis; R4 2,5 mm zwischen
+  Geräten, R6 Zeilenfolge, R7 Pfadtexte unten auf einer Grundlinie, 3,4 mm Zeilenabstand, höchstens drei Zeilen.
+- E5 Anschlussbezeichnungen überall, vom Generator, waagerecht rechts am Leiter, 1,8 mm.
+- E6 fachliche Ergänzungen: Leitungstyp/Aderkennung (ohne PE-Ader NYM-O, Zahlen nur bei Steuerleitungen), vollständiger
+  Übersichtsplan, Klemmenplan mit innerem Ziel und Motoranschluss, Umrichter mit PE und Schirmauflage, Verweis am
+  Motorschutzschalter, PEN-Darstellung, Primär-LS 2-polig.
+- E7 alle Schrift schwarz, auch Feldtitel und Tabellenköpfe.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

@@ -16,6 +16,11 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.42: Prüfbericht E1 – Fehler behoben: Überlastrelais am Wechselstrommotor nur im Außenleiter (Bibliothek v1.10
+           mit Überlastrelais 1-polig), Stern-Dreieck greift zwischen Netzschütz und Überlastrelais ab, Kontaktspiegel
+           mit Spalte je Pol (Zusatzschütze, mitgeschalteter N), Abgriff nennt alle gespeisten Kreise, Texte im
+           Steuerstromkreis auf die Spalte begrenzt bzw. umbrochen, Hand-0-Automatik je Kontakt „Hand“/„Auto“,
+           Stern-Dreieck beide Leitungen in einer Zeile, Steuertrafo ohne Platzhaltertext
      v1.41: Etappe M5 – Schwimmerschalter -B als Befehlsgeber (Schließer, Öffner, Wechsler aufgelöst mit 11–14 bzw. 11–12),
            Vorlage „Pumpe Hand-0-Automatik“ (95–96, wahlweise Trockenlaufschutz als Schließer, Automatik über Schwimmer);
            Beschriftung der Schwimmer rechts neben dem Kontakt; Beispiel `pumpe`
@@ -886,7 +891,8 @@ function berechneSteuerung(v, e, bmk, klemme) {
       // Drehstrommotor ohne N (ab v1.37): kein Abgriff L/N im eigenen Abgang möglich
       if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid] && e.abgaenge[kr.quelle.kid].ohneN)
         r.warn.push(`${t}: Motorabgang ohne N – Steuerspannung gemeinsam über einen Steuer-LS oder Steuertrafo einstellen.`);
-      else if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+      else if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) {     // alle Kreise des Abgangs merken (ab v1.42)
+        const q = e.abgaenge[kr.quelle.kid]; q.abgriff = q.abgriff || kr.id; (q.abgriffe = q.abgriffe || []).push(kr.id); }
       else r.warn.push(`${t}: Kreis ohne Abgriff der Steuerspannung.`);
     }
     let kontakte = 0, taster = 0, spule = null;
@@ -1956,8 +1962,8 @@ function vorlageEinsetzen(v, kr, art, o) {
     if (o.trocken) haupt.plaetze[i++] = { g: neu('s_schwimmer', 'Trockenlauf') };
     const s = neu('schalter_hand', 'Hand-0-Auto');
     stDaten(v).geraete.find(g => g.id === s).feld = false;        // Wahlschalter in der Verteilertür
-    haupt.plaetze[i] = { g: s };                                // Stellung „Hand“
-    const zw = neuerPfad(null, { von: i, bis: i + 1 }); zw.plaetze[i] = { g: s }; zw.plaetze[i + 1] = { g: neu('s_schwimmer', 'Niveau') };
+    haupt.plaetze[i] = { g: s, bez: 'Hand' };                   // Stellung „Hand“
+    const zw = neuerPfad(null, { von: i, bis: i + 1 }); zw.plaetze[i] = { g: s, bez: 'Auto' }; zw.plaetze[i + 1] = { g: neu('s_schwimmer', 'Niveau') };
     pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Schwimmer
   } else if (art === 'wende') {        // Wendeschaltung (ab v1.40): 95–96 und Aus gemeinsam, dann Rechts bzw. Links
     const q1 = vb.g, q2 = `${vb.g}~2`, k = knoten(v, vb.g);
@@ -2003,8 +2009,8 @@ function vorlageEinsetzen(v, kr, art, o) {
   } else if (art === 'hand0auto') {
     const s = neu('schalter_hand', 'Hand-0-Auto');
     stDaten(v).geraete.find(g => g.id === s).feld = false;        // Wahlschalter in der Verteilertür
-    haupt.plaetze[0] = { g: s };                                // Stellung „Hand“
-    const zw = neuerPfad(null, { von: 0, bis: 1 }); zw.plaetze[0] = { g: s }; zw.plaetze[1] = { g: neu(o.melder || 'daemmerung', { daemmerung: 'Dämmerung', bewegung: 'Bewegung', praesenz: 'Präsenz', endschalter_s: 'Endschalter' }[o.melder || 'daemmerung']) };
+    haupt.plaetze[0] = { g: s, bez: 'Hand' };                   // Stellung „Hand“ (Beschriftung je Kontakt ab v1.42)
+    const zw = neuerPfad(null, { von: 0, bis: 1 }); zw.plaetze[0] = { g: s, bez: 'Auto' }; zw.plaetze[1] = { g: neu(o.melder || 'daemmerung', { daemmerung: 'Dämmerung', bewegung: 'Bewegung', praesenz: 'Präsenz', endschalter_s: 'Endschalter' }[o.melder || 'daemmerung']) };
     pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Melder
   }
   kr.pfade = pfade;

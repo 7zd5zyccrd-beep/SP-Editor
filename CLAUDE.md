@@ -268,6 +268,8 @@ nach 81346-2:2019.
 - F6 v1.29: Mehrfachauswahl `b.sel = 'm:'`, `b.mehr = [t:…, z:…]` (`mehrWaehlen()`, `rahmenStart/…Ende()`, Werkzeug
   `zauswahl`), `gruppeZumZiehen()`/`gruppeSchieben()`, Zusatz-Elemente im Editor mit `data-zusatz`, `lupeZeigen()`,
   Pencil-Hover `data-hover`.
+- F7 v1.30: `abgangAufBlatt()` (Reihenfolge + Wunschspalte), `blattFesthalten()` setzt Spalten aller Abgänge
+  und Umbrüche am Blattanfang/-ende, merkt `v.layout.fest[anker]`.
 
 ## Technische Eckwerte
 

@@ -136,6 +136,15 @@ with sync_playwright() as p:
             if not pg.evaluate("ED.pruef.some(x => /Kurzschluss/.test(x.t))"): fehler.append('grund: Kurzschluss durch freien Leiter nicht gemeldet')
             pg.keyboard.press('Escape'); pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             if pg.evaluate("!!P.verteiler[1].layout"): fehler.append('grund: Strg+Z nach freiem Leiter nicht zurückgenommen')
+            # ab v1.30: Blatt festhalten – ein neuer Abgang vorn verdrängt die Abgänge dieses Blatts nicht
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
+            i7 = pg.evaluate("ED.liste.findIndex(b => b.nr === 7)")
+            vorher = pg.evaluate(f"JSON.stringify(ED.liste[{i7}].spalten)")
+            pg.locator('.blatt .festknopf').nth(i7 - 1).click(); pg.wait_for_timeout(300)
+            pg.evaluate("editorEinfuegen(P.verteiler[0], stapel.at(-1), 'vor:' + P.verteiler[0].knoten[0].id, 'steckdose', 2)"); pg.wait_for_timeout(300)
+            erster = __import__('json').loads(vorher)[0]['id']
+            nachher = pg.evaluate(f"JSON.stringify((ED.liste.find(b => (b.spalten || []).some(s => s.id === '{erster}')) || {{}}).spalten)")
+            if vorher != nachher: fehler.append(f'grund: festgehaltenes Blatt hat sich verändert: {vorher} → {nachher}')
             # leerer Verteiler: Marke „+“ im leeren Blatt
             pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)

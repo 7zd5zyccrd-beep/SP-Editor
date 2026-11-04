@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.30 | Etappe F7: Abgänge über Blattgrenzen ziehen, „Blatt festhalten“ |
 | v1.29 | Etappe F6: Mehrfachauswahl (Rahmen, Umschalt+Tippen), gemeinsames Verschieben, Zusätze ziehen, Lupe beim Ziehen mit dem Finger, Pencil-Hover |
 | v1.28 | Etappe F5: freie Leiter mit Netzprüfung (Kurzschluss, offenes Ende), Texte, strichpunktierte Rahmen; Werkzeuge in der Palette „Zeichnen“; Beispiel `zusatz` |
 | v1.27 | Etappe F4: Leiterstücke antippen (Netz hinterlegt), parallel versetzen (Ziehen, Pfeiltasten), Abzweigstellen wandern samt Verbindungspunkt |

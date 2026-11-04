@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.29 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.30 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.30: Etappe F7 – Abgang bzw. Gruppe auf ein anderes Blatt ziehen (landet in der Reihenfolge an der Stelle
+           und in der Spalte unter dem Zeiger); „Blatt festhalten“ über dem Blatt: dessen Abgänge behalten Spalte und
+           Blatt, auch wenn davor etwas dazukommt; „Freigeben“ nimmt das zurück
      v1.29: Etappe F6 – Mehrfachauswahl (Werkzeug „Auswahl“ bzw. Rahmen mit Maus/Pencil auf freier Fläche oder mit
            Umschalt; links→rechts ganz umschlossene, rechts→links auch angeschnittene; Umschalt+Tippen ergänzt),
            gemeinsames Verschieben von Geräten und Zusätzen (Ziehen, Pfeiltasten); Zusätze ziehen; Lupe beim
@@ -330,6 +333,10 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
 .ed rect.teil{pointer-events:none}
 .ed .nadel{pointer-events:none}
+.blatt .btr{display:flex;align-items:center;gap:10px}
+.festknopf{border:1px solid var(--linie2);background:var(--karte);color:var(--leise);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:600;cursor:pointer}
+.festknopf:hover{color:var(--akzent);border-color:var(--akzent)}
+.festknopf.an{background:var(--akzent-hell);color:var(--akzent);border-color:var(--akzent)}
 .ed .auswahlrahmen{fill:rgba(106,53,232,.06);stroke:var(--ov);stroke-width:.3;pointer-events:none}
 .ed .auswahlrahmen.schneidet{stroke-dasharray:1.2 .8}
 .ed [data-zusatz]{pointer-events:none}
@@ -2215,7 +2222,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.29';
+const FASSUNG = 'v1.30';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2352,6 +2359,7 @@ function layoutBereinigen(v) {
   Object.keys(L.wege || {}).forEach(key => { const w = L.wege[key]; if (!w || !w.n || !gibt(key)) delete L.wege[key]; });
   LAYOUT_ARTEN.forEach(x => { if (L[x] && !Object.keys(L[x]).length) delete L[x]; });
   if (L.zusatz && !L.zusatz.length) delete L.zusatz;
+  if (L.fest) { Object.keys(L.fest).forEach(a => { if (!L.fest[a] || (a.startsWith('k:') && !da.has(a.slice(2)))) delete L.fest[a]; }); if (!Object.keys(L.fest).length) delete L.fest; }
   if (!Object.keys(L).length) delete v.layout;
 }
 // gehört ein Schlüssel zu einem Besitzer (Abgang, Gruppe …)?
@@ -2367,7 +2375,7 @@ function vonHand(v, bes) {
 // „Automatik anwenden“: Vorgaben eines Teils/Leiters, eines Abgangs (samt Gruppe) oder des ganzen Verteilers entfernen
 function automatik(v, bes) {
   if (!v.layout) return;
-  if (!bes) { const z = v.layout.zusatz; delete v.layout; if (z) v.layout = { zusatz: z }; return; }     // Zusätze bleiben
+  if (!bes) { const z = v.layout.zusatz; delete v.layout; if (z) v.layout = { zusatz: z }; return; }     // Zusätze bleiben, festgehaltene Blätter nicht
   const L = lay(v);
   if (bes.includes('/')) { delete L.lage[bes]; return; }
   if (bes.includes('#')) { delete L.wege[bes]; return; }
@@ -4549,7 +4557,9 @@ function bEditor(b) {
     svg.addEventListener('pointerleave', () => svg.querySelectorAll('[data-hover]').forEach(x => x.removeAttribute('data-hover')));
     svg.addEventListener('click', ev => editorKlick(ev, v, b));
     svg.addEventListener('pointermove', ev => { if (!istZeichenWerkzeug(b.tool)) return; const q = svgPunkt(svg, ev); if (q) zeichenVorschau((b.tool === 'zleiter' ? fang(bl, q[0], q[1]) : rasterFang(q)).p, bl); });
-    const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, BLATT_ART[bl.art])), svg);
+    const festK = bl.art !== 'steuerung' && bl.art !== 'einspeisung' ? h('button', { class: 'festknopf' + (blattFest(v, bl) ? ' an' : ''), title: 'Abgänge dieses Blatts behalten Spalte und Blatt',
+      on: { click: () => blattFesthalten(v, ED.liste.indexOf(bl), !blattFest(v, bl)) } }, blattFest(v, bl) ? '📌 festgehalten' : 'Blatt festhalten') : null;
+    const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', { class: 'btr' }, festK, BLATT_ART[bl.art])), svg);
     ED.karten.push(karte); blaetter.append(karte);
   });
   paletteNeu(); eigenNeu(); fussNeu();
@@ -4671,7 +4681,7 @@ function ziehEnde(ev) {
     if (sp && lg && sp.blatt === lg.blatt && sp.col !== lg.col) {       // in eine freie Spalte desselben Blatts (ab v1.25)
       const L = lay(z.v); if (sp.col <= 2) delete L.spalten[kid]; else L.spalten[kid] = sp.col;
       z.b.sel = z.id; aenderung('In Spalte ' + sp.col); sichern();
-    } else if (sp && lg && sp.blatt !== lg.blatt) meldung('Auf ein anderes Blatt: „Neues Blatt ab hier“ oder Ausschneiden und Einfügen');
+    } else if (sp && lg && sp.blatt !== lg.blatt) abgangAufBlatt(z.v, z.b, kid, sp);
     zeichne(); return;
   }
   const { v, b } = z, t = ziel.dataset.ziel;
@@ -4710,6 +4720,32 @@ window.addEventListener('pointermove', ev => {
   const z = ziehZiel(ev.clientX, ev.clientY); if (z) z.setAttribute('data-ueber', '');
   spaltenVorschau(!z && zieh.id.startsWith('k:') ? spalteUnter(ev.clientX, ev.clientY, zieh) : null);
 });
+// Abgang auf ein anderes Blatt (ab v1.30): in der Reihenfolge hinter den letzten Abgang links der Zielspalte
+// (bzw. vor den ersten des Blatts), dazu die Wunschspalte; nur für Abgänge und Gruppen an der Hauptschiene
+function abgangAufBlatt(v, b, kid, sp) {
+  const r = knoten(v, kid); if (!r || r.eltern) { meldung('Abgänge einer Gruppe bleiben in ihrer Gruppe'); return; }
+  const items = (ED.liste[sp.blatt].spalten || []).filter(x => x.id && x.id !== kid);
+  if (!items.length) { meldung('Auf diesem Blatt stehen keine Abgänge'); return; }
+  const vor = items.filter(x => x.col < sp.col).pop(), L = lay(v);
+  r.liste.splice(r.i, 1);
+  const ziel = knoten(v, vor ? vor.id : items[0].id);
+  ziel.liste.splice(ziel.i + (vor ? 1 : 0), 0, r.k);
+  if (sp.col > 2) L.spalten[kid] = sp.col; else delete L.spalten[kid];
+  if (!vor && L.umbruch[items[0].id]) { delete L.umbruch[items[0].id]; L.umbruch[kid] = true; }   // ein festes Blatt beginnt nun mit ihm
+  b.sel = 'k:' + kid; aenderung('Auf Blatt ' + ED.liste[sp.blatt].nr); sichern();
+}
+// Blatt festhalten (ab v1.30): alle Abgänge des Blatts behalten Spalte und Blatt, auch wenn davor etwas
+// dazukommt; Freigeben nimmt diese Vorgaben wieder heraus
+function blattFest(v, bl) { return !!(v.layout && v.layout.fest && v.layout.fest[bl.anker]); }
+function blattFesthalten(v, i, an) {
+  const bl = ED.liste[i], items = (bl.spalten || []).filter(x => x.id), L = lay(v); if (!items.length) return;
+  const naechstes = ED.liste.slice(i + 1).find(x => x.art !== 'steuerung' && (x.spalten || []).some(s => s.id));
+  const erster = (naechstes && naechstes.spalten.find(s => s.id)) || null;
+  L.fest = L.fest || {};
+  if (an) { items.forEach(x => { L.spalten[x.id] = x.col; }); if (i > 0 || bl.art === 'abgang') L.umbruch[items[0].id] = true; if (erster) L.umbruch[erster.id] = true; L.fest[bl.anker] = true; }
+  else { items.forEach(x => { delete L.spalten[x.id]; }); delete L.umbruch[items[0].id]; if (erster && !blattFest(v, naechstes)) delete L.umbruch[erster.id]; delete L.fest[bl.anker]; }
+  aenderung(an ? 'Blatt festhalten' : 'Blatt freigeben'); sichern(); zeichne();
+}
 // Zielspalte beim Ziehen eines Abgangs (ab v1.25): Startspalte + gezogene Strecke in ganzen Spalten
 // { blatt, col, w, svg }; nur auf demselben Blatt, Spalten 2 … vorletzte
 function spalteUnter(x, y, z) {
@@ -4719,7 +4755,8 @@ function spalteUnter(x, y, z) {
   const I = M.inverse(), p = new DOMPoint(x, y).matrixTransform(I), p0 = new DOMPoint(z.x, z.y).matrixTransform(I), R = ED.raster;
   const lg = abgangLage(z.id.slice(2)), blatt = ED.liste.findIndex(bl => bl.svg === svg);
   if (!lg || p.y < 10 || p.y > R.sfTop) return null;
-  const col = Math.max(2, Math.min(R.sp - lg.w, lg.col + Math.round((p.x - p0.x) / R.sb)));
+  // auf demselben Blatt um die gezogene Strecke, auf einem anderen Blatt die Spalte unter dem Zeiger (ab v1.30)
+  const col = Math.max(2, Math.min(R.sp - lg.w, blatt === lg.blatt ? lg.col + Math.round((p.x - p0.x) / R.sb) : Math.floor((p.x - R.x0) / R.sb) + 1));
   return { blatt, col, w: lg.w, svg };
 }
 function spaltenVorschau(sp) {

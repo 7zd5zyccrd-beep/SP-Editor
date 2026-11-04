@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.36 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.37 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.37: Etappe M1 – Motor als Anschlussart: Drehstrommotor mit L1 L2 L3 PE (ohne N, Leitung 4-adrig) oder
+           Wechselstrommotor, Kennzeichen -M mit kW und Nennstrom; Motorschutzschalter 3-polig -Q mit Einstellbereich
+           als Schutzorgan (im Übersichtsplan als Leistungsschalter einpolig); Palette „Motor“; Beispiel `motor`
      v1.36: Etappe G3 – Wallbox als Anschlussart (Ladestation 3/N/PE, Kennzeichen -E, 11 oder 22 kW,
            DC-Fehlerstromerkennung in der Wallbox ja/nein), Warnungen zu FI und FI-Typ (DIN VDE 0100-722);
            Palette „Wallbox“; im Übersichtsplan als Steckdose einpolig; Bibliothek v1.9; Beispiel `wallbox`
@@ -674,7 +677,7 @@ const PLAN = (() => {
   const RAND_L = 20, RAND = 10, SF_H = 20, SF_FIRMA = 70;   // Schriftfeld: Höhe, Breite des Firmenfelds
   const FARBE = { N: '#1f5fd6', PE: '#1a8a3a', PEN: '#1a8a3a' };
   const POLE = { ls1: 1, ls3: 3, fils1n: 2, fils3n: 4, sich1: 1, sich3: 3, fi2: 2, fi4: 4, sichtrenn3: 3,
-    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2 };
+    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2, motorschutz3: 3 };
   const LINKS = 14;        // Platz links vom ersten Leiter eines Pfades (Kennzeichen)
   const ABSTAND = 5;       // Leiterabstand = Polabstand
   const VOR_GERAET = 10;
@@ -1007,7 +1010,7 @@ const PLAN = (() => {
       bmk(g, x0 - 1.5, yUnten + 3, kenn, zeilen);
       return yUnten + 3 + 2.8 * zeilen.length + 1;
     }
-    bmk(g, x0 - 5, yG + 1, kenn, zeilen);
+    bmk(g, x0 - ((GERAETE[z] && GERAETE[z].bmkDx) || 5), yG + 1, kenn, zeilen);
     return yUnten;
   }
   const unten = ans => ans.filter(t => t.richtung === 's').sort((p, q) => p.x - q.x);
@@ -1035,6 +1038,7 @@ const PLAN = (() => {
     const d = GERAETE[g.zeichen], z = [];
     if (d.sicherung) z.push(`${g.art || 'gG'} ${g.nenn || '?'} A`);
     else if (d.kennlinie) z.push(`${g.kennlinie || 'B'} ${g.nenn || '?'} A`);
+    else if (d.bereich) z.push(`${g.bereich || '?'} A`);
     else if (g.nenn && !d.ohneNenn) z.push(`${g.nenn} A`);
     if (d.fi) z.push(`${g.idn || '30'} mA Typ ${g.fityp || 'A'}`);
     return z;
@@ -1043,6 +1047,7 @@ const PLAN = (() => {
   // ---- Platzbedarf ----------------------------------------------------------
   function spaltenFuer(nLeiter, R) { return Math.max(1, Math.ceil((LINKS + (nLeiter - 1) * ABSTAND + 2) / R.sb)); }
   function abgangArten(k, a, v) {
+    if (a.ohneN) return ['L1', 'L2', 'L3', 'PE'];      // Drehstrommotor (ab v1.37)
     if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
     if (k.trafo && k.trafo.prim === '400') return ['L1', 'L2'];
@@ -1130,10 +1135,17 @@ const PLAN = (() => {
     // PV-Anlage: der PV-Generator schließt unten mit der Steckdosenunterkante ab, darüber
     // DC-Freischalter und Wechselrichter – der Abgang braucht entsprechend mehr Höhe
     const pvDc = ende === 'pv' && (!k.pv || k.pv.dc !== false);
-    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : ende === 'wallbox' ? WALLBOX_H : 0;     // Geräte im Feld (ab v1.34)
+    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : ende === 'wallbox' ? WALLBOX_H : ende === 'motor' ? MOTOR_H : 0;     // Geräte im Feld (ab v1.34)
     const natur = feldH ? cursor + PV_LUECKE + feldH - UNTERKANTE : cursor + 6;
     const ye = Math.max(natur, yEnde || 0);
-    if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
+    if (ende === 'motor') {        // Motor (ab v1.37): Unterkante des Kreises auf Höhe der Steckdosenunterkante
+      const yM = ye + UNTERKANTE - MOTOR_H;
+      bis(yM);
+      teil(xd);
+      setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben);
+      const mo = k.motor || {};
+      bmk(g, x0 - (arten.length === 4 ? 4 : 6.5), yM + 7, a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);   // links am Kreis vorbei
+    } else if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
       const yW = ye + UNTERKANTE - WALLBOX_H;
       bis(yW);
       teil(xd);
@@ -1219,6 +1231,16 @@ const PLAN = (() => {
     for (const e of Array.from(gZ.children)) {
       if (e.tagName === 'line' && e.getAttribute('x1') === e.getAttribute('x2') && Math.max(+e.getAttribute('y1'), +e.getAttribute('y2')) <= 0) continue;   // AC-Seite oben
       if (e.getAttribute('stroke') && e.getAttribute('stroke') !== 'none') e.setAttribute('stroke', '#000');
+    }
+  }
+  const MOTOR_H = 20;      // Motor: Anschluss bis Unterkante des Kreises (80 Einheiten)
+  // Motor: Leiterfarben nur an den senkrechten Anschlussleitungen; der kurze PE-Abschnitt zum Kreis bleibt grün
+  function motorFarben(gZ) {
+    for (const e of Array.from(gZ.children)) {
+      const st = e.getAttribute('stroke'); if (!st || st === 'none') continue;
+      if (e.tagName === 'line' && e.getAttribute('x1') === e.getAttribute('x2')) continue;
+      if (e.tagName === 'line' && e.getAttribute('y1') === e.getAttribute('y2') && +e.getAttribute('y1') === -30) { e.setAttribute('stroke', FARBE.PE); continue; }
+      e.setAttribute('stroke', '#000');
     }
   }
   const WALLBOX_H = 15;    // Anschluss bis Unterkante des Kastens (60 Einheiten)
@@ -1521,7 +1543,7 @@ const PLAN = (() => {
   // ---- Übersichtsschaltplan (einpolig) --------------------------------------
   const UE = { ls1: 'ls1', ls3: 'ls1', fils1n: 'ue_fils', fils3n: 'ue_fils', sich1: 'sich1', sich3: 'sich1',
     fi2: 'ue_fi', fi4: 'ue_fi', sichtrenn3: 'sichtrenn1', sichlasttrenn3: 'sichlasttrenn1', lasttrenn3: 'ue_lasttrenn',
-    trenn3: 'ue_trenn', leistung3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
+    trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
   const UE_FEED_X = 24;      // Einspeisung: Abstand vom linken Rahmen
   // Leiterzahl: kurzer Schrägstrich über der Linie, Zahl rechts daneben
   function leiterzahl(g, x, y, n) {
@@ -1553,12 +1575,18 @@ const PLAN = (() => {
       linie(g, x - d, yE, x + d, yE, 0.25);
       setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'pv_oben', x - 20 * E / 2, yE, null, null, 1 / f);
     }
+    else if (ende === 'motor') {      // Motor verkleinert, alle Anschlüsse an der einpoligen Leitung
+      const n = abgangArten(k, a, v).length, f = 0.35, d = 20 * (n - 1) * E * f / 2;
+      linie(g, x - d, yE, x + d, yE, 0.25);
+      setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), n === 4 ? 'motor3' : 'motor1', x - 10 * (n - 1) * E, yE, null, null, 1 / f);
+    }
     else if (ende === 'speicher') {   // Batterie verkleinert an der einpoligen Leitung
       const f = 0.7;
       setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'batterie', x, yE, null, null, 1 / f);
     }
     else linie(g, x, yE, x, yE + UNTERKANTE, 0.25);
     if (ende === 'speicher') text(g, x - 3, yE + 3.6, a.bat.t, 2.2, 'end');
+    else if (ende === 'motor') text(g, x - 4.5, yE + 3.6, a.xd.t, 2.2, 'end');
     else if (ende === 'pv') text(g, x - 5.5, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
     else if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
     const yL = yE + 9.5, max = ySF - 2 - yL;
@@ -2372,7 +2400,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.36';
+const FASSUNG = 'v1.37';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2396,9 +2424,11 @@ const GERAETE = {
   zaehler1:       { name: 'Zähler 1-phasig',       pole: 1, ohneNenn: true },
   spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true },
   spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true },
+  // Motorschutzschalter (ab v1.37): Kennzeichen -Q nach 81346-2 (Jean, 04.11.2026), Einstellbereich statt Nennstrom
+  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9 },
 };
 const WAHL = {
-  abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', ''],
+  abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', 'motorschutz3', ''],
   gruppe:       ['fi2', 'fi4', 'ls3', 'sich3', 'sichtrenn3'],
   vorsicherung: ['', 'sichlasttrenn3', 'sichtrenn3', 'sich3', 'ls3'],
   hauptschalter:['', 'lasttrenn3', 'trenn3', 'leistung3'],
@@ -2408,11 +2438,13 @@ const WAHL = {
 const gName = k => k ? GERAETE[k].name : 'ohne';
 const KENNLINIEN = ['B', 'C', 'D', 'K', 'Z'];
 const NENNSTROM = ['6', '10', '13', '16', '20', '25', '32', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400'];
+// Einstellbereiche der Motorschutzschalter bzw. Überlastrelais (ab v1.37)
+const MSS_BEREICH = ['0,1–0,16', '0,16–0,25', '0,25–0,4', '0,4–0,63', '0,63–1', '1–1,6', '1,6–2,5', '2,5–4', '4–6,3', '6,3–10', '9–14', '13–18', '17–23', '20–25', '24–32', '28–40', '40–50', '45–63'];
 const NENNFEHLER = ['10', '30', '100', '300', '500'];
 const FI_TYP = ['A', 'F', 'B', 'B+', 'AC'];
 const SICH_ART = ['gG', 'gL', 'aM'];
 const ANSCHLUSS = { steckdose3: 'Steckdose 1/N/PE (Schuko, CEE 3-pol.)', steckdose5: 'Steckdose 3/N/PE (CEE 5-pol.)',
-  dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', wallbox: 'Wallbox (Ladestation 3/N/PE)', pv: 'PV-Anlage (Wechselrichter, PV-Generator)', speicher: 'Batteriespeicher (AC-gekoppelt)', fest: 'Fester Anschluss (offenes Ende)' };
+  dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', wallbox: 'Wallbox (Ladestation 3/N/PE)', motor: 'Motor (Drehstrom ohne N oder Wechselstrom)', pv: 'PV-Anlage (Wechselrichter, PV-Generator)', speicher: 'Batteriespeicher (AC-gekoppelt)', fest: 'Fester Anschluss (offenes Ende)' };
 // PV-Anlage am Abgang (ab v1.34, Etappe G1): k.pv = { phasen: '1' | '3', kwp, dc (DC-Freischalter), zaehler (Erzeugungszähler),
 //   wr: { bmk }, gen: { bmk }, dcq: { bmk }, p: { bmk } }; Wechselrichter -T, PV-Generator -G, DC-Freischalter -Q, Zähler -P
 const pvVon = k => k.pv || { phasen: '3', kwp: '', dc: true, zaehler: false };
@@ -2420,6 +2452,10 @@ const pvVon = k => k.pv || { phasen: '3', kwp: '', dc: true, zaehler: false };
 // AC-gekoppelt als eigener Abgang k.ziel.anschluss = 'speicher', k.speicher = { phasen, kwh, wr: { bmk }, bat: { bmk } }
 // Wallbox (ab v1.36, Etappe G3): k.ziel.anschluss = 'wallbox', k.wallbox = { kw: '11' | '22', rdc: true (DC-Fehlerstromerkennung in der Wallbox) }
 const wallboxNeu = () => ({ kw: '11', rdc: true });
+// Motor (ab v1.37, Etappe M1): k.ziel.anschluss = 'motor', k.motor = { art: '3' | '1', kw, strom };
+// Drehstrommotor mit L1 L2 L3 PE (ohne N, Leitung 4-adrig), Wechselstrommotor mit L N PE; Kennzeichen -M
+const motorVon = k => k.motor || { art: '3', kw: '' };
+const motorNeu = v => ({ art: v.leiter === '1NPE' ? '1' : '3', kw: '4' });
 const speicherVon = k => k.speicher || { phasen: '3', kwh: '' };
 const PHASEN = ['auto', 'L1', 'L2', 'L3'];
 // Schaltgeräte im Abgang (Etappe B); Kennzeichen nach DIN EN IEC 81346-2: -Q schaltet Energie, -K Zeitrelais
@@ -2564,13 +2600,14 @@ function istDrei(k, v) {
   const g = k.geraet.zeichen;
   if (g && GERAETE[g].pole === 3) return true;
   if (k.ziel && (k.ziel.anschluss === 'steckdose5' || k.ziel.anschluss === 'wallbox')) return true;
+  if (k.ziel && k.ziel.anschluss === 'motor' && !k.speist && motorVon(k).art !== '1') return true;
   if (k.ziel && k.ziel.anschluss === 'pv' && !k.speist && pvVon(k).phasen !== '1') return true;
   if (k.ziel && k.ziel.anschluss === 'speicher' && !k.speist && speicherVon(k).phasen !== '1') return true;
   if (k.speist) { const u = vById(k.speist); if (u && u.leiter === '3NPE') return true; }
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -2588,15 +2625,16 @@ function berechne(v) {
   alleKnoten(v, (k, eltern) => {
     if (k.typ === 'gruppe') { e.geraete[k.id] = bmk('F', k.geraet.bmk); return; }
     const a = {};
-    if (k.geraet.zeichen) a.f = bmk('F', k.geraet.bmk);
+    if (k.geraet.zeichen) a.f = bmk(GERAETE[k.geraet.zeichen].kz || 'F', k.geraet.bmk);
     a.drei = istDrei(k, v);
+    a.ohneN = a.drei && !k.speist && k.ziel.anschluss === 'motor';     // Drehstrommotor: L1 L2 L3 PE
     if (a.drei) a.phase = { t: 'L1–L3', auto: false };
     else if (v.leiter === '1NPE') a.phase = { t: 'L', auto: false };
     else if (k.trafo && k.trafo.prim === '400') a.phase = { t: 'L1–L2', auto: false };   // Steuertrafo 400 V: fest zwischen L1 und L2
     else if (einLeiterGruppe(eltern)) a.phase = { t: null, auto: false, gruppe: eltern.id };
     else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
     else a.phase = { t: null, auto: true };
-    a.leiter = a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
+    a.leiter = a.ohneN ? ['L1', 'L2', 'L3', 'PE'] : a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
     if (k.steuer) a.leiter = ['L', 'N'];     // Steuer-LS: nur L und N, ohne Leitung und Klemmen
     if (k.trafo && k.trafo.prim === '400') a.leiter = ['L1', 'L2'];
     // Schaltgerät hinter dem Schutzorgan: geschaltet werden die Außenleiter, N nur auf Wunsch
@@ -2634,6 +2672,7 @@ function berechne(v) {
       if (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') a.xd = bmk('XD', k.ziel.bmk);
       else if (k.ziel.anschluss === 'dose') a.xd = bmk('X', k.ziel.bmk);
       else if (k.ziel.anschluss === 'leuchte') a.xd = bmk('E', k.ziel.bmk);
+      else if (k.ziel.anschluss === 'motor') a.xd = bmk('M', k.ziel.bmk);
       else if (k.ziel.anschluss === 'wallbox') {
         a.xd = bmk('E', k.ziel.bmk);
         const wb = k.wallbox || wallboxNeu(), d = k.geraet.zeichen && GERAETE[k.geraet.zeichen];
@@ -2833,6 +2872,7 @@ function bemessung(g) {
   const d = GERAETE[g.zeichen], t = [];
   if (d.sicherung) t.push(`${g.art || 'gG'} ${g.nenn || '?'} A`);
   else if (d.kennlinie) t.push(`${g.kennlinie || 'B'} ${g.nenn || '?'} A`);
+  else if (d.bereich) t.push(`${g.bereich || '?'} A`);
   else if (g.nenn) t.push(`${g.nenn} A`);
   if (d.fi) t.push(`${g.idn || '30'} mA` + (g.fityp ? ` Typ ${g.fityp}` : ''));
   return t.join(' ');
@@ -2841,7 +2881,7 @@ const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
   if (k.steuer) return '';
-  const adern = a.drei ? 5 : 3;
+  const adern = a.leiter.length;
   return `${k.leitung.typ || 'NYM-J'} ${adern}×${k.leitung.quer || '?'}`;
 }
 
@@ -3236,6 +3276,7 @@ function geraetZeilen(ge) {
   if (d.sicherung) z.push(zeile('Betriebsklasse', ge.art || 'gG', () => wahlFeld('Betriebsklasse', SICH_ART, ge.art || 'gG', w => ge.art = w)));
   if (d.kennlinie) z.push(zeile('Kennlinie', ge.kennlinie || 'B', () => wahlFeld('Kennlinie', KENNLINIEN, ge.kennlinie || 'B', w => ge.kennlinie = w)));
   if (!d.ohneNenn) z.push(zeile('Nennstrom', ge.nenn ? ge.nenn + ' A' : '—', () => wahlFeld('Nennstrom', NENNSTROM.map(x => [x, x + ' A']), ge.nenn, w => ge.nenn = w)));
+  if (d.bereich) z.push(zeile('Einstellbereich', ge.bereich ? ge.bereich + ' A' : '—', () => wahlFeld('Einstellbereich', MSS_BEREICH.map(x => [x, x + ' A']), ge.bereich, w => ge.bereich = w)));
   if (d.fi) {
     z.push(zeile('Nennfehlerstrom', (ge.idn || '30') + ' mA', () => wahlFeld('Nennfehlerstrom', NENNFEHLER.map(x => [x, x + ' mA']), ge.idn || '30', w => ge.idn = w)));
     z.push(zeile('Typ', ge.fityp || 'A', () => wahlFeld('FI-Typ', FI_TYP, ge.fityp || 'A', w => ge.fityp = w)));
@@ -3255,10 +3296,18 @@ function bAbgang(b) {
     k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
-    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => { k.ziel.anschluss = w; if (w === 'wallbox' && !k.wallbox) k.wallbox = wallboxNeu(); if (w === 'pv' && !k.pv) k.pv = pvNeu(v); if (w === 'speicher' && !k.speicher) k.speicher = speicherNeu(v); })),
-    a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte', wallbox: 'Wallbox' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
+    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => { k.ziel.anschluss = w; if (w === 'motor' && !k.motor) k.motor = motorNeu(v); if (w === 'wallbox' && !k.wallbox) k.wallbox = wallboxNeu(); if (w === 'pv' && !k.pv) k.pv = pvNeu(v); if (w === 'speicher' && !k.speicher) k.speicher = speicherNeu(v); })),
+    a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte', wallbox: 'Wallbox', motor: 'Motor' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
       () => bmkFeld('Kennzeichen', k.ziel, a.xd.hand ? '' : a.xd.t)) : null));
   if (k.ziel.anschluss === 'leuchte' && a.drei) m.append(h('p', { class: 'warnung' }, 'Eine Leuchte wird einphasig angeschlossen.'));
+  if (k.ziel.anschluss === 'motor' && !k.speist) { const mo = k.motor || (k.motor = motorNeu(v));
+    m.append(h('h2', {}, 'Motor'), h('div', { class: 'liste' },
+      v.leiter === '1NPE' ? null : zeile('Art', mo.art === '1' ? 'Wechselstrom (L N PE)' : 'Drehstrom (L1 L2 L3 PE)', () => wahlFeld('Art',
+        [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
+      zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => mo.kw = w.replace(/\s*kW$/i, ''), { platz: 'z. B. 4' })),
+      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => mo.strom = w.replace(/\s*A$/i, ''), { platz: 'z. B. 8,2' }), { un: 'erscheint im Plan neben dem Motor' })));
+    if (mo.art === '1' && a.drei) m.append(h('p', { class: 'warnung' }, 'Wechselstrommotor an einem 3-poligen Schutzorgan: der Abgang wird dreiphasig gezeichnet.'));
+    if (mo.art !== '1' && ge.zeichen && GERAETE[ge.zeichen].pole === 1) m.append(h('p', { class: 'warnung' }, 'Ein Drehstrommotor braucht ein 3-poliges Schutzorgan.')); }
   if (k.ziel.anschluss === 'wallbox' && !k.speist) { const wb = k.wallbox || (k.wallbox = wallboxNeu());
     m.append(h('h2', {}, 'Wallbox'), h('div', { class: 'liste' },
       zeile('Ladeleistung', `${wb.kw} kW`, () => wahlFeld('Ladeleistung', [['11', '11 kW', '16 A dreiphasig'], ['22', '22 kW', '32 A dreiphasig']], wb.kw, w => wb.kw = w)),
@@ -3268,7 +3317,7 @@ function bAbgang(b) {
   if (a.t && k.ziel.anschluss === 'speicher') m.append(h('h2', {}, 'Batteriespeicher'), h('div', { class: 'liste' }, ...speicherZeilen(v, k, a)));
   m.append(h('h2', {}, 'Schutzorgan'), h('div', { class: 'liste' },
     zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : '']), ge.zeichen, w => {
-      ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; if (w && !ge.nenn) ge.nenn = '16'; })),
+      ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; if (w && GERAETE[w].bereich && !ge.bereich) ge.bereich = '6,3–10'; if (w && !ge.nenn && !GERAETE[w].ohneNenn) ge.nenn = '16'; })),
     ...geraetZeilen(ge),
     a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null));
   if (a.warn) m.append(h('p', { class: 'warnung' }, '⚠ ' + a.warn));
@@ -4000,7 +4049,7 @@ function editorTeil(v, key, b) {
 const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
   ['steckdose', 'Steckdose', 'steckdose3', '1~', 'Abgänge'], ['cee', 'CEE-Steckdose', 'steckdose5', '3~', 'Abgänge'], ['leuchte', 'Leuchte', 'leuchte', '', 'Abgänge'],
   ['dose', 'Geräte\u00adanschluss', 'endklemme', '', 'Abgänge'], ['uv', 'Unter\u00adverteiler', 'uv', '', 'Abgänge'], ['gruppe', 'FI-Gruppe', 'fi4', '', 'Gruppen'],
-  ['wallbox', 'Wallbox', 'wallbox', '3~', 'Abgänge'], ['pv', 'PV-Anlage', 'pv', '', 'Erzeugung'], ['speicher', 'Speicher', 'batterie', '', 'Erzeugung'],
+  ['wallbox', 'Wallbox', 'wallbox', '3~', 'Abgänge'], ['motor', 'Motor', 'motor', '3~', 'Abgänge'], ['pv', 'PV-Anlage', 'pv', '', 'Erzeugung'], ['speicher', 'Speicher', 'batterie', '', 'Erzeugung'],
   ['steuerls', 'Steuer-LS', 'ls1', 'S', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
 const ZEICHNEN = [['zauswahl', 'Auswahl', 'zauswahl'], ['zleiter', 'Leiter', 'zleiter'], ['ztext', 'Text', 'ztext'], ['zrahmen', 'Rahmen', 'zrahmen']];
 const PAL_NAME = t => istZeichenWerkzeug(t) || t === 'zauswahl' ? ZEICHNEN.find(x => x[0] === t)[1] : t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
@@ -4014,6 +4063,7 @@ const PIKTO = {
   fi4: '<rect x="9" y="4" width="22" height="13" rx="2"/><text x="20" y="13.8" font-size="8.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">FI</text><path d="M20 17v6M9 23h22M9 23v12M20 23v12M31 23v12"/>',
   ls1: '<rect x="12" y="5" width="16" height="30" rx="2.5"/><path d="M20 11v8"/><rect x="16.5" y="18" width="7" height="5" rx="1" fill="currentColor"/><path d="M16 29h8" stroke-width="1.4"/>',
   trafo: '<circle cx="20" cy="14" r="8.5"/><circle cx="20" cy="26" r="8.5"/>',
+  motor: '<circle cx="20" cy="22" r="12"/><path d="M20 4v6"/><text x="20" y="26.5" font-size="12" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">M</text>',
   wallbox: '<rect x="10" y="5" width="20" height="30" rx="3"/><path d="M15 11h10v7H15z" stroke-width="1.4"/><path d="M21.5 21l-3 5h4l-3 5" stroke-width="1.6"/>',
   batterie: '<rect x="8" y="12" width="22" height="16" rx="2"/><path d="M30 17h3v6h-3M12 20h4M14 18v4M22 20h4" stroke-width="1.4"/>',
   pv: '<path d="M7 30l5-17h16l5 17z"/><path d="M9.5 21.5h21M20 13v17M15.5 13l-2 17M24.5 13l2 17" stroke-width="1.2"/><path d="M20 30v5"/>',
@@ -4610,6 +4660,8 @@ function editorNeu(v, tool) {
     case 'gruppe': { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; return g; }
     case 'pv': Object.assign(a.ziel, { bez: 'PV-Anlage', anschluss: 'pv' }); a.pv = pvNeu(v);
       a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'B', nenn: '16' }; a.leitung.quer = '4'; return a;
+    case 'motor': Object.assign(a.ziel, { bez: 'Motor', anschluss: 'motor' }); a.motor = motorNeu(v);
+      a.geraet = v.leiter === '1NPE' ? { zeichen: 'ls1', kennlinie: 'C', nenn: '16' } : { zeichen: 'motorschutz3', bereich: '6,3–10' }; a.leitung.quer = '2,5'; return a;
     case 'wallbox': Object.assign(a.ziel, { bez: 'Wallbox', anschluss: 'wallbox' }); a.wallbox = wallboxNeu();
       a.geraet = { zeichen: 'fils3n', kennlinie: 'B', nenn: '16', idn: '30', fityp: 'A' }; a.leitung.quer = '6'; return a;
     case 'speicher': Object.assign(a.ziel, { bez: 'Speicher', anschluss: 'speicher' }); a.speicher = speicherNeu(v);

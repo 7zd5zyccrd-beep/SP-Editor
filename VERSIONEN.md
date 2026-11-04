@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.37 | Etappe M1: Motorabgang (Drehstrom L1 L2 L3 PE ohne N oder Wechselstrom, -M mit kW/A), Motorschutzschalter -Q mit Einstellbereich; Palette „Motor“; Beispiel `motor` |
 | v1.36 | Etappe G3: Wallbox (-E, 11/22 kW, DC-Fehlerstromerkennung, Warnungen zum FI); Palette „Wallbox“; Bibliothek v1.9; Beispiel `wallbox` |
 | v1.35 | Etappe G2: Speicher am Hybrid-Wechselrichter oder AC-gekoppelt (Batteriewechselrichter -T, Batterie -G); Palette „Speicher“; Beispiel `speicher` |
 | v1.34 | Etappe G1: PV-Anlage als Abgang (Wechselrichter -T ein-/dreiphasig, DC-Freischalter -Q, PV-Generator -G, Erzeugungszähler -P); Palette „Erzeugung“; Bibliothek v1.8; Beispiel `pv` |

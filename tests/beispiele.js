@@ -144,6 +144,12 @@ window.BEISPIELE = {
     a.geraet = { zeichen: 'fils3n', kennlinie: 'B', nenn: '16', idn: '30', fityp: 'A' }; a.leitung.quer = '6'; hv.knoten.splice(2, 0, a);
     const b = neuerAbgang(); b.ziel = { bez: 'Wallbox', ort: 'Hof', anschluss: 'wallbox' }; b.wallbox = { kw: '22', rdc: false };
     b.geraet = { zeichen: 'fils3n', kennlinie: 'B', nenn: '32', idn: '30', fityp: 'B' }; b.leitung.quer = '10'; uv.knoten.push(b); sichern(); zeichne(); },
+  // Etappe M1: HV mit Drehstrommotor 4 kW am Motorschutzschalter (über -X1), UV mit Wechselstrommotor 0,75 kW am LS
+  motor: () => { BEISPIELE.grund(); const [hv, uv] = P.verteiler; hv.klemmen = 'leiste';
+    const a = neuerAbgang(); a.ziel = { bez: 'Lüfter', ort: 'Halle', anschluss: 'motor' }; a.motor = { art: '3', kw: '4', strom: '8,2' };
+    a.geraet = { zeichen: 'motorschutz3', bereich: '6,3–10' }; a.leitung.quer = '2,5'; hv.knoten.splice(2, 0, a);
+    const b = neuerAbgang(); b.ziel = { bez: 'Pumpe', ort: 'Keller', anschluss: 'motor' }; b.motor = { art: '1', kw: '0,75' };
+    b.geraet = { zeichen: 'ls1', kennlinie: 'C', nenn: '10' }; b.leitung.quer = '1,5'; uv.knoten.push(b); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

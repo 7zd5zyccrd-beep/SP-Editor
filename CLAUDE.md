@@ -302,6 +302,17 @@ dem Baukasten (`geraet_wechselrichter`, gleiche Zeichnung, AC oben).
   Zeichen `wallbox` (Unterkante des Kastens = Steckdosenunterkante, `WALLBOX_H`); Warnungen: eigener FI je Ladepunkt,
   ohne DC-Fehlerstromerkennung FI Typ B; im Übersichtsplan `ue_steckdose`. Offen (optional): Lastmanagement/Rundsteuer-Kontakt.
 
+## Etappe M – Motoren (abgestimmt 04.11.2026, Jean: „Alles ja“)
+
+Entscheidungen: Motorschutzschalter -Q (81346-2), Überlastrelais -F; Drehstrommotor ohne N (L1 L2 L3 PE, Leitung
+4-adrig), N nur beim Wechselstrommotor; Überlastrelais-Öffner 95–96 automatisch in den Spulenpfad (Warnung, wenn er
+fehlt); Stern-Dreieck mit zwei Leitungen -W (U1 V1 W1 PE / U2 V2 W2); Wendeschaltung und Stern-Dreieck werden gebraucht.
+Teilschritte: M1 v1.37 Direktstart, M2 v1.38 Schütz + Überlastrelais, M3 v1.39 Frequenzumrichter, M4 v1.40 Wende-
+und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
+- M1 v1.37: `k.ziel.anschluss = 'motor'`, `k.motor = { art: '3' | '1', kw, strom }` (`motorVon()`, `motorNeu()`),
+  `a.ohneN` → `abgangArten()` L1 L2 L3 PE; Zeichen `motor3` bzw. `motor1` mit `motorFarben()`, Unterkante = Steckdosen-
+  unterkante (`MOTOR_H`); `GERAETE.motorschutz3` (`kz: 'Q'`, `bereich`, `bmkDx`), `MSS_BEREICH`; Übersicht `ue_leistung`.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

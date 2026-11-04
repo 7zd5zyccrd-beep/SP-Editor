@@ -854,5 +854,51 @@
    "11 HV klemmen",
    "669dc6d5bd34412be53f5e445862c5eb"
   ]
+ ],
+ "motor": [
+  [
+   "1 Deckblatt deckblatt",
+   "6d3939ef6fa64e55707268ed1861426f"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "3524e2dcc5fa1c08be8b5d98f0b32151"
+  ],
+  [
+   "3 HV uebersicht",
+   "4ba1733d2888d174e59810575b04f902"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "e80665aaff87281b5e2b6ecabf903566"
+  ],
+  [
+   "5 HV einspeisung",
+   "e781a645912b0ff25e451ab128ca2b4c"
+  ],
+  [
+   "6 HV abgang",
+   "0340caa11abc602c68e40f0c7c9a91e3"
+  ],
+  [
+   "7 HV abgang",
+   "7c8212c50365f317537cfcbde700b205"
+  ],
+  [
+   "8 HV abgang",
+   "7dc0de764e177d1fb6ba4e59c9451af8"
+  ],
+  [
+   "9 UV Werkstatt kombiniert",
+   "b5f000b3c93de804ec42bd88a7787415"
+  ],
+  [
+   "10 HV klemmen",
+   "4c5294fe004c5d9b1afbc93342b4b07b"
+  ],
+  [
+   "11 HV klemmen",
+   "c451ca9fa24123177e9a96ca3eb75efa"
+  ]
  ]
 }

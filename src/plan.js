@@ -26,7 +26,7 @@ const PLAN = (() => {
   const RAND_L = 20, RAND = 10, SF_H = 20, SF_FIRMA = 70;   // Schriftfeld: Höhe, Breite des Firmenfelds
   const FARBE = { N: '#1f5fd6', PE: '#1a8a3a', PEN: '#1a8a3a' };
   const POLE = { ls1: 1, ls3: 3, fils1n: 2, fils3n: 4, sich1: 1, sich3: 3, fi2: 2, fi4: 4, sichtrenn3: 3,
-    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2 };
+    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2, motorschutz3: 3 };
   const LINKS = 14;        // Platz links vom ersten Leiter eines Pfades (Kennzeichen)
   const ABSTAND = 5;       // Leiterabstand = Polabstand
   const VOR_GERAET = 10;
@@ -359,7 +359,7 @@ const PLAN = (() => {
       bmk(g, x0 - 1.5, yUnten + 3, kenn, zeilen);
       return yUnten + 3 + 2.8 * zeilen.length + 1;
     }
-    bmk(g, x0 - 5, yG + 1, kenn, zeilen);
+    bmk(g, x0 - ((GERAETE[z] && GERAETE[z].bmkDx) || 5), yG + 1, kenn, zeilen);
     return yUnten;
   }
   const unten = ans => ans.filter(t => t.richtung === 's').sort((p, q) => p.x - q.x);
@@ -387,6 +387,7 @@ const PLAN = (() => {
     const d = GERAETE[g.zeichen], z = [];
     if (d.sicherung) z.push(`${g.art || 'gG'} ${g.nenn || '?'} A`);
     else if (d.kennlinie) z.push(`${g.kennlinie || 'B'} ${g.nenn || '?'} A`);
+    else if (d.bereich) z.push(`${g.bereich || '?'} A`);
     else if (g.nenn && !d.ohneNenn) z.push(`${g.nenn} A`);
     if (d.fi) z.push(`${g.idn || '30'} mA Typ ${g.fityp || 'A'}`);
     return z;
@@ -395,6 +396,7 @@ const PLAN = (() => {
   // ---- Platzbedarf ----------------------------------------------------------
   function spaltenFuer(nLeiter, R) { return Math.max(1, Math.ceil((LINKS + (nLeiter - 1) * ABSTAND + 2) / R.sb)); }
   function abgangArten(k, a, v) {
+    if (a.ohneN) return ['L1', 'L2', 'L3', 'PE'];      // Drehstrommotor (ab v1.37)
     if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
     if (k.trafo && k.trafo.prim === '400') return ['L1', 'L2'];
@@ -482,10 +484,17 @@ const PLAN = (() => {
     // PV-Anlage: der PV-Generator schließt unten mit der Steckdosenunterkante ab, darüber
     // DC-Freischalter und Wechselrichter – der Abgang braucht entsprechend mehr Höhe
     const pvDc = ende === 'pv' && (!k.pv || k.pv.dc !== false);
-    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : ende === 'wallbox' ? WALLBOX_H : 0;     // Geräte im Feld (ab v1.34)
+    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : ende === 'wallbox' ? WALLBOX_H : ende === 'motor' ? MOTOR_H : 0;     // Geräte im Feld (ab v1.34)
     const natur = feldH ? cursor + PV_LUECKE + feldH - UNTERKANTE : cursor + 6;
     const ye = Math.max(natur, yEnde || 0);
-    if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
+    if (ende === 'motor') {        // Motor (ab v1.37): Unterkante des Kreises auf Höhe der Steckdosenunterkante
+      const yM = ye + UNTERKANTE - MOTOR_H;
+      bis(yM);
+      teil(xd);
+      setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben);
+      const mo = k.motor || {};
+      bmk(g, x0 - (arten.length === 4 ? 4 : 6.5), yM + 7, a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);   // links am Kreis vorbei
+    } else if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
       const yW = ye + UNTERKANTE - WALLBOX_H;
       bis(yW);
       teil(xd);
@@ -571,6 +580,16 @@ const PLAN = (() => {
     for (const e of Array.from(gZ.children)) {
       if (e.tagName === 'line' && e.getAttribute('x1') === e.getAttribute('x2') && Math.max(+e.getAttribute('y1'), +e.getAttribute('y2')) <= 0) continue;   // AC-Seite oben
       if (e.getAttribute('stroke') && e.getAttribute('stroke') !== 'none') e.setAttribute('stroke', '#000');
+    }
+  }
+  const MOTOR_H = 20;      // Motor: Anschluss bis Unterkante des Kreises (80 Einheiten)
+  // Motor: Leiterfarben nur an den senkrechten Anschlussleitungen; der kurze PE-Abschnitt zum Kreis bleibt grün
+  function motorFarben(gZ) {
+    for (const e of Array.from(gZ.children)) {
+      const st = e.getAttribute('stroke'); if (!st || st === 'none') continue;
+      if (e.tagName === 'line' && e.getAttribute('x1') === e.getAttribute('x2')) continue;
+      if (e.tagName === 'line' && e.getAttribute('y1') === e.getAttribute('y2') && +e.getAttribute('y1') === -30) { e.setAttribute('stroke', FARBE.PE); continue; }
+      e.setAttribute('stroke', '#000');
     }
   }
   const WALLBOX_H = 15;    // Anschluss bis Unterkante des Kastens (60 Einheiten)
@@ -873,7 +892,7 @@ const PLAN = (() => {
   // ---- Übersichtsschaltplan (einpolig) --------------------------------------
   const UE = { ls1: 'ls1', ls3: 'ls1', fils1n: 'ue_fils', fils3n: 'ue_fils', sich1: 'sich1', sich3: 'sich1',
     fi2: 'ue_fi', fi4: 'ue_fi', sichtrenn3: 'sichtrenn1', sichlasttrenn3: 'sichlasttrenn1', lasttrenn3: 'ue_lasttrenn',
-    trenn3: 'ue_trenn', leistung3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
+    trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
   const UE_FEED_X = 24;      // Einspeisung: Abstand vom linken Rahmen
   // Leiterzahl: kurzer Schrägstrich über der Linie, Zahl rechts daneben
   function leiterzahl(g, x, y, n) {
@@ -905,12 +924,18 @@ const PLAN = (() => {
       linie(g, x - d, yE, x + d, yE, 0.25);
       setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'pv_oben', x - 20 * E / 2, yE, null, null, 1 / f);
     }
+    else if (ende === 'motor') {      // Motor verkleinert, alle Anschlüsse an der einpoligen Leitung
+      const n = abgangArten(k, a, v).length, f = 0.35, d = 20 * (n - 1) * E * f / 2;
+      linie(g, x - d, yE, x + d, yE, 0.25);
+      setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), n === 4 ? 'motor3' : 'motor1', x - 10 * (n - 1) * E, yE, null, null, 1 / f);
+    }
     else if (ende === 'speicher') {   // Batterie verkleinert an der einpoligen Leitung
       const f = 0.7;
       setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'batterie', x, yE, null, null, 1 / f);
     }
     else linie(g, x, yE, x, yE + UNTERKANTE, 0.25);
     if (ende === 'speicher') text(g, x - 3, yE + 3.6, a.bat.t, 2.2, 'end');
+    else if (ende === 'motor') text(g, x - 4.5, yE + 3.6, a.xd.t, 2.2, 'end');
     else if (ende === 'pv') text(g, x - 5.5, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
     else if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
     const yL = yE + 9.5, max = ySF - 2 - yL;

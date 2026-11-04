@@ -458,6 +458,20 @@ const PLAN = (() => {
     }
     const spule = ctx.steuer && ctx.steuer.spulen[k.id];
     if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '', `k:${k.id}/q`);
+    // Überlastrelais unter dem Schütz (ab v1.38): thermische Auslöser in den Außenleitern, daneben
+    // Kennzeichen, Einstellbereich und die genutzten Kontakte mit Verweis in den Steuerstromkreis
+    if (a.ol) {
+      const top = cursor + 3, n = Math.min(3, arten.filter(x => /^L/.test(x)).length);
+      bis(top);
+      teil(`k:${k.id}/ol`);
+      const t = unten(setze(g, 'ueberlast3', x0, top, null, arten.slice(0, n)));
+      t.forEach((p, i) => { if (i < n) enden[i] = p.y; });
+      const lage = key => { const l = ctx.steuer && ctx.steuer.kontakte[key]; return l ? ` /${l.blatt}.${l.spalte}` : ''; };
+      const kont = [...((a.olKont || {}).o || []).map(key => '95–96' + lage(key)), ...((a.olKont || {}).s || []).map(key => '97–98' + lage(key))];
+      bmk(g, x0 - 4, top + 1, a.ol.bmk.t, [a.ol.bereich ? `${a.ol.bereich} A` : '', ...kont]);
+      teil(null);
+      cursor = Math.max(...t.map(p => p.y));
+    }
     // Erzeugungszähler der PV-Anlage (ab v1.34) im Verteiler hinter dem Schutzorgan
     if (a.p) {
       const zz = arten.length === 5 ? 'zaehler3' : 'zaehler1', top = cursor + 4;
@@ -893,6 +907,7 @@ const PLAN = (() => {
   const UE = { ls1: 'ls1', ls3: 'ls1', fils1n: 'ue_fils', fils3n: 'ue_fils', sich1: 'sich1', sich3: 'sich1',
     fi2: 'ue_fi', fi4: 'ue_fi', sichtrenn3: 'sichtrenn1', sichlasttrenn3: 'sichlasttrenn1', lasttrenn3: 'ue_lasttrenn',
     trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
+  const ST_BILD = { mss_s: 'hilfs_s', mss_oe: 'hilfs_oe' };   // Kontaktarten ohne eigenes Zeichen (ab v1.38)
   const UE_FEED_X = 24;      // Einspeisung: Abstand vom linken Rahmen
   // Leiterzahl: kurzer Schrägstrich über der Linie, Zahl rechts daneben
   function leiterzahl(g, x, y, n) {
@@ -1319,7 +1334,7 @@ const PLAN = (() => {
     const haupt = pf.map((_, j) => { let h = j; while (h > 0 && pf[h].zweig) h--; return h; });
     const zweig = j => j > 0 && pf[j].zweig ? pf[j].zweig : null;
     // Quelle: eigener Abgriff im Abgang oder gemeinsame Steuerspannung
-    const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
+    const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' && !(e.abgaenge[kr.quelle.kid] || {}).ohneN ? kr.quelle.kid : null;
     const qu = stQuelle(v, e, kid), la = kid && ctx.lage[kid];
     const ref = la ? `/${la.blatt}.${la.spalte}` : '';
     const lName = qu.lName, nArt = qu.nArt;
@@ -1371,7 +1386,7 @@ const PLAN = (() => {
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
         const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g);
-        const z = pl.z || (ger && ger.zeichen); if (!z || !ZEICHEN[z]) continue;
+        const zArt = pl.z || (ger && ger.zeichen), z = ST_BILD[zArt] || zArt; if (!z || !ZEICHEN[z]) continue;
         const top = stB(i) + 0.5; lt(x, y, x, top, lName);
         teil(`kr:${kr.id}/pl:${p.id}:${i}`);          // Kontakt samt Beschriftung als Teil der Szene (ab v1.31)
         const t = setze(g, z, x, top);
@@ -1380,7 +1395,11 @@ const PLAN = (() => {
         const [li, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
         let an;
         const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && ger.zeichen === 'zeitrelais' && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
-        if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
+        if (kn && (kn.ol || kn.ms)) {       // Überlastrelais bzw. Motorschutzschalter: Verweis auf den Abgang (ab v1.38)
+          const la = ctx.lage[pl.g], kz = kn.ol ? (sa && sa.ol ? sa.ol.bmk.t : '?') : (sa && sa.f ? sa.f.t : '?');
+          bmk(g, x - li - 1, top + 5, kz, [la ? `/${la.blatt}.${la.spalte}` : '']);
+          an = kn.an;
+        } else if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
           const sp = ctx.steuer.spulen[pl.g];
           bmk(g, x - li - 1, top + 5, relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
           an = kn ? kn.an : ['', ''];

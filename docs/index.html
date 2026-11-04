@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.37 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.38 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.38: Etappe M2 – Überlastrelais -F unter dem Schütz (Einstellbereich), Öffner 95–96 automatisch in den
+           Spulenpfad, Schließer 97–98 für die Störmeldung, Kontaktverweise am Überlastrelais; Hilfsschalter des
+           Motorschutzschalters (13–14, 21–22); Vorlage „Motor Ein/Aus“; Motorabgang ohne N greift keine
+           Steuerspannung ab (Warnung); Beispiel `motorsteuerung`
      v1.37: Etappe M1 – Motor als Anschlussart: Drehstrommotor mit L1 L2 L3 PE (ohne N, Leitung 4-adrig) oder
            Wechselstrommotor, Kennzeichen -M mit kW und Nennstrom; Motorschutzschalter 3-polig -Q mit Einstellbereich
            als Schutzorgan (im Übersichtsplan als Leistungsschalter einpolig); Palette „Motor“; Beispiel `motor`
@@ -1109,6 +1113,20 @@ const PLAN = (() => {
     }
     const spule = ctx.steuer && ctx.steuer.spulen[k.id];
     if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '', `k:${k.id}/q`);
+    // Überlastrelais unter dem Schütz (ab v1.38): thermische Auslöser in den Außenleitern, daneben
+    // Kennzeichen, Einstellbereich und die genutzten Kontakte mit Verweis in den Steuerstromkreis
+    if (a.ol) {
+      const top = cursor + 3, n = Math.min(3, arten.filter(x => /^L/.test(x)).length);
+      bis(top);
+      teil(`k:${k.id}/ol`);
+      const t = unten(setze(g, 'ueberlast3', x0, top, null, arten.slice(0, n)));
+      t.forEach((p, i) => { if (i < n) enden[i] = p.y; });
+      const lage = key => { const l = ctx.steuer && ctx.steuer.kontakte[key]; return l ? ` /${l.blatt}.${l.spalte}` : ''; };
+      const kont = [...((a.olKont || {}).o || []).map(key => '95–96' + lage(key)), ...((a.olKont || {}).s || []).map(key => '97–98' + lage(key))];
+      bmk(g, x0 - 4, top + 1, a.ol.bmk.t, [a.ol.bereich ? `${a.ol.bereich} A` : '', ...kont]);
+      teil(null);
+      cursor = Math.max(...t.map(p => p.y));
+    }
     // Erzeugungszähler der PV-Anlage (ab v1.34) im Verteiler hinter dem Schutzorgan
     if (a.p) {
       const zz = arten.length === 5 ? 'zaehler3' : 'zaehler1', top = cursor + 4;
@@ -1544,6 +1562,7 @@ const PLAN = (() => {
   const UE = { ls1: 'ls1', ls3: 'ls1', fils1n: 'ue_fils', fils3n: 'ue_fils', sich1: 'sich1', sich3: 'sich1',
     fi2: 'ue_fi', fi4: 'ue_fi', sichtrenn3: 'sichtrenn1', sichlasttrenn3: 'sichlasttrenn1', lasttrenn3: 'ue_lasttrenn',
     trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
+  const ST_BILD = { mss_s: 'hilfs_s', mss_oe: 'hilfs_oe' };   // Kontaktarten ohne eigenes Zeichen (ab v1.38)
   const UE_FEED_X = 24;      // Einspeisung: Abstand vom linken Rahmen
   // Leiterzahl: kurzer Schrägstrich über der Linie, Zahl rechts daneben
   function leiterzahl(g, x, y, n) {
@@ -1970,7 +1989,7 @@ const PLAN = (() => {
     const haupt = pf.map((_, j) => { let h = j; while (h > 0 && pf[h].zweig) h--; return h; });
     const zweig = j => j > 0 && pf[j].zweig ? pf[j].zweig : null;
     // Quelle: eigener Abgriff im Abgang oder gemeinsame Steuerspannung
-    const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' ? kr.quelle.kid : null;
+    const kid = gem ? gem.quelle : kr.quelle && kr.quelle.art === 'abgang' && !(e.abgaenge[kr.quelle.kid] || {}).ohneN ? kr.quelle.kid : null;
     const qu = stQuelle(v, e, kid), la = kid && ctx.lage[kid];
     const ref = la ? `/${la.blatt}.${la.spalte}` : '';
     const lName = qu.lName, nArt = qu.nArt;
@@ -2022,7 +2041,7 @@ const PLAN = (() => {
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
         const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g);
-        const z = pl.z || (ger && ger.zeichen); if (!z || !ZEICHEN[z]) continue;
+        const zArt = pl.z || (ger && ger.zeichen), z = ST_BILD[zArt] || zArt; if (!z || !ZEICHEN[z]) continue;
         const top = stB(i) + 0.5; lt(x, y, x, top, lName);
         teil(`kr:${kr.id}/pl:${p.id}:${i}`);          // Kontakt samt Beschriftung als Teil der Szene (ab v1.31)
         const t = setze(g, z, x, top);
@@ -2031,7 +2050,11 @@ const PLAN = (() => {
         const [li, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
         let an;
         const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && ger.zeichen === 'zeitrelais' && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
-        if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
+        if (kn && (kn.ol || kn.ms)) {       // Überlastrelais bzw. Motorschutzschalter: Verweis auf den Abgang (ab v1.38)
+          const la = ctx.lage[pl.g], kz = kn.ol ? (sa && sa.ol ? sa.ol.bmk.t : '?') : (sa && sa.f ? sa.f.t : '?');
+          bmk(g, x - li - 1, top + 5, kz, [la ? `/${la.blatt}.${la.spalte}` : '']);
+          an = kn.an;
+        } else if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
           const sp = ctx.steuer.spulen[pl.g];
           bmk(g, x - li - 1, top + 5, relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
           an = kn ? kn.an : ['', ''];
@@ -2400,7 +2423,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.37';
+const FASSUNG = 'v1.38';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2641,6 +2664,9 @@ function berechne(v) {
     const sg = k.schalt && k.schalt.typ ? k.schalt : null;
     if (sg) a.schalt = { typ: sg.typ, bmk: bmk(sg.typ === 'zeitrelais' ? 'K' : 'Q', sg.bmk),
       pole: (a.drei ? ['L1', 'L2', 'L3'] : ['L']).concat(sg.nMit ? ['N'] : []), hs: sg.hs || 0, ho: sg.ho || 0, zr: sg.zr };
+    // Überlastrelais unter dem Schütz (ab v1.38) und Hilfsschalter des Motorschutzschalters
+    if (sg && sg.typ === 'schuetz' && sg.ol) a.ol = { bmk: bmk('F', sg.ol.bmk), bereich: sg.ol.bereich || '' };
+    if (k.geraet.zeichen === 'motorschutz3') a.mssHk = { s: k.geraet.hks || 0, o: k.geraet.hko || 0 };
     // Widersprüche nur melden, nicht verhindern
     const gp = k.geraet.zeichen ? GERAETE[k.geraet.zeichen].pole : null;
     if (a.drei && gp === 1) a.warn = 'Gerät ist 1-polig, der Abgang aber dreiphasig (Anschluss oder Unterverteiler 3/N/PE).';
@@ -2724,7 +2750,7 @@ function berechne(v) {
 // Melder und Endschalter nach DIN EN IEC 81346-2:2019 als Sensoren -B (Jean, 04.11.2026); Taster, Schalter, Not-Aus -S
 const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B',
   endschalter_s: 'B', endschalter_oe: 'B' };   // Endschalter als Positionssensoren (Jean, 04.11.2026)
-const istOeffner = z => /_oe/.test(z);
+const istOeffner = z => /(^|_)oe(_|$)/.test(z);     // auch oe_thermisch (ab v1.38)
 const istVerzoegert = z => /^k_/.test(z);
 const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais');
 function berechneSteuerung(v, e, bmk, klemme) {
@@ -2764,7 +2790,10 @@ function berechneSteuerung(v, e, bmk, klemme) {
   geordnet.forEach(kr => {
     const vp = kr.pfade.find(verbraucherDa), t = kr.name || (vp ? name(vp.verbraucher.g) : 'ohne Verbraucher');
     if (!gemeinsam(kr)) {
-      if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
+      // Drehstrommotor ohne N (ab v1.37): kein Abgriff L/N im eigenen Abgang möglich
+      if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid] && e.abgaenge[kr.quelle.kid].ohneN)
+        r.warn.push(`${t}: Motorabgang ohne N – Steuerspannung gemeinsam über einen Steuer-LS oder Steuertrafo einstellen.`);
+      else if (kr.quelle && kr.quelle.art === 'abgang' && e.abgaenge[kr.quelle.kid]) e.abgaenge[kr.quelle.kid].abgriff = kr.id;
       else r.warn.push(`${t}: Kreis ohne Abgriff der Steuerspannung.`);
     }
     let kontakte = 0, taster = 0, spule = null;
@@ -2785,6 +2814,21 @@ function berechneSteuerung(v, e, bmk, klemme) {
           r.kontakte[key] = { ord: ordB, an: oeB ? [`${ordB}1`, `${ordB}2`] : [`${ordB}3`, `${ordB}4`], bg: true };
           // Feldgerät: zwei Klemmen auf -X1 (oben und unten am Kontakt)
           if (mitLeiste && stFeld(g)) { r.feld[key] = [++nrX1, ++nrX1]; r.feldListe.push({ key, gid: g.id, kr: kr.id, p: p.id, z: g.zeichen }); }
+          return;
+        }
+        const zk = pl.z || '', zart = ST_ZEICHEN[zk] && ST_ZEICHEN[zk][1];
+        if (zart === 'ol' || zart === 'ms') {      // Überlastrelais bzw. Motorschutzschalter des Abgangs (ab v1.38)
+          const a = e.abgaenge[pl.g], ol = zart === 'ol', oe = istOeffner(zk);
+          if (!a) return;
+          const n = ol ? (a.olKont = a.olKont || { s: [], o: [] }) : (a.mssKont = a.mssKont || { s: [], o: [] });
+          (oe ? n.o : n.s).push(key);
+          const zahl = (oe ? n.o : n.s).length;
+          if (ol && !a.ol) r.warn.push(`Überlastrelais-Kontakt in einem Abgang ohne Überlastrelais.`);
+          if (ol && zahl > 1) r.warn.push(`${a.ol ? a.ol.bmk.t : 'Überlastrelais'}: ${oe ? 'Öffner 95–96' : 'Schließer 97–98'} mehrfach genutzt.`);
+          if (!ol && !a.mssHk) r.warn.push(`Hilfsschalter in einem Abgang ohne Motorschutzschalter.`);
+          else if (!ol && zahl > (oe ? a.mssHk.o : a.mssHk.s)) r.warn.push(`${a.f.t}: mehr Hilfsschalter (${oe ? 'Öffner' : 'Schließer'}) genutzt als vorhanden.`);
+          r.kontakte[key] = { an: ol ? (oe ? ['95', '96'] : ['97', '98']) : (oe ? [`${zahl + 1}1`, `${zahl + 1}2`] : [`${zahl}3`, `${zahl}4`]), ol, ms: !ol };
+          if (!ol && oe) r.kontakte[key].an = [`${(a.mssHk ? a.mssHk.s : 0) + zahl}1`, `${(a.mssHk ? a.mssHk.s : 0) + zahl}2`];
           return;
         }
         if (!rl) { r.warn.push(`Hilfskontakt eines Abgangs ohne Schaltgerät.`); return; }
@@ -2818,6 +2862,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
   kreise.forEach(kr => kr.pfade.forEach(p => { if (p.verbraucher) spulen[p.verbraucher.g] = (spulen[p.verbraucher.g] || 0) + 1; }));
   Object.entries(spulen).forEach(([g, n]) => { if (n > 1) r.warn.push(`${name(g)}: Spule bzw. Verbraucher ${n}-mal gesetzt.`); });
   Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) r.warn.push(`${a.schalt.bmk.t}: Schaltgerät ohne Steuerstromkreis (Spule nicht gesetzt).`); });
+  Object.values(e.abgaenge).forEach(a => { if (a.ol && !(a.olKont && a.olKont.o.length)) r.warn.push(`${a.ol.bmk.t}: Öffner 95–96 des Überlastrelais fehlt im Steuerstromkreis.`); });
   // Leitungen der Feldgeräte: je Gerät eine, Adern = Zahl seiner Klemmen
   r.feldListe.forEach(f => { const l = r.leitung[f.gid] = r.leitung[f.gid] || { adern: 0 }; l.adern += 2; });
   (st.geraete || []).forEach(g => { if (r.leitung[g.id]) r.leitung[g.id].w = bmk('W', g.leitung && g.leitung.bmk); });
@@ -2830,10 +2875,15 @@ const ST_ZEICHEN = {          // was auf einen Kontaktplatz kommt; art: Befehlsg
   notaus: ['Not-Aus', 'bg'], daemmerung: ['Dämmerungsschalter', 'bg'], bewegung: ['Bewegungsmelder', 'bg'],
   praesenz: ['Präsenzmelder', 'bg'], endschalter_s: ['Endschalter Schließer', 'bg'], endschalter_oe: ['Endschalter Öffner', 'bg'],
   hilfs_s: ['Hilfsschließer', 'hk'], hilfs_oe: ['Hilfsöffner', 'hk'],
+  // ab v1.38: Kontakte des Überlastrelais (95–96, 97–98) und Hilfsschalter des Motorschutzschalters (13–14, 21–22)
+  oe_thermisch: ['Überlastrelais-Öffner 95–96', 'ol'], s_thermisch: ['Überlastrelais-Schließer 97–98', 'ol'],
+  mss_s: ['Hilfsschalter Motorschutz, Schließer', 'ms'], mss_oe: ['Hilfsschalter Motorschutz, Öffner', 'ms'],
   k_s_ein: ['Schließer einschaltverzögert', 'zr'], k_s_aus: ['Schließer ausschaltverzögert', 'zr'], k_s_einaus: ['Schließer ein- und ausschaltverzögert', 'zr'],
   k_oe_ein: ['Öffner einschaltverzögert', 'zr'], k_oe_aus: ['Öffner ausschaltverzögert', 'zr'],
   meldeleuchte: ['Meldeleuchte', 'ml'], zeitrelais: ['Zeitrelais (eigenständig)', 'zg'],
 };
+// Planzeichen der Kontaktarten, die kein eigenes Zeichen haben
+const ST_BILD = { mss_s: 'hilfs_s', mss_oe: 'hilfs_oe' };
 const ST_ART = { abgang: 'je Abgang', durch: 'gemeinsam, durchgeschliffen', bruecke: 'gemeinsam, gebrückte Klemmen' };
 function stDaten(v) {
   if (!v.steuerung) v.steuerung = { geraete: [], kreise: [] };
@@ -3276,6 +3326,11 @@ function geraetZeilen(ge) {
   if (d.sicherung) z.push(zeile('Betriebsklasse', ge.art || 'gG', () => wahlFeld('Betriebsklasse', SICH_ART, ge.art || 'gG', w => ge.art = w)));
   if (d.kennlinie) z.push(zeile('Kennlinie', ge.kennlinie || 'B', () => wahlFeld('Kennlinie', KENNLINIEN, ge.kennlinie || 'B', w => ge.kennlinie = w)));
   if (!d.ohneNenn) z.push(zeile('Nennstrom', ge.nenn ? ge.nenn + ' A' : '—', () => wahlFeld('Nennstrom', NENNSTROM.map(x => [x, x + ' A']), ge.nenn, w => ge.nenn = w)));
+  if (d.bereich) {
+    const anz = [0, 1, 2].map(n => [String(n), String(n)]);
+    z.push(zeile('Hilfsschalter Schließer', String(ge.hks || 0), () => wahlFeld('Hilfsschalter Schließer (13–14 …)', anz, String(ge.hks || 0), w => ge.hks = +w)));
+    z.push(zeile('Hilfsschalter Öffner', String(ge.hko || 0), () => wahlFeld('Hilfsschalter Öffner (21–22 …)', anz, String(ge.hko || 0), w => ge.hko = +w)));
+  }
   if (d.bereich) z.push(zeile('Einstellbereich', ge.bereich ? ge.bereich + ' A' : '—', () => wahlFeld('Einstellbereich', MSS_BEREICH.map(x => [x, x + ' A']), ge.bereich, w => ge.bereich = w)));
   if (d.fi) {
     z.push(zeile('Nennfehlerstrom', (ge.idn || '30') + ' mA', () => wahlFeld('Nennfehlerstrom', NENNFEHLER.map(x => [x, x + ' mA']), ge.idn || '30', w => ge.idn = w)));
@@ -3381,6 +3436,16 @@ function speicherZeilen(v, k, a) {
     zeile('Kennzeichen Batterie', a.bat.t, () => bmkFeld('Kennzeichen', sp.bat || (sp.bat = {}), a.bat.hand ? '' : a.bat.t))];
 }
 
+// Überlastrelais (ab v1.38): Öffner 95–96 auf den untersten freien Platz über der Spule setzen bzw. entfernen
+function olEinsetzen(v, k) {
+  const kr = kreisAnlegen(v, k), p = kr.pfade.find(q => q.verbraucher && q.verbraucher.g === k.id);
+  if (!p || kr.pfade.some(q => q.plaetze.some(pl => pl && pl.g === k.id && pl.z === 'oe_thermisch'))) return;
+  for (let i = p.plaetze.length - 1; i >= 0; i--) if (!p.plaetze[i]) { p.plaetze[i] = { g: k.id, z: 'oe_thermisch' }; return; }
+}
+function olEntfernen(v, k) {
+  const kr = kreisVon(v, k.id); if (!kr) return;
+  kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => { if (pl && pl.g === k.id && ST_ZEICHEN[pl.z] && ST_ZEICHEN[pl.z][1] === 'ol') p.plaetze[i] = null; }));
+}
 function schaltZeilen(v, k, a) {
   const sg = k.schalt && k.schalt.typ ? k.schalt : null, z = [];
   z.push(zeile('Schaltgerät', sg ? SCHALT[sg.typ] : 'ohne', () => wahlFeld('Schaltgerät', [
@@ -3404,6 +3469,14 @@ function schaltZeilen(v, k, a) {
   z.push(zeile('Hilfsöffner', String(sg.ho || 0), () => wahlFeld('Hilfsöffner (21/22 …)', anz, String(sg.ho || 0), w => sg.ho = +w,
     { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
   z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
+  if (sg.typ === 'schuetz') {      // Überlastrelais unter dem Schütz (ab v1.38)
+    z.push(zeile('Überlastrelais', sg.ol ? `ja · ${sg.ol.bereich || '?'} A` : 'nein', () => wahlFeld('Überlastrelais', [['ja', 'ja', 'unter dem Schütz; Öffner 95–96 kommt in den Spulenpfad'], ['nein', 'nein']],
+      sg.ol ? 'ja' : 'nein', w => { if (w === 'ja') { sg.ol = sg.ol || { bereich: '6,3–10' }; olEinsetzen(v, k); } else { sg.ol = null; olEntfernen(v, k); } })));
+    if (sg.ol) {
+      z.push(zeile('Einstellbereich Überlastrelais', `${sg.ol.bereich || '—'} A`, () => wahlFeld('Einstellbereich', MSS_BEREICH.map(x => [x, x + ' A']), sg.ol.bereich, w => sg.ol.bereich = w)));
+      if (a.ol) z.push(zeile('Kennzeichen Überlastrelais', a.ol.bmk.t, () => bmkFeld('Kennzeichen', sg.ol, a.ol.bmk.hand ? '' : a.ol.bmk.t)));
+    }
+  }
   z.push(zeile('Steuerstromkreis bearbeiten', null, () => { const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); },
     { un: 'Kontakte, Taster, Meldeleuchten; Steuerspannung' }));
   return z;
@@ -3547,7 +3620,7 @@ function verbraucherZeile(v, e, p) {
 function platzWahl(v, e, p, i) {
   const cur = p.plaetze[i], g0 = cur && (v.steuerung.geraete || []).find(x => x.id === cur.g);
   const curZ = cur ? (cur.z || (g0 && g0.zeichen) || '') : '';
-  const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakt eines Schaltgeräts', zr: 'verzögerter Kontakt eines Zeitrelais' };
+  const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakt eines Schaltgeräts', zr: 'verzögerter Kontakt eines Zeitrelais', ol: 'Kontakt eines Überlastrelais', ms: 'Hilfsschalter eines Motorschutzschalters' };
   wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml' && a !== 'zg')
     .map(([z, [n, a]]) => [z, n, art[a]])), curZ, z => {
     if (!z) { p.plaetze[i] = null; return; }
@@ -3565,6 +3638,12 @@ function geraetWahl(v, e, z, cur, setzen) {
       setTimeout(() => textFeld('Bezeichnung', '', x => g.bez = x, { platz: 'z. B. Ein, Aus, Tür, Betrieb' }), 0);
     });
     return;
+  }
+  if (art === 'ol' || art === 'ms') {        // Überlastrelais bzw. Motorschutzschalter eines Abgangs (ab v1.38)
+    const o = []; alleKnoten(v, k => { const a = k.typ === 'abgang' && e.abgaenge[k.id]; if (a && (art === 'ol' ? a.ol : a.mssHk))
+      o.push([k.id, `${art === 'ol' ? a.ol.bmk.t : a.f.t} ${abgangName(k)}`, art === 'ol' ? 'Überlastrelais' : 'Motorschutzschalter']); });
+    if (!o.length) { meldung(art === 'ol' ? 'Kein Überlastrelais im Verteiler' : 'Kein Motorschutzschalter im Verteiler'); return; }
+    wahlFeld(art === 'ol' ? 'Überlastrelais' : 'Motorschutzschalter', o, cur ? cur.g : '', setzen); return;
   }
   const opts = schaltAbgaenge(v, e).filter(k => art === 'hk' || e.abgaenge[k.id].schalt.typ === 'zeitrelais')
     .map(k => [k.id, `${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`, SCHALT[e.abgaenge[k.id].schalt.typ]])
@@ -3700,7 +3779,8 @@ const VORLAGEN = [
   ['taster', 'Taster parallel', 'Stromstoßschalter oder Treppenlicht: mehrere Taster auf die Spule'],
   ['selbst', 'Selbsthaltung Ein/Aus', 'Aus- und Ein-Taster, Hilfsschließer parallel zum Ein-Taster'],
   ['selbstnot', 'Selbsthaltung mit Not-Aus', 'wie Selbsthaltung, Not-Aus davor'],
-  ['hand0auto', 'Hand-0-Automatik', 'Wahlschalter: „Hand“ schaltet direkt, „Automatik“ über einen Melder']];
+  ['hand0auto', 'Hand-0-Automatik', 'Wahlschalter: „Hand“ schaltet direkt, „Automatik“ über einen Melder'],
+  ['motor', 'Motor Ein/Aus', 'Selbsthaltung mit Überlastrelais-Öffner 95–96, Meldeleuchten „Betrieb“ und „Störung“']];
 function vorlageWahl(v, kr) {
   const vb = (kr.pfade.find(p => p.verbraucher) || {}).verbraucher;
   if (!vb) { meldung('Zuerst einen Verbraucher (Spule) setzen'); return; }
@@ -3713,6 +3793,8 @@ function vorlageWahl(v, kr) {
     else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
       z => setTimeout(() => los({ melder: z }), 0));
     else if (!sa || !sa.schalt) meldung('Selbsthaltung braucht ein Schaltgerät mit Hilfsschließer');
+    else if (art === 'motor') wahlFeld('Störmeldung?', [['ja', 'mit Meldeleuchte „Störung“', 'über den Schließer 97–98 des Überlastrelais'], ['nein', 'ohne Störmeldung']], '',
+      w => setTimeout(() => los({ meldung: true, stoerung: w === 'ja' }), 0));
     else wahlFeld('Betriebsmeldung?', [['ja', 'mit Meldeleuchte „Betrieb“', 'über einen weiteren Hilfsschließer'], ['nein', 'ohne Meldeleuchte']], '',
       w => setTimeout(() => los({ notaus: art === 'selbstnot', meldung: w === 'ja' }), 0));
   }, 0));
@@ -3726,6 +3808,15 @@ function vorlageEinsetzen(v, kr, art, o) {
   if (art === 'taster') {
     haupt.plaetze[0] = { g: neu('taster_s', 'Taster 1') };
     for (let i = 2; i <= (o.n || 1); i++) { const zw = neuerPfad(null, { von: 0, bis: 0 }); zw.plaetze[0] = { g: neu('taster_s', `Taster ${i}`) }; pfade.push(zw); }
+  } else if (art === 'motor') {        // Motor Ein/Aus (ab v1.38): wie Selbsthaltung, 95–96 unten im Spulenpfad
+    haupt.plaetze[0] = { g: neu('taster_oe', 'Aus') };
+    haupt.plaetze[1] = { g: neu('taster_s', 'Ein') };
+    const zw = neuerPfad(null, { von: 1, bis: 1 }); zw.plaetze[1] = { g: vb.g, z: 'hilfs_s' }; pfade.push(zw);
+    const k = knoten(v, vb.g);
+    if (k && k.k.schalt) { k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' }; if ((k.k.schalt.hs || 0) < 2) k.k.schalt.hs = 2; }
+    haupt.plaetze[5] = { g: vb.g, z: 'oe_thermisch' };
+    const pm = neuerPfad({ g: neu('meldeleuchte', 'Betrieb') }); pm.plaetze[0] = { g: vb.g, z: 'hilfs_s' }; pfade.push(pm);
+    if (o.stoerung) { const ps = neuerPfad({ g: neu('meldeleuchte', 'Störung') }); ps.plaetze[0] = { g: vb.g, z: 's_thermisch' }; pfade.push(ps); }
   } else if (art === 'selbst' || art === 'selbstnot') {
     let i = 0;
     if (o.notaus) haupt.plaetze[i++] = { g: neu('notaus', 'Not-Aus') };
@@ -3753,7 +3844,7 @@ function vorlageEinsetzen(v, kr, art, o) {
 // Werkzeug wählt ein Tippen den Platz, die Aktionen stehen dann in der Eigenschaften-Leiste.
 const ST_PALETTE = [
   ['Befehlsgeber', Object.keys(ST_ZEICHEN).filter(z => ST_ZEICHEN[z][1] === 'bg')],
-  ['Hilfskontakte', ['hilfs_s', 'hilfs_oe']],
+  ['Hilfskontakte', ['hilfs_s', 'hilfs_oe', 'oe_thermisch', 's_thermisch', 'mss_s', 'mss_oe']],
   ['Zeitrelais-Kontakte', Object.keys(ST_ZEICHEN).filter(z => ST_ZEICHEN[z][1] === 'zr')],
   ['Verbraucher und Radierer', ['spule', 'meldeleuchte', 'leer']]];
 const istSteuerWerkzeug = t => !!t && (t === 'spule' || t === 'leer' || !!ST_ZEICHEN[t]);
@@ -4114,7 +4205,7 @@ function paletteNeu() {
     const e = berechne(v), aktiv = Object.keys(e.steuer.aktiv).length;
     if (!aktiv) pal.append(h('div', { class: 'palleer' }, 'Noch kein Steuerstromkreis. Einem Abgang ein Schaltgerät geben – oder unten einen eigenen Kreis anlegen.'));
     ST_PALETTE.forEach(([grp, liste]) => pal.append(gruppe(grp === 'Verbraucher und Radierer' ? 'Verbraucher' : grp,
-      liste.map(z => kachel(WERKZEUG_NAME(z), z, '', () => werkzeug(b.tool === z ? null : z), { an: b.tool === z })))));
+      liste.map(z => kachel(WERKZEUG_NAME(z), ST_BILD[z] || z, '', () => werkzeug(b.tool === z ? null : z), { an: b.tool === z })))));
     const neuKreis = z => () => { const kr = kreisOhneSchaltgeraet(v), g = neuesSteuerGeraet(v, z); kr.pfade[0].verbraucher = { g: g.id };
       aenderung(z === 'zeitrelais' ? 'Neues Zeitrelais' : 'Neue Meldeleuchte'); sichern(); b.sel = `pl:${kr.pfade[0].id}:6`; b.blatt = true; b.springen = true; zeichne(); };
     pal.append(gruppe('Neuer Kreis', [kachel('Melde\u00adleuchte', 'meldeleuchte', '+', neuKreis('meldeleuchte'), { titel: 'Kreis mit einer Meldeleuchte anlegen' }),

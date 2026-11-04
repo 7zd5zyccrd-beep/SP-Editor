@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.38 | Etappe M2: Überlastrelais -F mit 95–96 (automatisch im Spulenpfad) und 97–98, Hilfsschalter des Motorschutzschalters, Vorlage „Motor Ein/Aus“; Beispiel `motorsteuerung` |
 | v1.37 | Etappe M1: Motorabgang (Drehstrom L1 L2 L3 PE ohne N oder Wechselstrom, -M mit kW/A), Motorschutzschalter -Q mit Einstellbereich; Palette „Motor“; Beispiel `motor` |
 | v1.36 | Etappe G3: Wallbox (-E, 11/22 kW, DC-Fehlerstromerkennung, Warnungen zum FI); Palette „Wallbox“; Bibliothek v1.9; Beispiel `wallbox` |
 | v1.35 | Etappe G2: Speicher am Hybrid-Wechselrichter oder AC-gekoppelt (Batteriewechselrichter -T, Batterie -G); Palette „Speicher“; Beispiel `speicher` |

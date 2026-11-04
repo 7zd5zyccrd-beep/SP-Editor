@@ -900,5 +900,59 @@
    "11 HV klemmen",
    "c451ca9fa24123177e9a96ca3eb75efa"
   ]
+ ],
+ "motorsteuerung": [
+  [
+   "1 Deckblatt deckblatt",
+   "6890d2d1d4af404b9342e81cbb471f26"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "5fc80e8978fbc66ea83c076b06116f13"
+  ],
+  [
+   "3 HV uebersicht",
+   "6b7a07fccb284553d4ce38a1efb4a483"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "a7704307a5fb6e136079f1674760e950"
+  ],
+  [
+   "5 HV einspeisung",
+   "b0dbf0f508d1077cd3e61b6098b9db59"
+  ],
+  [
+   "6 HV abgang",
+   "3ce00a6df37eada82f2376db12708b1a"
+  ],
+  [
+   "7 HV abgang",
+   "249837fb909d9649ec8e1af2aa4db319"
+  ],
+  [
+   "8 HV abgang",
+   "488d26ab8bab015a7e6f7971b63a080e"
+  ],
+  [
+   "9 HV steuerung",
+   "5a6aec7cc98ab2e19fef7e13467f8697"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "897050ee86717b7f04103e9c1f682a85"
+  ],
+  [
+   "11 HV klemmen",
+   "41d04fdb79981db7313f95ddf84d0aa8"
+  ],
+  [
+   "12 HV klemmen",
+   "379c6ff0b5c47752240f2b12343dc5ad"
+  ],
+  [
+   "13 HV klemmen",
+   "adb925fe1071d05864e654f0e13444cc"
+  ]
  ]
 }

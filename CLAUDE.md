@@ -312,6 +312,10 @@ und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
 - M1 v1.37: `k.ziel.anschluss = 'motor'`, `k.motor = { art: '3' | '1', kw, strom }` (`motorVon()`, `motorNeu()`),
   `a.ohneN` → `abgangArten()` L1 L2 L3 PE; Zeichen `motor3` bzw. `motor1` mit `motorFarben()`, Unterkante = Steckdosen-
   unterkante (`MOTOR_H`); `GERAETE.motorschutz3` (`kz: 'Q'`, `bereich`, `bmkDx`), `MSS_BEREICH`; Übersicht `ue_leistung`.
+- M2 v1.38: `k.schalt.ol = { bereich, bmk }` → `a.ol`; Kontaktplätze `{ g: abgang, z: 'oe_thermisch' | 's_thermisch' }`
+  (Art 'ol', 95–96 / 97–98) und `{ g, z: 'mss_s' | 'mss_oe' }` (Art 'ms', Zeichen über `ST_BILD`, Anzahl `k.geraet.hks/hko`);
+  `olEinsetzen()`/`olEntfernen()`; `a.olKont` für die Verweise am Überlastrelais; Vorlage `motor`. Motorabgang ohne N:
+  kein Abgriff, Warnung (Steuerspannung über Steuer-LS/Steuertrafo).
 
 ## Technische Eckwerte
 

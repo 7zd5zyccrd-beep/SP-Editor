@@ -150,6 +150,16 @@ window.BEISPIELE = {
     a.geraet = { zeichen: 'motorschutz3', bereich: '6,3–10' }; a.leitung.quer = '2,5'; hv.knoten.splice(2, 0, a);
     const b = neuerAbgang(); b.ziel = { bez: 'Pumpe', ort: 'Keller', anschluss: 'motor' }; b.motor = { art: '1', kw: '0,75' };
     b.geraet = { zeichen: 'ls1', kennlinie: 'C', nenn: '10' }; b.leitung.quer = '1,5'; uv.knoten.push(b); sichern(); zeichne(); },
+  // Etappe M2: wie motor; Lüfter mit Schütz, Hilfsschalter des Motorschutzschalters in Reihe (Selbsthaltung mit Betrieb),
+  // dazu Förderband mit LS, Schütz und Überlastrelais (Vorlage Motor Ein/Aus mit Störung); Steuerspannung über Steuer-LS
+  motorsteuerung: () => { BEISPIELE.motor(); const [hv] = P.verteiler;
+    const sls = neuerSteuerLs(); hv.knoten.push(sls); stDaten(hv).spannung = { art: 'durch', quelle: sls.id };
+    const l = hv.knoten.find(k => k.ziel && k.ziel.bez === 'Lüfter'); l.geraet.hks = 1; l.schalt = neuesSchalt('schuetz');
+    let kr = kreisAnlegen(hv, l); vorlageEinsetzen(hv, kr, 'selbst', { meldung: true }); kr.pfade[0].plaetze[5] = { g: l.id, z: 'mss_s' };
+    const f = neuerAbgang(); f.ziel = { bez: 'Förderband', ort: 'Halle', anschluss: 'motor' }; f.motor = { art: '3', kw: '1,5', strom: '3,6' };
+    f.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '10' }; f.leitung.quer = '1,5'; f.schalt = neuesSchalt('schuetz'); f.schalt.ol = { bereich: '2,5–4' };
+    hv.knoten.splice(3, 0, f);
+    kr = kreisAnlegen(hv, f); vorlageEinsetzen(hv, kr, 'motor', { meldung: true, stoerung: true }); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

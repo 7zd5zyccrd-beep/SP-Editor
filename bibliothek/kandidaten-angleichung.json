@@ -290,5 +290,27 @@
     "zusatz": "Vorschlag: Kasten 20×20 – heute: PV-Zeichen verkleinert"
    }
   ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Wechselrichter einpolig (E6)",
+  "dateien": [
+   {
+    "bau": "ue_wr",
+    "en": true,
+    "zusatz": "Vorschlag: Kasten 20×20, AC oben – heute fehlt der Wechselrichter in der Übersicht"
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "Frequenzumrichter einpolig (E6)",
+  "dateien": [
+   {
+    "bau": "ue_umrichter",
+    "en": true,
+    "zusatz": "Vorschlag: Kasten 20×20 – heute fehlt der Umrichter in der Übersicht"
+   }
+  ]
  }
 ]

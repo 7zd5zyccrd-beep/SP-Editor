@@ -696,6 +696,22 @@ def geraet_ue_pv():
         b.teile.append(f'<polygon x1="-12" y1="{12 + dy}" x2="-15.5" y2="{11 + dy}" x3="-13" y3="{8.5 + dy}" closed="true" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="true"/>')
     return b
 
+def geraet_ue_umformer(name, oben, unten):
+    """Umformer einpolig für den Übersichtsschaltplan (nach 06-14-01): Kasten 20×20 mit Diagonale,
+    Kennzeichnung oben links und unten rechts (~ als Bogen, = als Strich, wie die allpoligen Zeichen)."""
+    b = Bau(name); b._q('06_14_01', 'einpolig, Kasten 20×20')
+    b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
+    b.rect(-10, 0, 20, 20); b.linie(-10, 20, 10, 0)
+    b.linie(0, 20, 0, 30); b.anschluss(0, 30, 's')
+    def zeichen(art, x, y):
+        if art == '~':
+            b.teile.append(f'<arc x="{x:g}" y="{y:g}" width="4" height="2.5" start="0" angle="180" style="{STIL}" antialias="true"/>')
+            b.teile.append(f'<arc x="{x + 4:g}" y="{y:g}" width="4" height="2.5" start="180" angle="180" style="{STIL}" antialias="true"/>')
+        else:
+            b.linie(x, y + 0.5, x + 8, y + 0.5); b.linie(x, y + 2.5, x + 3, y + 2.5); b.linie(x + 5, y + 2.5, x + 8, y + 2.5)
+    zeichen(oben, -8.5, 2); zeichen(unten, 0.5, 15)
+    return b
+
 BAUTEILE = {
     'fi2_neu':         (lambda: geraet_fi_neu('FI 2-polig', 2), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
     'fi4_neu':         (lambda: geraet_fi_neu('FI 4-polig', 4), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
@@ -717,6 +733,8 @@ BAUTEILE = {
     'umrichter3_neu':  (lambda: geraet_umrichter_neu('Frequenzumrichter 3~/3~'), '~ als Bögen wie Wechselrichter'),
     'ue_motor':        (lambda: geraet_ue_maschine('Motor einpolig', 'M'), 'Kreis Ø 20 wie die anderen einpoligen Zeichen'),
     'ue_pv':           (lambda: geraet_ue_pv(), 'Kasten 20×20 mit G und Lichtpfeilen'),
+    'ue_wr':           (lambda: geraet_ue_umformer('Wechselrichter einpolig', '~', '='), 'AC oben, DC unten, Kasten 20×20'),
+    'ue_umrichter':    (lambda: geraet_ue_umformer('Frequenzumrichter einpolig', '~', '~'), 'Kasten 20×20, ~ oben und unten'),
     'oe_thermisch':    (lambda: geraet_betaetigter_kontakt('Öffner, thermisch betätigt (95–96)', 'thermisch', 'oe'), 'Hilfsöffner mit thermischer Auslösung'),
     's_thermisch':     (lambda: geraet_betaetigter_kontakt('Schließer, thermisch betätigt (97–98)', 'thermisch', 's'), 'Hilfsschließer mit thermischer Auslösung'),
     'w_thermisch':     (lambda: geraet_betaetigter_kontakt('Wechsler, thermisch betätigt', 'thermisch', 'w'), 'Wechsler mit thermischer Auslösung'),

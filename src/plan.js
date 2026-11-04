@@ -47,9 +47,12 @@ const PLAN = (() => {
   // Kennzeichen und Beschriftung, Schlüssel wie k:<abgang>/f) mit ihren Anschlüssen, und die Leiter
   // (Linien 0,25 mm außerhalb der Teile) mit ihrer Leiterart. Das SVG bleibt dabei unverändert.
   // Grundlage für freie Lage (Gummiband), Antippen einzelner Geräte, Netze und Prüfungen.
-  const SZ = { g: null, teil: null, teile: null, leiter: null };
-  function szeneStart(g) { SZ.g = g; SZ.teil = null; SZ.teile = {}; SZ.leiter = []; }
-  function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter }; SZ.g = null; SZ.teil = null; return s; }
+  // Ab v1.27 tragen Leiter einen Schlüssel aus ihrem Ort (Abgang, Gruppe, Einspeisung) und ihrer Reihenfolge
+  // darin (k:<id>#3); Verbindungspunkte werden mitgeschrieben, damit sie beim Umlegen eines Leiters folgen.
+  const SZ = { g: null, teil: null, teile: null, leiter: null, punkte: null, ort: null, zaehler: null };
+  function szeneStart(g) { Object.assign(SZ, { g, teil: null, teile: {}, leiter: [], punkte: [], ort: null, zaehler: {} }); }
+  function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter, punkte: SZ.punkte }; SZ.g = null; SZ.teil = null; SZ.ort = null; return s; }
+  function mitOrt(key, f) { const alt = SZ.ort; SZ.ort = key; try { return f(); } finally { SZ.ort = alt; } }
   function teil(key) { SZ.teil = key && SZ.g ? (SZ.teile[key] = SZ.teile[key] || { key, els: [], ports: [] }) : null; }
   // Lage von Hand anwenden (ab v1.26): verschobene Teile um ganze Rasterschritte (2,5 mm) versetzen;
   // Leiter, die an einem ihrer Anschlüsse enden, folgen – gerade, wenn sie fluchten, sonst mit einem
@@ -99,6 +102,38 @@ const PLAN = (() => {
       linie(g, pfad[2][0], pfad[2][1], pfad[3][0], pfad[3][1], 0.25, farbe, l.art);
     });
   }
+  // Leiterwege von Hand (ab v1.27): ein Leiterstück parallel um n Rasterschritte versetzen; an seinen Enden
+  // entstehen kurze Querstücke (liegt ein Ende auf einer Schiene, wandert so die Abzweigstelle), die
+  // Verbindungspunkte werden an beiden Stellen neu bestimmt (drei oder mehr Linien → Punkt)
+  function wegeAnwenden(g, wege) {
+    const nah = (a, b) => Math.abs(a - b) < 0.01;
+    const zaehle = (x, y) => SZ.leiter.reduce((n, s) => {
+      const ende = (nah(s.x1, x) && nah(s.y1, y)) || (nah(s.x2, x) && nah(s.y2, y));
+      const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, x) && y > Math.min(s.y1, s.y2) + 0.01 && y < Math.max(s.y1, s.y2) - 0.01
+        : nah(s.y1, s.y2) && nah(s.y1, y) && x > Math.min(s.x1, s.x2) + 0.01 && x < Math.max(s.x1, s.x2) - 0.01);
+      return n + (ende ? 1 : innen ? 2 : 0); }, 0);
+    const pruefe = []; 
+    SZ.leiter.slice().forEach(l => {
+      const w = l.key && wege[l.key]; if (!w || !w.n) return;
+      const senk = nah(l.x1, l.x2); if (w.senk !== undefined && w.senk !== senk) return;   // passt nicht mehr: übergehen
+      const d = w.n * RASTER, A = [l.x1, l.y1], B = [l.x2, l.y2];
+      const A2 = senk ? [A[0] + d, A[1]] : [A[0], A[1] + d], B2 = senk ? [B[0] + d, B[1]] : [B[0], B[1] + d];
+      const farbe = l.el.getAttribute('stroke');
+      // liegt das Querstück auf einer durchgehenden Linie (Schiene), wird es nicht gezeichnet: die Abzweigstelle wandert
+      const aufLinie = (P, Q) => SZ.leiter.some(s => s !== l && (senk ? nah(s.y1, s.y2) && nah(s.y1, P[1]) && Math.min(s.x1, s.x2) <= Math.min(P[0], Q[0]) + 0.01 && Math.max(s.x1, s.x2) >= Math.max(P[0], Q[0]) - 0.01
+        : nah(s.x1, s.x2) && nah(s.x1, P[0]) && Math.min(s.y1, s.y2) <= Math.min(P[1], Q[1]) + 0.01 && Math.max(s.y1, s.y2) >= Math.max(P[1], Q[1]) - 0.01));
+      const quer = [aufLinie(A, A2), aufLinie(B, B2)];
+      setzeLinie(l, A2, B2);
+      if (!quer[0]) linie(g, A[0], A[1], A2[0], A2[1], 0.25, farbe, l.art);
+      if (!quer[1]) linie(g, B[0], B[1], B2[0], B2[1], 0.25, farbe, l.art);
+      pruefe.push([A, l.art], [A2, l.art], [B, l.art], [B2, l.art]);
+    });
+    pruefe.forEach(([[x, y], art]) => {
+      const n = zaehle(x, y), da = SZ.punkte.find(p => nah(p.x, x) && nah(p.y, y));
+      if (n >= 3 && !da) punkt(g, x, y, art);
+      if (n < 3 && da) { da.el.remove(); SZ.punkte.splice(SZ.punkte.indexOf(da), 1); }
+    });
+  }
   function setzeLinie(l, A, B) {
     [l.x1, l.y1, l.x2, l.y2] = [A[0], A[1], B[0], B[1]];
     l.el.setAttribute('x1', A[0]); l.el.setAttribute('y1', A[1]); l.el.setAttribute('x2', B[0]); l.el.setAttribute('y2', B[1]);
@@ -111,12 +146,14 @@ const PLAN = (() => {
   }
   function linie(g, x1, y1, x2, y2, w = 0.35, farbe = '#000', art = null) {
     const e = el('line', { x1, y1, x2, y2, stroke: farbe, 'stroke-width': w, 'stroke-linecap': 'square' }, g);
-    if (g === SZ.g && !SZ.teil && w === 0.25) SZ.leiter.push({ el: e, x1, y1, x2, y2, art: art || (farbe === FARBE.N ? 'N' : farbe === FARBE.PE ? 'PE' : 'L') });
+    if (g === SZ.g && !SZ.teil && w === 0.25) SZ.leiter.push({ el: e, x1, y1, x2, y2, art: art || (farbe === FARBE.N ? 'N' : farbe === FARBE.PE ? 'PE' : 'L'),
+      key: SZ.ort ? SZ.ort + '#' + (SZ.zaehler[SZ.ort] = (SZ.zaehler[SZ.ort] || 0) + 1) : null });
     return e;
   }
   const farbe = art => FARBE[art] || '#000';
   const leiter = (g, x1, y1, x2, y2, art) => linie(g, x1, y1, x2, y2, 0.25, farbe(art), art || 'L');
-  const punkt = (g, x, y, art) => el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
+  const punkt = (g, x, y, art) => { const e = el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
+    if (g === SZ.g && !SZ.teil) SZ.punkte.push({ el: e, x, y, art }); return e; };
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
   const zuBegrenzen = [];
   function passend(t, max) { zuBegrenzen.push([t, max]); }
@@ -520,7 +557,7 @@ const PLAN = (() => {
     let x = xSp, unterst = yK;
     for (const k of kinder) {
       const a = e.abgaenge[k.id], w = abgangSpalten(k, a, v, R);
-      unterst = Math.max(unterst, zeichneAbgang(g, ctx, v, k, a, x, unterBars, yK, w * R.sb, yEnde, tap).unten);
+      unterst = Math.max(unterst, mitOrt('k:' + k.id, () => zeichneAbgang(g, ctx, v, k, a, x, unterBars, yK, w * R.sb, yEnde, tap)).unten);
       x += w * R.sb;
     }
     // Untersammelschienen nur von der ersten bis zur letzten Verbindung.
@@ -1403,15 +1440,15 @@ const PLAN = (() => {
         const xEnde = R.x1 - 12;
         let bars;
         if (b.art === 'einspeisung') {
-          const ein = zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft);
+          const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft));
           const y0 = ein.cursor + 10;
           if (opt.ziele) ziel(g, R.x0, RAND, 3 * R.sb, y0 - RAND, 'e:' + v.id);
-          ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n));
+          mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n)));
           zeichneSchienen(g, v, y0, ein.xs, xEnde, null, naechstes, false);
         } else {
           if (b.art === 'kombiniert') {
-            const ein = zeichneEinspeisung(g, v, e, R.x0, 14, herkunft);
-            ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n));
+            const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0, 14, herkunft));
+            mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n)));
             if (opt.ziele) ziel(g, R.x0, RAND, R.sb, b.y0 - RAND, 'e:' + v.id);
             bars = zeichneSchienen(g, v, b.y0, ein.xs, xEnde, null, naechstes, false);
           } else {
@@ -1425,9 +1462,9 @@ const PLAN = (() => {
           const yEnde = F.h - RAND - SF_H - 24;
           for (const it of b.items) {
             const xSp = R.x0 + (it.col - 1) * R.sb;
-            if (it.art === 'spd') zeichneSpd(g, v, e, xSp, bars, yG);
-            else if (it.art === 'abgang') zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde);
-            else zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde);
+            if (it.art === 'spd') mitOrt('s:' + v.id, () => zeichneSpd(g, v, e, xSp, bars, yG));
+            else if (it.art === 'abgang') mitOrt('k:' + it.k.id, () => zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde));
+            else mitOrt('k:' + it.k.id, () => zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde));
             if (opt.ziele && it.art !== 'spd') {          // Einfügemarken über den Schienen, links und rechts des Teils
               const ym = b.y0 - 5;
               if (it === b.items.find(x => x.art !== 'spd')) marke(g, xSp, ym, 'vor:' + it.k.id);
@@ -1453,6 +1490,7 @@ const PLAN = (() => {
         if (opt.ziele && b.art !== 'einspeisung' && i === p.blaetter.findIndex(x => x.art !== 'einspeisung') && !v.knoten.length)
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
+        if (v.layout && v.layout.wege) wegeAnwenden(g, v.layout.wege);
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.26 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.27 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.27: Etappe F4 – Leiterwege: Leiterstücke eines gewählten Abgangs antippen (das verbundene Netz wird
+           hinterlegt), parallel ziehen oder mit den Pfeiltasten versetzen; an den Enden entstehen Querstücke, auf
+           einer Schiene wandert die Abzweigstelle samt Verbindungspunkt; „Automatik anwenden“ je Leiter
      v1.26: Etappe F3 – Anordnen II: Geräte (Schutzorgan, Schaltgerät, Klemmen, Anschluss, Gruppengerät,
            Überspannungsschutz, Geräte der Einspeisung) frei im 2,5-mm-Raster ziehen oder mit den Pfeiltasten
            verschieben; Leiter folgen gerade oder mit gestaffeltem Knick; Hilfslinien beim Ziehen; Prüfliste
@@ -318,6 +321,11 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
 .ed rect.teil{pointer-events:none}
 .ed .nadel{pointer-events:none}
+.ed line.leiterziel{stroke:transparent;stroke-width:2.2;pointer-events:none;cursor:pointer}
+.ed line.leiterziel[data-aktiv]{pointer-events:stroke}
+@media (hover:hover){.ed line.leiterziel[data-aktiv]:hover{stroke:rgba(106,53,232,.18)}}
+.ed .netzhalo line{stroke:rgba(106,53,232,.22);stroke-width:1.6;stroke-linecap:round}
+.ed .netzhalo line.gewaehlt{stroke:rgba(106,53,232,.45)}
 .ed .hilfslinie{stroke:var(--ov);stroke-width:.2;stroke-dasharray:1 .8;pointer-events:none}
 .pruefknopf{border:0;background:var(--warn-hell);color:var(--warn);font-weight:700;border-radius:9px;padding:7px 11px;cursor:pointer;flex:0 0 auto}
 .ed .spaltenvorschau{fill:rgba(106,53,232,.10);stroke:var(--ov);stroke-width:.35;stroke-dasharray:1.2 .8;pointer-events:none}
@@ -637,9 +645,12 @@ const PLAN = (() => {
   // Kennzeichen und Beschriftung, Schlüssel wie k:<abgang>/f) mit ihren Anschlüssen, und die Leiter
   // (Linien 0,25 mm außerhalb der Teile) mit ihrer Leiterart. Das SVG bleibt dabei unverändert.
   // Grundlage für freie Lage (Gummiband), Antippen einzelner Geräte, Netze und Prüfungen.
-  const SZ = { g: null, teil: null, teile: null, leiter: null };
-  function szeneStart(g) { SZ.g = g; SZ.teil = null; SZ.teile = {}; SZ.leiter = []; }
-  function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter }; SZ.g = null; SZ.teil = null; return s; }
+  // Ab v1.27 tragen Leiter einen Schlüssel aus ihrem Ort (Abgang, Gruppe, Einspeisung) und ihrer Reihenfolge
+  // darin (k:<id>#3); Verbindungspunkte werden mitgeschrieben, damit sie beim Umlegen eines Leiters folgen.
+  const SZ = { g: null, teil: null, teile: null, leiter: null, punkte: null, ort: null, zaehler: null };
+  function szeneStart(g) { Object.assign(SZ, { g, teil: null, teile: {}, leiter: [], punkte: [], ort: null, zaehler: {} }); }
+  function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter, punkte: SZ.punkte }; SZ.g = null; SZ.teil = null; SZ.ort = null; return s; }
+  function mitOrt(key, f) { const alt = SZ.ort; SZ.ort = key; try { return f(); } finally { SZ.ort = alt; } }
   function teil(key) { SZ.teil = key && SZ.g ? (SZ.teile[key] = SZ.teile[key] || { key, els: [], ports: [] }) : null; }
   // Lage von Hand anwenden (ab v1.26): verschobene Teile um ganze Rasterschritte (2,5 mm) versetzen;
   // Leiter, die an einem ihrer Anschlüsse enden, folgen – gerade, wenn sie fluchten, sonst mit einem
@@ -689,6 +700,38 @@ const PLAN = (() => {
       linie(g, pfad[2][0], pfad[2][1], pfad[3][0], pfad[3][1], 0.25, farbe, l.art);
     });
   }
+  // Leiterwege von Hand (ab v1.27): ein Leiterstück parallel um n Rasterschritte versetzen; an seinen Enden
+  // entstehen kurze Querstücke (liegt ein Ende auf einer Schiene, wandert so die Abzweigstelle), die
+  // Verbindungspunkte werden an beiden Stellen neu bestimmt (drei oder mehr Linien → Punkt)
+  function wegeAnwenden(g, wege) {
+    const nah = (a, b) => Math.abs(a - b) < 0.01;
+    const zaehle = (x, y) => SZ.leiter.reduce((n, s) => {
+      const ende = (nah(s.x1, x) && nah(s.y1, y)) || (nah(s.x2, x) && nah(s.y2, y));
+      const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, x) && y > Math.min(s.y1, s.y2) + 0.01 && y < Math.max(s.y1, s.y2) - 0.01
+        : nah(s.y1, s.y2) && nah(s.y1, y) && x > Math.min(s.x1, s.x2) + 0.01 && x < Math.max(s.x1, s.x2) - 0.01);
+      return n + (ende ? 1 : innen ? 2 : 0); }, 0);
+    const pruefe = []; 
+    SZ.leiter.slice().forEach(l => {
+      const w = l.key && wege[l.key]; if (!w || !w.n) return;
+      const senk = nah(l.x1, l.x2); if (w.senk !== undefined && w.senk !== senk) return;   // passt nicht mehr: übergehen
+      const d = w.n * RASTER, A = [l.x1, l.y1], B = [l.x2, l.y2];
+      const A2 = senk ? [A[0] + d, A[1]] : [A[0], A[1] + d], B2 = senk ? [B[0] + d, B[1]] : [B[0], B[1] + d];
+      const farbe = l.el.getAttribute('stroke');
+      // liegt das Querstück auf einer durchgehenden Linie (Schiene), wird es nicht gezeichnet: die Abzweigstelle wandert
+      const aufLinie = (P, Q) => SZ.leiter.some(s => s !== l && (senk ? nah(s.y1, s.y2) && nah(s.y1, P[1]) && Math.min(s.x1, s.x2) <= Math.min(P[0], Q[0]) + 0.01 && Math.max(s.x1, s.x2) >= Math.max(P[0], Q[0]) - 0.01
+        : nah(s.x1, s.x2) && nah(s.x1, P[0]) && Math.min(s.y1, s.y2) <= Math.min(P[1], Q[1]) + 0.01 && Math.max(s.y1, s.y2) >= Math.max(P[1], Q[1]) - 0.01));
+      const quer = [aufLinie(A, A2), aufLinie(B, B2)];
+      setzeLinie(l, A2, B2);
+      if (!quer[0]) linie(g, A[0], A[1], A2[0], A2[1], 0.25, farbe, l.art);
+      if (!quer[1]) linie(g, B[0], B[1], B2[0], B2[1], 0.25, farbe, l.art);
+      pruefe.push([A, l.art], [A2, l.art], [B, l.art], [B2, l.art]);
+    });
+    pruefe.forEach(([[x, y], art]) => {
+      const n = zaehle(x, y), da = SZ.punkte.find(p => nah(p.x, x) && nah(p.y, y));
+      if (n >= 3 && !da) punkt(g, x, y, art);
+      if (n < 3 && da) { da.el.remove(); SZ.punkte.splice(SZ.punkte.indexOf(da), 1); }
+    });
+  }
   function setzeLinie(l, A, B) {
     [l.x1, l.y1, l.x2, l.y2] = [A[0], A[1], B[0], B[1]];
     l.el.setAttribute('x1', A[0]); l.el.setAttribute('y1', A[1]); l.el.setAttribute('x2', B[0]); l.el.setAttribute('y2', B[1]);
@@ -701,12 +744,14 @@ const PLAN = (() => {
   }
   function linie(g, x1, y1, x2, y2, w = 0.35, farbe = '#000', art = null) {
     const e = el('line', { x1, y1, x2, y2, stroke: farbe, 'stroke-width': w, 'stroke-linecap': 'square' }, g);
-    if (g === SZ.g && !SZ.teil && w === 0.25) SZ.leiter.push({ el: e, x1, y1, x2, y2, art: art || (farbe === FARBE.N ? 'N' : farbe === FARBE.PE ? 'PE' : 'L') });
+    if (g === SZ.g && !SZ.teil && w === 0.25) SZ.leiter.push({ el: e, x1, y1, x2, y2, art: art || (farbe === FARBE.N ? 'N' : farbe === FARBE.PE ? 'PE' : 'L'),
+      key: SZ.ort ? SZ.ort + '#' + (SZ.zaehler[SZ.ort] = (SZ.zaehler[SZ.ort] || 0) + 1) : null });
     return e;
   }
   const farbe = art => FARBE[art] || '#000';
   const leiter = (g, x1, y1, x2, y2, art) => linie(g, x1, y1, x2, y2, 0.25, farbe(art), art || 'L');
-  const punkt = (g, x, y, art) => el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
+  const punkt = (g, x, y, art) => { const e = el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
+    if (g === SZ.g && !SZ.teil) SZ.punkte.push({ el: e, x, y, art }); return e; };
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
   const zuBegrenzen = [];
   function passend(t, max) { zuBegrenzen.push([t, max]); }
@@ -1110,7 +1155,7 @@ const PLAN = (() => {
     let x = xSp, unterst = yK;
     for (const k of kinder) {
       const a = e.abgaenge[k.id], w = abgangSpalten(k, a, v, R);
-      unterst = Math.max(unterst, zeichneAbgang(g, ctx, v, k, a, x, unterBars, yK, w * R.sb, yEnde, tap).unten);
+      unterst = Math.max(unterst, mitOrt('k:' + k.id, () => zeichneAbgang(g, ctx, v, k, a, x, unterBars, yK, w * R.sb, yEnde, tap)).unten);
       x += w * R.sb;
     }
     // Untersammelschienen nur von der ersten bis zur letzten Verbindung.
@@ -1993,15 +2038,15 @@ const PLAN = (() => {
         const xEnde = R.x1 - 12;
         let bars;
         if (b.art === 'einspeisung') {
-          const ein = zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft);
+          const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft));
           const y0 = ein.cursor + 10;
           if (opt.ziele) ziel(g, R.x0, RAND, 3 * R.sb, y0 - RAND, 'e:' + v.id);
-          ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n));
+          mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n)));
           zeichneSchienen(g, v, y0, ein.xs, xEnde, null, naechstes, false);
         } else {
           if (b.art === 'kombiniert') {
-            const ein = zeichneEinspeisung(g, v, e, R.x0, 14, herkunft);
-            ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n));
+            const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0, 14, herkunft));
+            mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n)));
             if (opt.ziele) ziel(g, R.x0, RAND, R.sb, b.y0 - RAND, 'e:' + v.id);
             bars = zeichneSchienen(g, v, b.y0, ein.xs, xEnde, null, naechstes, false);
           } else {
@@ -2015,9 +2060,9 @@ const PLAN = (() => {
           const yEnde = F.h - RAND - SF_H - 24;
           for (const it of b.items) {
             const xSp = R.x0 + (it.col - 1) * R.sb;
-            if (it.art === 'spd') zeichneSpd(g, v, e, xSp, bars, yG);
-            else if (it.art === 'abgang') zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde);
-            else zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde);
+            if (it.art === 'spd') mitOrt('s:' + v.id, () => zeichneSpd(g, v, e, xSp, bars, yG));
+            else if (it.art === 'abgang') mitOrt('k:' + it.k.id, () => zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde));
+            else mitOrt('k:' + it.k.id, () => zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde));
             if (opt.ziele && it.art !== 'spd') {          // Einfügemarken über den Schienen, links und rechts des Teils
               const ym = b.y0 - 5;
               if (it === b.items.find(x => x.art !== 'spd')) marke(g, xSp, ym, 'vor:' + it.k.id);
@@ -2043,6 +2088,7 @@ const PLAN = (() => {
         if (opt.ziele && b.art !== 'einspeisung' && i === p.blaetter.findIndex(x => x.art !== 'einspeisung') && !v.knoten.length)
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
+        if (v.layout && v.layout.wege) wegeAnwenden(g, v.layout.wege);
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
@@ -2080,7 +2126,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.26';
+const FASSUNG = 'v1.27';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2195,41 +2241,48 @@ function projektRueck(vor) {
 verlauf.stand = JSON.stringify(P);
 
 // ---- Lage von Hand (ab v1.25, Etappe F) -------------------------------------
-// v.layout = { spalten: { abgang: Spalte }, umbruch: { abgang: true }, lage: { teil: [nx, ny] } }
+// v.layout = { spalten: { abgang: Spalte }, umbruch: { abgang: true }, lage: { teil: [nx, ny] }, wege: { leiter: { n, senk } } }
 //   spalten: Wunschspalte eines Abgangs bzw. einer Gruppe (Lücke davor, die Nachbarn rücken nach)
 //   umbruch: mit diesem Abgang beginnt ein neues Blatt
 //   lage:    Gerät (Teil der Szene, z. B. k:<id>/xd) um ganze Rasterschritte zu 2,5 mm verschoben
+//   wege:    Leiterstück (z. B. k:<id>#3) um n Rasterschritte parallel versetzt (ab v1.27); senk: senkrecht
 // Fehlt etwas, ordnet die Automatik; leere Einträge und solche verschwundener Teile entfallen beim Speichern.
-const RASTER = 2.5;
-function lay(v) { const L = v.layout = v.layout || {}; ['spalten', 'umbruch', 'lage'].forEach(x => { L[x] = L[x] || {}; }); return L; }
+const RASTER = 2.5, LAYOUT_ARTEN = ['spalten', 'umbruch', 'lage', 'wege'];
+function lay(v) { const L = v.layout = v.layout || {}; LAYOUT_ARTEN.forEach(x => { L[x] = L[x] || {}; }); return L; }
+// Besitzer eines Teil- oder Leiterschlüssels: 'k:<id>', 's:<vid>' oder 'e:<vid>'
+const besitzerVon = key => { const m = /^([eks]):([^/#]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
 function layoutBereinigen(v) {
   const L = v.layout; if (!L) return;
   const da = new Set(); alleKnoten(v, k => da.add(k.id));
+  const gibt = key => { const m = /^([eks]):([^/#]+)(?:\/(\w+))?/.exec(key);
+    return !!m && (m[1] === 'k' ? da.has(m[2]) : m[1] === 's' ? !!v.spd.zeichen : m[1] === 'e' && (!m[3] || !!(v[m[3]] && v[m[3]].zeichen))); };
   ['spalten', 'umbruch'].forEach(x => Object.keys(L[x] || {}).forEach(kid => { if (!da.has(kid) || !L[x][kid]) delete L[x][kid]; }));
-  Object.keys(L.lage || {}).forEach(key => {
-    const m = /^([eks]):([^/]+)(?:\/(\w+))?/.exec(key), d = L.lage[key];
-    const ok = m && d && (d[0] || d[1]) && (m[1] === 'k' ? da.has(m[2]) : m[1] === 's' ? !!v.spd.zeichen : m[1] === 'e' && !!(v[m[3]] && v[m[3]].zeichen));
-    if (!ok) delete L.lage[key];
-  });
-  ['spalten', 'umbruch', 'lage'].forEach(x => { if (L[x] && !Object.keys(L[x]).length) delete L[x]; });
+  Object.keys(L.lage || {}).forEach(key => { const d = L.lage[key]; if (!d || !(d[0] || d[1]) || !gibt(key)) delete L.lage[key]; });
+  Object.keys(L.wege || {}).forEach(key => { const w = L.wege[key]; if (!w || !w.n || !gibt(key)) delete L.wege[key]; });
+  LAYOUT_ARTEN.forEach(x => { if (L[x] && !Object.keys(L[x]).length) delete L[x]; });
   if (!Object.keys(L).length) delete v.layout;
 }
-// hat ein Abgang/Teil Vorgaben von Hand?  bes: 'k:<id>', 's:<vid>', 'e:<vid>' oder Teilschlüssel
+// gehört ein Schlüssel zu einem Besitzer (Abgang, Gruppe …)?
+const gehoertZu = (key, bes) => key === bes || key.startsWith(bes + '/') || key.startsWith(bes + '#');
+// hat ein Abgang/Teil/Leiter Vorgaben von Hand?  bes: 'k:<id>', 's:<vid>', 'e:<vid>' oder Teil-/Leiterschlüssel
 function vonHand(v, bes) {
-  const L = v.layout || {}, kid = bes.startsWith('k:') ? bes.slice(2).split('/')[0] : null;
+  const L = v.layout || {};
   if (bes.includes('/')) return !!(L.lage && L.lage[bes]);
-  return !!(kid && ((L.spalten || {})[kid] || (L.umbruch || {})[kid])) || Object.keys(L.lage || {}).some(x => x.startsWith(bes + '/') || x === bes);
+  if (bes.includes('#')) return !!(L.wege && L.wege[bes]);
+  const kid = bes.startsWith('k:') ? bes.slice(2) : null;
+  return !!(kid && ((L.spalten || {})[kid] || (L.umbruch || {})[kid])) || ['lage', 'wege'].some(x => Object.keys(L[x] || {}).some(k => gehoertZu(k, bes)));
 }
-// „Automatik anwenden“: Vorgaben eines Teils, eines Abgangs (samt Gruppe) oder des ganzen Verteilers entfernen
+// „Automatik anwenden“: Vorgaben eines Teils/Leiters, eines Abgangs (samt Gruppe) oder des ganzen Verteilers entfernen
 function automatik(v, bes) {
   if (!v.layout) return;
   if (!bes) { delete v.layout; return; }
   const L = lay(v);
   if (bes.includes('/')) { delete L.lage[bes]; return; }
+  if (bes.includes('#')) { delete L.wege[bes]; return; }
   const ids = new Set([bes]);
   if (bes.startsWith('k:')) { const r = knoten(v, bes.slice(2)); if (r) knotenIds(r.k).forEach(i => ids.add('k:' + i)); }
   ids.forEach(x => { const kid = x.slice(2); delete L.spalten[kid]; delete L.umbruch[kid];
-    Object.keys(L.lage).forEach(key => { if (key === x || key.startsWith(x + '/')) delete L.lage[key]; }); });
+    ['lage', 'wege'].forEach(a => Object.keys(L[a]).forEach(key => { if (gehoertZu(key, x)) delete L[a][key]; })); });
 }
 
 // Hilfen im Baum
@@ -3465,6 +3518,9 @@ document.addEventListener('keydown', ev => {
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
   const tm = (b.sel || '').startsWith('t:') && { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
   if (tm && !strg) { ev.preventDefault(); const f = ev.shiftKey ? 4 : 1; return teilSchieben(v, b.sel.slice(2), tm[0] * f, tm[1] * f); }
+  const wm = (b.sel || '').startsWith('w:') && { arrowleft: [-1, 1], arrowright: [1, 1], arrowup: [-1, 0], arrowdown: [1, 0] }[t];
+  if (wm && !strg) { ev.preventDefault(); const f = leiterVon(b.sel.slice(2)), senk = f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true;
+    if (!!wm[1] === senk) return wegSchieben(v, b.sel.slice(2), wm[0] * (ev.shiftKey ? 4 : 1)); return; }
   if (!m && !strg && (t === 'arrowleft' || t === 'arrowright')) {       // Abgänge der Reihe nach wählen bzw. mit Alt verschieben
     ev.preventDefault();
     if (ev.altKey) return editorAktion(v, b, t === 'arrowleft' ? 'links' : 'rechts');
@@ -3482,7 +3538,7 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'v') return tun('einfuegen');
   if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
-  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && b.sel.startsWith('t:')) waehle(teilBesitzer(b.sel.slice(2))); else if (b.sel) waehle(null); }
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerVon(b.sel.slice(2))); else if (b.sel) waehle(null); }
 });
 
 // ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
@@ -3547,7 +3603,7 @@ function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
   if (art === 'pl') return !!kreisMitPfad(v, id);
   if (art === 'g') return !!(v.steuerung && v.steuerung.geraete.some(g => g.id === id));
   if (art === 'kopf') return !!KOPF_TITEL[id];
-  if (art === 't') { const bes = teilBesitzer(z.slice(2)); return !!bes && editorZiel(v, bes); }
+  if (art === 't' || art === 'w') { const bes = besitzerVon(z.slice(2)); return !!bes && editorZiel(v, bes); }
   if (art === 's') return !!v.spd.zeichen;
   return ['e', 'st', 'p'].includes(art);
 }
@@ -3556,6 +3612,7 @@ function editorEigenschaften(v, z, b) {
   const [art, id, zl] = (z || '').split(':');
   if (!z) return eingebettet(() => bVerteiler({ s: 'editor', vid: v.id }));
   if (art === 't') return editorTeil(v, z.slice(2), b);
+  if (art === 'w') return editorLeiter(v, z.slice(2), b);
   if (art === 'pl') return editorPlatz(v, b, id, +zl);
   if (art === 'k') { const r = knoten(v, id), e = eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id }));
     e.inhalt.prepend(lageZeilen(v, r, b)); return e; }
@@ -3689,8 +3746,64 @@ function markieren() {
   ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
   if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === ED.b.sel) r.setAttribute('data-sel', ''); });
   // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar
-  const bes = ED.b.sel && (ED.b.sel.startsWith('t:') ? teilBesitzer(ED.b.sel.slice(2)) : ED.b.sel);
-  ED.blaetter.querySelectorAll('rect.teil').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
+  const bes = ED.b.sel && besitzerTeilOderLeiter(ED.b.sel);
+  ED.blaetter.querySelectorAll('rect.teil, line.leiterziel').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
+  netzHalo();
+}
+// ---- Leiter im Blatt (ab v1.27, Etappe F4) -------------------------------------------------
+// Leiterstücke eines gewählten Abgangs sind antippbar (w:<schlüssel>); das ganze Netz, mit dem ein gewähltes
+// Stück auf dem Blatt verbunden ist, wird hinterlegt; verschoben wird parallel in Rasterschritten
+const besitzerTeilOderLeiter = sel => sel.startsWith('t:') || sel.startsWith('w:') ? besitzerVon(sel.slice(2)) : sel;
+function leiterFlaechen() {
+  const ns = 'http://www.w3.org/2000/svg';
+  ED.liste.forEach(bl => {
+    if (!bl.szene) return;
+    bl.szene.leiter.forEach(l => {
+      if (!l.key) return;
+      const z = document.createElementNS(ns, 'line');
+      [['x1', l.x1], ['y1', l.y1], ['x2', l.x2], ['y2', l.y2], ['class', 'ziel leiterziel'], ['data-ziel', 'w:' + l.key], ['data-besitzer', besitzerVon(l.key)],
+        ['role', 'button'], ['aria-label', 'Leiter ' + l.art]].forEach(([k, w]) => z.setAttribute(k, w));
+      bl.svg.append(z);
+    });
+  });
+}
+function leiterVon(key) { for (const bl of (ED ? ED.liste : [])) { const l = bl.szene && bl.szene.leiter.find(x => x.key === key); if (l) return { bl, l }; } return null; }
+// verbundenes Netz eines Leiterstücks auf seinem Blatt (Enden und Abzweige, keine Kreuzungen)
+function netzVon(bl, l0) {
+  const L = bl.szene.leiter, nah = (a, b) => Math.abs(a - b) < 0.02;
+  const auf = (p, s) => (nah(s.x1, s.x2) ? nah(p[0], s.x1) && p[1] >= Math.min(s.y1, s.y2) - 0.02 && p[1] <= Math.max(s.y1, s.y2) + 0.02
+    : nah(p[1], s.y1) && p[0] >= Math.min(s.x1, s.x2) - 0.02 && p[0] <= Math.max(s.x1, s.x2) + 0.02);
+  const ber = (a, b) => [[a.x1, a.y1], [a.x2, a.y2]].some(p => auf(p, b)) || [[b.x1, b.y1], [b.x2, b.y2]].some(p => auf(p, a));
+  const netz = new Set([l0]), offen = [l0];
+  while (offen.length) { const s = offen.pop(); L.forEach(o => { if (!netz.has(o) && ber(s, o)) { netz.add(o); offen.push(o); } }); }
+  return [...netz];
+}
+function netzHalo() {
+  ED.blaetter.querySelectorAll('.netzhalo').forEach(x => x.remove());
+  const sel = ED.b.sel || ''; if (!sel.startsWith('w:')) return;
+  const f = leiterVon(sel.slice(2)); if (!f) return;
+  const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g'); g.setAttribute('class', 'netzhalo');
+  netzVon(f.bl, f.l).forEach(s => { const l = document.createElementNS(ns, 'line');
+    [['x1', s.x1], ['y1', s.y1], ['x2', s.x2], ['y2', s.y2]].forEach(([k, w]) => l.setAttribute(k, w)); if (s === f.l) l.setAttribute('class', 'gewaehlt'); g.append(l); });
+  f.bl.svg.insertBefore(g, f.bl.svg.children[1] || null);       // unter dem Plan, über dem weißen Blatt
+}
+// Leiterstück parallel versetzen (n Rasterschritte; senkrechtes Stück: nach rechts positiv, waagerechtes: nach unten)
+function wegSchieben(v, key, n, still) {
+  const f = leiterVon(key), L = lay(v), w = L.wege[key] || { n: 0, senk: f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true }, neu = w.n + n;
+  if (neu) L.wege[key] = { n: neu, senk: w.senk }; else delete L.wege[key];
+  aenderung('Leiter umlegen'); sichern();
+  if (!still) zeichne();
+}
+function editorLeiter(v, key, b) {
+  const bes = besitzerVon(key), r = editorEigenschaften(v, bes, b), f = leiterVon(key), w = v.layout && v.layout.wege && v.layout.wege[key];
+  const senk = f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true;
+  const kopf = h('div', {}, h('h2', {}, 'Leiter im Plan'), h('div', { class: 'liste' },
+    zeile('Leiter', f ? f.l.art : '—', () => {}, { ohnePfeil: true, un: 'Das verbundene Netz ist hinterlegt' }),
+    zeile('Lage', w ? `${senk ? 'waagerecht' : 'senkrecht'} ${mm(w.n * RASTER)} mm` : 'automatisch', () => {}, { ohnePfeil: true,
+      un: `Parallel verschieben: ziehen oder ${senk ? '←/→' : '↑/↓'}; an den Enden entstehen Querstücke` }),
+    w ? zeile('Automatik anwenden', null, () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }, { ohnePfeil: true, un: 'Leiter wieder automatisch führen' }) : null));
+  r.inhalt.prepend(kopf);
+  return { titel: `Leiter ${f ? f.l.art : ''} · ${r.titel}`, inhalt: r.inhalt };
 }
 // Spalte und Blatt eines Abgangs bzw. einer Gruppe auf den Blättern des Editors
 function abgangLage(kid) {
@@ -3710,6 +3823,7 @@ function teilSchieben(v, key, nx, ny, still) {
 }
 // Vorschau beim Ziehen: Gerät rastet in 2,5-mm-Schritten, Hilfslinien durch seine Anschlüsse
 function teilZiehen(ev) {
+  if (zieh.teil.weg) return wegZiehen(ev);
   const { bl, tl } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
   const I = M.inverse(), p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(I), p0 = new DOMPoint(zieh.x, zieh.y).matrixTransform(I);
   const nx = Math.round((p.x - p0.x) / RASTER), ny = Math.round((p.y - p0.y) / RASTER);
@@ -3725,6 +3839,17 @@ function teilZiehen(ev) {
   [...new Set(tl.ports.map(q => (q.y + dy).toFixed(2)))].forEach(y => hl(R.x0, +y, R.x0 + R.sp * R.sb, +y));
   const d = (ED.v.layout && ED.v.layout.lage && ED.v.layout.lage[tl.key]) || [0, 0];
   zieh.geist.textContent = `${teilName(tl.key)} · x ${mm((d[0] + nx) * RASTER)} · y ${mm((d[1] + ny) * RASTER)} mm`;
+}
+// Vorschau beim Ziehen eines Leiterstücks: rastet quer zu seiner Richtung in 2,5-mm-Schritten
+function wegZiehen(ev) {
+  const { bl, l } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
+  const I = M.inverse(), p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(I), p0 = new DOMPoint(zieh.x, zieh.y).matrixTransform(I);
+  const senk = Math.abs(l.x1 - l.x2) < 0.01, n = Math.round((senk ? p.x - p0.x : p.y - p0.y) / RASTER);
+  if (n === zieh.nx) return;
+  zieh.nx = n;
+  const tr = senk ? `translate(${n * RASTER} 0)` : `translate(0 ${n * RASTER})`;
+  l.el.setAttribute('transform', tr); ED.blaetter.querySelectorAll('.netzhalo .gewaehlt').forEach(x => x.setAttribute('transform', tr));
+  zieh.geist.textContent = `Leiter ${l.art} · ${senk ? 'x' : 'y'} ${mm(n * RASTER)} mm`;
 }
 // Prüfliste (ab v1.26): Hinweise zu verschobenen Geräten – Schriftfeld, Rahmen, Überlappung, Leiter durch Gerät
 function prueflisteBerechnen() {
@@ -3765,7 +3890,7 @@ function nadeln() {
 // Ein Teil ist ein Gerät mit Kennzeichen und Beschriftung (Schutzorgan, Schaltgerät, Klemmen,
 // Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
 const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
-const teilBesitzer = key => { const m = /^([eks]):([^/]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
+const teilBesitzer = besitzerVon;
 const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
 function teilFlaechen() {
   ED.liste.forEach(bl => {
@@ -3832,6 +3957,12 @@ function kontextNeu() {
       ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+  } else if (art === 'w') {
+    const key = b.sel.slice(2), f = leiterVon(key), senk = f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true, s = n => () => wegSchieben(v, key, n);
+    kn.push(ik(senk ? 'links' : 'hoch', `2,5 mm nach ${senk ? 'links' : 'oben'}`, s(-1), { taste: senk ? '←' : '↑' }),
+      ik(senk ? 'rechts' : 'runter', `2,5 mm nach ${senk ? 'rechts' : 'unten'}`, s(1), { taste: senk ? '→' : '↓' }), sep());
+    if (vonHand(v, key)) kn.push(ik('auto', 'Automatik anwenden', () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }), sep());
+    kn.push(ik('auf', 'Ganzen Abgang wählen', () => waehle(besitzerVon(key)), { text: 'Abgang' }));
   } else if (art === 't') {
     const key = b.sel.slice(2), s = (x, y) => () => teilSchieben(v, key, x, y);
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
@@ -3944,9 +4075,9 @@ function teilKreise(v, ids) {
   return { kreise, geraete: (st.geraete || []).filter(g => gids.has(g.id)) };
 }
 function ablageSetzen(v, k, aus) {
-  const ids = knotenIds(k), tk = teilKreise(v, ids), L = v.layout || {}, lt = { spalten: {}, umbruch: {}, lage: {} };
+  const ids = knotenIds(k), tk = teilKreise(v, ids), L = v.layout || {}, lt = { spalten: {}, umbruch: {}, lage: {}, wege: {} };
   ids.forEach(i => { ['spalten', 'umbruch'].forEach(x => { if (L[x] && L[x][i]) lt[x][i] = L[x][i]; });
-    Object.keys(L.lage || {}).forEach(key => { if (key.startsWith('k:' + i + '/')) lt.lage[key] = L.lage[key].slice(); }); });
+    ['lage', 'wege'].forEach(a => Object.keys(L[a] || {}).forEach(key => { if (gehoertZu(key, 'k:' + i) && key !== 'k:' + i) lt[a][key] = kopie(L[a][key]); })); });
   editorAblage = { k: kopie(k), aus, vid: v.id, kreise: kopie(tk.kreise), geraete: kopie(tk.geraete), layout: lt };
 }
 // Vorgaben von Hand aus der Ablage übernehmen (Kennungen über um() umgeschrieben)
@@ -3954,7 +4085,7 @@ function layoutDazu(v, lt, um) {
   if (!lt) return;
   const L = lay(v);
   ['spalten', 'umbruch'].forEach(x => Object.entries(lt[x] || {}).forEach(([i, w]) => { L[x][um(i)] = w; }));
-  Object.entries(lt.lage || {}).forEach(([key, d]) => { const m = /^k:([^/]+)(\/.*)$/.exec(key); if (m) L.lage['k:' + um(m[1]) + m[2]] = d.slice(); });
+  ['lage', 'wege'].forEach(a => Object.entries(lt[a] || {}).forEach(([key, d]) => { const m = /^k:([^/#]+)([/#].*)$/.exec(key); if (m) L[a]['k:' + um(m[1]) + m[2]] = kopie(d); }));
 }
 // Teil aus der Ablage für Verteiler v: Ausgeschnittenes einmal mit seinen Kennungen, sonst eine Kopie
 function ablageHolen(v) {
@@ -4108,7 +4239,7 @@ function bEditor(b) {
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (res) res.begrenzen();
-  teilFlaechen(); nadeln(); markieren();
+  leiterFlaechen(); teilFlaechen(); nadeln(); markieren();
   ED.pruef = prueflisteBerechnen(); fussNeu();
   kontextNeu(); blattAnzeigen();
   if (b.springen) { b.springen = false; zeigeAuswahl(); }
@@ -4158,6 +4289,7 @@ function ziehBereit(ev, v, b) {
   let teil = null;
   if (id.startsWith('pl:')) { if (!platzInhalt(v, id)) return; }
   else if (id.startsWith('t:')) { teil = teilVon(id.slice(2)); if (!teil) return; }
+  else if (id.startsWith('w:')) { if (b.sel !== id) return; teil = Object.assign({ weg: true }, leiterVon(id.slice(2))); if (!teil.l) return; }
   else if (!id.startsWith('k:')) return;
   // Maus und Pencil ziehen nach kurzer Bewegung, der Finger erst nach kurzem Halten (sonst blättert er)
   zieh = { id, v, b, x: ev.clientX, y: ev.clientY, aktiv: false, maus: ev.pointerType !== 'touch', timer: null, teil, ziel: z };
@@ -4174,8 +4306,9 @@ function ziehAn() {
   const k0 = document.querySelector('.kontext'); if (k0) k0.remove();
   const e = berechne(zieh.v), [art, id] = zieh.id.split(':');
   const r = art === 'k' && knoten(zieh.v, id), a = r && e.abgaenge[id];
-  if (zieh.teil) { zieh.orig = zieh.teil.tl.els.map(x => x.getAttribute('transform')); zieh.nx = zieh.ny = 0; }
-  const name = zieh.teil ? teilName(zieh.id.slice(2)) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
+  if (zieh.teil && !zieh.teil.weg) { zieh.orig = zieh.teil.tl.els.map(x => x.getAttribute('transform')); }
+  if (zieh.teil) zieh.nx = zieh.ny = 0;
+  const name = zieh.teil && zieh.teil.weg ? 'Leiter ' + zieh.teil.l.art : zieh.teil ? teilName(zieh.id.slice(2)) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
   zieh.geist = h('div', { class: 'zieh' }, name);
   document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
   if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) {}
@@ -4197,7 +4330,8 @@ function ziehEnde(ev) {
   if (z.teil) {                         // Gerät abgelegt: Abweichung in Rasterschritten merken
     zieh = null; document.querySelectorAll('.hilfslinie').forEach(x => x.remove());
     ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
-    if (ev && (z.nx || z.ny)) { teilSchieben(z.v, z.id.slice(2), z.nx, z.ny, true); z.b.sel = z.id; }
+    if (ev && z.teil.weg && z.nx) { wegSchieben(z.v, z.id.slice(2), z.nx, true); z.b.sel = z.id; }
+    else if (ev && !z.teil.weg && (z.nx || z.ny)) { teilSchieben(z.v, z.id.slice(2), z.nx, z.ny, true); z.b.sel = z.id; }
     zeichne(); return;
   }
   const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen

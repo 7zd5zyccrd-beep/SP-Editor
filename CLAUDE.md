@@ -259,6 +259,9 @@ nach 81346-2:2019.
 - F3 v1.26: `lageAnwenden()` in plan.js (vor dem Schriftfeld): Teile per `transform` versetzen, Leiter an
   ihren Anschlüssen folgen (gerade oder Knick `RASTER·(1+Rang)` vor dem Gerät, Rang nach x bzw. Zugrichtung).
   Editor: `teilZiehen()` (Vorschau, Hilfslinien), `teilSchieben()`, Pfeiltasten, `prueflisteBerechnen()`.
+- F4 v1.27: Leiter tragen Schlüssel `<ort>#<n>` (`mitOrt()`), Punkte werden mitgeschrieben; `v.layout.wege`
+  `{ n, senk }`, `wegeAnwenden()` (Querstücke, nicht auf Schienen; Punkte neu nach ≥ 3 Linien). Editor:
+  `leiterFlaechen()` (`line.leiterziel`, `w:<schlüssel>`), `netzVon()`/`netzHalo()`, `wegSchieben()`, `wegZiehen()`.
 
 ## Technische Eckwerte
 

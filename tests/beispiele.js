@@ -110,5 +110,9 @@ window.BEISPIELE = {
   layout: () => { BEISPIELE.grund(); const [hv] = P.verteiler, L = lay(hv);
     L.spalten[hv.knoten[2].id] = 7; L.umbruch[hv.knoten[4].id] = true;
     const g = hv.knoten[0]; L.lage['k:' + g.id + '/f'] = [-2, 0]; L.lage['k:' + g.kinder[0].id + '/xd'] = [2, -4]; L.lage['k:' + hv.knoten[1].id + '/f'] = [0, 3];
+    // ab v1.27: PE-Zuführung der FI-Gruppe 7,5 mm weiter links (Abzweig auf der PE-Schiene wandert mit)
+    const sz = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter.find(b => b.szene && b.szene.teile['k:' + g.id + '/f']).szene;
+    const pe = sz.leiter.filter(l => l.key && l.key.startsWith('k:' + g.id + '#') && l.art === 'PE' && Math.abs(l.x1 - l.x2) < .01).sort((a, b) => Math.min(a.y1, a.y2) - Math.min(b.y1, b.y2))[0];
+    L.wege[pe.key] = { n: -3, senk: true };
     sichern(); zeichne(); },
 };

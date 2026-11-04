@@ -114,6 +114,17 @@ with sync_playwright() as p:
             if pg.evaluate(f"JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.lage['k:{kid}/xd'])") != '[1,0]': fehler.append('grund: Gerät mit Pfeiltaste verschieben hat nicht geklappt')
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             if pg.evaluate("!!P.verteiler[0].layout"): fehler.append('grund: Strg+Z nach Gerät verschieben nicht zurückgenommen')
+            # ab v1.27: Leiterstück im gewählten Abgang antippen und mit der Pfeiltaste parallel versetzen; Strg+Z
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
+            kid = pg.evaluate("P.verteiler[0].knoten[0].id")
+            pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            wz = pg.evaluate("[...document.querySelectorAll('line.leiterziel[data-aktiv]')].map(x => x.dataset.ziel).find(z => { const f = leiterVon(z.slice(2)); return f.l.art === 'PE' && Math.abs(f.l.x1 - f.l.x2) < .01; })")
+            pg.locator(f'line.leiterziel[data-ziel="{wz}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            if not pg.evaluate("document.querySelector('.netzhalo') !== null"): fehler.append('grund: Netz des gewählten Leiters nicht hinterlegt')
+            pg.keyboard.press('ArrowLeft'); pg.wait_for_timeout(300)
+            if pg.evaluate(f"JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.wege['{wz[2:]}'])") != '{"n":-1,"senk":true}': fehler.append('grund: Leiter mit Pfeiltaste versetzen hat nicht geklappt')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            if pg.evaluate("!!P.verteiler[0].layout"): fehler.append('grund: Strg+Z nach Leiter versetzen nicht zurückgenommen')
             # leerer Verteiler: Marke „+“ im leeren Blatt
             pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)

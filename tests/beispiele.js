@@ -179,6 +179,9 @@ window.BEISPIELE = {
     const pm = neuerPfad({ g: h.id }); pm.plaetze[0] = { g: w.id, z: 's_schwimmer' }; kr.pfade.push(pm); sichern(); zeichne(); },
   // Prüfbericht E6 (v1.46): Hauptverteiler TN-C-S (PEN wird aufgeteilt, Haupterdungsschiene), UV dahinter TN-S
   tncs: () => { BEISPIELE.grund(); const [hv] = P.verteiler; hv.netzform = 'TN-C-S'; sichern(); zeichne(); },
+  // Nutzertest Etappe 1 (v1.52): HV und UV in TN-C, Klemmleiste in der HV; die Zuleitung zur UV führt L1 L2 L3 PEN (4 Leiter, 10 mm²)
+  tncuv: () => { BEISPIELE.grund(); const [hv, uv] = P.verteiler; hv.netzform = 'TN-C'; uv.netzform = 'TN-C'; hv.klemmen = 'leiste';
+    hv.knoten.find(k => k.speist === uv.id).leitung.quer = '10'; sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

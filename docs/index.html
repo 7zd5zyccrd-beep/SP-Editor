@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.51 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.52 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.52: Nutzertest Etappe 1 „Fehler und fachliche Prüfungen“: kein „null“ in Fußleiste und Klassen; Import und
+           gespeicherter Stand werden geprüft und repariert (`pruefeProjekt()`, Probe vor dem Übernehmen); Warnungen: Steckdose
+           ohne FI ≤ 30 mA, Nennstrom über der Belastbarkeit der Leitung (`IZ_MAX`), Bemessungskette, Motorschutzschalter ohne
+           Hilfskontakt; LS/FI höchstens 125 A; Zahlenfelder geprüft; Anschlusswechsel passt LS-Polzahl bzw. Leuchte an;
+           Überlastrelais-Bereich aus dem Motorstrom (Stern-Dreieck I/√3); Quellen der Steuerspannung ohne Motor- und
+           Steckdosenabgänge; Zuleitung zu TN-C(-S)-UV mit PEN (4 Leiter); Übersicht: Überlastrelais-Text vor dem Nachbarkasten,
+           Stern-Dreieck „4 + 3“; Klemmenplan: gnge der zweiten Stern-Dreieck-Leitung an PE; Melder-Texte begrenzt, Umbruch
+           erst unter 85 %; Leiste „3/PEN“; Liste/Türzettel mit Überlastrelais und Sekundär-LS; Druck weiß
      v1.51: Steuerstromkreis: Spulen und Meldeleuchten stehen nicht mehr in der Fluchtlinie der Kontakte, ihre Beschriftung
            endet 1,5 mm vor dem eigenen Zeichen (Jean 04.11.2026: Kennzeichen der Schütze rücken heran)
      v1.50: Prüfbericht E4 Schritt 2 (R2/R3, zur Abnahme): Beschriftung links, rechtsbündig 1,5 mm vor der am weitesten
@@ -262,6 +270,7 @@ h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--le
 .hinweis.lizenz{font-size:12px}
 .hinweis.lizenz a{color:inherit}
 .warnung{font-size:13.5px;color:var(--warn);margin:6px 4px}
+.feldfehler{color:var(--rot);font-size:13px;margin:6px 2px 0}.zeile .un.feldfehler{color:var(--rot);white-space:normal;overflow:visible}.feldfehler[hidden]{display:none !important}input.fehler{border-color:var(--rot) !important;outline-color:var(--rot)}
 .sort{display:flex;gap:4px;flex:0 0 auto}
 .sort button{border:1px solid var(--linie);background:var(--karte);border-radius:8px;width:36px;height:32px;cursor:pointer;color:var(--akzent)}
 .sort button:disabled{opacity:.3}
@@ -500,7 +509,7 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
 @media (max-width:560px){.edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
 #druck{display:none}
 @media print{
-  body{background:var(--karte)}
+  html,body{background:#fff !important}      /* ab v1.52: auch im dunklen Modus weiß */
   #app,.meldung,.fehlerband{display:none !important}
   #druck{display:block}
   #druck .db{break-after:page;page-break-after:always}
@@ -1140,6 +1149,7 @@ const PLAN = (() => {
     if (art === 'L') art = 'L1';
     if (bars[art] !== undefined) return art;
     if ((art === 'N' || art === 'PE') && bars.PEN !== undefined) return 'PEN';
+    if (art === 'PEN' && bars.PE !== undefined) return 'PE';      // PEN-Zuleitung aus einem Verteiler ohne PEN-Schiene (dort gewarnt)
     if (/^L[123]$/.test(art) && bars.L1 !== undefined) return 'L1';
     return art;
   }
@@ -1158,8 +1168,9 @@ const PLAN = (() => {
   function spaltenFuer(nLeiter, R) { return Math.max(1, Math.ceil((LINKS + (nLeiter - 1) * ABSTAND + 2) / R.sb)); }
   function abgangArten(k, a, v) {
     if (a.ohneN) return ['L1', 'L2', 'L3', 'PE'];      // Drehstrommotor (ab v1.37)
-    if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
+    if (a.pen) return a.drei ? ['L1', 'L2', 'L3', 'PEN'] : [ph, 'PEN'];      // Zuleitung zu einem TN-C(-S)-Unterverteiler (ab v1.52)
+    if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     if (k.trafo && k.trafo.prim === '400') return ['L1', 'L2'];
     return k.steuer ? [ph, 'N'] : [ph, 'N', 'PE'];
   }
@@ -1815,6 +1826,9 @@ const PLAN = (() => {
     linie(g, x - 1.4, y + 1.4, x + 1.4, y - 1.4, 0.25);
     text(g, x + 1.7, y - 0.6, String(n), 2.2);
   }
+  // zuletzt gezeichnetes Überlastrelais je Blatt (ab v1.52): steht links daneben eines auf gleicher Höhe, endet die
+  // Beschriftung vor dessen Kasten
+  const ueOl = new WeakMap();
   function ueBmk(g, x, y, kenn, zeilen, max) {   // rechtsbündig bis x, auf max begrenzt
     if (kenn) passend(text(g, x, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
     zeilen.filter(Boolean).forEach((z, i) => passend(text(g, x, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
@@ -1890,7 +1904,9 @@ const PLAN = (() => {
       const top = Math.max(frei, y) + 2.5;
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ueberlast1', x, top), zl = [a.ol.bereich ? `${a.ol.bereich} A` : ''];
-      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - (x - R3('ueberlast1', x)));
+      const vor = ueOl.get(g), dx = x - R3('ueberlast1', x), nah = vor && x - vor.x <= P + 0.01 && x > vor.x && Math.abs(top - vor.top) < 6;
+      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - dx - (nah ? dx - 1 : 0));
+      ueOl.set(g, { x, top });
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('ueberlast1', top), zl));
     }
     if (a.fu) {         // Frequenzumrichter einpolig (ab v1.48)
@@ -1910,7 +1926,8 @@ const PLAN = (() => {
       // Wechselrichter von PV und Speicher (ab v1.48) direkt über dem Endzeichen
       const wr = !k.speist && (k.ziel.anschluss === 'pv' || k.ziel.anschluss === 'speicher') && a.t, hW = wr ? 10 : 0;
       linie(g, x, y, x, yE - hW, 0.25);
-      leiterzahl(g, x, Math.max(Math.max(frei, y) + 4, yE - 4.5 - hW), abgangArten(k, a, v).length);
+      // Stern-Dreieck (ab v1.52): zwei Leitungen, Leiterzahl „4 + 3“
+      leiterzahl(g, x, Math.max(Math.max(frei, y) + 4, yE - 4.5 - hW), abgangArten(k, a, v).length + (a.sd ? ' + 3' : ''));
       if (wr) { setze(g, 'ue_wr', x, yE - hW); ueBmk(g, R3('ue_wr', x), R1('ue_wr', yE - hW), a.t.t, [], P - (x - R3('ue_wr', x))); }
       ueEnde(g, ctx, v, k, a, x, yE, ySF);
     }
@@ -2040,12 +2057,12 @@ const PLAN = (() => {
     const fiN = z => ['fils1n', 'fils3n', 'fi2', 'fi4'].includes(z);
     const ausgang = (z, kenn, l, ph) => {          // Anschluss unten am Gerät
       if (!z || !kenn) return null;
-      if (l === 'PE') return null;
+      if (l === 'PE' || l === 'PEN') return null;
       if (l === 'N') return fiN(z) ? `${kenn}:N` : null;
       const i = GERAETE[z].pole === 1 ? 0 : ({ L1: 0, L2: 1, L3: 2 }[ph] || 0);
       return `${kenn}:${2 * (i + 1)}`;
     };
-    const schiene = (l, ph) => 'Schiene ' + (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : l);
+    const schiene = (l, ph) => 'Schiene ' + (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l === 'PEN' && !tnc ? 'PE' : l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : l);
     const abgang = (k, grp) => {
       const a = e.abgaenge[k.id]; if (!a || !a.klemmen) return;
       const zeilen = a.leiter.map((l, i) => {
@@ -2064,7 +2081,7 @@ const PLAN = (() => {
           || ausgang(k.geraet.zeichen, a.f && a.f.t, l, ph)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))
           || schiene(l, ph);
-        const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
+        const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'PEN' ? 'PEN-Klemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
         const anzeige = l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l);
         const ader = sdI !== undefined ? ['br', 'sw', 'gr'][sdI] : a.drei ? ADER[l] : ADER[l === 'L' ? 'L' : l];
         // Motor (ab v1.45): Ziel mit Motoranschluss U1 V1 W1 (U2 V2 W2) bzw. U1 U2 beim Wechselstrommotor
@@ -2075,6 +2092,10 @@ const PLAN = (() => {
           : `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${a.leiter.length}×${k.leitung.quer || '?'}`;
         return [String(a.klemmen.von + i), anzeige, art, intern, leitung, ader, ziel];
       });
+      // Stern-Dreieck (ab v1.52): die gnge-Ader der zweiten Leitung (U2 V2 W2) liegt mit auf der Schutzleiterklemme
+      const iPE = a.leiter.indexOf('PE');
+      if (a.sd && iPE >= 0 && adern(k.leitung.typ, 3).gesamt > 3) { const pe = zeilen[iPE];
+        zeilen.push([pe[0], 'PE', pe[2], pe[3], `${a.w2.t} ${k.leitung.typ || 'NYM-J'} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}`, 'gnge', pe[6]]); }
       bloecke.push({ kenn: a.f ? a.f.t : '', zeilen });
     };
     v.knoten.forEach(k => k.typ === 'abgang' ? abgang(k, null) : k.kinder.forEach(c => c.typ === 'abgang' && abgang(c, k)));
@@ -2296,15 +2317,20 @@ const PLAN = (() => {
   // Beschriftung im Steuerstromkreis (ab v1.42): rechtsbündig bis xr, links begrenzt auf die eigene Spalte
   // (erste Spalte: Rahmen + 1,5 mm, sonst Nachbarpfad); zu lange Zeilen werden an Leerzeichen bzw. Bindestrich umbrochen, der Rest begrenzt
   const zeitText = z => ('t = ' + z).replace(/ /g, '\u00a0');     // Zeitangabe wird nicht umbrochen (ab v1.50)
+  // Umbruch an Leerzeichen bzw. Bindestrich (Breite geschätzt); ab v1.52 erst, wenn die Zeile auch auf 85 % gestaucht
+  // nicht passt – sonst wurden kurze Texte wie „Taster 1“ in der ersten Spalte umbrochen, ihre Nachbarn nicht
+  const breitSt = (t, gr) => t.length * gr * 0.5;
+  function umbrechenSt(t, max) {
+    if (breitSt(t, 2.2) * 0.85 <= max) return [t];
+    const teile = t.split(/(?<=[ -])/), r = ['']; teile.forEach(w => { if (r[r.length - 1] && breitSt(r[r.length - 1] + w, 2.2) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
+    return r.map(z => z.trim()).filter(Boolean);
+  }
   function bmkSt(g, xPfad, xr, y, kenn, zeilen = []) {
     // links: in der ersten Spalte der Rahmen + 1,5 mm, sonst die Anschlussnummern des Nachbarpfads + 1,5 mm
     const links = xPfad - ST_LINKS - RAND_L < 0.5 ? RAND_L + 1.5 : xPfad - ST_LINKS - 1;
-    const max = xr - links, breit = (t, gr) => t.length * gr * 0.5;
-    const umbrechen = t => { if (breit(t, 2.2) <= max) return [t];
-      const teile = t.split(/(?<=[ -])/), r = ['']; teile.forEach(w => { if (r[r.length - 1] && breit(r[r.length - 1] + w, 2.2) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
-      return r.map(z => z.trim()).filter(Boolean); };
+    const max = xr - links;
     if (kenn) passend(text(g, xr, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
-    zeilen.filter(Boolean).flatMap(umbrechen).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
+    zeilen.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
   }
   function stKreis(g, ctx, v, e, kr, col, R, lt, gem, anG) {
     const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);
@@ -2392,9 +2418,11 @@ const PLAN = (() => {
         } else {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [pl.bez || ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
           if (ST_MELDER.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
-            const yb = R1(z, top);
-            text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' });
-            zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'));
+            // ab v1.52 begrenzt: bis 5,5 mm in die nächste Spalte – dort bleibt 1,5 mm frei vor einem kurzen Kennzeichen (-S1),
+            // das rechtsbündig an der Fluchtlinie des Nachbarpfads steht
+            const yb = R1(z, top), max = R.sb - ST_LINKS + 3;
+            passend(text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' }), max);
+            zl.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((s, n) => passend(text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'), max));
           } else bmkSt(g, x, xr, R1(z, top), kz, zl);
           an = kn ? kn.an : /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }
@@ -2759,7 +2787,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.51';
+const FASSUNG = 'v1.52';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2797,6 +2825,15 @@ const WAHL = {
 const gName = k => k ? GERAETE[k].name : 'ohne';
 const KENNLINIEN = ['B', 'C', 'D', 'K', 'Z'];
 const NENNSTROM = ['6', '10', '13', '16', '20', '25', '32', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400'];
+// Nennströme je Geräteart (ab v1.52): LS, FI/LS und FI höchstens 125 A, Sicherungen und Schalter bis 400 A
+const nennListe = z => z && GERAETE[z] && (GERAETE[z].kennlinie || GERAETE[z].fi) ? NENNSTROM.filter(x => +x <= 125) : NENNSTROM;
+// größter Nennstrom des Schutzorgans je Querschnitt (ab v1.52): Cu, vereinfacht nach DIN VDE 0298-4, Verlegeart C
+const IZ_MAX = { '1,5': 16, '2,5': 25, '4': 32, '6': 40, '10': 63, '16': 80, '25': 100, '35': 125, '50': 160, '70': 200, '95': 250, '120': 250, '150': 315, '185': 315, '240': 400 };
+const zahlVon = t => parseFloat(String(t || '').replace(',', '.')) || 0;
+// Grenzen der Zahlenfelder (ab v1.52)
+const Z_KW = { min: 0.01, max: 1000, einheit: /^kW$/i, zeigen: 'kW' }, Z_A = { min: 0.01, max: 2000, einheit: /^A$/i, zeigen: 'A' },
+  Z_KWP = { min: 0.1, max: 10000, einheit: /^kWp$/i, zeigen: 'kWp' }, Z_KWH = { min: 0.1, max: 10000, einheit: /^kWh$/i, zeigen: 'kWh' },
+  Z_ZEIT = { min: 0.01, max: 100000, einheit: /^(ms|s|sek\.?|min\.?|h|std\.?)$/i, zeigen: 's, min oder h', text: true };
 // Einstellbereiche der Motorschutzschalter bzw. Überlastrelais (ab v1.37)
 // geschirmte Leitungen (ab v1.39): im Plan mit dem Schirmzeichen
 const GESCHIRMT = ['2YSLCY-J', 'NYCWY'];
@@ -2971,6 +3008,16 @@ function istDrei(k, v) {
   if (k.speist) { const u = vById(k.speist); if (u && u.leiter === '3NPE') return true; }
   return false;
 }
+const warnDazu = (a, t) => { a.warn = a.warn ? a.warn + ' ' + t : t; };
+// Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
+const fiAm = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi && zahlVon(g.idn || '30') <= 30);
+function fiVorVerteiler(v, tiefe = 0) {
+  const sp = tiefe < 10 && speisenderAbgang(v.id); if (!sp) return false;
+  const r = knoten(sp.v, sp.k.id);
+  return fiAm(sp.k.geraet) || !!(r && r.eltern && fiAm(r.eltern.geraet)) || fiVorVerteiler(sp.v, tiefe + 1);
+}
+// Zuleitung eines Unterverteilers mit PEN (ab v1.52): TN-C und TN-C-S bekommen L1 L2 L3 PEN (bzw. L PEN)
+const penZuleitung = k => { const u = k.speist && vById(k.speist); return !!u && u.netzform !== 'TN-S'; };
 function berechne(v) {
   const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
@@ -3000,6 +3047,7 @@ function berechne(v) {
     else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
     else a.phase = { t: null, auto: true };
     a.leiter = a.ohneN ? ['L1', 'L2', 'L3', 'PE'] : a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
+    if (penZuleitung(k)) { a.pen = true; a.leiter = a.drei ? ['L1', 'L2', 'L3', 'PEN'] : ['L', 'PEN']; }
     if (k.steuer) a.leiter = ['L', 'N'];     // Steuer-LS: nur L und N, ohne Leitung und Klemmen
     if (k.trafo && k.trafo.prim === '400') a.leiter = ['L1', 'L2'];
     // Schaltgerät hinter dem Schutzorgan: geschaltet werden die Außenleiter, N nur auf Wunsch
@@ -3022,11 +3070,18 @@ function berechne(v) {
     if (k.geraet.zeichen === 'motorschutz3') a.mssHk = { s: k.geraet.hks || 0, o: k.geraet.hko || 0 };
     // Frequenzumrichter vor dem Drehstrommotor (ab v1.39), im Verteiler vor den Klemmen
     if (a.ohneN && k.motor && k.motor.fu) a.fu = bmk('T', k.motor.fu.bmk);
-    // Widersprüche nur melden, nicht verhindern
+    // Widersprüche nur melden, nicht verhindern; ab v1.52 mehrere Warnungen je Abgang (aneinandergehängt)
     const gp = k.geraet.zeichen ? GERAETE[k.geraet.zeichen].pole : null;
-    if (a.drei && gp === 1) a.warn = 'Gerät ist 1-polig, der Abgang aber dreiphasig (Anschluss oder Unterverteiler 3/N/PE).';
-    if (v.leiter === '1NPE' && gp === 3) a.warn = 'Gerät ist 3-polig, der Verteiler aber 1/N/PE.';
-    if (a.drei && einLeiterGruppe(eltern)) a.warn = 'Dreiphasiger Abgang hinter einem 2-poligen FI.';
+    if (a.drei && gp === 1) warnDazu(a, 'Gerät ist 1-polig, der Abgang aber dreiphasig (Anschluss oder Unterverteiler 3/N/PE).');
+    if (v.leiter === '1NPE' && gp === 3) warnDazu(a, 'Gerät ist 3-polig, der Verteiler aber 1/N/PE.');
+    if (a.drei && einLeiterGruppe(eltern)) warnDazu(a, 'Dreiphasiger Abgang hinter einem 2-poligen FI.');
+    // Belastbarkeit der Leitung (ab v1.52, vereinfacht): Nennstrom des Schutzorgans über dem Tabellenwert des Querschnitts
+    if (!k.steuer && k.geraet.zeichen && !GERAETE[k.geraet.zeichen].ohneNenn && IZ_MAX[k.leitung.quer] && zahlVon(k.geraet.nenn) > IZ_MAX[k.leitung.quer])
+      warnDazu(a, `Nennstrom ${k.geraet.nenn} A über der Belastbarkeit der Leitung ${k.leitung.quer} mm² (höchstens ${IZ_MAX[k.leitung.quer]} A; vereinfacht, Verlegeart C).`);
+    // Steckdosen bis 32 A brauchen einen FI ≤ 30 mA (ab v1.52): am Abgang, an der Gruppe oder vor dem Verteiler
+    if (!k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
+      && !fiAm(k.geraet) && !(eltern && fiAm(eltern.geraet)) && !fiVorVerteiler(v))
+      warnDazu(a, 'Steckdose ohne Fehlerstrom-Schutz ≤ 30 mA (DIN VDE 0100-410, 411.3.3).');
     // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
     a.mitKlemmen = !k.steuer && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
     const nKl = a.leiter.length + (a.ohneN && k.motor && k.motor.schaltung === 'sd' && sg && sg.typ === 'schuetz' ? 3 : 0);
@@ -3059,9 +3114,9 @@ function berechne(v) {
       else if (k.ziel.anschluss === 'wallbox') {
         a.xd = bmk('E', k.ziel.bmk);
         const wb = k.wallbox || wallboxNeu(), d = k.geraet.zeichen && GERAETE[k.geraet.zeichen];
-        if (v.leiter === '1NPE') a.warn = 'Die Wallbox ist dreiphasig, der Verteiler aber 1/N/PE.';
-        else if (!(d && d.fi)) a.warn = 'Wallbox: je Ladepunkt eine eigene Fehlerstrom-Schutzeinrichtung (DIN VDE 0100-722).';
-        else if (!wb.rdc && d && d.fi && !/^B/.test(k.geraet.fityp || 'A')) a.warn = 'Wallbox ohne DC-Fehlerstromerkennung: FI Typ B nötig.';
+        if (v.leiter === '1NPE') warnDazu(a, 'Die Wallbox ist dreiphasig, der Verteiler aber 1/N/PE.');
+        else if (!(d && d.fi)) warnDazu(a, 'Wallbox: je Ladepunkt eine eigene Fehlerstrom-Schutzeinrichtung (DIN VDE 0100-722).');
+        else if (!wb.rdc && d && d.fi && !/^B/.test(k.geraet.fityp || 'A')) warnDazu(a, 'Wallbox ohne DC-Fehlerstromerkennung: FI Typ B nötig.');
       }
     }
     e.abgaenge[k.id] = a;
@@ -3094,6 +3149,24 @@ function verteilerWarnungen(v, e) {
     w.push(`TN-C hinter ${sp.v.name} (${sp.v.netzform}): N und PE sind dort schon getrennt und dürfen nicht wieder zum PEN verbunden werden.`);
   if (sp && v.netzform !== 'TN-S' && quer(sp.k.leitung.quer) < 10)
     w.push(`PEN in der Zuleitung (${sp.k.leitung.quer || '?'} mm²): ein PEN braucht mindestens 10 mm² Cu.`);
+  // Bemessungskette (ab v1.52, einfache Prüfung ohne Selektivitätsberechnung): Abgänge und Gruppen kleiner als das
+  // Schutzorgan davor (Vorsicherung bzw. Schutzorgan des speisenden Abgangs), Vorsicherung der UV kleiner als ihr
+  // speisender Abgang; der Hauptschalter (Lasttrennschalter) mindestens so groß wie das Schutzorgan davor und nicht
+  // kleiner als ein Abgang dahinter
+  const schutz = g => !!(g && g.zeichen && GERAETE[g.zeichen] && (GERAETE[g.zeichen].kennlinie || GERAETE[g.zeichen].sicherung));
+  const nenn = g => g && g.zeichen && GERAETE[g.zeichen] && !GERAETE[g.zeichen].ohneNenn ? zahlVon(g.nenn) : 0;
+  const vs = schutz(v.vorsicherung) ? nenn(v.vorsicherung) : 0, hs = nenn(v.hauptschalter), spN = sp && schutz(sp.k.geraet) ? nenn(sp.k.geraet) : 0;
+  const davor = vs || spN, davorT = vs ? 'Vorsicherung' : `Schutzorgan des speisenden Abgangs in ${sp ? sp.v.name : ''}`;
+  if (vs && spN && vs >= spN) w.push(`Vorsicherung ${vs} A nicht kleiner als das Schutzorgan ${spN} A des speisenden Abgangs in ${sp.v.name} – nicht selektiv.`);
+  if (hs && davor && hs < davor) w.push(`Hauptschalter ${hs} A kleiner als das ${davorT} (${davor} A) – der Hauptschalter ist nicht geschützt.`);
+  const kette = new Set();
+  alleKnoten(v, (k, eltern) => { if (k.steuer || !schutz(k.geraet)) return;
+    const n = nenn(k.geraet), t = (k.typ === 'gruppe' ? e.geraete[k.id] : e.abgaenge[k.id].f || {}).t || 'Abgang';
+    const grp = eltern && schutz(eltern.geraet) ? nenn(eltern.geraet) : 0;
+    if (grp && n >= grp) kette.add(`${t}: ${n} A nicht kleiner als das Schutzorgan der Gruppe (${grp} A) – nicht selektiv.`);
+    else if (davor && n >= davor) kette.add(`${t}: ${n} A nicht kleiner als die ${davorT} (${davor} A) – nicht selektiv.`);
+    if (hs && n > hs) kette.add(`${t}: ${n} A größer als der Hauptschalter (${hs} A).`); });
+  w.push(...kette);
   alleKnoten(v, k => { if (k.trafo && !k.trafo.erde)
     w.push(`${(e.abgaenge[k.id].t || {}).t || 'Steuertrafo'}: ungeerdeter Steuerkreis – Isolationsüberwachung vorsehen und beide Leiter absichern (EN 60204-1, 9.4.3 und 7.2.4).`); });
   return w;
@@ -3249,6 +3322,9 @@ function berechneSteuerung(v, e, bmk, klemme) {
   Object.entries(spulen).forEach(([g, n]) => { if (n > 1) r.warn.push(`${name(g)}: Spule bzw. Verbraucher ${n}-mal gesetzt.`); });
   Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) r.warn.push(`${a.schalt.bmk.t}: Schaltgerät ohne Steuerstromkreis (Spule nicht gesetzt).`); });
   Object.values(e.abgaenge).forEach(a => { if (a.ol && !(a.olKont && a.olKont.o.length)) r.warn.push(`${a.ol.bmk.t}: Öffner 95–96 des Überlastrelais fehlt im Steuerstromkreis.`); });
+  // Motorschutzschalter mit Schütz (ab v1.52): ohne Hilfskontakt im Steuerkreis zieht das Schütz nach dem Auslösen wieder an
+  Object.values(e.abgaenge).forEach(a => { if (a.mssHk && a.schalt && a.schalt.typ === 'schuetz' && !(a.mssKont && (a.mssKont.s.length || a.mssKont.o.length)))
+    r.warn.push(`${a.f.t}: Motorschutzschalter ohne Hilfskontakt im Steuerkreis – Wiederanlaufschutz prüfen (EN 60204-1, 7.5).`); });
   // Leitungen der Feldgeräte: je Gerät eine, Adern = Zahl seiner Klemmen
   r.feldListe.forEach(f => { const l = r.leitung[f.gid] = r.leitung[f.gid] || { adern: 0 }; l.adern += 2; });
   (st.geraete || []).forEach(g => { if (r.leitung[g.id]) r.leitung[g.id].w = bmk('W', g.leitung && g.leitung.bmk); });
@@ -3310,13 +3386,17 @@ const abgangName = k => k.trafo ? `${k.ziel.bez || 'Steuertrafo'} ${k.trafo.prim
 function bemessung(g) {
   if (!g || !g.zeichen) return '';
   const d = GERAETE[g.zeichen], t = [];
-  if (d.sicherung) t.push(`${g.art || 'gG'} ${g.nenn || '?'} A`);
-  else if (d.kennlinie) t.push(`${g.kennlinie || 'B'} ${g.nenn || '?'} A`);
-  else if (d.bereich) t.push(`${g.bereich || '?'} A`);
-  else if (g.nenn) t.push(`${g.nenn} A`);
-  if (d.fi) t.push(`${g.idn || '30'} mA` + (g.fityp ? ` Typ ${g.fityp}` : ''));
+  // ab v1.52 Zahl und Einheit bzw. „Typ“ und Buchstabe mit geschütztem Leerzeichen (kein Umbruch im Türzettel)
+  const nb = '\u00a0';
+  if (d.sicherung) t.push(`${g.art || 'gG'}${nb}${g.nenn || '?'}${nb}A`);
+  else if (d.kennlinie) t.push(`${g.kennlinie || 'B'}${nb}${g.nenn || '?'}${nb}A`);
+  else if (d.bereich) t.push(`${g.bereich || '?'}${nb}A`);
+  else if (g.nenn) t.push(`${g.nenn}${nb}A`);
+  if (d.fi) t.push(`${g.idn || '30'}${nb}mA` + (g.fityp ? ` Typ${nb}${g.fityp}` : ''));
   return t.join(' ');
 }
+// ankommende Leiter wie im Plan (ab v1.52): TN-C „3/PEN“, TN-C-S „3/PEN → 3/N/PE“ (Aufteilung im Verteiler)
+const leiterText = v => { const n = v.leiter === '1NPE' ? '1' : '3'; return v.netzform === 'TN-S' ? `${n}/N/PE` : v.netzform === 'TN-C' ? `${n}/PEN` : `${n}/PEN → ${n}/N/PE`; };
 const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
@@ -3344,7 +3424,7 @@ function h(tag, attr = {}, ...kinder) {
   const e = document.createElement(tag);
   for (const k in attr) {
     if (k === 'on') for (const ev in attr.on) e.addEventListener(ev, attr.on[ev]);
-    else if (k === 'class') e.className = attr[k];
+    else if (k === 'class') { if (attr[k]) e.className = attr[k]; }     // ohne Klasse kein class="null" (ab v1.52)
     else if (attr[k] !== null && attr[k] !== undefined && attr[k] !== false) e.setAttribute(k, attr[k] === true ? '' : attr[k]);
   }
   for (const c of kinder.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
@@ -3419,12 +3499,32 @@ function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {})
     const x = f.querySelector('[aria-checked="true"], .an') || f.querySelector('input, .wahl button, .kacheln button, .fuss .knopf'); if (x) x.focus({ preventScroll: true }); }, 30);
   return schl;
 }
+// Zahlenfelder (ab v1.52): opt.zahl = { min, max, einheit: /…/ } – Komma oder Punkt, Einheit dahinter erlaubt;
+// leer ist erlaubt. Gibt den Fehlertext zurück oder null.
+function zahlFehler(t, z) {
+  t = String(t || '').trim(); if (!t) return null;
+  const m = /^(\d+(?:[.,]\d+)?)\s*([^\d\s.,]*\.?)$/.exec(t);
+  const bereich = `${String(z.min).replace('.', ',')} bis ${String(z.max).replace('.', ',')}`;
+  if (!m || (m[2] && !(z.einheit && z.einheit.test(m[2])))) return `Bitte eine Zahl eingeben (${bereich}${z.zeigen ? ' ' + z.zeigen : ''}).`;
+  const x = zahlVon(m[1]);
+  return x < z.min || x > z.max ? `Erlaubt ist ${bereich}${z.zeigen ? ' ' + z.zeigen : ''}.` : null;
+}
+// Eingabe übernehmen; bei Zahlenfeldern nur gültige Werte, sonst Fehler am Feld (der letzte gültige Wert bleibt)
+function eingabe(i, titel, setzen, opt, fehlerEl) {
+  const t = i.value.trim(), f = opt.zahl ? zahlFehler(t, opt.zahl) : null;
+  i.classList.toggle('fehler', !!f); i.setAttribute('aria-invalid', f ? 'true' : 'false');
+  if (fehlerEl) { fehlerEl.textContent = f || ''; fehlerEl.hidden = !f; }
+  if (f) return;
+  setzen(t); aenderung(titel); sichern();
+}
+const zahlOpt = (opt, z) => Object.assign({ inputmode: z.text ? null : 'decimal', zahl: z }, opt);
 function textFeld(titel, wert, setzen, opt = {}) {
   const a = ankerFrisch();
   if (a && a.zeile && a.zeile.isConnected && opt.typ !== 'date' && Date.now() - a.zeit < 600) return textInline(a.zeile, titel, wert, setzen, opt);
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
-  i.addEventListener('input', () => { setzen(i.value.trim()); aenderung(titel); sichern(); });
-  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i];
+  const fe = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true });
+  i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
+  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl ? fe : null];
   const schl = fenster(titel, kids);
   i.addEventListener('keydown', ev => { if (ev.key === 'Enter') schl(); });
   setTimeout(() => i.focus(), 50);
@@ -3432,7 +3532,8 @@ function textFeld(titel, wert, setzen, opt = {}) {
 // Text direkt in der Zeile ändern: Eingabe oder Verlassen übernimmt, Esc nimmt zurück
 function textInline(z, titel, wert, setzen, opt) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
-  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null), i);
+  const fe = h('span', { class: 'un feldfehler', 'aria-live': 'polite', hidden: true });
+  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl ? fe : null), i);
   z.replaceWith(box);
   let fertig = false;
   const ende = zurueckNehmen => {
@@ -3440,9 +3541,9 @@ function textInline(z, titel, wert, setzen, opt) {
     if (zurueckNehmen) { setzen(wert || ''); sichern(); }
     zeichne();
   };
-  i.addEventListener('input', () => { setzen(i.value.trim()); aenderung(titel); sichern(); });
+  i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
   i.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') { ev.preventDefault(); ende(false); }
+    if (ev.key === 'Enter') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false); }
     else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ende(true); }
   });
   i.addEventListener('blur', () => setTimeout(() => ende(false), 0));
@@ -3510,7 +3611,7 @@ function bStart() {
     const nk = Object.keys(e.steuer.aktiv).length, warn = e.warn.length + e.steuer.warn.length + Object.values(e.abgaenge).filter(a => a.warn).length;
     const karte = h('button', { class: 'vkarte', on: { click: () => { if (!sortieren) geh({ s: 'editor', vid: v.id }); } } },
       h('span', { class: 'vk-name' }, v.name),
-      h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`),
+      h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${leiterText(v)}`),
       h('span', { class: 'vk-un' }, `${n} Abgäng${n === 1 ? '' : 'e'}` + (nk ? ` · ${nk} Steuerstromkreis${nk === 1 ? '' : 'e'}` : '')),
       warn ? h('span', { class: 'vk-warn' }, `⚠ ${warn} Hinweis${warn === 1 ? '' : 'e'}`) : null,
       h('span', { class: 'vk-aktion' }, sortieren ? '' : `Plan bearbeiten ${PFEIL}`));
@@ -3578,7 +3679,7 @@ function bVerteiler(b) {
   if (!einbettung) m.append(h('div', { class: 'liste' }, zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: 'im Planblatt antippen und ändern' })));
   // Einspeisung
   const sp = speisenderAbgang(v.id);
-  const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+  const eins = sp ? `aus ${sp.v.name}, ${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t || 'Abgang'}` : `${v.netzform} · ${leiterText(v)}`;
   m.append(h('h2', {}, 'Einspeisung'), h('div', { class: 'liste' },
     zeile('Name', v.name, () => textFeld('Name des Verteilers', v.name, w => { if (w) v.name = w; }), {}),
     zeile('Einspeisung', eins, () => geh({ s: 'einspeisung', vid: v.id })),
@@ -3682,7 +3783,7 @@ function bEinspeisung(b) {
       }, { text: 'Ein Unterverteiler hängt an einem Abgang eines anderen Verteilers. Der Abgang führt dann zum Unterverteiler statt zu einem Verbraucher.' }))));
   m.append(h('h2', {}, 'Netz'), h('div', { class: 'liste' },
     zeile('Netzform', v.netzform, () => wahlFeld('Netzform', [['TN-S', 'TN-S', 'N und PE getrennt'], ['TN-C', 'TN-C', 'PEN'], ['TN-C-S', 'TN-C-S', 'PEN wird im Verteiler aufgeteilt']], v.netzform, w => v.netzform = w)),
-    zeile('Leiter', v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE', () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => v.leiter = w))));
+    zeile('Leiter', leiterText(v), () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => v.leiter = w))));
   if (v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Bei 1/N/PE werden alle Abgänge einphasig gezählt; 3-polige Geräte passen hier nicht.'));
   app.append(m);
 }
@@ -3716,7 +3817,7 @@ function geraetZeilen(ge) {
   const d = GERAETE[ge.zeichen], z = [];
   if (d.sicherung) z.push(zeile('Betriebsklasse', ge.art || 'gG', () => wahlFeld('Betriebsklasse', SICH_ART, ge.art || 'gG', w => ge.art = w)));
   if (d.kennlinie) z.push(zeile('Kennlinie', ge.kennlinie || 'B', () => wahlFeld('Kennlinie', KENNLINIEN, ge.kennlinie || 'B', w => ge.kennlinie = w)));
-  if (!d.ohneNenn) z.push(zeile('Nennstrom', ge.nenn ? ge.nenn + ' A' : '—', () => wahlFeld('Nennstrom', NENNSTROM.map(x => [x, x + ' A']), ge.nenn, w => ge.nenn = w)));
+  if (!d.ohneNenn) z.push(zeile('Nennstrom', ge.nenn ? ge.nenn + ' A' : '—', () => wahlFeld('Nennstrom', nennListe(ge.zeichen).map(x => [x, x + ' A']), ge.nenn, w => ge.nenn = w)));
   if (d.bereich) {
     const anz = [0, 1, 2].map(n => [String(n), String(n)]);
     z.push(zeile('Hilfsschalter Schließer', String(ge.hks || 0), () => wahlFeld('Hilfsschalter Schließer (13–14 …)', anz, String(ge.hks || 0), w => ge.hks = +w)));
@@ -3742,7 +3843,7 @@ function bAbgang(b) {
     k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
-    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => { k.ziel.anschluss = w; if (w === 'motor' && !k.motor) k.motor = motorNeu(v); if (w === 'wallbox' && !k.wallbox) k.wallbox = wallboxNeu(); if (w === 'pv' && !k.pv) k.pv = pvNeu(v); if (w === 'speicher' && !k.speicher) k.speicher = speicherNeu(v); })),
+    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => anschlussSetzen(v, k, w))),
     a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte', wallbox: 'Wallbox', motor: 'Motor' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
       () => bmkFeld('Kennzeichen', k.ziel, a.xd.hand ? '' : a.xd.t)) : null));
   if (k.ziel.anschluss === 'leuchte' && a.drei) m.append(h('p', { class: 'warnung' }, 'Eine Leuchte wird einphasig angeschlossen.'));
@@ -3750,8 +3851,8 @@ function bAbgang(b) {
     m.append(h('h2', {}, 'Motor'), h('div', { class: 'liste' },
       v.leiter === '1NPE' ? null : zeile('Art', mo.art === '1' ? 'Wechselstrom (L N PE)' : 'Drehstrom (L1 L2 L3 PE)', () => wahlFeld('Art',
         [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
-      zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => mo.kw = w.replace(/\s*kW$/i, ''), { platz: 'z. B. 4' })),
-      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => mo.strom = w.replace(/\s*A$/i, ''), { platz: 'z. B. 8,2' }), { un: 'erscheint im Plan neben dem Motor' })));
+      zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => mo.kw = w.replace(/\s*kW$/i, ''), zahlOpt({ platz: 'z. B. 4' }, Z_KW))),
+      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => mo.strom = w.replace(/\s*A$/i, ''), zahlOpt({ platz: 'z. B. 8,2' }, Z_A)), { un: 'erscheint im Plan neben dem Motor' })));
     if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
       zeile('Schaltung', SCHALTUNG[mo.schaltung || 'direkt'], () => wahlFeld('Schaltung', [['direkt', 'Direktstart', 'ein Schütz oder ohne'],
         ['wende', 'Wendeschaltung', 'Schütze Rechts und Links mit gegenseitiger Verriegelung'], ['sd', 'Stern-Dreieck', 'Schütze Netz, Stern, Dreieck und Zeitrelais; Motor mit 6 Anschlüssen']],
@@ -3807,6 +3908,21 @@ function bAbgang(b) {
   app.append(m);
 }
 
+// Anschluss wechseln (ab v1.52): das Schutzorgan folgt der Polzahl (LS 1-polig ↔ 3-polig, FI/LS 1P+N ↔ 3P+N),
+// eine Leuchte bekommt 10 A und 1,5 mm², solange Nennstrom und Querschnitt noch auf der Voreinstellung 16 A / 2,5 mm² stehen
+function anschlussSetzen(v, k, w) {
+  k.ziel.anschluss = w;
+  if (w === 'motor' && !k.motor) k.motor = motorNeu(v); if (w === 'wallbox' && !k.wallbox) k.wallbox = wallboxNeu();
+  if (w === 'pv' && !k.pv) k.pv = pvNeu(v); if (w === 'speicher' && !k.speicher) k.speicher = speicherNeu(v);
+  const ge = k.geraet, m = [];
+  const drei = v.leiter !== '1NPE' && (w === 'steckdose5' || w === 'wallbox' || (w === 'motor' && motorVon(k).art !== '1')
+    || (w === 'pv' && pvVon(k).phasen !== '1') || (w === 'speicher' && speicherVon(k).phasen !== '1'));
+  const ein = v.leiter === '1NPE' || w === 'steckdose3' || w === 'leuchte' || (w === 'motor' && motorVon(k).art === '1');
+  const tausch = drei ? { ls1: 'ls3', fils1n: 'fils3n', sich1: 'sich3' } : ein ? { ls3: 'ls1', fils3n: 'fils1n', sich3: 'sich1' } : {};
+  if (tausch[ge.zeichen]) { ge.zeichen = tausch[ge.zeichen]; m.push(`${{ ls: 'LS', fils: 'FI/LS', sich: 'Sicherung' }[ge.zeichen.replace(/\d.*$/, '')]} auf ${drei ? '3' : '1'}-polig umgestellt`); }
+  if (w === 'leuchte' && ge.nenn === '16' && k.leitung.quer === '2,5') { ge.nenn = '10'; k.leitung.quer = '1,5'; m.push('10 A, 1,5 mm²'); }
+  if (m.length) setTimeout(() => meldung(m.join(' · ')), 0);
+}
 // PV-Anlage (ab v1.34): Eingabe im Abgang
 const pvNeu = v => ({ phasen: v.leiter === '1NPE' ? '1' : '3', kwp: '10', dc: true, zaehler: false });
 function pvZeilen(v, k, a) {
@@ -3814,7 +3930,7 @@ function pvZeilen(v, k, a) {
   return [
     v.leiter === '1NPE' ? null : zeile('Wechselrichter', pv.phasen === '1' ? 'einphasig (L N PE)' : 'dreiphasig (L1 L2 L3 N PE)', () => wahlFeld('Wechselrichter',
       [['3', 'dreiphasig', 'L1 L2 L3 N PE'], ['1', 'einphasig', 'L N PE, Außenleiter automatisch']], pv.phasen, w => pv.phasen = w)),
-    zeile('Leistung PV-Generator', pv.kwp ? `${pv.kwp} kWp` : '—', () => textFeld('Leistung PV-Generator (kWp)', pv.kwp, w => pv.kwp = w.replace(/\s*kWp$/i, ''), { platz: 'z. B. 9,8' })),
+    zeile('Leistung PV-Generator', pv.kwp ? `${pv.kwp} kWp` : '—', () => textFeld('Leistung PV-Generator (kWp)', pv.kwp, w => pv.kwp = w.replace(/\s*kWp$/i, ''), zahlOpt({ platz: 'z. B. 9,8' }, Z_KWP))),
     zeile('DC-Freischalter', pv.dc !== false ? 'ja' : 'nein', () => wahlFeld('DC-Freischalter', ja, pv.dc !== false ? 'ja' : 'nein', w => pv.dc = w === 'ja'),
       { un: 'Lasttrennschalter 2-polig zwischen PV-Generator und Wechselrichter' }),
     zeile('Erzeugungszähler', pv.zaehler ? 'ja' : 'nein', () => wahlFeld('Erzeugungszähler', ja, pv.zaehler ? 'ja' : 'nein', w => pv.zaehler = w === 'ja'),
@@ -3825,7 +3941,7 @@ function pvZeilen(v, k, a) {
     zeile('Kennzeichen PV-Generator', a.g.t, () => bmkFeld('Kennzeichen', pv.gen || (pv.gen = {}), a.g.hand ? '' : a.g.t)),
     zeile('Speicher am Wechselrichter', pv.speicher ? `ja${pv.speicher.kwh ? ` · ${pv.speicher.kwh} kWh` : ''}` : 'nein', () => wahlFeld('Speicher am Wechselrichter', ja,
       pv.speicher ? 'ja' : 'nein', w => pv.speicher = w === 'ja' ? (pv.speicher || { kwh: '10' }) : null), { un: 'Hybrid-Wechselrichter mit Batterie auf der DC-Seite' }),
-    pv.speicher ? zeile('Kapazität Speicher', pv.speicher.kwh ? `${pv.speicher.kwh} kWh` : '—', () => textFeld('Kapazität Speicher (kWh)', pv.speicher.kwh, w => pv.speicher.kwh = w.replace(/\s*kWh$/i, ''), { platz: 'z. B. 10' })) : null,
+    pv.speicher ? zeile('Kapazität Speicher', pv.speicher.kwh ? `${pv.speicher.kwh} kWh` : '—', () => textFeld('Kapazität Speicher (kWh)', pv.speicher.kwh, w => pv.speicher.kwh = w.replace(/\s*kWh$/i, ''), zahlOpt({ platz: 'z. B. 10' }, Z_KWH))) : null,
     a.bat ? zeile('Kennzeichen Batterie', a.bat.t, () => bmkFeld('Kennzeichen', pv.speicher.bat || (pv.speicher.bat = {}), a.bat.hand ? '' : a.bat.t)) : null];
 }
 const speicherNeu = v => ({ phasen: v.leiter === '1NPE' ? '1' : '3', kwh: '10' });
@@ -3834,7 +3950,7 @@ function speicherZeilen(v, k, a) {
   return [
     v.leiter === '1NPE' ? null : zeile('Wechselrichter', sp.phasen === '1' ? 'einphasig (L N PE)' : 'dreiphasig (L1 L2 L3 N PE)', () => wahlFeld('Wechselrichter',
       [['3', 'dreiphasig', 'L1 L2 L3 N PE'], ['1', 'einphasig', 'L N PE, Außenleiter automatisch']], sp.phasen, w => sp.phasen = w)),
-    zeile('Kapazität', sp.kwh ? `${sp.kwh} kWh` : '—', () => textFeld('Kapazität (kWh)', sp.kwh, w => sp.kwh = w.replace(/\s*kWh$/i, ''), { platz: 'z. B. 10' })),
+    zeile('Kapazität', sp.kwh ? `${sp.kwh} kWh` : '—', () => textFeld('Kapazität (kWh)', sp.kwh, w => sp.kwh = w.replace(/\s*kWh$/i, ''), zahlOpt({ platz: 'z. B. 10' }, Z_KWH))),
     zeile('Kennzeichen Wechselrichter', a.t.t, () => bmkFeld('Kennzeichen', sp.wr || (sp.wr = {}), a.t.hand ? '' : a.t.t)),
     zeile('Kennzeichen Batterie', a.bat.t, () => bmkFeld('Kennzeichen', sp.bat || (sp.bat = {}), a.bat.hand ? '' : a.bat.t))];
 }
@@ -3850,6 +3966,17 @@ function schaltungSetzen(v, k, w) {
   if (!k.schalt || !k.schalt.typ) k.schalt = neuesSchalt('schuetz'); else k.schalt.typ = 'schuetz';
   k.schalt.hs = Math.max(k.schalt.hs || 0, 1); k.schalt.ho = Math.max(k.schalt.ho || 0, 1);
   vorlageEinsetzen(v, kreisAnlegen(v, k), w === 'wende' ? 'wende' : 'sterndreieck', {});
+}
+// Einstellbereich des Überlastrelais vorschlagen (ab v1.52): Bereich, der den Motornennstrom enthält (ohne Angabe aus
+// der Leistung geschätzt); bei Stern-Dreieck liegt das Relais im Strang: I_N/√3 = 0,58 × I_N
+function motorStrom(k) {
+  const mo = k.motor || {}, i = zahlVon(mo.strom), p = zahlVon(mo.kw);
+  return i || (p ? p * (mo.art === '1' ? 6 : 2) : 0);       // grob: 400 V ≈ 2 A/kW, 230 V ≈ 6 A/kW
+}
+function olBereich(k) {
+  const i = motorStrom(k) / (k.motor && k.motor.schaltung === 'sd' ? Math.sqrt(3) : 1);
+  const b = i && MSS_BEREICH.find(x => { const [u, o] = x.split('–').map(zahlVon); return i >= u && i <= o; });
+  return b || '6,3–10';
 }
 // Überlastrelais (ab v1.38): Öffner 95–96 auf den untersten freien Platz über der Spule setzen bzw. entfernen
 function olEinsetzen(v, k) {
@@ -3876,7 +4003,7 @@ function schaltZeilen(v, k, a) {
     sg.nMit ? 'ja' : 'nein', w => sg.nMit = w === 'ja')));
   if (sg.typ === 'zeitrelais') {
     z.push(zeile('Funktion', ZR_FKT[sg.zr.fkt], () => wahlFeld('Funktion', Object.entries(ZR_FKT), sg.zr.fkt, w => sg.zr.fkt = w)));
-    z.push(zeile('Zeit', sg.zr.zeit || '—', () => textFeld('Zeit', sg.zr.zeit, w => sg.zr.zeit = w, { platz: 'z. B. 3 min, 30 s' })));
+    z.push(zeile('Zeit', sg.zr.zeit || '—', () => textFeld('Zeit', sg.zr.zeit, w => sg.zr.zeit = w, zahlOpt({ platz: 'z. B. 3 min, 30 s' }, Z_ZEIT))));
   }
   const anz = [0, 1, 2, 3, 4].map(n => [String(n), String(n)]);
   z.push(zeile('Hilfsschließer', String(sg.hs || 0), () => wahlFeld('Hilfsschließer (13/14 …)', anz, String(sg.hs || 0), w => sg.hs = +w,
@@ -3886,9 +4013,13 @@ function schaltZeilen(v, k, a) {
   z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
   if (sg.typ === 'schuetz') {      // Überlastrelais unter dem Schütz (ab v1.38)
     z.push(zeile('Überlastrelais', sg.ol ? `ja · ${sg.ol.bereich || '?'} A` : 'nein', () => wahlFeld('Überlastrelais', [['ja', 'ja', 'unter dem Schütz; Öffner 95–96 kommt in den Spulenpfad'], ['nein', 'nein']],
-      sg.ol ? 'ja' : 'nein', w => { if (w === 'ja') { sg.ol = sg.ol || { bereich: '6,3–10' }; olEinsetzen(v, k); } else { sg.ol = null; olEntfernen(v, k); } })));
+      sg.ol ? 'ja' : 'nein', w => { if (w === 'ja') { sg.ol = sg.ol || { bereich: olBereich(k) }; olEinsetzen(v, k); } else { sg.ol = null; olEntfernen(v, k); } })));
     if (sg.ol) {
-      z.push(zeile('Einstellbereich Überlastrelais', `${sg.ol.bereich || '—'} A`, () => wahlFeld('Einstellbereich', MSS_BEREICH.map(x => [x, x + ' A']), sg.ol.bereich, w => sg.ol.bereich = w)));
+      // Stern-Dreieck (ab v1.52): Hinweis auf die Einstellung im Strang
+      const iS = k.motor && k.motor.schaltung === 'sd' && motorStrom(k) ? (motorStrom(k) / Math.sqrt(3)).toFixed(1).replace('.', ',') : null;
+      z.push(zeile('Einstellbereich Überlastrelais', `${sg.ol.bereich || '—'} A`, () => wahlFeld('Einstellbereich', MSS_BEREICH.map(x => [x, x + ' A']), sg.ol.bereich, w => sg.ol.bereich = w,
+        { text: motorStrom(k) ? `Vorschlag aus dem Motornennstrom: ${olBereich(k)} A` : null }),
+        { un: iS ? `im Strang: Einstellung 0,58 × I\u2099 = ${iS} A` : null }));
       if (a.ol) z.push(zeile('Kennzeichen Überlastrelais', a.ol.bmk.t, () => bmkFeld('Kennzeichen', sg.ol, a.ol.bmk.hand ? '' : a.ol.bmk.t)));
     }
   }
@@ -3904,7 +4035,9 @@ function bSteuerung(b) {
   app.append(kopf('Steuerstromkreise'));
   const m = h('main');
   // Steuerspannung
-  const quellen = []; alleKnoten(v, k => { if (k.typ === 'abgang' && !k.speist) quellen.push(k); });
+  // Quellen (ab v1.52): Steuer-LS und Steuertrafos zuerst; keine Abgänge ohne N (Drehstrommotor), keine Steckdosen-Endstromkreise
+  const quellen = []; alleKnoten(v, k => { if (k.typ === 'abgang' && !k.speist && (k.steuer || !(e.abgaenge[k.id].ohneN || /^steckdose/.test(k.ziel.anschluss)))) quellen.push(k); });
+  quellen.sort((x, y) => !!y.steuer - !!x.steuer);
   const q = sp.quelle ? knoten(v, sp.quelle) : null;
   const qName = k => `${(e.abgaenge[k.id].f || {}).t || '—'} ${abgangName(k)}`;
   const z = [zeile('Steuerspannung', ST_ART[sp.art], () => wahlFeld('Steuerspannung', [
@@ -4110,7 +4243,7 @@ function bSGeraet(b) {
     const anz = [0, 1, 2, 3, 4].map(n => [String(n), String(n)]);
     m.append(h('h2', {}, 'Zeitrelais'), h('div', { class: 'liste' },
       zeile('Funktion', ZR_FKT[g.fkt || 'aus'], () => wahlFeld('Funktion', Object.entries(ZR_FKT), g.fkt || 'aus', w => g.fkt = w)),
-      zeile('Zeit', g.zeit || '—', () => textFeld('Zeit', g.zeit, w => g.zeit = w, { platz: 'z. B. 3 min, 30 s' })),
+      zeile('Zeit', g.zeit || '—', () => textFeld('Zeit', g.zeit, w => g.zeit = w, zahlOpt({ platz: 'z. B. 3 min, 30 s' }, Z_ZEIT))),
       zeile('Verzögerte Schließer', String(g.hs === undefined ? 1 : g.hs), () => wahlFeld('Verzögerte Schließer (n7/n8)', anz, String(g.hs === undefined ? 1 : g.hs), w => g.hs = +w)),
       zeile('Verzögerte Öffner', String(g.ho || 0), () => wahlFeld('Verzögerte Öffner (n5/n6)', anz, String(g.ho || 0), w => g.ho = +w))));
   } else {                    // Einbauort; Feldgeräte laufen bei Klemmleiste über -X1 und bekommen eine Leitung
@@ -4249,7 +4382,7 @@ function vorlageEinsetzen(v, kr, art, o) {
     pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Schwimmer
   } else if (art === 'wende') {        // Wendeschaltung (ab v1.40): 95–96 und Aus gemeinsam, dann Rechts bzw. Links
     const q1 = vb.g, q2 = `${vb.g}~2`, k = knoten(v, vb.g);
-    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' };
+    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: olBereich(k.k) };
     haupt.plaetze[0] = { g: q1, z: 'oe_thermisch' };
     haupt.plaetze[1] = { g: neu('taster_oe', 'Aus') };
     haupt.plaetze[2] = { g: neu('taster_s', 'Rechts') };
@@ -4260,7 +4393,7 @@ function vorlageEinsetzen(v, kr, art, o) {
     pfade.push(a, b, c);
   } else if (art === 'sterndreieck') {  // Stern-Dreieck (ab v1.40): Netz mit Selbsthaltung, Zeitrelais, Stern bzw. Dreieck verriegelt
     const q1 = vb.g, q2 = `${vb.g}~2`, q3 = `${vb.g}~3`, k = knoten(v, vb.g);
-    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' };
+    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: olBereich(k.k) };
     const kz = neuesSteuerGeraet(v, 'zeitrelais'); Object.assign(kz, { fkt: 'ein', zeit: '5 s', hs: 1, ho: 1, bez: 'Umschaltung', feld: false });
     haupt.plaetze[0] = { g: q1, z: 'oe_thermisch' };
     haupt.plaetze[1] = { g: neu('taster_oe', 'Aus') };
@@ -4275,7 +4408,7 @@ function vorlageEinsetzen(v, kr, art, o) {
     haupt.plaetze[1] = { g: neu('taster_s', 'Ein') };
     const zw = neuerPfad(null, { von: 1, bis: 1 }); zw.plaetze[1] = { g: vb.g, z: 'hilfs_s' }; pfade.push(zw);
     const k = knoten(v, vb.g);
-    if (k && k.k.schalt) { k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' }; if ((k.k.schalt.hs || 0) < 2) k.k.schalt.hs = 2; }
+    if (k && k.k.schalt) { k.k.schalt.ol = k.k.schalt.ol || { bereich: olBereich(k.k) }; if ((k.k.schalt.hs || 0) < 2) k.k.schalt.hs = 2; }
     haupt.plaetze[5] = { g: vb.g, z: 'oe_thermisch' };
     const pm = neuerPfad({ g: neu('meldeleuchte', 'Betrieb') }); pm.plaetze[0] = { g: vb.g, z: 'hilfs_s' }; pfade.push(pm);
     if (o.stoerung) { const ps = neuerPfad({ g: neu('meldeleuchte', 'Störung') }); ps.plaetze[0] = { g: vb.g, z: 's_thermisch' }; pfade.push(ps); }
@@ -5166,14 +5299,14 @@ function fussNeu() {
   ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
     ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
   const pr = ED.pruef || [];
-  fuss.append(
+  fuss.append(...[      // ohne Prüfliste kein „null“ in der Fußleiste (ab v1.52)
     pr.length ? h('button', { class: 'pruefknopf', title: 'Prüfliste', on: { click: () => menue('Prüfliste', pr.map(x =>
       [x.t, () => waehle(x.sel || 't:' + x.key, { springen: true }), { klein: x.sel ? 'Springen – Leiter ändern oder löschen' : 'Springen – „Automatik anwenden“ in der Leiste behebt es' }])) } }, `⚠ ${pr.length}`) : null,
     h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
     h('div', { class: 'hinweiszeile' + (b.tool ? ' an' : ''), 'aria-live': 'polite' }, h('span', { class: 'hinweistext' }, hinweis),
       b.tool ? h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig') : null),
     h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: '−' }), ED.zoomKnopf,
-      ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' })));
+      ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' }))].filter(Boolean));
   ED.zoomKnopf.textContent = `${Math.round(b.zoom)} %`;
   blattAnzeigen();
 }
@@ -5634,7 +5767,7 @@ function bListe(b) {
   const sp = speisenderAbgang(v.id);
   const kopfZ = [];
   if (sp) kopfZ.push(['', `Einspeisung aus ${sp.v.name}`, '', '', '', '']);
-  else kopfZ.push(['', `Einspeisung ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`, '', '', '', '']);
+  else kopfZ.push(['', `Einspeisung ${v.netzform}, ${leiterText(v)}`, '', '', '', '']);
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['zaehler', 'Zähler'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
     if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel}: ${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
   const tb = h('tbody');
@@ -5654,10 +5787,14 @@ function bListe(b) {
       h('td', { class: 'm' }, klemmenText(a)),
       h('td', {}, `${a.w.t} ${leitungText(k, a)}`),
       h('td', {}, zielText + (a.warn ? ' ⚠' : ''))));
+    // ab v1.52: Überlastrelais und Sekundär-LS des Steuertrafos als eigene Zeilen
+    const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel)));
+    if (a.ol) unter(a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), `unter ${a.schalt.bmk.t}`);
+    if (k.trafo) unter(a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, `Steuerspannung ${k.trafo.sek}\u00a0V`);
   });
   m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
     h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Ziel'].map(t => h('th', {}, t)))), tb)));
-  m.append(h('p', { class: 'hinweis' }, 'Blau hinterlegte Außenleiter sind automatisch verteilt. Kennzeichen mit orangem Grund sind von Hand gesetzt.'));
+  m.append(h('p', { class: 'hinweis' }, 'Violett hinterlegte Außenleiter sind automatisch verteilt. Kennzeichen mit orangem Grund sind von Hand gesetzt.'));
   app.append(m);
 }
 
@@ -5720,10 +5857,12 @@ function tuerzettel(v) {
     const a = e.abgaenge[k.id];
     zeileT(tiefe ? 'ein' : '', a.f ? a.f.t : '—', k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
       a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
-    if (k.trafo) zeileT('ein', a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, '', `Steuerspannung ${k.trafo.sek} V`, '', '');
+    // ab v1.52: Sekundär-LS ohne eigenen Einzug (wie sein Abgang), Überlastrelais als eigene Zeile
+    if (a.ol) zeileT(tiefe ? 'ein' : '', a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), '', `${zielText(k, a)} (Motorschutz)`, k.ziel.ort, '');
+    if (k.trafo) zeileT(tiefe ? 'ein' : '', a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, '', `Steuerspannung ${k.trafo.sek}\u00a0V`, '', '');
   });
   const herkunft = sp ? `gespeist aus ${sp.v.name}${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t ? ' ' + berechne(sp.v).abgaenge[sp.k.id].f.t : ''}`
-                      : `Einspeisung ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+                      : `Einspeisung ${v.netzform}, ${leiterText(v)}`;
   return h('section', { class: 'tz' },
     h('h1', {}, v.name),
     h('div', { class: 'tzu' }, [P.projekt.projekt, herkunft].filter(Boolean).join(' · ')),
@@ -5760,16 +5899,97 @@ async function exportieren() {
   }
   const a = h('a', { href: URL.createObjectURL(datei), download: name }); document.body.append(a); a.click(); a.remove();
 }
+// ---- Projekt prüfen (ab v1.52) ---------------------------------------------
+// Prüft eine Projektdatei bzw. den gespeicherten Stand, bevor er übernommen wird: Pflichtfelder, bekannte Gerätearten,
+// Anschlüsse und Zahlenfelder. Unbekanntes wird durch die Voreinstellung ersetzt; zurück kommt die Liste der Ersetzungen.
+// Nicht Reparierbares (kein Projekt, keine Verteilerliste) wirft einen Fehler.
+function pruefeProjekt(d) {
+  const r = [], obj = x => x && typeof x === 'object' && !Array.isArray(x);
+  if (!obj(d) || d.format !== 'slp-projekt') throw new Error('keine Stromlaufplan-Datei');
+  if (!Array.isArray(d.verteiler)) throw new Error('die Liste der Verteiler fehlt');
+  if (!obj(d.projekt)) { d.projekt = neuesProjekt().projekt; r.push('Projektangaben fehlten'); }
+  const zahl = (o, f, wo, z, vor) => { if (o[f] !== undefined && o[f] !== '' && zahlFehler(o[f], z)) { r.push(`${wo}: „${o[f]}“ → ${vor || 'leer'}`); o[f] = vor || ''; } };
+  const Z_NENN = { min: 0.1, max: 6300, einheit: /^A$/i }, Z_QUER = { min: 0.5, max: 400 };
+  const geraet = (g, wo, vor, leer) => {
+    if (!obj(g)) return Object.assign({}, vor);
+    if (g.zeichen && !GERAETE[g.zeichen] || !g.zeichen && !leer) { r.push(`${wo}: unbekanntes Gerät „${g.zeichen || ''}“ → ${gName(vor.zeichen)}`); Object.assign(g, vor); }
+    zahl(g, 'nenn', wo + ' Nennstrom', Z_NENN, vor.nenn); zahl(g, 'idn', wo + ' Nennfehlerstrom', { min: 1, max: 1000 }, '30');
+    return g;
+  };
+  const ids = new Set(d.verteiler.map(v => v && v.id));
+  d.verteiler.forEach((v, vi) => {
+    if (!obj(v)) throw new Error(`Verteiler ${vi + 1} ist kein Verteiler`);
+    if (!v.id || typeof v.id !== 'string') { v.id = id(); r.push(`Verteiler ${vi + 1}: Kennung ergänzt`); }
+    const wo = v.name = String(v.name || `Verteiler ${vi + 1}`);
+    if (!['TN-S', 'TN-C', 'TN-C-S'].includes(v.netzform)) { r.push(`${wo}: Netzform „${v.netzform}“ → TN-S`); v.netzform = 'TN-S'; }
+    if (!['3NPE', '1NPE'].includes(v.leiter)) { r.push(`${wo}: Leiter → 3/N/PE`); v.leiter = '3NPE'; }
+    ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true); });
+    if (!Array.isArray(v.knoten)) { v.knoten = []; r.push(`${wo}: Abgangsliste fehlte`); }
+    const knoten = (liste, tiefe) => liste.filter((k, i) => {
+      if (!obj(k) || !['abgang', 'gruppe'].includes(k.typ) || tiefe > 1 && k.typ === 'gruppe') { r.push(`${wo}: unbrauchbarer Eintrag entfernt`); return false; }
+      if (!k.id || typeof k.id !== 'string') k.id = id();
+      if (k.typ === 'gruppe') {
+        k.geraet = geraet(k.geraet, `${wo} Gruppe`, neueGruppe().geraet);
+        if (!Array.isArray(k.kinder)) k.kinder = [];
+        k.kinder = knoten(k.kinder, tiefe + 1); return true;
+      }
+      const n = neuerAbgang(), kw = `${wo} ${(obj(k.ziel) && k.ziel.bez) || 'Abgang'}`;
+      if (!obj(k.ziel)) k.ziel = n.ziel;
+      if (v.leiter !== '1NPE' && ['steckdose5', 'wallbox', 'motor'].includes(k.ziel.anschluss)) n.geraet.zeichen = 'ls3';     // Ersatz mit passender Polzahl
+      k.geraet = geraet(k.geraet, kw, n.geraet, true);
+      if (!ANSCHLUSS[k.ziel.anschluss]) { r.push(`${kw}: Anschluss „${k.ziel.anschluss || ''}“ → Steckdose`); k.ziel.anschluss = 'steckdose3'; }
+      if (!obj(k.leitung)) k.leitung = n.leitung;
+      zahl(k.leitung, 'quer', kw + ' Querschnitt', Z_QUER, '2,5');
+      if (k.speist && !ids.has(k.speist)) { r.push(`${kw}: speiste einen fehlenden Verteiler`); k.speist = null; }
+      if (k.schalt && (!obj(k.schalt) || k.schalt.typ && !SCHALT[k.schalt.typ])) { r.push(`${kw}: unbekanntes Schaltgerät entfernt`); k.schalt = null; }
+      if (k.schalt && k.schalt.typ) { if (!obj(k.schalt.zr) || !ZR_FKT[k.schalt.zr.fkt]) k.schalt.zr = neuesSchalt('zeitrelais').zr;
+        zahl(k.schalt.zr, 'zeit', kw + ' Zeit', Z_ZEIT, '3 min'); }
+      if (obj(k.motor)) { if (!['1', '3'].includes(k.motor.art)) k.motor.art = '3'; zahl(k.motor, 'kw', kw + ' Leistung', Z_KW, ''); zahl(k.motor, 'strom', kw + ' Nennstrom', Z_A, ''); }
+      if (obj(k.pv)) { zahl(k.pv, 'kwp', kw + ' Leistung', Z_KWP, ''); if (obj(k.pv.speicher)) zahl(k.pv.speicher, 'kwh', kw + ' Kapazität', Z_KWH, ''); }
+      if (obj(k.speicher)) zahl(k.speicher, 'kwh', kw + ' Kapazität', Z_KWH, '');
+      if (k.trafo) { if (!obj(k.trafo)) k.trafo = neuerSteuerTrafo().trafo; k.trafo.ls = geraet(k.trafo.ls, kw + ' Sekundär-LS', neuerSteuerTrafo().trafo.ls); }
+      return true;
+    });
+    v.knoten = knoten(v.knoten, 0);
+    if (v.steuerung !== undefined) {
+      const st = obj(v.steuerung) ? v.steuerung : (v.steuerung = {});
+      if (!Array.isArray(st.geraete)) st.geraete = [];
+      if (!Array.isArray(st.kreise)) st.kreise = [];
+      st.geraete = st.geraete.filter(g => { const ok = obj(g) && g.id && ST_ZEICHEN[g.zeichen]; if (!ok) r.push(`${wo}: unbekanntes Steuergerät entfernt`); return ok; });
+      st.geraete.forEach(g => { if (g.zeit !== undefined) zahl(g, 'zeit', `${wo} Zeit`, Z_ZEIT, '3 min'); });
+      st.kreise = st.kreise.filter(kr => obj(kr) && Array.isArray(kr.pfade));
+      st.kreise.forEach(kr => { if (!kr.id) kr.id = id(); kr.pfade = kr.pfade.filter(obj);
+        kr.pfade.forEach(pf => { if (!pf.id) pf.id = id(); if (!Array.isArray(pf.plaetze)) pf.plaetze = leerePlaetze();
+          pf.plaetze = leerePlaetze().map((_, i) => obj(pf.plaetze[i]) ? pf.plaetze[i] : null); if (!obj(pf.verbraucher)) pf.verbraucher = null; }); });
+    }
+    if (v.layout !== undefined && !obj(v.layout)) { delete v.layout; r.push(`${wo}: Vorgaben von Hand verworfen`); }
+  });
+  return r;
+}
+// Probe auf einer Kopie: berechnen und alle Blätter erzeugen; wirft bei einem Fehler, P bleibt unverändert
+function probeProjekt(d) {
+  const alt = P;
+  try { P = kopie(d); P.verteiler.forEach(berechne); PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); }
+  finally { P = alt; }
+}
 document.getElementById('datei').addEventListener('change', async ev => {
   const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
-  try {
-    const d = JSON.parse(await f.text());
-    if (d.format !== 'slp-projekt') throw new Error('keine Stromlaufplan-Datei');
-    const neuer = (d.version || 1) > PROJEKT_VERSION;
-    frage('Projekt öffnen', `„${d.projekt.projekt || f.name}“ ersetzt das Projekt auf diesem Gerät.` + (neuer
-      ? ' Achtung: Die Datei stammt aus einer neueren Fassung der App. Was diese Fassung nicht kennt (z. B. frei gesetzte Teile), geht beim Speichern verloren.' : ''),
-      () => { P = migriere(d); stapel = [{ s: 'start' }]; }, 'Öffnen');
-  } catch (e) { meldung('Datei nicht lesbar: ' + e.message); }
+  let d, rep;
+  try { d = JSON.parse(await f.text()); rep = pruefeProjekt(d); migriere(d); probeProjekt(d); }
+  catch (e) { meldung('Datei fehlerhaft: ' + e.message); return; }      // ab v1.52: das bisherige Projekt bleibt
+  const neuer = (d.version || 1) > PROJEKT_VERSION;
+  fenster('Projekt öffnen', h('div', { class: 'text' }, h('p', {}, `„${d.projekt.projekt || f.name}“ ersetzt das Projekt auf diesem Gerät.` + (neuer
+      ? ' Achtung: Die Datei stammt aus einer neueren Fassung der App. Was diese Fassung nicht kennt (z. B. frei gesetzte Teile), geht beim Speichern verloren.' : '')),
+    rep.length ? h('p', {}, `Beim Prüfen ersetzt (${rep.length}):`) : null, rep.length ? h('ul', {}, ...rep.slice(0, 10).map(t => h('li', {}, t))) : null,
+    rep.length > 10 ? h('p', {}, `… und ${rep.length - 10} weitere`) : null), s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    h('button', { class: 'knopf', on: { click: () => {
+      // erst nach erfolgreichem Zeichnen speichern; sonst bleibt der bisherige Stand
+      const alt = P, altStapel = stapel; P = d; stapel = [{ s: 'start' }];
+      try { zeichne(); } catch (e) { P = alt; stapel = altStapel; s(false); zeichne(); meldung('Datei fehlerhaft: ' + e.message); return; }
+      aenderung('Projekt öffnen'); sichern(); s();
+      if (rep.length) setTimeout(() => meldung(`Datei geöffnet, ${rep.length} Angabe${rep.length === 1 ? '' : 'n'} ersetzt`), 0);
+    } } }, 'Öffnen')]);
 });
 
 function meldung(t) { const m = document.getElementById('meldung'); m.textContent = t; m.classList.add('an'); clearTimeout(meldung.t); meldung.t = setTimeout(() => m.classList.remove('an'), 2200); }
@@ -5777,7 +5997,14 @@ function fehler(t) { const f = document.getElementById('fehlerband'); f.textCont
 window.addEventListener('error', e => fehler(e.message));
 window.addEventListener('unhandledrejection', e => fehler(e.reason && e.reason.message || String(e.reason)));
 document.addEventListener('gesturestart', e => e.preventDefault());
-zeichne();
+// Start (ab v1.52): gespeicherten Stand prüfen; lässt er sich nicht zeichnen, als Datei sichern und neu beginnen
+try { pruefeProjekt(P); zeichne(); }
+catch (e) {
+  app.innerHTML = '';
+  fenster('Gespeicherter Stand fehlerhaft', h('p', { class: 'text' }, `Das Projekt auf diesem Gerät lässt sich nicht öffnen (${e.message}). Bitte als Datei sichern und neu beginnen.`), s => [
+    h('button', { class: 'knopf zweit', on: { click: () => exportieren() } }, 'Als Datei sichern'),
+    h('button', { class: 'knopf rot', on: { click: () => { P = neuesProjekt(); verlauf.stand = null; sichern(); stapel = [{ s: 'start' }]; s(); } } }, 'Neu beginnen')]);
+}
 </script>
 </body>
 </html>

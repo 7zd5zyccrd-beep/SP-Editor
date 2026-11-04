@@ -440,6 +440,7 @@ const PLAN = (() => {
     if (art === 'L') art = 'L1';
     if (bars[art] !== undefined) return art;
     if ((art === 'N' || art === 'PE') && bars.PEN !== undefined) return 'PEN';
+    if (art === 'PEN' && bars.PE !== undefined) return 'PE';      // PEN-Zuleitung aus einem Verteiler ohne PEN-Schiene (dort gewarnt)
     if (/^L[123]$/.test(art) && bars.L1 !== undefined) return 'L1';
     return art;
   }
@@ -458,8 +459,9 @@ const PLAN = (() => {
   function spaltenFuer(nLeiter, R) { return Math.max(1, Math.ceil((LINKS + (nLeiter - 1) * ABSTAND + 2) / R.sb)); }
   function abgangArten(k, a, v) {
     if (a.ohneN) return ['L1', 'L2', 'L3', 'PE'];      // Drehstrommotor (ab v1.37)
-    if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     const ph = (a.phase.t === 'L' || !a.phase.t) ? 'L1' : a.phase.t;
+    if (a.pen) return a.drei ? ['L1', 'L2', 'L3', 'PEN'] : [ph, 'PEN'];      // Zuleitung zu einem TN-C(-S)-Unterverteiler (ab v1.52)
+    if (a.drei) return ['L1', 'L2', 'L3', 'N', 'PE'];
     if (k.trafo && k.trafo.prim === '400') return ['L1', 'L2'];
     return k.steuer ? [ph, 'N'] : [ph, 'N', 'PE'];
   }
@@ -1115,6 +1117,9 @@ const PLAN = (() => {
     linie(g, x - 1.4, y + 1.4, x + 1.4, y - 1.4, 0.25);
     text(g, x + 1.7, y - 0.6, String(n), 2.2);
   }
+  // zuletzt gezeichnetes Überlastrelais je Blatt (ab v1.52): steht links daneben eines auf gleicher Höhe, endet die
+  // Beschriftung vor dessen Kasten
+  const ueOl = new WeakMap();
   function ueBmk(g, x, y, kenn, zeilen, max) {   // rechtsbündig bis x, auf max begrenzt
     if (kenn) passend(text(g, x, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
     zeilen.filter(Boolean).forEach((z, i) => passend(text(g, x, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
@@ -1190,7 +1195,9 @@ const PLAN = (() => {
       const top = Math.max(frei, y) + 2.5;
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ueberlast1', x, top), zl = [a.ol.bereich ? `${a.ol.bereich} A` : ''];
-      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - (x - R3('ueberlast1', x)));
+      const vor = ueOl.get(g), dx = x - R3('ueberlast1', x), nah = vor && x - vor.x <= P + 0.01 && x > vor.x && Math.abs(top - vor.top) < 6;
+      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - dx - (nah ? dx - 1 : 0));
+      ueOl.set(g, { x, top });
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('ueberlast1', top), zl));
     }
     if (a.fu) {         // Frequenzumrichter einpolig (ab v1.48)
@@ -1210,7 +1217,8 @@ const PLAN = (() => {
       // Wechselrichter von PV und Speicher (ab v1.48) direkt über dem Endzeichen
       const wr = !k.speist && (k.ziel.anschluss === 'pv' || k.ziel.anschluss === 'speicher') && a.t, hW = wr ? 10 : 0;
       linie(g, x, y, x, yE - hW, 0.25);
-      leiterzahl(g, x, Math.max(Math.max(frei, y) + 4, yE - 4.5 - hW), abgangArten(k, a, v).length);
+      // Stern-Dreieck (ab v1.52): zwei Leitungen, Leiterzahl „4 + 3“
+      leiterzahl(g, x, Math.max(Math.max(frei, y) + 4, yE - 4.5 - hW), abgangArten(k, a, v).length + (a.sd ? ' + 3' : ''));
       if (wr) { setze(g, 'ue_wr', x, yE - hW); ueBmk(g, R3('ue_wr', x), R1('ue_wr', yE - hW), a.t.t, [], P - (x - R3('ue_wr', x))); }
       ueEnde(g, ctx, v, k, a, x, yE, ySF);
     }
@@ -1340,12 +1348,12 @@ const PLAN = (() => {
     const fiN = z => ['fils1n', 'fils3n', 'fi2', 'fi4'].includes(z);
     const ausgang = (z, kenn, l, ph) => {          // Anschluss unten am Gerät
       if (!z || !kenn) return null;
-      if (l === 'PE') return null;
+      if (l === 'PE' || l === 'PEN') return null;
       if (l === 'N') return fiN(z) ? `${kenn}:N` : null;
       const i = GERAETE[z].pole === 1 ? 0 : ({ L1: 0, L2: 1, L3: 2 }[ph] || 0);
       return `${kenn}:${2 * (i + 1)}`;
     };
-    const schiene = (l, ph) => 'Schiene ' + (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : l);
+    const schiene = (l, ph) => 'Schiene ' + (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l === 'PEN' && !tnc ? 'PE' : l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : l);
     const abgang = (k, grp) => {
       const a = e.abgaenge[k.id]; if (!a || !a.klemmen) return;
       const zeilen = a.leiter.map((l, i) => {
@@ -1364,7 +1372,7 @@ const PLAN = (() => {
           || ausgang(k.geraet.zeichen, a.f && a.f.t, l, ph)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))
           || schiene(l, ph);
-        const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
+        const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'PEN' ? 'PEN-Klemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
         const anzeige = l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l);
         const ader = sdI !== undefined ? ['br', 'sw', 'gr'][sdI] : a.drei ? ADER[l] : ADER[l === 'L' ? 'L' : l];
         // Motor (ab v1.45): Ziel mit Motoranschluss U1 V1 W1 (U2 V2 W2) bzw. U1 U2 beim Wechselstrommotor
@@ -1375,6 +1383,10 @@ const PLAN = (() => {
           : `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${a.leiter.length}×${k.leitung.quer || '?'}`;
         return [String(a.klemmen.von + i), anzeige, art, intern, leitung, ader, ziel];
       });
+      // Stern-Dreieck (ab v1.52): die gnge-Ader der zweiten Leitung (U2 V2 W2) liegt mit auf der Schutzleiterklemme
+      const iPE = a.leiter.indexOf('PE');
+      if (a.sd && iPE >= 0 && adern(k.leitung.typ, 3).gesamt > 3) { const pe = zeilen[iPE];
+        zeilen.push([pe[0], 'PE', pe[2], pe[3], `${a.w2.t} ${k.leitung.typ || 'NYM-J'} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}`, 'gnge', pe[6]]); }
       bloecke.push({ kenn: a.f ? a.f.t : '', zeilen });
     };
     v.knoten.forEach(k => k.typ === 'abgang' ? abgang(k, null) : k.kinder.forEach(c => c.typ === 'abgang' && abgang(c, k)));
@@ -1596,15 +1608,20 @@ const PLAN = (() => {
   // Beschriftung im Steuerstromkreis (ab v1.42): rechtsbündig bis xr, links begrenzt auf die eigene Spalte
   // (erste Spalte: Rahmen + 1,5 mm, sonst Nachbarpfad); zu lange Zeilen werden an Leerzeichen bzw. Bindestrich umbrochen, der Rest begrenzt
   const zeitText = z => ('t = ' + z).replace(/ /g, '\u00a0');     // Zeitangabe wird nicht umbrochen (ab v1.50)
+  // Umbruch an Leerzeichen bzw. Bindestrich (Breite geschätzt); ab v1.52 erst, wenn die Zeile auch auf 85 % gestaucht
+  // nicht passt – sonst wurden kurze Texte wie „Taster 1“ in der ersten Spalte umbrochen, ihre Nachbarn nicht
+  const breitSt = (t, gr) => t.length * gr * 0.5;
+  function umbrechenSt(t, max) {
+    if (breitSt(t, 2.2) * 0.85 <= max) return [t];
+    const teile = t.split(/(?<=[ -])/), r = ['']; teile.forEach(w => { if (r[r.length - 1] && breitSt(r[r.length - 1] + w, 2.2) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
+    return r.map(z => z.trim()).filter(Boolean);
+  }
   function bmkSt(g, xPfad, xr, y, kenn, zeilen = []) {
     // links: in der ersten Spalte der Rahmen + 1,5 mm, sonst die Anschlussnummern des Nachbarpfads + 1,5 mm
     const links = xPfad - ST_LINKS - RAND_L < 0.5 ? RAND_L + 1.5 : xPfad - ST_LINKS - 1;
-    const max = xr - links, breit = (t, gr) => t.length * gr * 0.5;
-    const umbrechen = t => { if (breit(t, 2.2) <= max) return [t];
-      const teile = t.split(/(?<=[ -])/), r = ['']; teile.forEach(w => { if (r[r.length - 1] && breit(r[r.length - 1] + w, 2.2) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
-      return r.map(z => z.trim()).filter(Boolean); };
+    const max = xr - links;
     if (kenn) passend(text(g, xr, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
-    zeilen.filter(Boolean).flatMap(umbrechen).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
+    zeilen.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
   }
   function stKreis(g, ctx, v, e, kr, col, R, lt, gem, anG) {
     const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);
@@ -1692,9 +1709,11 @@ const PLAN = (() => {
         } else {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [pl.bez || ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
           if (ST_MELDER.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
-            const yb = R1(z, top);
-            text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' });
-            zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'));
+            // ab v1.52 begrenzt: bis 5,5 mm in die nächste Spalte – dort bleibt 1,5 mm frei vor einem kurzen Kennzeichen (-S1),
+            // das rechtsbündig an der Fluchtlinie des Nachbarpfads steht
+            const yb = R1(z, top), max = R.sb - ST_LINKS + 3;
+            passend(text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' }), max);
+            zl.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((s, n) => passend(text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'), max));
           } else bmkSt(g, x, xr, R1(z, top), kz, zl);
           an = kn ? kn.an : /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }

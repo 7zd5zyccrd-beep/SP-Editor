@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.52 | Nutzertest Etappe 1: Fehler (Fußleiste „null“, Import prüfen und reparieren, Druck weiß) und fachliche Prüfungen (FI an Steckdosen, Belastbarkeit, Bemessungskette, Wiederanlaufschutz, Zahlenfelder, Anschlusswechsel, Überlastrelais bei Stern-Dreieck); PEN-Zuleitung zu TN-C-UV, Übersicht „4 + 3“, gnge an PE, Melder-Texte begrenzt; Beispiel `tncuv` |
 | v1.51 | Steuerstromkreis: Beschriftung von Spule und Meldeleuchte 1,5 mm am eigenen Zeichen statt in der Fluchtlinie der Kontakte |
 | v1.50 | Prüfbericht E4 Schritt 2: Beschriftung links mit 1,5 mm Abstand zur gezeichneten Kante (R2/R3), Fluchtlinie je Spalte im Steuerstromkreis – zur Abnahme |
 | v1.49 | Bibliothek v1.12 (Angleichung v0.2): Motorschutzschalter ohne Ziffern, PV-Generator einpolig, Wechselrichter in Umrichter-Optik |

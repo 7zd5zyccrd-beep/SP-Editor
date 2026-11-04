@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.47 | Prüfbericht E4 Schritt 1: Beschriftung beginnt auf der ersten sichtbaren Stelle des Zeichens (R1), Endgeräte auf einer Linie (R5) – zur Abnahme |
 | v1.46 | Prüfbericht E6b: Umrichter mit PE, Schirmauflage, Verweis am Motorschutzschalter, Primär-LS 2-polig, PEN-Darstellung und Netzangabe, Haupterdungsschiene; Beispiel `tncs` |
 | v1.45 | Prüfbericht E6a: Klemmenplan mit innerem Ziel der Steuerklemmen und Motoranschluss; Leitungstyp bestimmt Adernzahl und -kennung (NYM-J mit gnge-Reserve) |
 | v1.44 | Prüfbericht E7: alle Schrift schwarz (Feldtitel, Tabellenköpfe, Deckblatt) |

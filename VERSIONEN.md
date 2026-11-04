@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.34 | Etappe G1: PV-Anlage als Abgang (Wechselrichter -T ein-/dreiphasig, DC-Freischalter -Q, PV-Generator -G, Erzeugungszähler -P); Palette „Erzeugung“; Bibliothek v1.8; Beispiel `pv` |
 | v1.33.1 | Endschalter (Schließer/Öffner) mit Kennzeichen -B |
 | v1.33 | Melder (Dämmerung, Bewegung, Präsenz) mit Kennzeichen -B nach DIN EN IEC 81346-2:2019 statt -S |
 | v1.32 | Bibliothek v1.7 mit den Fach-Erweiterungen (noch ohne Verwendung) |
@@ -54,6 +55,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.8 | Für Etappe G (von Jean freigegeben, 04.11.2026): Wechselrichter 1/N/PE und 3/N/PE mit AC oben, Hybrid-Wechselrichter (PV und Batterie), PV-Generator mit Anschlüssen oben, Lasttrennschalter 2-polig – gleiche Zeichnung wie die ausgewählten Zeichen |
 | v1.7 | Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (29 Zeichen): Erzeugung und Speicher, Motoren, Überlastrelais-Kontakte, Schwimmer- und Schlüsselschalter (je gleiche Familie für Schließer/Öffner/Wechsler), Klingel/Gong/Summer/Hupe, Türöffner, Diode, Funkenstrecke, Schirm, Erdungsschiene (Anschlüsse ins Raster gelegt) |
 | v1.6 | Transformator einpolig (`ue_trafo`) im EN-Baukasten nachgebaut: Form 1 nach 06-09-01, Maßstab der einpoligen Zeichen, ohne Text |
 | v1.5 | Steuertrafo nach Auswahl „Trafo v0.1“: Transformator mit getrennten Wicklungen (allpolig), Transformator mit zwei Wicklungen (einpolig, EN 60617 06-09-01) |

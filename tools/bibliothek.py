@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.7'
+FASSUNG = 'v1.8'
 STAND = '2026-11-04'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -117,6 +117,12 @@ AUSWAHL = [
  ('Sonstiges', 'funkenstrecke', 'Funkenstrecke (N–PE, 3+1-Schaltung)',        '91_en_60617/en_60617_07/en_60617_07_22/en_60617_07_22_01.elmt', True),
  ('Sonstiges', 'schirm',        'Schirm (Abschirmung)',                       '91_en_60617/en_60617_02/en_60617_02_01/en_60617_02_01_07.elmt', True),
  ('Sonstiges', 'erdungsschiene','Erdungsschiene / Potentialausgleich',        'bau:erdungsschiene', True),
+ ('Erzeugung und Speicher', 'pv_oben',    'PV-Generator, Anschlüsse oben',   'bau:pv_oben', True),
+ ('Erzeugung und Speicher', 'wr1',        'Wechselrichter 1/N/PE (AC oben)',  'bau:wr1', True),
+ ('Erzeugung und Speicher', 'wr3',        'Wechselrichter 3/N/PE (AC oben)',  'bau:wr3', True),
+ ('Erzeugung und Speicher', 'wr1_hybrid', 'Hybrid-Wechselrichter 1/N/PE (PV und Batterie)', 'bau:wr1_hybrid', True),
+ ('Erzeugung und Speicher', 'wr3_hybrid', 'Hybrid-Wechselrichter 3/N/PE (PV und Batterie)', 'bau:wr3_hybrid', True),
+ ('Trennen und Schalten', 'lasttrenn2',   'Lasttrennschalter 2-polig (DC-Freischalter)', 'bau:lasttrenn2', True),
 ]
 def daten():
     bau = baukasten.alle()

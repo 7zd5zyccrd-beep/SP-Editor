@@ -16,6 +16,11 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.34: Etappe G1 – PV-Anlage als Anschlussart im Abgang: Wechselrichter -T (AC oben, ein- oder dreiphasig),
+           DC-Freischalter -Q (Lasttrennschalter 2-polig, abschaltbar), PV-Generator -G mit kWp; wahlweise
+           Erzeugungszähler -P im Verteiler (Klemmen nach DIN 43857); im Übersichtsplan PV-Generator verkleinert;
+           Palette „Erzeugung“; Bibliothek v1.8 (Wechselrichter AC oben, PV-Generator mit Anschlüssen oben,
+           Lasttrennschalter 2-polig); Beispiel `pv`
      v1.33.1: Endschalter (Schließer/Öffner) ebenfalls -B
      v1.33: Melder (Dämmerungs-, Bewegungs-, Präsenzmelder) tragen -B nach DIN EN IEC 81346-2:2019 statt -S
      v1.32: Bibliothek v1.7 mit den Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (Generator, PV,
@@ -507,7 +512,10 @@ const NENNFEHLER = ['10', '30', '100', '300', '500'];
 const FI_TYP = ['A', 'F', 'B', 'B+', 'AC'];
 const SICH_ART = ['gG', 'gL', 'aM'];
 const ANSCHLUSS = { steckdose3: 'Steckdose 1/N/PE (Schuko, CEE 3-pol.)', steckdose5: 'Steckdose 3/N/PE (CEE 5-pol.)',
-  dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', fest: 'Fester Anschluss (offenes Ende)' };
+  dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', pv: 'PV-Anlage (Wechselrichter, PV-Generator)', fest: 'Fester Anschluss (offenes Ende)' };
+// PV-Anlage am Abgang (ab v1.34, Etappe G1): k.pv = { phasen: '1' | '3', kwp, dc (DC-Freischalter), zaehler (Erzeugungszähler),
+//   wr: { bmk }, gen: { bmk }, dcq: { bmk }, p: { bmk } }; Wechselrichter -T, PV-Generator -G, DC-Freischalter -Q, Zähler -P
+const pvVon = k => k.pv || { phasen: '3', kwp: '', dc: true, zaehler: false };
 const PHASEN = ['auto', 'L1', 'L2', 'L3'];
 // Schaltgeräte im Abgang (Etappe B); Kennzeichen nach DIN EN IEC 81346-2: -Q schaltet Energie, -K Zeitrelais
 const SCHALT = { schuetz: 'Schütz', stromstoss: 'Stromstoßschalter', zeitrelais: 'Zeitrelais' };
@@ -651,11 +659,12 @@ function istDrei(k, v) {
   const g = k.geraet.zeichen;
   if (g && GERAETE[g].pole === 3) return true;
   if (k.ziel && k.ziel.anschluss === 'steckdose5') return true;
+  if (k.ziel && k.ziel.anschluss === 'pv' && !k.speist && pvVon(k).phasen !== '1') return true;
   if (k.speist) { const u = vById(k.speist); if (u && u.leiter === '3NPE') return true; }
   return false;
 }
 function berechne(v) {
-  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
+  const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
@@ -697,7 +706,15 @@ function berechne(v) {
     a.mitKlemmen = !k.steuer && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
     if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + a.leiter.length, bmk: '-X1' }; klemme += a.leiter.length; }
     else a.klemmen = null;
+    // PV-Anlage: Erzeugungszähler im Verteiler vor der Leitung
+    const pv = !k.speist && k.ziel.anschluss === 'pv' ? pvVon(k) : null;
+    if (pv && pv.zaehler) a.p = bmk('P', pv.p && pv.p.bmk);
     a.w = k.steuer ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
+    if (pv) {     // im Feld: Wechselrichter, DC-Freischalter, PV-Generator
+      a.t = bmk('T', pv.wr && pv.wr.bmk); a.xd = a.t;
+      if (pv.dc !== false) a.dcq = bmk('Q', pv.dcq && pv.dcq.bmk);
+      a.g = bmk('G', pv.gen && pv.gen.bmk);
+    }
     // Steuertrafo (ab v1.16): -T und der Sekundär-LS -F hinter dem Primär-LS
     if (k.trafo) { a.t = bmk('T', k.trafo.bmk); a.f2 = bmk('F', k.trafo.ls && k.trafo.ls.bmk); }
     // Kennzeichen des Leitungsendes: Steckdose -XD, Anschlussdose -X (ab -X2), Leuchte -E
@@ -1319,10 +1336,11 @@ function bAbgang(b) {
     k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
-    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => k.ziel.anschluss = w)),
-    a.xd ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
+    k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => { k.ziel.anschluss = w; if (w === 'pv' && !k.pv) k.pv = pvNeu(v); })),
+    a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
       () => bmkFeld('Kennzeichen', k.ziel, a.xd.hand ? '' : a.xd.t)) : null));
   if (k.ziel.anschluss === 'leuchte' && a.drei) m.append(h('p', { class: 'warnung' }, 'Eine Leuchte wird einphasig angeschlossen.'));
+  if (a.t) m.append(h('h2', {}, 'PV-Anlage'), h('div', { class: 'liste' }, ...pvZeilen(v, k, a)));
   m.append(h('h2', {}, 'Schutzorgan'), h('div', { class: 'liste' },
     zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : '']), ge.zeichen, w => {
       ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; if (w && !ge.nenn) ge.nenn = '16'; })),
@@ -1355,6 +1373,24 @@ function bAbgang(b) {
   m.append(h('h2', {}, ''), h('div', { class: 'liste' },
     zeile('Abgang löschen', null, () => frage('Abgang löschen', 'Diesen Abgang löschen?', () => { r.liste.splice(r.i, 1); fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
+}
+
+// PV-Anlage (ab v1.34): Eingabe im Abgang
+const pvNeu = v => ({ phasen: v.leiter === '1NPE' ? '1' : '3', kwp: '10', dc: true, zaehler: false });
+function pvZeilen(v, k, a) {
+  const pv = k.pv || (k.pv = pvNeu(v)), ja = [['ja', 'ja'], ['nein', 'nein']];
+  return [
+    v.leiter === '1NPE' ? null : zeile('Wechselrichter', pv.phasen === '1' ? 'einphasig (L N PE)' : 'dreiphasig (L1 L2 L3 N PE)', () => wahlFeld('Wechselrichter',
+      [['3', 'dreiphasig', 'L1 L2 L3 N PE'], ['1', 'einphasig', 'L N PE, Außenleiter automatisch']], pv.phasen, w => pv.phasen = w)),
+    zeile('Leistung PV-Generator', pv.kwp ? `${pv.kwp} kWp` : '—', () => textFeld('Leistung PV-Generator (kWp)', pv.kwp, w => pv.kwp = w.replace(/\s*kWp$/i, ''), { platz: 'z. B. 9,8' })),
+    zeile('DC-Freischalter', pv.dc !== false ? 'ja' : 'nein', () => wahlFeld('DC-Freischalter', ja, pv.dc !== false ? 'ja' : 'nein', w => pv.dc = w === 'ja'),
+      { un: 'Lasttrennschalter 2-polig zwischen PV-Generator und Wechselrichter' }),
+    zeile('Erzeugungszähler', pv.zaehler ? 'ja' : 'nein', () => wahlFeld('Erzeugungszähler', ja, pv.zaehler ? 'ja' : 'nein', w => pv.zaehler = w === 'ja'),
+      { un: 'Zähler im Verteiler hinter dem Schutzorgan' }),
+    a.p ? zeile('Kennzeichen Zähler', a.p.t, () => bmkFeld('Kennzeichen', pv.p || (pv.p = {}), a.p.hand ? '' : a.p.t)) : null,
+    zeile('Kennzeichen Wechselrichter', a.t.t, () => bmkFeld('Kennzeichen', pv.wr || (pv.wr = {}), a.t.hand ? '' : a.t.t)),
+    a.dcq ? zeile('Kennzeichen DC-Freischalter', a.dcq.t, () => bmkFeld('Kennzeichen', pv.dcq || (pv.dcq = {}), a.dcq.hand ? '' : a.dcq.t)) : null,
+    zeile('Kennzeichen PV-Generator', a.g.t, () => bmkFeld('Kennzeichen', pv.gen || (pv.gen = {}), a.g.hand ? '' : a.g.t))];
 }
 
 function schaltZeilen(v, k, a) {
@@ -2025,6 +2061,7 @@ function editorTeil(v, key, b) {
 const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
   ['steckdose', 'Steckdose', 'steckdose3', '1~', 'Abgänge'], ['cee', 'CEE-Steckdose', 'steckdose5', '3~', 'Abgänge'], ['leuchte', 'Leuchte', 'leuchte', '', 'Abgänge'],
   ['dose', 'Geräte\u00adanschluss', 'endklemme', '', 'Abgänge'], ['uv', 'Unter\u00adverteiler', 'uv', '', 'Abgänge'], ['gruppe', 'FI-Gruppe', 'fi4', '', 'Gruppen'],
+  ['pv', 'PV-Anlage', 'pv', '', 'Erzeugung'],
   ['steuerls', 'Steuer-LS', 'ls1', 'S', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
 const ZEICHNEN = [['zauswahl', 'Auswahl', 'zauswahl'], ['zleiter', 'Leiter', 'zleiter'], ['ztext', 'Text', 'ztext'], ['zrahmen', 'Rahmen', 'zrahmen']];
 const PAL_NAME = t => istZeichenWerkzeug(t) || t === 'zauswahl' ? ZEICHNEN.find(x => x[0] === t)[1] : t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
@@ -2038,6 +2075,7 @@ const PIKTO = {
   fi4: '<rect x="9" y="4" width="22" height="13" rx="2"/><text x="20" y="13.8" font-size="8.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">FI</text><path d="M20 17v6M9 23h22M9 23v12M20 23v12M31 23v12"/>',
   ls1: '<rect x="12" y="5" width="16" height="30" rx="2.5"/><path d="M20 11v8"/><rect x="16.5" y="18" width="7" height="5" rx="1" fill="currentColor"/><path d="M16 29h8" stroke-width="1.4"/>',
   trafo: '<circle cx="20" cy="14" r="8.5"/><circle cx="20" cy="26" r="8.5"/>',
+  pv: '<path d="M7 30l5-17h16l5 17z"/><path d="M9.5 21.5h21M20 13v17M15.5 13l-2 17M24.5 13l2 17" stroke-width="1.2"/><path d="M20 30v5"/>',
   zleiter: '<path d="M8 8v14h24v10"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/><circle cx="32" cy="32" r="2.2" fill="currentColor"/>',
   ztext: '<path d="M10 9h20M20 9v23M15 32h10" stroke-width="2.4"/>',
   zrahmen: '<rect x="6" y="9" width="28" height="22" stroke-dasharray="6 2 1.5 2"/>',
@@ -2443,7 +2481,7 @@ function nadeln() {
 // ---- Geräte im Blatt (ab v1.24): Teile der Szene als eigene Antippflächen -------------------
 // Ein Teil ist ein Gerät mit Kennzeichen und Beschriftung (Schutzorgan, Schaltgerät, Klemmen,
 // Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
-const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
+const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', t: 'Wechselrichter', dc: 'DC-Freischalter', g: 'PV-Generator', p: 'Erzeugungszähler', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
 const teilBesitzer = besitzerVon;
 const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : /\/pl:[^:]+:6$/.test(key) ? 'Verbraucher' : /\/pl:/.test(key) ? 'Kontakt' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
 function teilFlaechen() {
@@ -2629,6 +2667,8 @@ function editorNeu(v, tool) {
     case 'dose': Object.assign(a.ziel, { bez: 'Gerät', anschluss: 'dose' }); a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'B', nenn: '16' }; return a;
     case 'uv': Object.assign(a.ziel, { bez: '', anschluss: 'fest' }); a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'C', nenn: '32' }; a.leitung.quer = '6'; return a;
     case 'gruppe': { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; return g; }
+    case 'pv': Object.assign(a.ziel, { bez: 'PV-Anlage', anschluss: 'pv' }); a.pv = pvNeu(v);
+      a.geraet = { zeichen: v.leiter === '1NPE' ? 'ls1' : 'ls3', kennlinie: 'B', nenn: '16' }; a.leitung.quer = '4'; return a;
     case 'steuerls': return neuerSteuerLs();
     case 'trafo': return neuerSteuerTrafo();
     case 'ablage': return ablageHolen(v);

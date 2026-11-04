@@ -26,7 +26,7 @@ const PLAN = (() => {
   const RAND_L = 20, RAND = 10, SF_H = 20, SF_FIRMA = 70;   // Schriftfeld: Höhe, Breite des Firmenfelds
   const FARBE = { N: '#1f5fd6', PE: '#1a8a3a', PEN: '#1a8a3a' };
   const POLE = { ls1: 1, ls3: 3, fils1n: 2, fils3n: 4, sich1: 1, sich3: 3, fi2: 2, fi4: 4, sichtrenn3: 3,
-    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2 };
+    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2 };
   const LINKS = 14;        // Platz links vom ersten Leiter eines Pfades (Kennzeichen)
   const ABSTAND = 5;       // Leiterabstand = Polabstand
   const VOR_GERAET = 10;
@@ -456,6 +456,17 @@ const PLAN = (() => {
     }
     const spule = ctx.steuer && ctx.steuer.spulen[k.id];
     if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '', `k:${k.id}/q`);
+    // Erzeugungszähler der PV-Anlage (ab v1.34) im Verteiler hinter dem Schutzorgan
+    if (a.p) {
+      const zz = arten.length === 5 ? 'zaehler3' : 'zaehler1', top = cursor + 4;
+      bis(top);
+      teil(`k:${k.id}/p`);
+      const t = unten(setze(g, zz, x0, top, null, arten.slice(0, POLE[zz])));
+      t.forEach((p, i) => { enden[i] = p.y; });
+      bmk(g, x0 - 5, top + 1, a.p.t, ['Erzeugung']);
+      teil(null);
+      cursor = Math.max(...t.map(p => p.y));
+    }
     if (a.klemmen) {
       const ky = cursor + (a.schalt ? 1 : 6); bis(ky);
       // N als N-Trennklemme (Grundeinstellung) oder als normale Klemme
@@ -467,9 +478,12 @@ const PLAN = (() => {
       teil(null);
       cursor = ky + (arten.some(trenn) ? 10 : 5);
     }
-    const natur = cursor + 6;
-    const ye = Math.max(natur, yEnde || 0);
     const ende = k.speist ? 'fest' : k.ziel.anschluss, xd = `k:${k.id}/xd`;
+    // PV-Anlage: der PV-Generator schließt unten mit der Steckdosenunterkante ab, darüber
+    // DC-Freischalter und Wechselrichter – der Abgang braucht entsprechend mehr Höhe
+    const pvDc = ende === 'pv' && (!k.pv || k.pv.dc !== false);
+    const natur = ende === 'pv' ? cursor + PV_LUECKE + pvHoehe(pvDc) - UNTERKANTE : cursor + 6;
+    const ye = Math.max(natur, yEnde || 0);
     if (ende === 'steckdose3' || ende === 'steckdose5') {
       bis(ye);
       teil(xd);
@@ -493,6 +507,29 @@ const PLAN = (() => {
       teil(xd); teilPort(g, xs[iPE], yu + 1.5);
       leiter(g, xs[iPE], yu + 1.5, xm, yu + 1.5, 'PE'); leiter(g, xm, yu + 1.5, xm, yu, 'PE');
       bmk(g, x0 - 2, ye + 3, a.xd.t);
+    } else if (ende === 'pv') {
+      const yW = ye + UNTERKANTE - pvHoehe(pvDc);
+      bis(yW);
+      teil(`k:${k.id}/t`);
+      const tw = unten(setze(g, arten.length === 5 ? 'wr3' : 'wr1', x0, yW, null, arten));
+      bmk(g, x0 - 5, yW + 6, a.t.t);
+      teil(null);
+      // DC-Seite schwarz: Plus links, Minus rechts
+      let y = tw[0].y;
+      const xp = tw[0].x, xm = tw[1].x;
+      const dcBis = y2 => { leiter(g, xp, y, xp, y2, 'DC'); leiter(g, xm, y, xm, y2, 'DC'); y = y2; };
+      if (pvDc) {
+        dcBis(y + PV_LUECKE);
+        teil(`k:${k.id}/dc`);
+        const t = unten(setze(g, 'lasttrenn2', xp, y));
+        bmk(g, xp - 5, y + 1, a.dcq.t, ['DC']);
+        teil(null);
+        y = t[0].y;
+      }
+      dcBis(y + PV_LUECKE);
+      teil(`k:${k.id}/g`);
+      setze(g, 'pv_oben', xp, y);
+      bmk(g, xp - 6, y + 2, a.g.t, [k.pv && k.pv.kwp ? `${k.pv.kwp} kWp` : '']);
     } else { bis(ye + UNTERKANTE); teil(xd); arten.forEach((_, i) => teilPort(g, xs[i], ye + UNTERKANTE)); }  // offenes Ende auf Höhe der Steckdosenunterkante
     cursor = ye + 8;
     // Beschriftung unter dem Pfad
@@ -508,6 +545,9 @@ const PLAN = (() => {
     teil(null);
     return { unten: ty + 2, natur };
   }
+  // Höhe der PV-Anlage vom AC-Anschluss des Wechselrichters bis zur Unterkante des PV-Generators (mm)
+  const PV_LUECKE = 2;
+  function pvHoehe(dc) { return hoehe('wr1') + PV_LUECKE + (dc ? hoehe('lasttrenn2') + PV_LUECKE : 0) + 20; }
   // Hauptkontakte eines Schaltgeräts (Schütz, Stromstoßschalter, Zeitrelais) unter
   // dem Schutzorgan: je geschaltetem Leiter ein Schaltglied, Wirkverbindung quer
   // durch die Schaltstücke; Kennzeichen links daneben. Gibt das neue untere Ende zurück.
@@ -818,8 +858,14 @@ const PLAN = (() => {
     if (ende === 'steckdose3' || ende === 'steckdose5') setze(g, 'ue_steckdose', x, yE);
     else if (ende === 'dose') { linie(g, x, yE, x, yE + UNTERKANTE - END_TIEFE, 0.25); setze(g, 'endklemme', x, yE + UNTERKANTE - END_TIEFE); }
     else if (ende === 'leuchte') setze(g, 'ue_leuchte', x, yE);
+    else if (ende === 'pv') {      // PV-Generator verkleinert, beide Anschlüsse an der einpoligen Leitung
+      const f = 0.4, d = 20 * E * f / 2;
+      linie(g, x - d, yE, x + d, yE, 0.25);
+      setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'pv_oben', x - 20 * E / 2, yE, null, null, 1 / f);
+    }
     else linie(g, x, yE, x, yE + UNTERKANTE, 0.25);
-    if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
+    if (ende === 'pv') text(g, x - 5.5, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
+    else if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
     const yL = yE + 9.5, max = ySF - 2 - yL;
     const senk = (dx, t, gr, fett) => passend(text(g, x + dx, yL, t, gr, 'end',
       Object.assign({ transform: `rotate(-90 ${x + dx} ${yL})` }, fett ? { 'font-weight': 'bold' } : {})), max);
@@ -860,6 +906,12 @@ const PLAN = (() => {
       const t = setze(g, 'schuetz1', x, top);
       ueBmk(g, x - 4.5, top + 2, a.schalt.bmk.t, [], P - 5.5);
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = y;
+    }
+    if (a.p) {          // Erzeugungszähler der PV-Anlage (ab v1.34)
+      const top = Math.max(frei, y) + 3;
+      linie(g, x, y, x, top, 0.25);
+      const r = ueGeraet(g, 'zaehler3', x, top, a.p.t, [], P);
+      y = r.unten; frei = r.frei;
     }
     if (yE !== null) {
       linie(g, x, y, x, yE, 0.25);
@@ -993,7 +1045,10 @@ const PLAN = (() => {
       const zeilen = a.leiter.map((l, i) => {
         const ph = l === 'L' ? (a.phase.t && a.phase.t !== 'L' ? a.phase.t : 'L1') : l;
         const si = a.schalt ? a.schalt.pole.indexOf(l) : -1;
-        const intern = (si >= 0 ? `${a.schalt.bmk.t}:${2 * (si + 1)}` : null)
+        // Erzeugungszähler (PV, ab v1.34): Abgangsklemmen nach DIN 43857 – drei Phasen L1 3, L2 6, L3 9, N 12; eine Phase L 3, N 6
+        const zp = a.p && l !== 'PE' ? (a.drei ? { L1: 3, L2: 6, L3: 9, N: 12 }[l] : { L: 3, N: 6 }[l]) : null;
+        const intern = (zp ? `${a.p.t}:${zp}` : null)
+          || (si >= 0 ? `${a.schalt.bmk.t}:${2 * (si + 1)}` : null)
           || ausgang(k.geraet.zeichen, a.f && a.f.t, l, ph)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))
           || schiene(l, ph);

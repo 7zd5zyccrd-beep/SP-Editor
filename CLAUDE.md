@@ -287,6 +287,15 @@ Overlay fest `#6a35e8`, nie im Druck). -B statt -S für Melder: freigegeben am 0
   Summer/Hupe/Türöffner/Klingeltrafo, Netzteil, Diode, Funkenstrecke, Schirm, Erdungsschiene); wartet auf Jean:
   `python3 tools/auswahl_bauen.py kandidaten-erweiterung.json build/erweiterung-auswahl-v0.1.html 'Erweiterung v0.1' 'Stromlaufplan · Fach-Erweiterungen · Auswahl neuer Zeichen' 'slp.erweiterung.auswahl.v1'`
 
+## Etappe G – PV, Speicher, Wallbox (abgestimmt 04.11.2026, Jean: „Alles ja“)
+
+Reihenfolge G1 PV v1.34, G2 Speicher v1.35, G3 Wallbox v1.36 (nach Auswahl „Wallbox v0.1“). Kennzeichen: Wechselrichter -T,
+PV-Generator und Batterie -G, Wallbox -E, DC-Freischalter -Q. Wechselrichter dreiphasig ohne eigenes Auswahlblatt aus
+dem Baukasten (`geraet_wechselrichter`, gleiche Zeichnung, AC oben).
+- G1 v1.34: `k.ziel.anschluss = 'pv'`, `k.pv = { phasen, kwp, dc, zaehler, wr/gen/dcq/p: { bmk } }` (`pvVon()`, `pvNeu()`,
+  `pvZeilen()`); im Plan unter Schutzorgan/Zähler/Klemmen der Wechselrichter, darunter DC-Freischalter und PV-Generator,
+  der mit der Steckdosenunterkante abschließt (`pvHoehe()`, DC-Leiter schwarz); Teile `k:<id>/t|dc|g|p`.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

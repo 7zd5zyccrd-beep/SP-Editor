@@ -463,6 +463,14 @@ def geraet_maschine(name, buchst='M', phasen='3', pe=False, unten=False):
             b.linie(x, y, x, 20); b.anschluss(x, 20, 's')
     return b
 
+def geraet_erdungsschiene():
+    """Erdungsschiene/Potentialausgleich (Sammlung barette_de_terre): Zeichnung unverändert,
+    Anschlüsse auf die Leiterenden bei ±20 gelegt (Quelle ±21, neben dem 10er-Raster)."""
+    b = Bau('Erdungsschiene')
+    b.setze('10_allpole/130_terminals_terminal_strips/barette_de_terre.elmt', anschluesse=False, bem='Anschlüsse ins Raster gelegt')
+    b.anschluss(0, -20, 'n'); b.anschluss(0, 20, 's')
+    return b
+
 def geraet_mit_anschluessen(name, id_, oben=(), unten=(), y_oben=0, y_unten=0, r=0, extra=None, bem='Anschlüsse ergänzt'):
     """EN-Zeichen ohne Anschlüsse (z. B. 06-14, 06-15, 06-18, 11-16): Anschlussleitungen ergänzt."""
     b = Bau(name); b.setze(id_, r=r, bem=bem)
@@ -518,6 +526,7 @@ BAUTEILE = {
     'batterie':        (lambda: geraet_mit_anschluessen('Batterie', '06_15_01', r=1, extra=lambda b: (b.linie(0, -20, 0, -10), b.linie(0, 15, 0, 20),
                         b.anschluss(0, -20, 'n'), b.anschluss(0, 20, 's'))), 'senkrecht, Anschlüsse oben und unten'),
     'pv':              (lambda: geraet_mit_anschluessen('PV-Generator', '06_18_06', unten=(10, 30), y_unten=40), 'Anschlüsse + und − unten'),
+    'erdungsschiene':  (lambda: geraet_erdungsschiene(), 'Anschlüsse von ±21 auf ±20 ins Raster gelegt'),
     'tueroeffner':     (lambda: geraet_mit_anschluessen('Türöffner', '11_16_04', oben=(-50, -30), y_oben=-20), 'zwei Anschlüsse oben'),
     'wechselrichter':  (lambda: geraet_mit_anschluessen('Wechselrichter', '06_14_05', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'DC oben, AC unten'),
     'netzteil':        (lambda: geraet_mit_anschluessen('Netzteil (Gleichrichter)', '06_14_03', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'AC oben, DC unten'),

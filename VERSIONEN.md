@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.32 | Bibliothek v1.7 mit den Fach-Erweiterungen (noch ohne Verwendung) |
 | v1.31 | Etappe F8: Kontakte und Verbraucher im Steuerstromkreis frei im Raster; Leiter mit Abzweigen behalten ihre Flucht; abgetrennte Abzweige in der Prüfliste; Beispiel `steuerfrei` |
 | v1.30 | Etappe F7: Abgänge über Blattgrenzen ziehen, „Blatt festhalten“ |
 | v1.29 | Etappe F6: Mehrfachauswahl (Rahmen, Umschalt+Tippen), gemeinsames Verschieben, Zusätze ziehen, Lupe beim Ziehen mit dem Finger, Pencil-Hover |
@@ -51,6 +52,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.7 | Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (29 Zeichen): Erzeugung und Speicher, Motoren, Überlastrelais-Kontakte, Schwimmer- und Schlüsselschalter (je gleiche Familie für Schließer/Öffner/Wechsler), Klingel/Gong/Summer/Hupe, Türöffner, Diode, Funkenstrecke, Schirm, Erdungsschiene (Anschlüsse ins Raster gelegt) |
 | v1.6 | Transformator einpolig (`ue_trafo`) im EN-Baukasten nachgebaut: Form 1 nach 06-09-01, Maßstab der einpoligen Zeichen, ohne Text |
 | v1.5 | Steuertrafo nach Auswahl „Trafo v0.1“: Transformator mit getrennten Wicklungen (allpolig), Transformator mit zwei Wicklungen (einpolig, EN 60617 06-09-01) |
 | v1.4 | Steuerstromkreise nach Auswahl „Steuerung v0.2“: Befehlsgeber, Hilfskontakte, Zeitrelais-Spulen, verzögerte Kontakte, Meldeleuchte |
@@ -64,6 +66,7 @@
 - Zeichenbibliothek (Musterblatt) v0.1–v0.3: Auswahl der Grundzeichen; v0.2 nach Bedeutung geordnet, v0.3 mit EN-Baukasten.
 - Steuerung v0.1–v0.2: Auswahl der Steuerungszeichen; v0.2 eine Bedeutung je Karte.
 - Trafo v0.1: Auswahl des Steuertrafos (4 Karten aus der Sammlung, `bibliothek/kandidaten-trafo.json`), ausgewählt: allpolig `transformator_1f_2`, einpolig EN 06-09-01 → Bibliothek v1.5.
+- Erweiterung v0.1–v0.2: Fach-Erweiterungen (`bibliothek/kandidaten-erweiterung.json`); v0.2 nach Plausibilitätsprüfung mit gleichen Familien auf gepaarten Karten → Bibliothek v1.7.
 - Blattrahmen v0.1–v0.5: Prototyp für Rahmen und Schriftfeld (in die App übernommen).
 
 Ältere Einzeldateien liegen nicht im Repository; die Geschichte beginnt mit v1.8.

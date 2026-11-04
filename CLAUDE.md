@@ -274,7 +274,8 @@ nach 81346-2:2019.
   hält das Mittelstück eines Leiters in seiner Flucht und versetzt nur die Enden; abgetrennte Abzweige →
   `SZ.hinweise` → `blatt.pruef`. Editor: Platz wählen → Kontextleiste „Frei“ → Teil `t:kr:…`.
   Noch offen: Drehen von Zeichen (erst mit frei gesetzten neuen Zeichen sinnvoll), Fach-Erweiterungen.
-- Auswahl „Erweiterung v0.2“ (ersetzt v0.1 nach Plausibilitätsprüfung): gepaarte Karten (Öffner/Schließer/Wechsler
+- Auswahl „Erweiterung v0.2“ (Jean hat am 04.11.2026 ausgewählt → Bibliothek v1.7, App v1.32; Zeichen noch ohne
+  Verwendung im Plan; ersetzt v0.1 nach Plausibilitätsprüfung): gepaarte Karten (Öffner/Schließer/Wechsler
   derselben Art) bieten Familien A/B/C an gleicher Stelle, die sich nur in der Funktion unterscheiden; Familie A
   aus dem EN-Baukasten (`geraet_betaetigter_kontakt`, `geraet_maschine` u. a.), Polabstand 20, Anschlüsse im Raster:
   `python3 tools/auswahl_bauen.py kandidaten-erweiterung.json build/erweiterung-auswahl-v0.2.html 'Erweiterung v0.2' 'Stromlaufplan · Fach-Erweiterungen · Auswahl neuer Zeichen' 'slp.erweiterung.auswahl.v2'`

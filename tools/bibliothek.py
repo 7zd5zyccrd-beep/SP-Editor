@@ -5,8 +5,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.6'
-STAND = '2026-10-28'
+FASSUNG = 'v1.7'
+STAND = '2026-11-04'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
 # Quelle: Pfad in der Sammlung oder 'bau:<Schlüssel>' für den EN-Baukasten
@@ -87,9 +87,37 @@ AUSWAHL = [
  ('Steuerung – Zeitrelais', 'k_s_einaus',      'Schließer ein- und ausschaltverzögert', '91_en_60617/en_60617_07/en_60617_07_05/en_60617_07_05_05.elmt', False),
  ('Melden', 'meldeleuchte',                    'Meldeleuchte',                        'bau:meldeleuchte', False),
  ('Steuertrafo', 'trafo',                    'Transformator mit getrennten Wicklungen', '10_allpole/330_transformers_power_supplies/10_transformers/transformator_1f_2.elmt', False),
- ('Steuertrafo', 'ue_trafo',                 'Transformator mit zwei Wicklungen (einpolig)', 'bau:ue_trafo', True),
+ ('Steuertrafo', 'ue_trafo',                 'Transformator mit zwei Wicklungen (einpolig)', 'bau:ue_trafo', False),
+ ('Erzeugung und Speicher', 'generator3', 'Generator Drehstrom mit PE',       'bau:generator3_pe', True),
+ ('Erzeugung und Speicher', 'pv',         'PV-Generator (Photovoltaik)',      'bau:pv', True),
+ ('Erzeugung und Speicher', 'wechselrichter', 'Wechselrichter DC/AC',         'bau:wechselrichter', True),
+ ('Erzeugung und Speicher', 'batterie',   'Batterie / Speicher',              'bau:batterie', True),
+ ('Erzeugung und Speicher', 'netzumschalter', 'Netzumschalter (Zweiwegeschalter, einpolig)', '91_en_60617/en_60617_07/en_60617_07_13/en_60617_07_13_07.elmt', True),
+ ('Erzeugung und Speicher', 'netzteil',   'Netzteil AC/DC',                   'bau:netzteil', True),
+ ('Motoren', 'motor3',          'Motor Drehstrom mit PE (3 Anschlüsse)',      'bau:motor3_pe', True),
+ ('Motoren', 'motor6',          'Motor Drehstrom mit PE (6 Anschlüsse, Stern-Dreieck)', 'bau:motor6_pe', True),
+ ('Motoren', 'motor1',          'Motor Wechselstrom mit PE',                  'bau:motor1_pe', True),
+ ('Motoren', 'motorschutz3',    'Motorschutzschalter 3-polig',                '10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/fa4202_disjoncteur_moteur_3p.elmt', True),
+ ('Motoren', 'ueberlast3',      'Überlastrelais 3-polig (Hauptkreis)',        'bau:ueberlast3', True),
+ ('Motoren', 'umrichter3',      'Frequenzumrichter',                          'bau:umrichter3', True),
+ ('Steuerung – Hilfskontakte', 'oe_thermisch', 'Überlastrelais-Öffner (95/96)',  'bau:oe_thermisch', True),
+ ('Steuerung – Hilfskontakte', 's_thermisch',  'Überlastrelais-Schließer (97/98)', 'bau:s_thermisch', True),
+ ('Steuerung – Hilfskontakte', 'wechsler',     'Wechsler',                       '91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_04.elmt', True),
+ ('Steuerung – Befehlsgeber', 's_schwimmer',   'Schwimmerschalter, Schließer',   'bau:s_schwimmer', True),
+ ('Steuerung – Befehlsgeber', 'oe_schwimmer',  'Schwimmerschalter, Öffner',      'bau:oe_schwimmer', True),
+ ('Steuerung – Befehlsgeber', 'w_schwimmer',   'Schwimmerschalter, Wechsler',    'bau:w_schwimmer', True),
+ ('Steuerung – Befehlsgeber', 's_schluessel',  'Schlüsselschalter, Schließer',   'bau:s_schluessel', True),
+ ('Steuerung – Befehlsgeber', 'oe_schluessel', 'Schlüsselschalter, Öffner',      'bau:oe_schluessel', True),
+ ('Melden', 'klingel',          'Klingel (Wecker)',                           '91_en_60617/en_60617_08/en_60617_08_10/en_60617_08_10_06.elmt', True),
+ ('Melden', 'gong',             'Gong (Einschlagwecker)',                     '91_en_60617/en_60617_08/en_60617_08_10/en_60617_08_10_08.elmt', True),
+ ('Melden', 'summer',           'Summer',                                     '91_en_60617/en_60617_08/en_60617_08_10/en_60617_08_10_10.elmt', True),
+ ('Melden', 'hupe',             'Hupe',                                       '91_en_60617/en_60617_08/en_60617_08_10/en_60617_08_10_05.elmt', True),
+ ('Melden', 'tueroeffner',      'Türöffner',                                  'bau:tueroeffner', True),
+ ('Sonstiges', 'diode',         'Diode',                                      '10_allpole/395_electronics_semiconductors/11_diodes/diode.elmt', True),
+ ('Sonstiges', 'funkenstrecke', 'Funkenstrecke (N–PE, 3+1-Schaltung)',        '91_en_60617/en_60617_07/en_60617_07_22/en_60617_07_22_01.elmt', True),
+ ('Sonstiges', 'schirm',        'Schirm (Abschirmung)',                       '91_en_60617/en_60617_02/en_60617_02_01/en_60617_02_01_07.elmt', True),
+ ('Sonstiges', 'erdungsschiene','Erdungsschiene / Potentialausgleich',        'bau:erdungsschiene', True),
 ]
-
 def daten():
     bau = baukasten.alle()
     aus = []

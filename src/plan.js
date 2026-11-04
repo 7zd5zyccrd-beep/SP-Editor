@@ -1122,17 +1122,13 @@ const PLAN = (() => {
     if (ende === 'steckdose3' || ende === 'steckdose5' || ende === 'wallbox') setze(g, 'ue_steckdose', x, yE);
     else if (ende === 'dose') { linie(g, x, yE, x, yE + UNTERKANTE - END_TIEFE, 0.25); setze(g, 'endklemme', x, yE + UNTERKANTE - END_TIEFE); }
     else if (ende === 'leuchte') setze(g, 'ue_leuchte', x, yE);
-    else if (ende === 'pv') {      // PV-Generator verkleinert, beide Anschlüsse an der einpoligen Leitung
-      const f = 0.4, d = 20 * E * f / 2;
-      linie(g, x - d, yE, x + d, yE, 0.25);
-      setze(el('g', { transform: `translate(${x} ${yE}) scale(${f}) translate(${-x} ${-yE})` }, g), 'pv_oben', x - 20 * E / 2, yE, null, null, 1 / f);
-    }
+    else if (ende === 'pv') setze(g, 'ue_pv', x, yE);       // ab v1.49: eigenes einpoliges Zeichen
     else if (ende === 'motor') setze(g, 'ue_motor', x, yE);          // ab v1.48: eigenes einpoliges Zeichen
     else if (ende === 'speicher') setze(g, 'batterie', x, yE + UNTERKANTE - 10);   // ab v1.48: Batterie in Originalgröße, unten bündig mit den Steckdosen
     else linie(g, x, yE, x, yE + UNTERKANTE, 0.25);
     if (ende === 'speicher') text(g, x - 3, yE + 3.6, a.bat.t, 2.2, 'end');
     else if (ende === 'motor') text(g, x - 4.5, yE + 3.6, a.xd.t, 2.2, 'end');
-    else if (ende === 'pv') text(g, x - 5.5, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
+    else if (ende === 'pv') text(g, x - 6, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
     else if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
     const yL = yE + 9.5, max = ySF - 2 - yL;
     const senk = (dx, t, gr, fett) => passend(text(g, x + dx, yL, t, gr, 'end',

@@ -690,7 +690,7 @@ def geraet_ue_pv():
     """PV-Generator einpolig: Kasten 20×20 mit G, zwei Lichtpfeile links (verkleinert nach 06-18-06)."""
     b = Bau('PV-Generator einpolig'); b._q('06_18_06', 'einpolig, Kasten 20×20')
     b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
-    b.rect(-10, 0, 20, 20); b.text(-3.4, 13.5, 'G', 8)
+    b.rect(-10, 0, 20, 20); b.text(-4.14, 13.8, 'G', 8)     # optisch mittig (Jean, Angleichung v0.2)
     for dy in (0, 4):
         b.linie(-21, 3 + dy, -14, 10 + dy)
         b.teile.append(f'<polygon x1="-12" y1="{12 + dy}" x2="-15.5" y2="{11 + dy}" x3="-13" y3="{8.5 + dy}" closed="true" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="true"/>')

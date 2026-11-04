@@ -347,6 +347,8 @@ https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihe
   Frequenzumrichter bleibt in heutiger Optik („3~“ als Text) und die Wechselrichter sollen daran angepasst werden,
   PV einpolig offen („Warum G?“), Motor einpolig mit mittigem M. Dazu Auswahl v0.2 (`kandidaten-angleichung2.json`):
   `python3 tools/auswahl_bauen.py kandidaten-angleichung2.json build/angleichung-auswahl-v0.2.html 'Angleichung v0.2' 'Stromlaufplan · Prüfbericht E3 · Motorschutzschalter, PV einpolig, Wechselrichter' 'slp.angleichung.auswahl.v2'`
+  Auswahl v0.2 (Jean 04.11.2026) → Bibliothek v1.12 / App v1.49: Motorschutzschalter bleibt fa4202, aber ohne Klemmenziffern;
+  PV einpolig `ue_pv` mit mittigem G; Wechselrichter `wr*_t` mit Text „3~“/„=“ wie der Frequenzumrichter.
   Klingenregel: kurze LS-Klinge für Schutzorgane, lange EN-Klinge für Schalt- und Steuerglieder.
 - E4 Beschriftungsregel in drei Schritten mit Vorher/Nachher zur Abnahme: R1 Oberkante erste Zeile = erste sichtbare
   Stelle des Zeichens, R5 Endgeräte-Grundlinie; R2 links (Ausnahmen IΔ-Kasten darunter, Melder/Schwimmer rechts), R3

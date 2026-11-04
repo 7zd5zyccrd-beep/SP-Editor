@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.11'
+FASSUNG = 'v1.12'
 STAND = '2026-11-04'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -119,14 +119,15 @@ AUSWAHL = [
  ('Sonstiges', 'schirm',        'Schirm (Abschirmung)',                       '91_en_60617/en_60617_02/en_60617_02_01/en_60617_02_01_07.elmt', True),
  ('Sonstiges', 'erdungsschiene','Erdungsschiene / Potentialausgleich',        'bau:erdungsschiene', True),
  ('Erzeugung und Speicher', 'pv_oben',    'PV-Generator, Anschlüsse oben',   'bau:pv_oben', True),
- ('Erzeugung und Speicher', 'wr1',        'Wechselrichter 1/N/PE (AC oben)',  'bau:wr1', True),
- ('Erzeugung und Speicher', 'wr3',        'Wechselrichter 3/N/PE (AC oben)',  'bau:wr3', True),
- ('Erzeugung und Speicher', 'wr1_hybrid', 'Hybrid-Wechselrichter 1/N/PE (PV und Batterie)', 'bau:wr1_hybrid', True),
- ('Erzeugung und Speicher', 'wr3_hybrid', 'Hybrid-Wechselrichter 3/N/PE (PV und Batterie)', 'bau:wr3_hybrid', True),
+ ('Erzeugung und Speicher', 'wr1',        'Wechselrichter 1/N/PE (AC oben)',  'bau:wr1_t', True),
+ ('Erzeugung und Speicher', 'wr3',        'Wechselrichter 3/N/PE (AC oben)',  'bau:wr3_t', True),
+ ('Erzeugung und Speicher', 'wr1_hybrid', 'Hybrid-Wechselrichter 1/N/PE (PV und Batterie)', 'bau:wr1_hybrid_t', True),
+ ('Erzeugung und Speicher', 'wr3_hybrid', 'Hybrid-Wechselrichter 3/N/PE (PV und Batterie)', 'bau:wr3_hybrid_t', True),
  ('Trennen und Schalten', 'lasttrenn2',   'Lasttrennschalter 2-polig (DC-Freischalter)', 'bau:lasttrenn2_neu', True),
  ('Erzeugung und Speicher', 'wallbox', 'Wallbox (Ladestation 3/N/PE)', 'bau:wallbox_buchsen', True),
  ('Übersicht (einpolig)', 'ue_motor',     'Motor einpolig',               'bau:ue_motor', True),
  ('Übersicht (einpolig)', 'ue_wr',        'Wechselrichter einpolig',      'bau:ue_wr', True),
+ ('Übersicht (einpolig)', 'ue_pv',        'PV-Generator einpolig',        'bau:ue_pv', True),
  ('Übersicht (einpolig)', 'ue_umrichter', 'Frequenzumrichter einpolig',   'bau:ue_umrichter', True),
 ]
 def daten():
@@ -144,6 +145,8 @@ def daten():
             # Platzhaltertexte der Sammlung (z. B. „_“ im Trafo) würden im Plan als Zeichen erscheinen (ab v1.10)
             ohne = re.sub(r'\s*<text\b[^>]*\btext="_"[^>]*/>', '', xml)
             if ohne != xml: xml, bem = ohne, 'Platzhaltertext „_“ entfernt'
+            if kenn == 'motorschutz3':     # Angleichung v0.2: ohne Klemmenziffern, die Anschlüsse bezeichnet der Plan
+                xml = re.sub(r'\s*<text\b[^>]*\btext="[1-6]"[^>]*/>', '', xml); bem = 'ohne Klemmenziffern'
             aus.append(dict(gruppe=gruppe, kennung=kenn, name=name,
                             herkunft='EN-Satz' if quelle.startswith('91_en') else 'Sammlung',
                             quellen=[quelle.split('/')[-1]], bem=bem, neu=neu, xml=xml))

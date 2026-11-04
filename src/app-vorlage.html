@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.49: Bibliothek v1.12 nach Auswahl „Angleichung v0.2“: Motorschutzschalter ohne Klemmenziffern (Anschlüsse vom
+           Plan), PV-Generator einpolig mit mittigem G im Übersichtsplan, Wechselrichter mit „3~“/„1~“ und „=“ als Text
+           wie der Frequenzumrichter
      v1.48: Prüfbericht E3/E5/E6c – Bibliothek v1.11 nach Auswahl „Angleichung v0.1“ (FI aus der LS-Klinge, LS ohne
            aufgedruckte Ziffern, LS 3-polig mit Wirkverbindung, einheitliche Kontaktkennzeichen, Sicherungstrenner mit
            Wirkverbindung durch die Klingen, Stromstoß-Spule 40×20, Schließer ohne Drehpunkt-Kreis, Melder angeglichen,
@@ -546,8 +549,7 @@ const GERAETE = {
   spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true },
   spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true },
   // Motorschutzschalter (ab v1.37): Kennzeichen -Q nach 81346-2 (Jean, 04.11.2026), Einstellbereich statt Nennstrom
-  // eigeneNr: das Zeichen (Sammlung) trägt noch eigene Klemmenziffern – bis zur Auswahl „Angleichung v0.2“
-  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9, eigeneNr: true },
+  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9 },
 };
 const WAHL = {
   abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', 'motorschutz3', ''],

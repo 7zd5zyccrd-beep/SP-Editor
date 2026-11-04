@@ -277,7 +277,7 @@ const PLAN = (() => {
     const xa = x0 + SF_FIRMA, wr = x1 - xa;
     linie(g, xa, y0, xa, y1); linie(g, xa, ym, x1, ym);
     const feld = (x, y, w, titel, wert) => {
-      text(g, x + 1.2, y + 2.6, titel, 1.8, 'start', { fill: '#444' });
+      text(g, x + 1.2, y + 2.6, titel, 1.8, 'start', {});
       passend(text(g, x + 1.2, y + SF_H / 2 - 1.7, wert || '', 3.5), w - 2.4);
     };
     const reihe = (y, felder) => {      // felder: [Titel, Wert, Anteil]
@@ -291,7 +291,7 @@ const PLAN = (() => {
     reihe(y0, [['Projekt', f.projekt, 0.5], ['Dokumenttitel', f.titel, 0.3], ['Verteiler', f.verteiler, 0.2]]);
     reihe(ym, [['Zeichnungsnummer', f.nummer, 0.3], ['Revision', f.rev, 0.1], ['Ausgabedatum', datumDE(f.datum), 0.18],
                ['Erstellt durch', f.ersteller, 0.27], ['Blatt', `${f.blatt} / ${f.blaetter}`, 0.15]]);
-    text(g, x0 + 1.2, y0 + 2.6, 'Rechtlicher Eigentümer', 1.8, 'start', { fill: '#444' });
+    text(g, x0 + 1.2, y0 + 2.6, 'Rechtlicher Eigentümer', 1.8, 'start', {});
     passend(text(g, x0 + 2.5, y0 + 10, f.firma || '', 4.5, 'start', { 'font-weight': 'bold' }), SF_FIRMA - 5);
     passend(text(g, x0 + 2.5, y0 + 15.5, f.anschrift || '', 2.5), SF_FIRMA - 5);
   }
@@ -1316,7 +1316,7 @@ const PLAN = (() => {
     const sp = [['Klemme', 0.07], ['Leiter', 0.07], ['Klemmenart', 0.15], ['intern', 0.12], ['Leitung', 0.2], ['Ader', 0.07], ['Ziel', 0.32]];
     const xs = []; let x = xa; sp.forEach(([, a]) => { xs.push(x); x += w * a; });
     const zeile = (yy, werte, kopf) => werte.forEach((t, i) =>
-      passend(text(g, xs[i] + 1, yy - 1.5, t, kopf ? 2.5 : 3, 'start', kopf ? { fill: '#444' } : {}), w * sp[i][1] - 2.5));
+      passend(text(g, xs[i] + 1, yy - 1.5, t, kopf ? 2.5 : 3, 'start', kopf ? {} : {}), w * sp[i][1] - 2.5));
     zeile(KL_Y0 + KL_ZH, sp.map(s => s[0]), true);
     linie(g, xa, KL_Y0 + KL_ZH, xa + w, KL_Y0 + KL_ZH, 0.5);
     let y = KL_Y0 + KL_ZH;
@@ -1613,7 +1613,7 @@ const PLAN = (() => {
     const xl = cx - 55 * s, xw = cx - 12 * s, zh = 6.2 * s;
     daten.forEach(([t, w], i) => {
       const yy = y(0.66) + i * zh;
-      text(g, xl, yy, t, 3 * s, 'start', { fill: '#444' });
+      text(g, xl, yy, t, 3 * s, 'start', {});
       passend(text(g, xw, yy, w, 3.5 * s), cx + 70 * s - xw);
     });
     // Namensnennung nach CC BY 3.0 für die verwendeten Schaltzeichen
@@ -1627,7 +1627,7 @@ const PLAN = (() => {
     const xs = []; let x = xa; spalten.forEach(([, a]) => { xs.push(x); x += w * a; });
     const zeile = (yy, werte, kopf) => werte.forEach((t, i) => {
       const max = w * spalten[i][1] - 3;
-      passend(text(g, xs[i] + 1, yy - 1.8, t, kopf ? 2.5 : 3.2, 'start', kopf ? { fill: '#444' } : {}), max);
+      passend(text(g, xs[i] + 1, yy - 1.8, t, kopf ? 2.5 : 3.2, 'start', kopf ? {} : {}), max);
     });
     zeile(INH_Y0 + INH_ZH, spalten.map(s => s[0]), true);
     linie(g, xa, INH_Y0 + INH_ZH, xa + w, INH_Y0 + INH_ZH, 0.5);

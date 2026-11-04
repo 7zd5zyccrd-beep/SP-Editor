@@ -131,6 +131,12 @@ window.BEISPIELE = {
     a.pv = { phasen: '3', kwp: '9,8', dc: true, zaehler: true }; hv.knoten.splice(2, 0, a);
     const b = neuerAbgang(); b.ziel = { bez: 'PV Carport', ort: 'Carport', anschluss: 'pv' }; b.geraet = { zeichen: 'ls1', kennlinie: 'B', nenn: '16' };
     b.pv = { phasen: '1', kwp: '3', dc: false, zaehler: false }; uv.knoten.push(b); sichern(); zeichne(); },
+  // Etappe G2: wie pv, PV-Anlage der HV mit Speicher am Hybrid-Wechselrichter (10 kWh), dazu in der UV
+  // ein Batteriespeicher AC-gekoppelt (einphasig, 5 kWh)
+  speicher: () => { BEISPIELE.pv(); const [hv, uv] = P.verteiler;
+    hv.knoten.find(k => k.ziel && k.ziel.anschluss === 'pv').pv.speicher = { kwh: '10' };
+    const s = neuerAbgang(); s.ziel = { bez: 'Speicher', ort: 'Keller', anschluss: 'speicher' }; s.geraet = { zeichen: 'ls1', kennlinie: 'B', nenn: '16' }; s.leitung.quer = '4';
+    s.speicher = { phasen: '1', kwh: '5' }; uv.knoten.push(s); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

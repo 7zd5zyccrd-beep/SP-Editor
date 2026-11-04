@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.35 | Etappe G2: Speicher am Hybrid-Wechselrichter oder AC-gekoppelt (Batteriewechselrichter -T, Batterie -G); Palette „Speicher“; Beispiel `speicher` |
 | v1.34 | Etappe G1: PV-Anlage als Abgang (Wechselrichter -T ein-/dreiphasig, DC-Freischalter -Q, PV-Generator -G, Erzeugungszähler -P); Palette „Erzeugung“; Bibliothek v1.8; Beispiel `pv` |
 | v1.33.1 | Endschalter (Schließer/Öffner) mit Kennzeichen -B |
 | v1.33 | Melder (Dämmerung, Bewegung, Präsenz) mit Kennzeichen -B nach DIN EN IEC 81346-2:2019 statt -S |

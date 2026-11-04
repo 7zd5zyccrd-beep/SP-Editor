@@ -295,6 +295,9 @@ dem Baukasten (`geraet_wechselrichter`, gleiche Zeichnung, AC oben).
 - G1 v1.34: `k.ziel.anschluss = 'pv'`, `k.pv = { phasen, kwp, dc, zaehler, wr/gen/dcq/p: { bmk } }` (`pvVon()`, `pvNeu()`,
   `pvZeilen()`); im Plan unter Schutzorgan/Zähler/Klemmen der Wechselrichter, darunter DC-Freischalter und PV-Generator,
   der mit der Steckdosenunterkante abschließt (`pvHoehe()`, DC-Leiter schwarz); Teile `k:<id>/t|dc|g|p`.
+- G2 v1.35: Hybrid `k.pv.speicher = { kwh, bat }` (Zeichen `wr*_hybrid`, Batterie an DC 3/4), AC-gekoppelt
+  `k.ziel.anschluss = 'speicher'`, `k.speicher = { phasen, kwh, wr, bat }` (`speicherVon()`, `speicherNeu()`,
+  `speicherZeilen()`); `batterie()` in plan.js: oberer Anschluss = kurze Platte (−), Plus von unten; Teil `k:<id>/bat`.
 
 ## Technische Eckwerte
 

@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.46: Prüfbericht E6b – Umrichter mit PE-Anschluss, Schirm der Motorleitung oben und unten auf PE, Verweis auf
+           die genutzten Hilfsschalter am Motorschutzschalter, Primär-LS 400 V mit 1/2 · 3/4 und Wirkverbindung,
+           PEN grün mit blauer Strichelung, Netzangabe „3/PEN“ bei TN-C und TN-C-S, Aufteilungspunkt an die
+           Haupterdungsschiene; Beispiel `tncs`
      v1.45: Prüfbericht E6a – Klemmenplan: Steuerklemmen mit dem Nachbaranschluss im Strompfad als „intern“ (statt nur
            „Steuerstromkreis -Q2“), Motorziel mit U1 V1 W1 (U2 V2 W2); Leitungen nach Typ: „-J“ mit grün-gelber
            Reserveader (Adernzahl + 1), „-O“ ohne, Farben nach HD 308, Zahlen nur bei Steuerleitungen mit Zahlenkennung;
@@ -963,6 +967,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
           else if (!ol && zahl > (oe ? a.mssHk.o : a.mssHk.s)) r.warn.push(`${a.f.t}: mehr Hilfsschalter (${oe ? 'Öffner' : 'Schließer'}) genutzt als vorhanden.`);
           r.kontakte[key] = { an: ol ? (oe ? ['95', '96'] : ['97', '98']) : (oe ? [`${zahl + 1}1`, `${zahl + 1}2`] : [`${zahl}3`, `${zahl}4`]), ol, ms: !ol };
           if (!ol && oe) r.kontakte[key].an = [`${(a.mssHk ? a.mssHk.s : 0) + zahl}1`, `${(a.mssHk ? a.mssHk.s : 0) + zahl}2`];
+          if (!ol) (a.mssAn = a.mssAn || {})[key] = r.kontakte[key].an;     // für den Verweis am Motorschutzschalter (ab v1.46)
           return;
         }
         if (!rl) { r.warn.push(`Hilfskontakt eines Abgangs ohne Schaltgerät.`); return; }

@@ -230,7 +230,10 @@ const PLAN = (() => {
     return e;
   }
   const farbe = art => FARBE[art] || '#000';
-  const leiter = (g, x1, y1, x2, y2, art) => linie(g, x1, y1, x2, y2, 0.25, farbe(art), art || 'L');
+  // PEN (ab v1.46): grün mit blauer Strichelung darüber, damit er sich vom PE unterscheidet
+  const leiter = (g, x1, y1, x2, y2, art) => { const e = linie(g, x1, y1, x2, y2, 0.25, farbe(art), art || 'L');
+    if (art === 'PEN') el('line', { x1, y1, x2, y2, stroke: FARBE.N, 'stroke-width': 0.25, 'stroke-dasharray': '1 1.2', 'stroke-linecap': 'butt', 'pointer-events': 'none' }, g);
+    return e; };
   const punkt = (g, x, y, art) => { const e = el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
     if (g === SZ.g && !SZ.teil) SZ.punkte.push({ el: e, x, y, art }); return e; };
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
@@ -429,7 +432,10 @@ const PLAN = (() => {
       const t = unten(setze(g, z, x0, yG, null, arten.slice(0, pole)));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
       cursor = Math.max(...t.map(p => p.y));
-      cursor = kennzeichen(g, z, x0, yG, cursor, a.f && a.f.t, bemZeilen(k.geraet));
+      // Motorschutzschalter (ab v1.46): genutzte Hilfsschalter mit Verweis in den Steuerstromkreis
+      const mssRef = !a.mssKont ? [] : [...a.mssKont.s, ...a.mssKont.o].map(key => { const kn = ctx.steuer && ctx.steuer.kontakte[key], an = (a.mssAn || {})[key];
+        return kn ? `${an ? an.join('–') + ' ' : ''}/${kn.blatt}.${kn.spalte}` : ''; });
+      cursor = kennzeichen(g, z, x0, yG, cursor, a.f && a.f.t, bemZeilen(k.geraet).concat(mssRef.filter(Boolean)));
       teil(null);
     }
     const bis = (y) => { arten.forEach((art, i) => { if (enden[i] < y) leiter(g, xs[i], enden[i], xs[i], y, art); enden[i] = y; }); };
@@ -498,6 +504,9 @@ const PLAN = (() => {
       teil(`k:${k.id}/fu`);
       const t = unten(setze(g, 'umrichter3', x0, top, null, arten.slice(0, 3)));
       t.forEach((p, i) => { if (i < 3) enden[i] = p.y; });
+      // PE an den Umrichter (ab v1.46): Abzweig vom vorbeilaufenden PE an die rechte Kastenkante
+      const iPE = arten.indexOf('PE');
+      if (iPE >= 0) { const yp = top + 10; bis(yp); punkt(g, xs[iPE], yp, 'PE'); leiter(g, xs[iPE], yp, x0 + 12.5, yp, 'PE'); }
       bmk(g, x0 - 4, top + 6, a.fu.t);
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
@@ -535,7 +544,12 @@ const PLAN = (() => {
     } else if (ende === 'motor') {        // Motor (ab v1.37): Unterkante des Kreises auf Höhe der Steckdosenunterkante
       const yM = ye + UNTERKANTE - MOTOR_H;
       // geschirmte Leitung: Schirm um die Adern, 10 mm über dem Motor (wenn dort Platz ist)
-      if (GESCHIRMT.includes(k.leitung.typ) && yM - 15 > cursor + 2) schirm(g, xs[0] - 2, xs[xs.length - 1] + 2, yM - 15);
+      if (GESCHIRMT.includes(k.leitung.typ) && yM - 15 > cursor + 2) {
+        schirm(g, xs[0] - 2, xs[xs.length - 1] + 2, yM - 15);
+        // Schirmauflage (ab v1.46): Schirm oben und unten auf PE
+        const iPE = arten.indexOf('PE');
+        if (iPE >= 0) { bis(yM - 3); [yM - 15, yM - 5].forEach(y => { punkt(g, xs[iPE], y, 'PE'); leiter(g, xs[iPE], y, xs[iPE] + 2, y, 'PE'); }); }
+      }
       bis(yM);
       teil(xd);
       setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben);
@@ -761,7 +775,12 @@ const PLAN = (() => {
     else {
       enden[0] = unten(setze(g, z, x0, yG, null, [prim[0]]))[0].y;
       // zweiter Außenleiter: zweites Schaltglied daneben (wie der LS 3-polig der Bibliothek ohne eigene Kopplungslinie)
-      if (T.prim === '400') enden[1] = unten(setze(g, z, xs[1], yG, null, [prim[1]]))[0].y;
+      if (T.prim === '400') {     // ab v1.46: zweiter Pol mit 3/4 und Wirkverbindung zum ersten (2-poliger LS)
+        enden[1] = unten(setze(g, z, xs[1], yG, null, [prim[1]], 1, gz => gz.querySelectorAll('text').forEach(t => {
+          if (t.textContent === '1') t.textContent = '3'; else if (t.textContent === '2') t.textContent = '4'; })))[0].y;
+        const yW = yG + 3;
+        el('line', { x1: x0 - 1.125, y1: yW, x2: xs[1] - 1.125, y2: yW, stroke: '#000', 'stroke-width': 0.25, 'stroke-dasharray': '1 0.5' }, g);
+      }
     }
     let cursor = kennzeichen(g, z, x0, yG, Math.max(...enden), a.f && a.f.t, bemZeilen(k.geraet));
     // Trafo
@@ -937,6 +956,11 @@ const PLAN = (() => {
       leiter(g, xs[i], enden[i], xs[i], ys, 'PEN');
       punkt(g, xs[i], ys, 'PE');
       leiter(g, xs[i], ys, xs[i] + ABSTAND, ys, 'PE');
+      // Aufteilungspunkt an die Haupterdungsschiene (ab v1.46)
+      const xe = xs[i] + 3 * ABSTAND;
+      punkt(g, xs[i] + ABSTAND, ys, 'PE'); leiter(g, xs[i] + ABSTAND, ys, xe, ys, 'PE'); leiter(g, xe, ys, xe, ys + 2.5, 'PE');
+      setze(g, 'erde', xe, ys + 2.5, null, 'PE');
+      text(g, xe + 2.5, ys + 5, 'Haupterdungsschiene', 1.9);
       text(g, xs[i] + ABSTAND + 1, ys - 1, 'PEN → N + PE', 1.9);
       namen = namen.slice(0, i).concat(['N', 'PE']);
       xs = xs.concat([xs[i] + ABSTAND]);
@@ -945,6 +969,8 @@ const PLAN = (() => {
     }
     return { namen, xs, enden, cursor };
   }
+  // ankommende Leiter (ab v1.46): TN-C und TN-C-S kommen mit PEN an
+  const netzLeiter = v => (v.leiter === '3NPE' ? '3' : '1') + (v.netzform === 'TN-S' ? '/N/PE' : '/PEN');
   function einspeisungsHoehe(v) {
     let h = 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) if (v[feld].zeichen) h += 5 + hoehe(v[feld].zeichen);
@@ -1829,7 +1855,7 @@ const PLAN = (() => {
     for (const p of plaene) {
       if (opt.nur) continue;           // Editor (ab v1.23): nur die Blätter des offenen Verteilers
       const { v, e } = p, sp = hilf.speisenderAbgang(v.id);
-      let herkunft = `Netz ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+      let herkunft = `Netz ${v.netzform}, ${netzLeiter(v)}`;
       if (sp) { const l = lageUe[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
       p.ue.forEach((b, i) => {
         const blattNr = p.ueStart + i, { svg, g } = neuesBlatt();
@@ -1842,7 +1868,7 @@ const PLAN = (() => {
       if (opt.nur && p.v.id !== opt.nur) continue;
       const { v, e } = p;
       const sp = hilf.speisenderAbgang(v.id);
-      let herkunft = `Netz ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
+      let herkunft = `Netz ${v.netzform}, ${netzLeiter(v)}`;
       if (sp) { const l = lage[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
       p.blaetter.forEach((b, i) => {
         const blattNr = p.start + i, naechstes = i + 1 < p.blaetter.length ? `/${blattNr + 1}.1` : null;

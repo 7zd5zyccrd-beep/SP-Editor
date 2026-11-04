@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.46 | Prüfbericht E6b: Umrichter mit PE, Schirmauflage, Verweis am Motorschutzschalter, Primär-LS 2-polig, PEN-Darstellung und Netzangabe, Haupterdungsschiene; Beispiel `tncs` |
 | v1.45 | Prüfbericht E6a: Klemmenplan mit innerem Ziel der Steuerklemmen und Motoranschluss; Leitungstyp bestimmt Adernzahl und -kennung (NYM-J mit gnge-Reserve) |
 | v1.44 | Prüfbericht E7: alle Schrift schwarz (Feldtitel, Tabellenköpfe, Deckblatt) |
 | v1.43 | Prüfbericht E2: Warnungen (TN-C hinter TN-S/TN-C-S, PEN < 10 mm², ungeerdeter Steuerkreis), Hinweis vor dem Drucken |

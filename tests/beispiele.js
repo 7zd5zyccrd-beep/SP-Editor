@@ -177,6 +177,8 @@ window.BEISPIELE = {
     const kr = kreisAnlegen(uv, pu); vorlageEinsetzen(uv, kr, 'pumpe', { trocken: true });
     const w = neuesSteuerGeraet(uv, 'w_schwimmer'); w.bez = 'Niveau hoch'; const h = neuesSteuerGeraet(uv, 'meldeleuchte'); h.bez = 'Niveau hoch';
     const pm = neuerPfad({ g: h.id }); pm.plaetze[0] = { g: w.id, z: 's_schwimmer' }; kr.pfade.push(pm); sichern(); zeichne(); },
+  // Prüfbericht E6 (v1.46): Hauptverteiler TN-C-S (PEN wird aufgeteilt, Haupterdungsschiene), UV dahinter TN-S
+  tncs: () => { BEISPIELE.grund(); const [hv] = P.verteiler; hv.netzform = 'TN-C-S'; sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

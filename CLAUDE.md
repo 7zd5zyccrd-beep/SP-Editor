@@ -274,6 +274,10 @@ nach 81346-2:2019.
   hält das Mittelstück eines Leiters in seiner Flucht und versetzt nur die Enden; abgetrennte Abzweige →
   `SZ.hinweise` → `blatt.pruef`. Editor: Platz wählen → Kontextleiste „Frei“ → Teil `t:kr:…`.
   Noch offen: Drehen von Zeichen (erst mit frei gesetzten neuen Zeichen sinnvoll), Fach-Erweiterungen.
+- Auswahl „Erweiterung v0.1“ (29 Karten: Generator, Netzumschalter, PV, Wechselrichter, Batterie, Motoren,
+  Motorschutz, Überlastrelais und Kontakte, Umrichter, Wechsler, Schwimmer, Schlüsselschalter, Klingel/Gong/
+  Summer/Hupe/Türöffner/Klingeltrafo, Netzteil, Diode, Funkenstrecke, Schirm, Erdungsschiene); wartet auf Jean:
+  `python3 tools/auswahl_bauen.py kandidaten-erweiterung.json build/erweiterung-auswahl-v0.1.html 'Erweiterung v0.1' 'Stromlaufplan · Fach-Erweiterungen · Auswahl neuer Zeichen' 'slp.erweiterung.auswahl.v1'`
 
 ## Technische Eckwerte
 

@@ -1,0 +1,369 @@
+[
+ {
+  "gruppe": "Erzeuger und Einspeisung",
+  "rolle": "Generator, Drehstrom",
+  "dateien": [
+   {
+    "pfad": "10_allpole/392_generators_sources/10_generators/gene_tri.elmt"
+   },
+   {
+    "pfad": "91_en_60617/en_60617_06/en_60617_06_07/en_60617_06_07_03.elmt",
+    "en": true
+   },
+   {
+    "pfad": "91_en_60617/en_60617_06/en_60617_06_04/en_60617_06_04_01.elmt",
+    "en": true,
+    "zusatz": "allgemeine Maschine, Kennbuchstabe G"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeuger und Einspeisung",
+  "rolle": "Netzumschalter (Zweiwege-Schalter, Netz/Generator)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_13/en_60617_07_13_07.elmt",
+    "en": true,
+    "zusatz": "einpolig"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/02_power_contacts/com_puiss_4P_inv.elmt",
+    "zusatz": "4-polig als Umschalter"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeuger und Einspeisung",
+  "rolle": "PV-Generator (Photovoltaik)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_06/en_60617_06_18/en_60617_06_18_06.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/392_generators_sources/10_generators/pvcell.elmt"
+   },
+   {
+    "pfad": "10_allpole/392_generators_sources/10_generators/photovoltaic_solar_module.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeuger und Einspeisung",
+  "rolle": "Wechselrichter (DC/AC)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/340_converters_inverters/10_converters/dc_ac1.elmt"
+   },
+   {
+    "pfad": "10_allpole/340_converters_inverters/10_converters/inverter.elmt"
+   },
+   {
+    "pfad": "10_allpole/340_converters_inverters/10_converters/generic-hybrid-inverter.elmt",
+    "zusatz": "Hybrid, 2 Strings"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeuger und Einspeisung",
+  "rolle": "Batterie / Speicher",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_06/en_60617_06_15/en_60617_06_15_01.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/392_generators_sources/30_batteries/pile_2_elements.elmt"
+   },
+   {
+    "pfad": "10_allpole/392_generators_sources/30_batteries/pile_1_element.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Motor Drehstrom (3 Anschlüsse)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri_1.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri_2.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri_3.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Motor Drehstrom (6 Anschlüsse, Stern-Dreieck)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/induction_motor_6_terminals.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri_de.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_tri_de_2.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Motor Wechselstrom",
+  "dateien": [
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteur_mono.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moteurmono3.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/moto_ac_1ph.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Motorschutzschalter 3-polig",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/fa4202_disjoncteur_moteur_3p.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/dis_mag_term_3f-1.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/gv2p.elmt"
+   },
+   {
+    "pfad": "10_allpole/391_consumers_actuators/10_engines/motor_spoustec_3p.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Überlastrelais 3-polig (Hauptkreis)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/30_thermal_relays/relais_therm4.elmt"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/30_thermal_relays/relais_therm4_1.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Kontakt des Überlastrelais, Öffner (95–96)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/15_protection_contacts/act_thermique_nf_esclave.elmt"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/15_protection_contacts/contact_relais_nf_esclave.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Kontakt des Überlastrelais, Schließer (97–98)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/15_protection_contacts/contact_relais_no_esclave.elmt"
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/03_contacts/contact_relais.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Motoren",
+  "rolle": "Frequenzumrichter",
+  "dateien": [
+   {
+    "pfad": "10_allpole/340_converters_inverters/10_converters/static_freq_converter.elmt"
+   },
+   {
+    "pfad": "10_allpole/340_converters_inverters/10_converters/convertisseur_tri_ac_dc.elmt",
+    "zusatz": "AC/DC 3-phasig"
+   }
+  ]
+ },
+ {
+  "gruppe": "Kontakte und Befehlsgeber",
+  "rolle": "Wechsler",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_02/en_60617_07_02_04.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/310_relays_contactors_contacts/02_contacts_cross_referencing/01_auxiliary_contacts/contnonc.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Kontakte und Befehlsgeber",
+  "rolle": "Schwimmerschalter, Schließer",
+  "dateien": [
+   {
+    "pfad": "10_allpole/390_sensors_instruments/12_sensors_level/niv_liquide_no.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Kontakte und Befehlsgeber",
+  "rolle": "Schwimmerschalter, Öffner",
+  "dateien": [
+   {
+    "pfad": "10_allpole/390_sensors_instruments/12_sensors_level/niv_liquide_nf.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Kontakte und Befehlsgeber",
+  "rolle": "Schwimmerschalter, Wechsler",
+  "dateien": [
+   {
+    "pfad": "10_allpole/390_sensors_instruments/12_sensors_level/niv_liquide_nf_no.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Kontakte und Befehlsgeber",
+  "rolle": "Schlüsselschalter",
+  "dateien": [
+   {
+    "pfad": "10_allpole/380_signaling_operating/21_selector_switches/commutateur_2_positions_a_cle.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Klingel",
+  "dateien": [
+   {
+    "pfad": "10_allpole/380_signaling_operating/12_acoustic_signaling/sonnerie.elmt"
+   },
+   {
+    "pfad": "10_allpole/500_home_installation/20_home_appliances/sonnerie.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Gong (Einschlagwecker)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_08/en_60617_08_10/en_60617_08_10_08.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/380_signaling_operating/12_acoustic_signaling/sonnerie_a_1_coup.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Summer",
+  "dateien": [
+   {
+    "pfad": "10_allpole/380_signaling_operating/12_acoustic_signaling/buzzer.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Hupe",
+  "dateien": [
+   {
+    "pfad": "10_allpole/380_signaling_operating/12_acoustic_signaling/avertisseur.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Türöffner",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_11/en_60617_11_16/en_60617_11_16_04.elmt",
+    "en": true
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Klingeltransformator",
+  "dateien": [
+   {
+    "pfad": "10_allpole/500_home_installation/20_home_appliances/transfo-sonnerie.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Netzteil AC/DC (z. B. 24 V)",
+  "dateien": [
+   {
+    "pfad": "10_allpole/330_transformers_power_supplies/30_power_supplies/alim.elmt"
+   },
+   {
+    "pfad": "10_allpole/330_transformers_power_supplies/30_power_supplies/ac2_dc.elmt"
+   },
+   {
+    "pfad": "10_allpole/330_transformers_power_supplies/30_power_supplies/power_supply_1_phase_ac_dc.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Signal und Kleinspannung",
+  "rolle": "Diode",
+  "dateien": [
+   {
+    "pfad": "10_allpole/395_electronics_semiconductors/11_diodes/diode.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutz und Leitungen",
+  "rolle": "Funkenstrecke N–PE (3+1-Schaltung)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_07/en_60617_07_22/en_60617_07_22_01.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/90_overvoltage_protections/eclateur.elmt"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutz und Leitungen",
+  "rolle": "Schirm (Abschirmung)",
+  "dateien": [
+   {
+    "pfad": "91_en_60617/en_60617_02/en_60617_02_01/en_60617_02_01_07.elmt",
+    "en": true
+   },
+   {
+    "pfad": "10_allpole/120_cables_wiring/ecran_3p.elmt",
+    "zusatz": "3-polig"
+   }
+  ]
+ },
+ {
+  "gruppe": "Schutz und Leitungen",
+  "rolle": "Erdungsschiene / Potentialausgleich",
+  "dateien": [
+   {
+    "pfad": "10_allpole/130_terminals_terminal_strips/barette_de_terre.elmt"
+   }
+  ]
+ }
+]

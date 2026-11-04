@@ -275,6 +275,8 @@ Overlay fest `#6a35e8`, nie im Druck). -B statt -S für Melder: freigegeben am 0
   hält das Mittelstück eines Leiters in seiner Flucht und versetzt nur die Enden; abgetrennte Abzweige →
   `SZ.hinweise` → `blatt.pruef`. Editor: Platz wählen → Kontextleiste „Frei“ → Teil `t:kr:…`.
   Noch offen: Drehen von Zeichen (erst mit frei gesetzten neuen Zeichen sinnvoll), Fach-Erweiterungen.
+- Auswahl „Wallbox v0.1“ (Etappe G3, wartet auf Jean): Kasten mit Text, Kasten mit Steckdose 11-13-01, Steckbuchsen im Kasten:
+  `python3 tools/auswahl_bauen.py kandidaten-wallbox.json build/wallbox-auswahl-v0.1.html 'Wallbox v0.1' 'Stromlaufplan · Etappe G · Auswahl Wallbox' 'slp.wallbox.auswahl.v1'`
 - Auswahl „Erweiterung v0.2“ (Jean hat am 04.11.2026 ausgewählt → Bibliothek v1.7, App v1.32; Zeichen noch ohne
   Verwendung im Plan; ersetzt v0.1 nach Plausibilitätsprüfung): gepaarte Karten (Öffner/Schließer/Wechsler
   derselben Art) bieten Familien A/B/C an gleicher Stelle, die sich nur in der Funktion unterscheiden; Familie A

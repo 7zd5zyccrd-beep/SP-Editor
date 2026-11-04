@@ -1,0 +1,11 @@
+[
+ {
+  "gruppe": "Ladeeinrichtung",
+  "rolle": "Wallbox (Ladestation 3/N/PE)",
+  "dateien": [
+   {"bau": "wallbox_text", "en": true, "zusatz": "Kasten mit Text „Wallbox“"},
+   {"bau": "wallbox_steckdose", "en": true, "zusatz": "Kasten mit Steckdose (EN 11-13-01) und „Typ 2“"},
+   {"bau": "wallbox_buchsen", "en": true, "zusatz": "Steckbuchsen wie Steckdose 3/N/PE, im Kasten, „Typ 2“"}
+  ]
+ }
+]

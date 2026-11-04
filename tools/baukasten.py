@@ -507,6 +507,56 @@ def geraet_umrichter(name, oben, unten, links, rechts):
         b.linie(20 * i, 0, 20 * i, 20); b.anschluss(20 * i, 20, 's')
     return b
 
+def _wr_kasten(b, w, ac_oben=True):
+    """Kasten nach 06-14-05 (Diagonale, ~ und =) in Breite w, Höhe 40, links oben bei (-10|0).
+    ac_oben: ~ links oben, = rechts unten (um 180° gedreht gegenüber der Norm-Lage)."""
+    x0 = -10
+    b.rect(x0, 0, w, 40); b.linie(x0, 40, x0 + w, 0)
+    def tilde(x, y):
+        b.teile.append(f'<arc x="{x:g}" y="{y:g}" width="10" height="5" start="0" angle="180" style="{STIL}" antialias="true"/>')
+        b.teile.append(f'<arc x="{x + 10:g}" y="{y:g}" width="10" height="5" start="180" angle="180" style="{STIL}" antialias="true"/>')
+    def gleich(x, y):
+        b.linie(x, y, x + 16, y); b.linie(x, y + 4, x + 6, y + 4); b.linie(x + 10, y + 4, x + 16, y + 4)
+    if ac_oben:
+        tilde(x0 + 4, 7); gleich(x0 + w - 20, 30)
+    else:
+        gleich(x0 + 4, 4); tilde(x0 + w - 24, 31)
+
+def geraet_wechselrichter(name, ac, dc=2):
+    """Wechselrichter nach 06-14-05, AC oben (ac Anschlüsse: L N PE bzw. L1 L2 L3 N PE), DC unten
+    (dc Anschlüsse: + − bzw. PV + −, Batterie + −); Kasten so breit wie nötig, Polabstand 20."""
+    b = Bau(name); b._q('06_14_05', 'gedreht: AC oben, Kasten verbreitert, Anschlüsse ergänzt')
+    w = 20 * max(ac, dc, 2)
+    _wr_kasten(b, w)
+    for i in range(ac):
+        b.linie(20 * i, 0, 20 * i, -20); b.anschluss(20 * i, -20, 'n')
+    for i in range(dc):
+        b.linie(20 * i, 40, 20 * i, 60); b.anschluss(20 * i, 60, 's')
+    return b
+
+def geraet_wallbox(name, art):
+    """Ladestation (Wallbox) 3/N/PE, Anschlüsse oben im Abstand 20, Kasten 100 × 40.
+    art 'text': Kasten mit „Wallbox“; 'steckdose': Kasten mit Steckdose 11-13-01 und „Typ 2“;
+    'buchsen': fünf Steckbuchsen 03-03-01 wie die Steckdose 3/N/PE im Kasten, „Typ 2“."""
+    b = Bau(name)
+    b._q('02_01_01', 'Kasten als Objektumriss')
+    b.rect(-10, 0, 100, 40)
+    if art == 'buchsen':
+        for i in range(5):
+            b.setze('03_03_01', dx=20 * i, dy=20, r=1, anschluesse=False)
+        b.text(64, 37, 'Typ 2', 7)
+    else:
+        for i in range(5):
+            b.linie(20 * i, -20, 20 * i, 0)
+        if art == 'text':
+            b.text(18, 24, 'Wallbox', 9)
+        else:
+            b.setze('11_13_01', dx=60, dy=30, anschluesse=False, bem='Steckdose allgemein, zwischen den Leitern')
+            b.text(4, 30, 'Typ 2', 8)
+    for i in range(5):
+        b.anschluss(20 * i, -20, 'n')
+    return b
+
 BAUTEILE = {
     'oe_thermisch':    (lambda: geraet_betaetigter_kontakt('Öffner, thermisch betätigt (95–96)', 'thermisch', 'oe'), 'Hilfsöffner mit thermischer Auslösung'),
     's_thermisch':     (lambda: geraet_betaetigter_kontakt('Schließer, thermisch betätigt (97–98)', 'thermisch', 's'), 'Hilfsschließer mit thermischer Auslösung'),
@@ -528,6 +578,13 @@ BAUTEILE = {
     'pv':              (lambda: geraet_mit_anschluessen('PV-Generator', '06_18_06', unten=(10, 30), y_unten=40), 'Anschlüsse + und − unten'),
     'erdungsschiene':  (lambda: geraet_erdungsschiene(), 'Anschlüsse von ±21 auf ±20 ins Raster gelegt'),
     'tueroeffner':     (lambda: geraet_mit_anschluessen('Türöffner', '11_16_04', oben=(-50, -30), y_oben=-20), 'zwei Anschlüsse oben'),
+    'wr1':             (lambda: geraet_wechselrichter('Wechselrichter 1/N/PE', 3), 'AC oben L N PE, DC unten + −'),
+    'wr3':             (lambda: geraet_wechselrichter('Wechselrichter 3/N/PE', 5), 'AC oben L1 L2 L3 N PE, DC unten + −'),
+    'wr1_hybrid':      (lambda: geraet_wechselrichter('Hybrid-Wechselrichter 1/N/PE', 3, 4), 'DC unten: PV + −, Batterie + −'),
+    'wr3_hybrid':      (lambda: geraet_wechselrichter('Hybrid-Wechselrichter 3/N/PE', 5, 4), 'DC unten: PV + −, Batterie + −'),
+    'wallbox_text':    (lambda: geraet_wallbox('Wallbox', 'text'), 'Kasten mit Text, 3/N/PE oben'),
+    'wallbox_steckdose': (lambda: geraet_wallbox('Wallbox', 'steckdose'), 'Kasten mit Steckdose 11-13-01, „Typ 2“'),
+    'wallbox_buchsen': (lambda: geraet_wallbox('Wallbox', 'buchsen'), 'Steckbuchsen wie Steckdose 3/N/PE im Kasten, „Typ 2“'),
     'wechselrichter':  (lambda: geraet_mit_anschluessen('Wechselrichter', '06_14_05', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'DC oben, AC unten'),
     'netzteil':        (lambda: geraet_mit_anschluessen('Netzteil (Gleichrichter)', '06_14_03', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'AC oben, DC unten'),
     'umrichter3':      (lambda: geraet_umrichter('Frequenzumrichter 3~/3~', 'L1 L2 L3'.split(), 'U V W'.split(), '3~', '3~'), 'Eingang oben, Motor unten'),

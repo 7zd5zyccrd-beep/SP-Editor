@@ -253,6 +253,9 @@ nach 81346-2:2019.
   `k:<gruppe>/f`, `s:<vid>`, `e:<vid>/<feld>` mit Elementen und Anschlüssen; Leiter = Linien 0,25 mm außerhalb
   der Teile mit Leiterart. Blätter tragen `szene` und `anker` (erster Abgang bzw. `e:`). Editor: `teilFlaechen()`
   legt `rect.teil[data-ziel=t:<key>]` über die Geräte, aktiv nur im gewählten Abgang.
+- F2 v1.25: `v.layout = { spalten, umbruch, lage }` (`lay()`, `layoutBereinigen()` in `sichern()`, `automatik()`,
+  `vonHand()`), `planeVerteiler()` liest Wunschspalte/Umbruch; Ziehen eines Abgangs auf freie Fläche setzt die
+  Spalte um die gezogene Strecke (`spalteUnter()`); Ablage nimmt die Vorgaben mit (`layoutDazu()`); `nadeln()`.
 
 ## Technische Eckwerte
 

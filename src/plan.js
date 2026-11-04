@@ -594,8 +594,13 @@ const PLAN = (() => {
       let col = 3;
       const neu = () => { bl = { art: 'abgang', y0: 22, items: [] }; blaetter.push(bl); col = 2; };
       if (bl) blaetter.push(bl); else neu();
+      const L = v.layout || {}, spW = L.spalten || {}, umb = L.umbruch || {};
       for (const it of items) {
         let versucht = 0;
+        // Vorgaben von Hand (ab v1.25): neues Blatt ab diesem Abgang, Wunschspalte (Lücke davor)
+        if (it.k && umb[it.k.id] && bl.items.length) neu();
+        const wunsch = it.k && spW[it.k.id] ? Math.min(spW[it.k.id], letzte - it.w + 1) : 0;
+        if (wunsch > col) col = wunsch;
         for (;;) {
           const passtBreite = col + it.w - 1 <= letzte;
           const imSF = col + it.w - 1 >= cSF;
@@ -603,6 +608,7 @@ const PLAN = (() => {
           if (ok || (versucht && col === 2)) break;
           if (bl.art === 'kombiniert' && bl.items.length === 0 && !passtBreite) return null;
           neu(); versucht++;
+          if (wunsch > col) col = wunsch;
           if (versucht > 2) break;
         }
         it.col = col; bl.items.push(Object.assign({}, it)); col += it.w;
@@ -1397,7 +1403,8 @@ const PLAN = (() => {
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b) });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b),
+          spalten: b.items.map(it => ({ id: it.k ? it.k.id : null, col: it.col, w: it.w })) });
       });
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();

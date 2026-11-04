@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -92,6 +92,19 @@ with sync_playwright() as p:
             pg.locator('.edeigen button.zeile', has_text='Einspeisung').first.click(); pg.wait_for_timeout(300)
             if pg.evaluate("stapel.length + ':' + stapel.at(-1).sel") != '2:e:' + pg.evaluate("P.verteiler[1].id"): fehler.append('grund: Einspeisung öffnet sich nicht in der Eigenschaften-Leiste')
             pg.screenshot(path=str(AUS / 'grund_editor_einspeisung.png'), full_page=False)
+            # ab v1.25: Abgang in eine freie Spalte ziehen (Lücke davor); Strg+Z nimmt es zurück
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
+            kid = pg.evaluate("P.verteiler[1].knoten.at(-1).id")
+            q = pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first; q.scroll_into_view_if_needed(); bx = q.bounding_box()
+            lg = pg.evaluate(f"abgangLage('{kid}')")
+            sb = bx['width'] / lg['w']
+            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + 20); pg.mouse.down()
+            pg.mouse.move(bx['x'] + bx['width'] / 2 + 10, bx['y'] + 24); pg.wait_for_timeout(100)
+            pg.mouse.move(bx['x'] + bx['width'] / 2 + sb * 1.0, bx['y'] + 60, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
+            if pg.evaluate(f"((P.verteiler[1].layout || {{}}).spalten || {{}})['{kid}']") != lg['col'] + 1:
+                fehler.append(f"grund: Abgang in freie Spalte ziehen ergab {pg.evaluate(f'JSON.stringify(P.verteiler[1].layout)')} statt Spalte {lg['col'] + 1}")
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            if pg.evaluate("!!P.verteiler[1].layout"): fehler.append('grund: Strg+Z nach Spalte nicht zurückgenommen')
             # leerer Verteiler: Marke „+“ im leeren Blatt
             pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)

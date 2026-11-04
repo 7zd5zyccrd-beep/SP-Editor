@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.24 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.25 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.25: Etappe F2 – Anordnen I: Abgang bzw. Gruppe in eine freie Spalte ziehen oder mit ⇤/⇥ verschieben (Lücke
+           davor, die Nachbarn rücken nach), „Neues Blatt ab hier“, Stecknadel an Teilen mit Vorgaben von Hand,
+           „Automatik anwenden“ je Abgang und für den ganzen Verteiler; Projektfassung 2 mit v.layout
      v1.24: Etappe F1 – Szene: der Generator schreibt je Blatt mit, welche Geräte (mit Anschlüssen, Kennzeichen,
            Beschriftung) und Leiter entstehen (Plan bitgleich); im Editor sind die Geräte eines gewählten Abgangs
            bzw. der Einspeisung einzeln antippbar (erst Abgang, dann Gerät; Esc zurück zum Abgang)
@@ -310,6 +313,8 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 @media (hover:hover){.ed rect.ziel:hover{fill:rgba(106,53,232,.07)}}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
 .ed rect.teil{pointer-events:none}
+.ed .nadel{pointer-events:none}
+.ed .spaltenvorschau{fill:rgba(106,53,232,.10);stroke:var(--ov);stroke-width:.35;stroke-dasharray:1.2 .8;pointer-events:none}
 .ed rect.teil[data-aktiv]{pointer-events:auto;stroke:var(--ov);stroke-width:.2;stroke-dasharray:.8 .6;fill:rgba(106,53,232,.04)}
 @media (hover:hover){.ed rect.teil[data-aktiv]:hover{fill:rgba(106,53,232,.12)}}
 .ed rect.teil[data-sel]{fill:rgba(106,53,232,.16);stroke:var(--ov);stroke-width:.45;stroke-dasharray:none}
@@ -1173,8 +1178,13 @@ const PLAN = (() => {
       let col = 3;
       const neu = () => { bl = { art: 'abgang', y0: 22, items: [] }; blaetter.push(bl); col = 2; };
       if (bl) blaetter.push(bl); else neu();
+      const L = v.layout || {}, spW = L.spalten || {}, umb = L.umbruch || {};
       for (const it of items) {
         let versucht = 0;
+        // Vorgaben von Hand (ab v1.25): neues Blatt ab diesem Abgang, Wunschspalte (Lücke davor)
+        if (it.k && umb[it.k.id] && bl.items.length) neu();
+        const wunsch = it.k && spW[it.k.id] ? Math.min(spW[it.k.id], letzte - it.w + 1) : 0;
+        if (wunsch > col) col = wunsch;
         for (;;) {
           const passtBreite = col + it.w - 1 <= letzte;
           const imSF = col + it.w - 1 >= cSF;
@@ -1182,6 +1192,7 @@ const PLAN = (() => {
           if (ok || (versucht && col === 2)) break;
           if (bl.art === 'kombiniert' && bl.items.length === 0 && !passtBreite) return null;
           neu(); versucht++;
+          if (wunsch > col) col = wunsch;
           if (versucht > 2) break;
         }
         it.col = col; bl.items.push(Object.assign({}, it)); col += it.w;
@@ -1976,7 +1987,8 @@ const PLAN = (() => {
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b) });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b),
+          spalten: b.items.map(it => ({ id: it.k ? it.k.id : null, col: it.col, w: it.w })) });
       });
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
@@ -2009,7 +2021,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.24';
+const FASSUNG = 'v1.25';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2060,7 +2072,7 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 1, projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 2, projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 function neuerVerteiler(name) {
   return { id: id(), name, netzform: 'TN-S', leiter: '3NPE', klemmen: 'ohne',
@@ -2090,8 +2102,9 @@ try { P = JSON.parse(localStorage.getItem(SPEICHER)); } catch (e) { P = null; }
 if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // Projektfassung (ab v1.23 geprüft): Dateien einer neueren App könnten Teile enthalten, die diese
 // Fassung nicht kennt und beim nächsten Speichern verlöre
-const PROJEKT_VERSION = 1;
-function migriere(d) { if (!d.version) d.version = 1; return d; }
+// v2 (ab v1.25): je Verteiler optional v.layout mit den Vorgaben von Hand (fehlt = vollautomatisch)
+const PROJEKT_VERSION = 2;
+function migriere(d) { if (!d.version || d.version < 2) d.version = 2; return d; }
 P = migriere(P);
 // Rückgängig/Wiederholen über das ganze Projekt (ab v1.18): jeder gespeicherte Stand; Änderungen
 // kurz hintereinander (z. B. Tippen in einem Feld) zählen als ein Schritt; nur für die laufende Sitzung.
@@ -2099,6 +2112,7 @@ P = migriere(P);
 const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0, name: null };
 function aenderung(n) { verlauf.name = n; }
 function sichern() {
+  P.verteiler.forEach(layoutBereinigen);
   const neu = JSON.stringify(P), jetzt = Date.now();
   if (verlauf.stand !== null && neu !== verlauf.stand) {
     const name = verlauf.name || 'Änderung', letzt = verlauf.zurueck[verlauf.zurueck.length - 1];
@@ -2120,6 +2134,44 @@ function projektRueck(vor) {
   meldung((vor ? 'Wiederholt: ' : 'Rückgängig: ') + s.n);
 }
 verlauf.stand = JSON.stringify(P);
+
+// ---- Lage von Hand (ab v1.25, Etappe F) -------------------------------------
+// v.layout = { spalten: { abgang: Spalte }, umbruch: { abgang: true }, lage: { teil: [nx, ny] } }
+//   spalten: Wunschspalte eines Abgangs bzw. einer Gruppe (Lücke davor, die Nachbarn rücken nach)
+//   umbruch: mit diesem Abgang beginnt ein neues Blatt
+//   lage:    Gerät (Teil der Szene, z. B. k:<id>/xd) um ganze Rasterschritte zu 2,5 mm verschoben
+// Fehlt etwas, ordnet die Automatik; leere Einträge und solche verschwundener Teile entfallen beim Speichern.
+const RASTER = 2.5;
+function lay(v) { const L = v.layout = v.layout || {}; ['spalten', 'umbruch', 'lage'].forEach(x => { L[x] = L[x] || {}; }); return L; }
+function layoutBereinigen(v) {
+  const L = v.layout; if (!L) return;
+  const da = new Set(); alleKnoten(v, k => da.add(k.id));
+  ['spalten', 'umbruch'].forEach(x => Object.keys(L[x] || {}).forEach(kid => { if (!da.has(kid) || !L[x][kid]) delete L[x][kid]; }));
+  Object.keys(L.lage || {}).forEach(key => {
+    const m = /^([eks]):([^/]+)(?:\/(\w+))?/.exec(key), d = L.lage[key];
+    const ok = m && d && (d[0] || d[1]) && (m[1] === 'k' ? da.has(m[2]) : m[1] === 's' ? !!v.spd.zeichen : m[1] === 'e' && !!(v[m[3]] && v[m[3]].zeichen));
+    if (!ok) delete L.lage[key];
+  });
+  ['spalten', 'umbruch', 'lage'].forEach(x => { if (L[x] && !Object.keys(L[x]).length) delete L[x]; });
+  if (!Object.keys(L).length) delete v.layout;
+}
+// hat ein Abgang/Teil Vorgaben von Hand?  bes: 'k:<id>', 's:<vid>', 'e:<vid>' oder Teilschlüssel
+function vonHand(v, bes) {
+  const L = v.layout || {}, kid = bes.startsWith('k:') ? bes.slice(2).split('/')[0] : null;
+  if (bes.includes('/')) return !!(L.lage && L.lage[bes]);
+  return !!(kid && ((L.spalten || {})[kid] || (L.umbruch || {})[kid])) || Object.keys(L.lage || {}).some(x => x.startsWith(bes + '/') || x === bes);
+}
+// „Automatik anwenden“: Vorgaben eines Teils, eines Abgangs (samt Gruppe) oder des ganzen Verteilers entfernen
+function automatik(v, bes) {
+  if (!v.layout) return;
+  if (!bes) { delete v.layout; return; }
+  const L = lay(v);
+  if (bes.includes('/')) { delete L.lage[bes]; return; }
+  const ids = new Set([bes]);
+  if (bes.startsWith('k:')) { const r = knoten(v, bes.slice(2)); if (r) knotenIds(r.k).forEach(i => ids.add('k:' + i)); }
+  ids.forEach(x => { const kid = x.slice(2); delete L.spalten[kid]; delete L.umbruch[kid];
+    Object.keys(L.lage).forEach(key => { if (key === x || key.startsWith(x + '/')) delete L.lage[key]; }); });
+}
 
 // Hilfen im Baum
 const vById = vid => P.verteiler.find(v => v.id === vid);
@@ -3390,7 +3442,9 @@ const ICONS = {
   duplizieren: 'M9 9h11v11H9zM5 15H4V4h11v1M14.5 12v5M12 14.5h5', loeschen: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   hoch: 'M12 19V5M6 11l6-6 6 6', runter: 'M12 5v14M6 13l6 6 6-6', zu: 'M6 6l12 12M18 6L6 18', auf: 'M6 15l6-6 6 6', ab: 'M6 9l6 6 6-6',
   zweig: 'M8 3v18M8 7h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8', geraet: 'M4 20l4-1L19 8l-3-3L5 16l-1 4zM14 7l3 3', einfuegen: 'M9 4h6v3H9zM7 5H5v15h14V5h-2M12 10v7M8.5 13.5h7',
-  vorlage: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
+  vorlage: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7',
+  spalteR: 'M3 12h13M12 8l4 4-4 4M20 5v14', spalteL: 'M21 12H8M12 8l-4 4 4 4M4 5v14', umbruch: 'M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M12 10l3 3-3 3',
+  nadel: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8', auto: 'M5 19l9-9M14 5l1.2 2.8L18 9l-2.8 1.2L14 13l-1.2-2.8L10 9l2.8-1.2zM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6z', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
 };
 function icon(n) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
@@ -3442,7 +3496,8 @@ function editorEigenschaften(v, z, b) {
   if (!z) return eingebettet(() => bVerteiler({ s: 'editor', vid: v.id }));
   if (art === 't') return editorTeil(v, z.slice(2), b);
   if (art === 'pl') return editorPlatz(v, b, id, +zl);
-  if (art === 'k') { const r = knoten(v, id); return eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id })); }
+  if (art === 'k') { const r = knoten(v, id), e = eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id }));
+    e.inhalt.prepend(lageZeilen(v, r, b)); return e; }
   if (art === 'kr') return eingebettet(() => bKreis({ s: 'editor', vid: v.id, krid: id }));
   if (art === 's') return eingebettet(() => bKopf({ vid: v.id, feld: 'spd' }));
   if (art === 'kopf') return eingebettet(() => bKopf({ vid: v.id, feld: id }));
@@ -3455,6 +3510,22 @@ function editorEigenschaften(v, z, b) {
     kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung), kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
     kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter), kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd)));
   return r;
+}
+// Lage eines Abgangs im Plan (ab v1.25): Spalte, neues Blatt, Automatik
+function lageZeilen(v, r, b) {
+  const id = r.k.id, lg = abgangLage(id), L = v.layout || {}, hand = vonHand(v, 'k:' + id);
+  const z = [];
+  if (lg && !r.eltern) {
+    const sp = ED.raster.sp, fest = (L.spalten || {})[id];
+    z.push(zeile('Spalte', `${lg.col}${fest ? ' (von Hand)' : ' (automatisch)'}`, () => wahlFeld('Spalte', [['', 'automatisch', 'direkt hinter dem vorigen Abgang']]
+      .concat(Array.from({ length: sp - 2 }, (_, i) => [String(i + 2), `Spalte ${i + 2}`])), fest ? String(fest) : '',
+      w => { const L2 = lay(v); if (w) L2.spalten[id] = +w; else delete L2.spalten[id]; }, { text: 'Liegt die Spalte vor dem Platz der Automatik, bleibt es bei dieser.' })));
+    z.push(zeile('Neues Blatt ab hier', (L.umbruch || {})[id] ? 'ja' : 'nein', () => wahlFeld('Neues Blatt ab hier', [['ja', 'ja'], ['nein', 'nein']],
+      (L.umbruch || {})[id] ? 'ja' : 'nein', w => { const L2 = lay(v); if (w === 'ja') L2.umbruch[id] = true; else delete L2.umbruch[id]; })));
+  }
+  if (hand) z.push(zeile('Automatik anwenden', null, () => { automatik(v, 'k:' + id); aenderung('Automatik anwenden'); sichern(); zeichne(); },
+    { un: 'Spalte, Blatt und verschobene Geräte wieder automatisch', ohnePfeil: true }));
+  return z.length ? h('div', {}, h('h2', {}, 'Lage im Plan'), h('div', { class: 'liste' }, ...z)) : h('div');
 }
 // Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
 function editorTeil(v, key, b) {
@@ -3557,6 +3628,26 @@ function markieren() {
   const bes = ED.b.sel && (ED.b.sel.startsWith('t:') ? teilBesitzer(ED.b.sel.slice(2)) : ED.b.sel);
   ED.blaetter.querySelectorAll('rect.teil').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
 }
+// Spalte und Blatt eines Abgangs bzw. einer Gruppe auf den Blättern des Editors
+function abgangLage(kid) {
+  if (!ED) return null;
+  for (let i = 0; i < ED.liste.length; i++) { const s = (ED.liste[i].spalten || []).find(x => x.id === kid); if (s) return Object.assign({ blatt: i }, s); }
+  return null;
+}
+// Stecknadeln (ab v1.25): wo von Hand angeordnet wurde, steht im Editor eine Nadel (nie im Druck)
+function nadeln() {
+  const v = ED.v, L = v.layout; if (!L) return;
+  const nadel = (svg, x, y, titel) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('class', 'nadel'); g.setAttribute('transform', `translate(${x} ${y})`);
+    g.innerHTML = `<title>${titel}</title><circle r="1.9" fill="#6a35e8"/><path d="M-.55-.9h1.1l-.2 1.1.6.6h-1.9l.6-.6z" fill="#fff"/>`;
+    svg.append(g);
+  };
+  ED.liste.forEach(bl => {
+    (bl.spalten || []).forEach(s => { if (s.id && ((L.spalten || {})[s.id] || (L.umbruch || {})[s.id]))
+      nadel(bl.svg, ED.raster.x0 + (s.col - 1 + s.w) * ED.raster.sb - 3, 13.5, 'Spalte bzw. Blatt von Hand festgelegt'); });
+    if (bl.szene) Object.values(bl.szene.teile).forEach(tl => { if (tl.box && (L.lage || {})[tl.key]) nadel(bl.svg, tl.box.x1, tl.box.y0, 'Von Hand verschoben'); });
+  });
+}
 // ---- Geräte im Blatt (ab v1.24): Teile der Szene als eigene Antippflächen -------------------
 // Ein Teil ist ein Gerät mit Kennzeichen und Beschriftung (Schutzorgan, Schaltgerät, Klemmen,
 // Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
@@ -3611,7 +3702,13 @@ function kontextNeu() {
   if (art === 'k') {
     const r = knoten(v, id); if (!r) return;
     const a = was => () => editorAktion(v, b, was);
-    kn.push(ik('links', 'Nach links', a('links'), { aus: r.i === 0, taste: 'Alt+←' }), ik('rechts', 'Nach rechts', a('rechts'), { aus: r.i === r.liste.length - 1, taste: 'Alt+→' }), sep(),
+    const lage = !r.eltern && abgangLage(id);
+    kn.push(ik('links', 'In der Reihe nach links', a('links'), { aus: r.i === 0, taste: 'Alt+←' }), ik('rechts', 'In der Reihe nach rechts', a('rechts'), { aus: r.i === r.liste.length - 1, taste: 'Alt+→' }), sep());
+    if (lage) kn.push(ik('spalteL', 'Eine Spalte nach links (Lücke kleiner)', a('spalteL'), { aus: !(v.layout && v.layout.spalten && v.layout.spalten[id]) }),
+      ik('spalteR', 'Eine Spalte nach rechts (Lücke davor)', a('spalteR'), { aus: lage.col + lage.w - 1 >= ED.raster.sp - 1 }),
+      ik('umbruch', (v.layout && v.layout.umbruch && v.layout.umbruch[id]) ? 'Kein neues Blatt ab hier' : 'Neues Blatt ab hier', a('umbruch')), sep());
+    if (vonHand(v, 'k:' + id)) kn.push(ik('auto', 'Automatik anwenden', a('automatik')), sep());
+    kn.push(
       ik('duplizieren', 'Duplizieren', a('duplizieren'), { taste: 'Strg+D' }), ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('schere', 'Ausschneiden', a('ausschneiden'), { taste: 'Strg+X' }), sep(),
       ik('loeschen', 'Löschen', a('loeschen'), { cls: 'rot', taste: 'Entf' }));
   } else if (art === 'pl') {
@@ -3695,7 +3792,9 @@ function editorMenue(v) {
     ['Verteiler', () => waehle(null, { offen: true }), { klein: 'Name, Einspeisung, Klemmen, Abgänge als Liste' }],
     ['Steuerstromkreise', () => waehle('st:'), { klein: 'Steuerspannung, Kreise, Befehlsgeber' }], '—',
     ['Format', () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w), { klein: `${P.projekt.format || 'A4'} quer` }],
-    ['Übersicht als Tabelle', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }], '—',
+    ['Übersicht als Tabelle', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }],
+    v.layout ? ['Automatik für den ganzen Verteiler', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
+      () => automatik(v, null), 'Anwenden'), { klein: 'alle Vorgaben von Hand entfernen' }] : null, '—',
     ['Projekt als Datei sichern', exportieren], ['Projekt aus Datei öffnen', () => document.getElementById('datei').click()], '—',
     ['Tastenkürzel', tastenHilfe, { klein: '?' }]]);
 }
@@ -3725,8 +3824,17 @@ function teilKreise(v, ids) {
   return { kreise, geraete: (st.geraete || []).filter(g => gids.has(g.id)) };
 }
 function ablageSetzen(v, k, aus) {
-  const tk = teilKreise(v, knotenIds(k));
-  editorAblage = { k: kopie(k), aus, vid: v.id, kreise: kopie(tk.kreise), geraete: kopie(tk.geraete) };
+  const ids = knotenIds(k), tk = teilKreise(v, ids), L = v.layout || {}, lt = { spalten: {}, umbruch: {}, lage: {} };
+  ids.forEach(i => { ['spalten', 'umbruch'].forEach(x => { if (L[x] && L[x][i]) lt[x][i] = L[x][i]; });
+    Object.keys(L.lage || {}).forEach(key => { if (key.startsWith('k:' + i + '/')) lt.lage[key] = L.lage[key].slice(); }); });
+  editorAblage = { k: kopie(k), aus, vid: v.id, kreise: kopie(tk.kreise), geraete: kopie(tk.geraete), layout: lt };
+}
+// Vorgaben von Hand aus der Ablage übernehmen (Kennungen über um() umgeschrieben)
+function layoutDazu(v, lt, um) {
+  if (!lt) return;
+  const L = lay(v);
+  ['spalten', 'umbruch'].forEach(x => Object.entries(lt[x] || {}).forEach(([i, w]) => { L[x][um(i)] = w; }));
+  Object.entries(lt.lage || {}).forEach(([key, d]) => { const m = /^k:([^/]+)(\/.*)$/.exec(key); if (m) L.lage['k:' + um(m[1]) + m[2]] = d.slice(); });
 }
 // Teil aus der Ablage für Verteiler v: Ausgeschnittenes einmal mit seinen Kennungen, sonst eine Kopie
 function ablageHolen(v) {
@@ -3746,6 +3854,7 @@ function ablageHolen(v) {
       weg.forEach(kr => { kr.pfade.forEach(p => { p.plaetze = p.plaetze.map(pl => pl && um[pl.g] ? { ...pl, g: um[pl.g] } : pl);
         if (p.verbraucher && um[p.verbraucher.g]) p.verbraucher = { g: um[p.verbraucher.g] }; }); st.kreise.push(kr); });
     }
+    layoutDazu(v, A.layout, x => x);
     return A.k;
   }
   // Kopie: neue Kennungen für Abgänge, Kreise, Pfade und Befehlsgeber; ein Unterverteiler wird nicht doppelt gespeist
@@ -3759,6 +3868,7 @@ function ablageHolen(v) {
     if (kr.quelle && kr.quelle.kid) kr.quelle = { art: 'abgang', kid: um[kr.quelle.kid] || kr.quelle.kid };
     kr.pfade.forEach(p => { p.id = id(); p.plaetze = p.plaetze.map(ref); p.verbraucher = ref(p.verbraucher); });
     st.kreise.push(kr); });
+  layoutDazu(v, A.layout, x => um[x] || x);
   return c;
 }
 // Einfügemenü an einer Marke „+“: Teil wählen, Anzahl für Schnellerfassung
@@ -3799,6 +3909,16 @@ function editorAktion(v, b, was) {
     return werkzeug('ablage'); }
   if (!r) return;
   switch (was) {
+    case 'spalteR': case 'spalteL': {        // Wunschspalte (ab v1.25): Lücke vor dem Abgang
+      const lg = abgangLage(id); if (!lg || r.eltern) return;
+      const L = lay(v), neu = lg.col + (was === 'spalteR' ? 1 : -1);
+      if (was === 'spalteL' && !L.spalten[id]) return;
+      if (neu < 2) delete L.spalten[id]; else L.spalten[id] = neu;
+      aenderung(was === 'spalteR' ? 'Spalte nach rechts' : 'Spalte nach links'); sichern(); return zeichne();
+    }
+    case 'umbruch': { const L = lay(v); if (L.umbruch[id]) delete L.umbruch[id]; else L.umbruch[id] = true;
+      aenderung('Neues Blatt ab hier'); sichern(); return zeichne(); }
+    case 'automatik': automatik(v, 'k:' + id); aenderung('Automatik anwenden'); sichern(); return zeichne();
     case 'links': case 'rechts': {
       const j = r.i + (was === 'links' ? -1 : 1); if (j < 0 || j >= r.liste.length) return;
       [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; aenderung('Verschieben'); sichern(); return zeichne();
@@ -3846,6 +3966,7 @@ function bEditor(b) {
   catch (er) { blaetter.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + er.message)); }
   const e = berechne(v);
   ED.liste = res ? res.blaetter.filter(bl => bl.verteiler === v.name && BLATT_ART[bl.art]) : [];
+  ED.raster = res ? res.raster : { x0: 20, sb: 26.7, sp: 10, sfTop: 180 };
   ED.liste.forEach(bl => {
     const svg = bl.svg; svg.removeAttribute('width'); svg.removeAttribute('height'); svg.style.width = '100%';
     svg.setAttribute('role', 'group'); svg.setAttribute('aria-label', `Blatt ${bl.nr} ${BLATT_ART[bl.art]}`);
@@ -3867,8 +3988,7 @@ function bEditor(b) {
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (res) res.begrenzen();
-  ED.raster = res && res.raster;
-  teilFlaechen(); markieren();
+  teilFlaechen(); nadeln(); markieren();
   kontextNeu(); blattAnzeigen();
   if (b.springen) { b.springen = false; zeigeAuswahl(); }
   let rafS = 0;
@@ -3952,8 +4072,16 @@ function ziehEnde(ev) {
   const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen
   zieh = null;
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
+  spaltenVorschau(null);
   ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
-  if (!ziel) { zeichne(); return; }
+  if (!ziel) {
+    const sp = ev && z.id.startsWith('k:') && spalteUnter(ev.clientX, ev.clientY, z), kid = z.id.slice(2), lg = abgangLage(kid);
+    if (sp && lg && sp.blatt === lg.blatt && sp.col !== lg.col) {       // in eine freie Spalte desselben Blatts (ab v1.25)
+      const L = lay(z.v); if (sp.col <= 2) delete L.spalten[kid]; else L.spalten[kid] = sp.col;
+      z.b.sel = z.id; aenderung('In Spalte ' + sp.col); sichern();
+    } else if (sp && lg && sp.blatt !== lg.blatt) meldung('Auf ein anderes Blatt: „Neues Blatt ab hier“ oder Ausschneiden und Einfügen');
+    zeichne(); return;
+  }
   const { v, b } = z, t = ziel.dataset.ziel;
   if (z.id.startsWith('k:')) {
     const kid = z.id.slice(2), r = knoten(v, kid), k = r.k;
@@ -3987,7 +4115,27 @@ window.addEventListener('pointermove', ev => {
   ziehGeist(ev.clientX, ev.clientY);
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
   const z = ziehZiel(ev.clientX, ev.clientY); if (z) z.setAttribute('data-ueber', '');
+  spaltenVorschau(!z && zieh.id.startsWith('k:') ? spalteUnter(ev.clientX, ev.clientY, zieh) : null);
 });
+// Zielspalte beim Ziehen eines Abgangs (ab v1.25): Startspalte + gezogene Strecke in ganzen Spalten
+// { blatt, col, w, svg }; nur auf demselben Blatt, Spalten 2 … vorletzte
+function spalteUnter(x, y, z) {
+  if (!ED || !ED.raster) return null;
+  const el = document.elementFromPoint(x, y), svg = el && el.closest && el.closest('.blatt svg'); if (!svg) return null;
+  const M = svg.getScreenCTM(); if (!M) return null;
+  const I = M.inverse(), p = new DOMPoint(x, y).matrixTransform(I), p0 = new DOMPoint(z.x, z.y).matrixTransform(I), R = ED.raster;
+  const lg = abgangLage(z.id.slice(2)), blatt = ED.liste.findIndex(bl => bl.svg === svg);
+  if (!lg || p.y < 10 || p.y > R.sfTop) return null;
+  const col = Math.max(2, Math.min(R.sp - lg.w, lg.col + Math.round((p.x - p0.x) / R.sb)));
+  return { blatt, col, w: lg.w, svg };
+}
+function spaltenVorschau(sp) {
+  document.querySelectorAll('.spaltenvorschau').forEach(x => x.remove());
+  if (!sp) return;
+  const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect'), R = ED.raster;
+  [['x', R.x0 + (sp.col - 1) * R.sb], ['y', 10], ['width', R.sb * sp.w], ['height', R.sfTop - 10], ['class', 'spaltenvorschau']].forEach(([k, w]) => r.setAttribute(k, w));
+  sp.svg.append(r);
+}
 window.addEventListener('pointerup', ev => { if (zieh) ziehEnde(ev); });
 window.addEventListener('pointercancel', () => { if (zieh) ziehEnde(null); });
 document.addEventListener('touchmove', ev => { if (zieh && zieh.aktiv) ev.preventDefault(); }, { passive: false });

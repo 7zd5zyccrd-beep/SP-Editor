@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.25 | Etappe F2: Abgänge in freie Spalten ziehen (Lücke davor), neues Blatt ab einem Abgang, Stecknadel, „Automatik anwenden“; Projektfassung 2 mit `v.layout`; Beispiel `layout` |
 | v1.24 | Etappe F1: Szene je Blatt (Geräte mit Anschlüssen, Leiter mit Leiterart), Plan bitgleich; Geräte eines gewählten Abgangs einzeln antippbar |
 | v1.23 | Etappe F0: Zeichen-Cache (Plan 3–4× schneller), Editor erzeugt nur den offenen Verteiler, Prüfung der Projektfassung beim Öffnen, Designsystem mit Farbtokens, Signalfarbe Violett, dunkler Modus der Oberfläche |
 | v1.22 | Kurze Auswahlwerte (Nennstrom, Kennlinie, Querschnitt …) als Raster zum schnellen Antippen; Feinschliff Palette und schmale Kopfleiste |

@@ -106,4 +106,7 @@ window.BEISPIELE = {
   trafo400: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler;
     const t = neuerSteuerTrafo(); Object.assign(t.trafo, { prim: '400', sek: '230', va: '250', erde: false }); t.trafo.ls.nenn = '4'; hv.knoten.push(t);
     hv.steuerung.spannung = { art: 'bruecke', quelle: t.id, leiste: 'X1' }; sichern(); zeichne(); },
+  // ab v1.25: Vorgaben von Hand – Herd in Spalte 7 (Lücke davor), neues Blatt ab Lager 1; ab v1.26 dazu verschobene Geräte
+  layout: () => { BEISPIELE.grund(); const [hv] = P.verteiler, L = lay(hv);
+    L.spalten[hv.knoten[2].id] = 7; L.umbruch[hv.knoten[4].id] = true; sichern(); zeichne(); },
 };

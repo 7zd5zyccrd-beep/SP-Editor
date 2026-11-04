@@ -483,6 +483,17 @@ const PLAN = (() => {
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
+    // Frequenzumrichter (ab v1.39): im Verteiler vor den Klemmen, PE läuft rechts vorbei
+    if (a.fu) {
+      const top = cursor + 3;
+      bis(top);
+      teil(`k:${k.id}/fu`);
+      const t = unten(setze(g, 'umrichter3', x0, top, null, arten.slice(0, 3)));
+      t.forEach((p, i) => { if (i < 3) enden[i] = p.y; });
+      bmk(g, x0 - 4, top + 6, a.fu.t);
+      teil(null);
+      cursor = Math.max(...t.map(p => p.y));
+    }
     if (a.klemmen) {
       const ky = cursor + (a.schalt ? 1 : 6); bis(ky);
       // N als N-Trennklemme (Grundeinstellung) oder als normale Klemme
@@ -503,6 +514,8 @@ const PLAN = (() => {
     const ye = Math.max(natur, yEnde || 0);
     if (ende === 'motor') {        // Motor (ab v1.37): Unterkante des Kreises auf Höhe der Steckdosenunterkante
       const yM = ye + UNTERKANTE - MOTOR_H;
+      // geschirmte Leitung: Schirm um die Adern, 10 mm über dem Motor (wenn dort Platz ist)
+      if (GESCHIRMT.includes(k.leitung.typ) && yM - 15 > cursor + 2) schirm(g, xs[0] - 2, xs[xs.length - 1] + 2, yM - 15);
       bis(yM);
       teil(xd);
       setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben);
@@ -605,6 +618,18 @@ const PLAN = (() => {
       if (e.tagName === 'line' && e.getAttribute('y1') === e.getAttribute('y2') && +e.getAttribute('y1') === -30) { e.setAttribute('stroke', FARBE.PE); continue; }
       e.setAttribute('stroke', '#000');
     }
+  }
+  const GESCHIRMT = ['2YSLCY-J', 'NYCWY'];
+  // Schirm (EN 02-01-07, gestrichelt) um ein Leiterbündel von xl bis xr, oben bei y, 10 mm hoch:
+  // das Zeichen oben und um 180° gedreht unten, in der Breite gestreckt (Strichstärke bleibt)
+  function schirm(g, xl, xr, y) {
+    const sx = (xr - xl) / (40 * E), cx = (xl + xr) / 2;
+    [[y + 2.5, 1], [y + 7.5, -1]].forEach(([ym, d]) => {
+      const r = qz('schirm');
+      for (const e of r.g.querySelectorAll('line')) if (e.getAttribute('x1') === e.getAttribute('x2'))
+        e.setAttribute('stroke-width', parseFloat(e.getAttribute('stroke-width') || 1) / sx);
+      el('g', { transform: `translate(${cx} ${ym}) scale(${d * E * sx} ${d * E})` }, g).appendChild(r.g);
+    });
   }
   const WALLBOX_H = 15;    // Anschluss bis Unterkante des Kastens (60 Einheiten)
   function spHoehe() { return hoehe('wr1') + PV_LUECKE + hoehe('batterie') + PV_LUECKE; }
@@ -1134,7 +1159,11 @@ const PLAN = (() => {
         const si = a.schalt ? a.schalt.pole.indexOf(l) : -1;
         // Erzeugungszähler (PV, ab v1.34): Abgangsklemmen nach DIN 43857 – drei Phasen L1 3, L2 6, L3 9, N 12; eine Phase L 3, N 6
         const zp = a.p && l !== 'PE' ? (a.drei ? { L1: 3, L2: 6, L3: 9, N: 12 }[l] : { L: 3, N: 6 }[l]) : null;
-        const intern = (zp ? `${a.p.t}:${zp}` : null)
+        // Frequenzumrichter (U V W) und Überlastrelais (2 4 6) liegen näher an der Klemme als das Schaltgerät (ab v1.39)
+        const li = { L1: 0, L2: 1, L3: 2 }[l];
+        const intern = (a.fu && li !== undefined ? `${a.fu.t}:${'UVW'[li]}` : null)
+          || (zp ? `${a.p.t}:${zp}` : null)
+          || (a.ol && li !== undefined ? `${a.ol.bmk.t}:${2 * (li + 1)}` : null)
           || (si >= 0 ? `${a.schalt.bmk.t}:${2 * (si + 1)}` : null)
           || ausgang(k.geraet.zeichen, a.f && a.f.t, l, ph)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))

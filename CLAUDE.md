@@ -316,6 +316,8 @@ und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
   (Art 'ol', 95–96 / 97–98) und `{ g, z: 'mss_s' | 'mss_oe' }` (Art 'ms', Zeichen über `ST_BILD`, Anzahl `k.geraet.hks/hko`);
   `olEinsetzen()`/`olEntfernen()`; `a.olKont` für die Verweise am Überlastrelais; Vorlage `motor`. Motorabgang ohne N:
   kein Abgriff, Warnung (Steuerspannung über Steuer-LS/Steuertrafo).
+- M3 v1.39: `k.motor.fu = { bmk }` → `a.fu` (nur Drehstrommotor), Zeichen `umrichter3` vor den Klemmen (Teil `k:<id>/fu`);
+  `GESCHIRMT` (2YSLCY-J, NYCWY) → `schirm()` in plan.js (Zeichen `schirm` oben und gedreht unten, gestreckt).
 
 ## Technische Eckwerte
 

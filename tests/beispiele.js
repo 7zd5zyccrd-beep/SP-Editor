@@ -160,6 +160,10 @@ window.BEISPIELE = {
     f.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '10' }; f.leitung.quer = '1,5'; f.schalt = neuesSchalt('schuetz'); f.schalt.ol = { bereich: '2,5–4' };
     hv.knoten.splice(3, 0, f);
     kr = kreisAnlegen(hv, f); vorlageEinsetzen(hv, kr, 'motor', { meldung: true, stoerung: true }); sichern(); zeichne(); },
+  // Etappe M3: wie motor, Lüfter über Frequenzumrichter mit geschirmter Motorleitung 2YSLCY-J
+  umrichter: () => { BEISPIELE.motor(); const [hv] = P.verteiler;
+    const l = hv.knoten.find(k => k.ziel && k.ziel.bez === 'Lüfter'); l.motor.fu = {}; l.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '16' };
+    l.leitung.typ = '2YSLCY-J'; sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

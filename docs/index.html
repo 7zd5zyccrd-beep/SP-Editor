@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.38 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.39 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.39: Etappe M3 – Frequenzumrichter -T vor dem Drehstrommotor (im Verteiler vor den Klemmen, PE läuft vorbei),
+           geschirmte Leitungen 2YSLCY-J und NYCWY mit Schirmzeichen; Klemmenplan nimmt Umrichter (U V W) und
+           Überlastrelais (2 4 6) als Herkunft; Beispiel `umrichter`
      v1.38: Etappe M2 – Überlastrelais -F unter dem Schütz (Einstellbereich), Öffner 95–96 automatisch in den
            Spulenpfad, Schließer 97–98 für die Störmeldung, Kontaktverweise am Überlastrelais; Hilfsschalter des
            Motorschutzschalters (13–14, 21–22); Vorlage „Motor Ein/Aus“; Motorabgang ohne N greift keine
@@ -1138,6 +1141,17 @@ const PLAN = (() => {
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
+    // Frequenzumrichter (ab v1.39): im Verteiler vor den Klemmen, PE läuft rechts vorbei
+    if (a.fu) {
+      const top = cursor + 3;
+      bis(top);
+      teil(`k:${k.id}/fu`);
+      const t = unten(setze(g, 'umrichter3', x0, top, null, arten.slice(0, 3)));
+      t.forEach((p, i) => { if (i < 3) enden[i] = p.y; });
+      bmk(g, x0 - 4, top + 6, a.fu.t);
+      teil(null);
+      cursor = Math.max(...t.map(p => p.y));
+    }
     if (a.klemmen) {
       const ky = cursor + (a.schalt ? 1 : 6); bis(ky);
       // N als N-Trennklemme (Grundeinstellung) oder als normale Klemme
@@ -1158,6 +1172,8 @@ const PLAN = (() => {
     const ye = Math.max(natur, yEnde || 0);
     if (ende === 'motor') {        // Motor (ab v1.37): Unterkante des Kreises auf Höhe der Steckdosenunterkante
       const yM = ye + UNTERKANTE - MOTOR_H;
+      // geschirmte Leitung: Schirm um die Adern, 10 mm über dem Motor (wenn dort Platz ist)
+      if (GESCHIRMT.includes(k.leitung.typ) && yM - 15 > cursor + 2) schirm(g, xs[0] - 2, xs[xs.length - 1] + 2, yM - 15);
       bis(yM);
       teil(xd);
       setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben);
@@ -1260,6 +1276,18 @@ const PLAN = (() => {
       if (e.tagName === 'line' && e.getAttribute('y1') === e.getAttribute('y2') && +e.getAttribute('y1') === -30) { e.setAttribute('stroke', FARBE.PE); continue; }
       e.setAttribute('stroke', '#000');
     }
+  }
+  const GESCHIRMT = ['2YSLCY-J', 'NYCWY'];
+  // Schirm (EN 02-01-07, gestrichelt) um ein Leiterbündel von xl bis xr, oben bei y, 10 mm hoch:
+  // das Zeichen oben und um 180° gedreht unten, in der Breite gestreckt (Strichstärke bleibt)
+  function schirm(g, xl, xr, y) {
+    const sx = (xr - xl) / (40 * E), cx = (xl + xr) / 2;
+    [[y + 2.5, 1], [y + 7.5, -1]].forEach(([ym, d]) => {
+      const r = qz('schirm');
+      for (const e of r.g.querySelectorAll('line')) if (e.getAttribute('x1') === e.getAttribute('x2'))
+        e.setAttribute('stroke-width', parseFloat(e.getAttribute('stroke-width') || 1) / sx);
+      el('g', { transform: `translate(${cx} ${ym}) scale(${d * E * sx} ${d * E})` }, g).appendChild(r.g);
+    });
   }
   const WALLBOX_H = 15;    // Anschluss bis Unterkante des Kastens (60 Einheiten)
   function spHoehe() { return hoehe('wr1') + PV_LUECKE + hoehe('batterie') + PV_LUECKE; }
@@ -1789,7 +1817,11 @@ const PLAN = (() => {
         const si = a.schalt ? a.schalt.pole.indexOf(l) : -1;
         // Erzeugungszähler (PV, ab v1.34): Abgangsklemmen nach DIN 43857 – drei Phasen L1 3, L2 6, L3 9, N 12; eine Phase L 3, N 6
         const zp = a.p && l !== 'PE' ? (a.drei ? { L1: 3, L2: 6, L3: 9, N: 12 }[l] : { L: 3, N: 6 }[l]) : null;
-        const intern = (zp ? `${a.p.t}:${zp}` : null)
+        // Frequenzumrichter (U V W) und Überlastrelais (2 4 6) liegen näher an der Klemme als das Schaltgerät (ab v1.39)
+        const li = { L1: 0, L2: 1, L3: 2 }[l];
+        const intern = (a.fu && li !== undefined ? `${a.fu.t}:${'UVW'[li]}` : null)
+          || (zp ? `${a.p.t}:${zp}` : null)
+          || (a.ol && li !== undefined ? `${a.ol.bmk.t}:${2 * (li + 1)}` : null)
           || (si >= 0 ? `${a.schalt.bmk.t}:${2 * (si + 1)}` : null)
           || ausgang(k.geraet.zeichen, a.f && a.f.t, l, ph)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))
@@ -2423,7 +2455,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.38';
+const FASSUNG = 'v1.39';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2462,6 +2494,8 @@ const gName = k => k ? GERAETE[k].name : 'ohne';
 const KENNLINIEN = ['B', 'C', 'D', 'K', 'Z'];
 const NENNSTROM = ['6', '10', '13', '16', '20', '25', '32', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400'];
 // Einstellbereiche der Motorschutzschalter bzw. Überlastrelais (ab v1.37)
+// geschirmte Leitungen (ab v1.39): im Plan mit dem Schirmzeichen
+const GESCHIRMT = ['2YSLCY-J', 'NYCWY'];
 const MSS_BEREICH = ['0,1–0,16', '0,16–0,25', '0,25–0,4', '0,4–0,63', '0,63–1', '1–1,6', '1,6–2,5', '2,5–4', '4–6,3', '6,3–10', '9–14', '13–18', '17–23', '20–25', '24–32', '28–40', '40–50', '45–63'];
 const NENNFEHLER = ['10', '30', '100', '300', '500'];
 const FI_TYP = ['A', 'F', 'B', 'B+', 'AC'];
@@ -2667,6 +2701,8 @@ function berechne(v) {
     // Überlastrelais unter dem Schütz (ab v1.38) und Hilfsschalter des Motorschutzschalters
     if (sg && sg.typ === 'schuetz' && sg.ol) a.ol = { bmk: bmk('F', sg.ol.bmk), bereich: sg.ol.bereich || '' };
     if (k.geraet.zeichen === 'motorschutz3') a.mssHk = { s: k.geraet.hks || 0, o: k.geraet.hko || 0 };
+    // Frequenzumrichter vor dem Drehstrommotor (ab v1.39), im Verteiler vor den Klemmen
+    if (a.ohneN && k.motor && k.motor.fu) a.fu = bmk('T', k.motor.fu.bmk);
     // Widersprüche nur melden, nicht verhindern
     const gp = k.geraet.zeichen ? GERAETE[k.geraet.zeichen].pole : null;
     if (a.drei && gp === 1) a.warn = 'Gerät ist 1-polig, der Abgang aber dreiphasig (Anschluss oder Unterverteiler 3/N/PE).';
@@ -3361,6 +3397,11 @@ function bAbgang(b) {
         [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
       zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => mo.kw = w.replace(/\s*kW$/i, ''), { platz: 'z. B. 4' })),
       zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => mo.strom = w.replace(/\s*A$/i, ''), { platz: 'z. B. 8,2' }), { un: 'erscheint im Plan neben dem Motor' })));
+    if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(
+      zeile('Frequenzumrichter', mo.fu ? 'ja' : 'nein', () => wahlFeld('Frequenzumrichter', [['ja', 'ja', 'im Verteiler zwischen Schutzorgan und Klemmen; Motorleitung geschirmt'], ['nein', 'nein']],
+        mo.fu ? 'ja' : 'nein', w => { mo.fu = w === 'ja' ? (mo.fu || {}) : null; if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) k.leitung.typ = '2YSLCY-J'; })),
+      a.fu ? zeile('Kennzeichen Frequenzumrichter', a.fu.t, () => bmkFeld('Kennzeichen', mo.fu, a.fu.hand ? '' : a.fu.t)) : null);
+    if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) m.append(h('p', { class: 'warnung' }, 'Hinter dem Frequenzumrichter ist eine geschirmte Motorleitung üblich (z. B. 2YSLCY-J, NYCWY).'));
     if (mo.art === '1' && a.drei) m.append(h('p', { class: 'warnung' }, 'Wechselstrommotor an einem 3-poligen Schutzorgan: der Abgang wird dreiphasig gezeichnet.'));
     if (mo.art !== '1' && ge.zeichen && GERAETE[ge.zeichen].pole === 1) m.append(h('p', { class: 'warnung' }, 'Ein Drehstrommotor braucht ein 3-poliges Schutzorgan.')); }
   if (k.ziel.anschluss === 'wallbox' && !k.speist) { const wb = k.wallbox || (k.wallbox = wallboxNeu());
@@ -3385,7 +3426,7 @@ function bAbgang(b) {
   m.append(h('h2', {}, 'Leitung'), h('div', { class: 'liste' },
     phasenwahl,
     zeile('Leiter', a.leiter.join(' '), () => {}, { ohnePfeil: true, un: a.drei ? 'dreiphasig, weil Gerät oder Anschluss 3-polig ist' : null }),
-    zeile('Leitungstyp', k.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYY-J', 'H07RN-F', 'H05VV-F', 'NHXHX-J', 'N2XH-J'], k.leitung.typ, w => k.leitung.typ = w)),
+    zeile('Leitungstyp', k.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYY-J', 'H07RN-F', 'H05VV-F', 'NHXHX-J', 'N2XH-J', ...GESCHIRMT], k.leitung.typ, w => k.leitung.typ = w)),
     zeile('Querschnitt', (k.leitung.quer || '—') + ' mm²', () => wahlFeld('Querschnitt', ['1,5', '2,5', '4', '6', '10', '16', '25', '35', '50', '70', '95'].map(x => [x, x + ' mm²']), k.leitung.quer, w => k.leitung.quer = w)),
     zeile('Kennzeichen Leitung', `${a.w.t}  ${leitungText(k, a)}`, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
     zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : 'wie Verteiler') + (a.klemmen ? ` · ${klemmenText(a)}` : ''),

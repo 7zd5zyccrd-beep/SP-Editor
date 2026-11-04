@@ -39,19 +39,31 @@ const PLAN = (() => {
   function el(tag, a = {}, eltern) {
     const e = document.createElementNS(NS, tag);
     for (const k in a) if (a[k] !== null && a[k] !== undefined) e.setAttribute(k, a[k]);
-    if (eltern) eltern.appendChild(e);
+    if (eltern) { eltern.appendChild(e); if (SZ.teil && eltern === SZ.g) SZ.teil.els.push(e); }
     return e;
   }
+  // ---- Szene (ab v1.24) -----------------------------------------------------
+  // Beim Zeichnen eines Blatts wird mitgeschrieben, was entsteht: Teile (ein Gerät mit seinen Zeichen,
+  // Kennzeichen und Beschriftung, Schlüssel wie k:<abgang>/f) mit ihren Anschlüssen, und die Leiter
+  // (Linien 0,25 mm außerhalb der Teile) mit ihrer Leiterart. Das SVG bleibt dabei unverändert.
+  // Grundlage für freie Lage (Gummiband), Antippen einzelner Geräte, Netze und Prüfungen.
+  const SZ = { g: null, teil: null, teile: null, leiter: null };
+  function szeneStart(g) { SZ.g = g; SZ.teil = null; SZ.teile = {}; SZ.leiter = []; }
+  function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter }; SZ.g = null; SZ.teil = null; return s; }
+  function teil(key) { SZ.teil = key && SZ.g ? (SZ.teile[key] = SZ.teile[key] || { key, els: [], ports: [] }) : null; }
+  function teilPort(g, x, y) { if (SZ.teil && g === SZ.g) SZ.teil.ports.push({ x, y }); }
   function text(g, x, y, t, groesse, anker = 'start', extra = {}) {
     const e = el('text', Object.assign({ x, y, 'font-size': groesse, 'text-anchor': anker,
       'font-family': 'Arial, Helvetica, Liberation Sans, sans-serif', fill: '#000' }, extra), g);
     e.textContent = t; return e;
   }
-  function linie(g, x1, y1, x2, y2, w = 0.35, farbe = '#000') {
-    return el('line', { x1, y1, x2, y2, stroke: farbe, 'stroke-width': w, 'stroke-linecap': 'square' }, g);
+  function linie(g, x1, y1, x2, y2, w = 0.35, farbe = '#000', art = null) {
+    const e = el('line', { x1, y1, x2, y2, stroke: farbe, 'stroke-width': w, 'stroke-linecap': 'square' }, g);
+    if (g === SZ.g && !SZ.teil && w === 0.25) SZ.leiter.push({ el: e, x1, y1, x2, y2, art: art || (farbe === FARBE.N ? 'N' : farbe === FARBE.PE ? 'PE' : 'L') });
+    return e;
   }
   const farbe = art => FARBE[art] || '#000';
-  const leiter = (g, x1, y1, x2, y2, art) => linie(g, x1, y1, x2, y2, 0.25, farbe(art));
+  const leiter = (g, x1, y1, x2, y2, art) => linie(g, x1, y1, x2, y2, 0.25, farbe(art), art || 'L');
   const punkt = (g, x, y, art) => el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
   const zuBegrenzen = [];
@@ -167,7 +179,9 @@ const PLAN = (() => {
     else if (arten) polfarben(r.g, r.anschluesse.filter(t => t.richtung === 'n').sort((p, q) => p.x - q.x).map((t, i) => ({ x: t.x, art: arten[i] })));
     if (nachher) nachher(r.g);
     el('g', { transform: `translate(${tx} ${ty}) scale(${E})` }, g).appendChild(r.g);
-    return r.anschluesse.map(t => ({ x: tx + t.x * E, y: ty + t.y * E, richtung: t.richtung }));
+    const ports = r.anschluesse.map(t => ({ x: tx + t.x * E, y: ty + t.y * E, richtung: t.richtung }));
+    if (SZ.teil && g === SZ.g) ports.forEach(p => SZ.teil.ports.push({ x: p.x, y: p.y }));
+    return ports;
   }
   // Kennzeichen links neben dem Gerät; bei Geräten mit IΔ-Kasten links unter
   // dem Gerät, weil daneben Kasten und Wirkverbindung liegen. Gibt das neue
@@ -240,10 +254,12 @@ const PLAN = (() => {
     let cursor = yG;
     if (pole) {
       arten.slice(0, pole).forEach((art, i) => { leiter(g, xs[i], enden[i], xs[i], yG, art); });
+      teil(`k:${k.id}/f`);
       const t = unten(setze(g, z, x0, yG, null, arten.slice(0, pole)));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
       cursor = Math.max(...t.map(p => p.y));
       cursor = kennzeichen(g, z, x0, yG, cursor, a.f && a.f.t, bemZeilen(k.geraet));
+      teil(null);
     }
     const bis = (y) => { arten.forEach((art, i) => { if (enden[i] < y) leiter(g, xs[i], enden[i], xs[i], y, art); enden[i] = y; }); };
     // hinter FI-Geräten steht deren Beschriftung unter dem Gerät: dort etwas Abstand lassen
@@ -271,38 +287,45 @@ const PLAN = (() => {
       if (!a.schalt) { bis(y1 + 3); cursor = y1 + 3; }
     }
     const spule = ctx.steuer && ctx.steuer.spulen[k.id];
-    if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '');
+    if (a.schalt) cursor = zeichneSchaltglieder(g, a, arten, xs, enden, yS, bis, spule ? `/${spule.blatt}.${spule.spalte}` : '', `k:${k.id}/q`);
     if (a.klemmen) {
       const ky = cursor + (a.schalt ? 1 : 6); bis(ky);
       // N als N-Trennklemme (Grundeinstellung) oder als normale Klemme
       const trenn = art => art === 'N' && v.nKlemme !== 'normal';
+      teil(`k:${k.id}/x`);
       arten.forEach((art, i) => setze(g, trenn(art) ? 'trennklemme' : 'klemme', xs[i], ky, null, art));
       arten.forEach((art, i) => enden[i] = ky + (trenn(art) ? 10 : 5));
       bmk(g, x0 - 2, ky + 3, a.klemmen.bmk, [`${a.klemmen.von}–${a.klemmen.bis}`]);
+      teil(null);
       cursor = ky + (arten.some(trenn) ? 10 : 5);
     }
     const natur = cursor + 6;
     const ye = Math.max(natur, yEnde || 0);
-    const ende = k.speist ? 'fest' : k.ziel.anschluss;
+    const ende = k.speist ? 'fest' : k.ziel.anschluss, xd = `k:${k.id}/xd`;
     if (ende === 'steckdose3' || ende === 'steckdose5') {
       bis(ye);
+      teil(xd);
       setze(g, arten.length === 5 ? 'steckdose5' : 'steckdose3', x0, ye, null, arten);
       bmk(g, x0 - 2, ye + 3, a.xd.t);
     } else if (ende === 'dose') {      // Geräteanschlussdose: je Leiter eine Endklemme,
       const yk = ye + UNTERKANTE - END_TIEFE;   // Unterkante wie die Steckdose
       bis(yk);
+      teil(xd);
       arten.forEach((art, i) => setze(g, 'endklemme', xs[i], yk, null, art));
       bmk(g, x0 - 2, yk + 3.3, a.xd.t);
     } else if (ende === 'leuchte') {   // Lampe zwischen L und N, PE an das Gehäuse
       arten.forEach((art, i) => { if (art !== 'PE' && enden[i] < ye) leiter(g, xs[i], enden[i], xs[i], ye, art); });
       const iL = 0, iN = arten.indexOf('N'), iPE = arten.indexOf('PE');
+      teil(xd);
       setze(g, 'leuchte', xs[iL], ye, null, [arten[iL], 'N']);
       if (iN !== 1) leiter(g, xs[iN], ye, xs[iN], ye, 'N');
       const xm = xs[iL] + 2.5, yu = ye + 7.5;      // Mitte und Unterkante des Lampenkreises
+      teil(null);
       leiter(g, xs[iPE], enden[iPE], xs[iPE], yu + 1.5, 'PE');
+      teil(xd); teilPort(g, xs[iPE], yu + 1.5);
       leiter(g, xs[iPE], yu + 1.5, xm, yu + 1.5, 'PE'); leiter(g, xm, yu + 1.5, xm, yu, 'PE');
       bmk(g, x0 - 2, ye + 3, a.xd.t);
-    } else bis(ye + UNTERKANTE);  // offenes Ende auf Höhe der Steckdosenunterkante
+    } else { bis(ye + UNTERKANTE); teil(xd); arten.forEach((_, i) => teilPort(g, xs[i], ye + UNTERKANTE)); }  // offenes Ende auf Höhe der Steckdosenunterkante
     cursor = ye + 8;
     // Beschriftung unter dem Pfad
     const mx = x0 + ABSTAND * (arten.length - 1) / 2, max = breite - 2;
@@ -314,6 +337,7 @@ const PLAN = (() => {
     } else if (k.ziel.bez) { passend(text(g, mx, ty, k.ziel.bez, 2.5, 'middle', { 'font-weight': 'bold' }), max); ty += 3.4; }
     if (k.ziel.ort) { passend(text(g, mx, ty, k.ziel.ort, 2.2, 'middle'), max); ty += 3.2; }
     passend(text(g, mx, ty, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${arten.length}×${k.leitung.quer || '?'}`, 2.2, 'middle'), max);
+    teil(null);
     return { unten: ty + 2, natur };
   }
   // Hauptkontakte eines Schaltgeräts (Schütz, Stromstoßschalter, Zeitrelais) unter
@@ -321,9 +345,10 @@ const PLAN = (() => {
   // durch die Schaltstücke; Kennzeichen links daneben. Gibt das neue untere Ende zurück.
   const SG_KONTAKT = { schuetz: 'schuetz1', stromstoss: 'hilfs_s' };
   const ZR_KONTAKT = { aus: 'k_s_aus', ein: 'k_s_ein', einaus: 'k_s_einaus' };
-  function zeichneSchaltglieder(g, a, arten, xs, enden, cursor, bis, spuleRef = '') {
+  function zeichneSchaltglieder(g, a, arten, xs, enden, cursor, bis, spuleRef = '', key = null) {
     const sg = a.schalt, n = sg.pole.length, top = cursor;   // oberer Anschlussstrich = Verbindung zum Schutzorgan
     bis(top);
+    teil(key);
     const kenn = sg.typ === 'zeitrelais' ? ZR_KONTAKT[sg.zr.fkt] || 'k_s_aus' : SG_KONTAKT[sg.typ];
     let unten = top;
     for (let i = 0; i < n; i++) {
@@ -336,6 +361,7 @@ const PLAN = (() => {
     const zeile2 = sg.typ === 'zeitrelais' ? (sg.zr.zeit ? `t = ${sg.zr.zeit}` : '') : sg.typ === 'stromstoss' ? 'Stromstoß' : '';
     // spuleRef: Lage der Spule im Steuerstromkreis; beim Zeitrelais dann links am Verzögerungszeichen vorbei
     bmk(g, xs[0] - (spuleRef && sg.typ === 'zeitrelais' ? 12 : 5), top + 1, sg.bmk.t, [zeile2, spuleRef]);
+    teil(null);
     // nicht geschaltete Leiter (N, PE) laufen durch
     arten.forEach((art, i) => { if (i >= n && enden[i] < unten) { leiter(g, xs[i], enden[i], xs[i], unten, art); enden[i] = unten; } });
     return unten;
@@ -416,8 +442,10 @@ const PLAN = (() => {
     const arten = gruppenArten(grp, e), zu = gruppenZufuehrung(arten);
     const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
     arten.forEach((art, i) => { const yq = bars[quelle(art, bars)]; punkt(g, xs[i], yq, art); leiter(g, xs[i], yq, xs[i], yG, art); });
+    teil(`k:${grp.id}/f`);
     const t = unten(setze(g, grp.geraet.zeichen, x0, yG, null, arten));
     const yU0 = kennzeichen(g, grp.geraet.zeichen, x0, yG, Math.max(...t.map(p => p.y)), e.geraete[grp.id].t, bemZeilen(grp.geraet)) + (eng ? 3 : 6);
+    teil(null);
     const alle = arten.concat(zu);
     const unterBars = Object.assign({}, bars), ys = {}, bereich = {};
     alle.forEach((art, i) => { ys[art] = yU0 + ABSTAND * i; unterBars[art] = ys[art]; bereich[art] = []; });
@@ -449,7 +477,7 @@ const PLAN = (() => {
     alle.forEach(art => {
       const an = bereich[art]; if (!an.length) return;
       const xsA = an.map(p => p.x), lo = Math.min(...xsA), hi = Math.max(...xsA), y = ys[art];
-      if (hi > lo) linie(g, lo, y, hi, y, 0.25, farbe(art));   // Untersammelschiene in Leiterstärke
+      if (hi > lo) linie(g, lo, y, hi, y, 0.25, farbe(art), art);   // Untersammelschiene in Leiterstärke
       const gleich = (a, b) => Math.abs(a - b) < 0.01;
       [...new Set(xsA.map(x => x.toFixed(2)))].map(Number).forEach(xp => {
         const hier = an.filter(p => gleich(p.x, xp));
@@ -471,13 +499,15 @@ const PLAN = (() => {
     // Stich zum PE-Anschluss) liegt auf PE und wird grün
     const peSeite = gz => { for (const el2 of gz.querySelectorAll('line')) {
       if (Math.min(+el2.getAttribute('y1'), +el2.getAttribute('y2')) >= 10 - 1e-6) el2.setAttribute('stroke', FARBE.PE); } };
+    teil(`s:${v.id}`);
     const t = setze(g, z, x0, yG, null, arten, 1, peSeite);
+    teil(null);
     const pe = t.find(p => p.richtung === 's');
     // PE des Ableiters nach rechts und hoch auf die PE- bzw. PEN-Schiene
     const xr = xs[xs.length - 1] + ABSTAND, yPe = bars[quelle('PE', bars)];
     leiter(g, pe.x, pe.y, pe.x, pe.y + 4, 'PE'); leiter(g, pe.x, pe.y + 4, xr, pe.y + 4, 'PE');
     leiter(g, xr, pe.y + 4, xr, yPe, 'PE'); punkt(g, xr, yPe, 'PE');
-    bmk(g, x0 - 5, yG + 1, e.kopf.spd.t, []);
+    teil(`s:${v.id}`); bmk(g, x0 - 5, yG + 1, e.kopf.spd.t, []); teil(null);
     return pe.y + 8;
   }
 
@@ -486,7 +516,7 @@ const PLAN = (() => {
     const namen = schienenNamen(v), bars = {};
     namen.forEach((n, i) => {
       const y = y0 + ABSTAND * i, xs = Array.isArray(xStarts) ? xStarts[i] : xStarts;
-      linie(g, xs, y, xEnde, y, 0.25, farbe(n));
+      linie(g, xs, y, xEnde, y, 0.25, farbe(n), n);
       bars[n] = y;
       if (mitNamen) text(g, RAND_L + 1.5, y + 0.9, anzeige(n, v), 2.5);
       if (kommend) { setze(g, 'qv_kommend', xs, y, t => t.richtung === 'e', n); }
@@ -511,9 +541,11 @@ const PLAN = (() => {
       const gz = v[feld].zeichen; if (!gz) continue;
       const pole = Math.min(POLE[gz], namen.length), top = cursor + 5;
       namen.forEach((n, i) => { leiter(g, xs[i], enden[i], xs[i], top, n); enden[i] = top; });
+      teil(`e:${v.id}/${feld}`);
       const t = unten(setze(g, gz, x0, top, null, namen.slice(0, pole)));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
       bmk(g, x0 - 5, top + 1, e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]));
+      teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
     // TN-C-S: PEN wird hier in N und PE aufgeteilt
@@ -1165,6 +1197,8 @@ const PLAN = (() => {
     el('circle', { cx: x, cy: y, r: 3.2, fill: '#fff', stroke: '#6a35e8', 'stroke-width': 0.45 }, m);
     linie(m, x - 1.8, y, x + 1.8, y, 0.5, '#6a35e8'); linie(m, x, y - 1.8, x, y + 1.8, 0.5, '#6a35e8');
   }
+  // Kennung eines Blatts, unabhängig von seiner Nummer: erster Abgang bzw. die Einspeisung
+  function blattAnker(v, b) { const it = b.items.find(x => x.art !== 'spd'); return it ? 'k:' + it.k.id : 'e:' + v.id; }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
     if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; ZEICHEN_BIB = BIB; }
@@ -1307,6 +1341,7 @@ const PLAN = (() => {
       p.blaetter.forEach((b, i) => {
         const blattNr = p.start + i, naechstes = i + 1 < p.blaetter.length ? `/${blattNr + 1}.1` : null;
         const { svg, g } = neuesBlatt();
+        szeneStart(g);
         const xEnde = R.x1 - 12;
         let bars;
         if (b.art === 'einspeisung') {
@@ -1359,13 +1394,16 @@ const PLAN = (() => {
         }
         if (opt.ziele && b.art !== 'einspeisung' && i === p.blaetter.findIndex(x => x.art !== 'einspeisung') && !v.knoten.length)
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
+        const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: b.art });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b) });
       });
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
+        szeneStart(g);
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
+        const szene = szeneEnde();
         if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
           ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
           // je Pfad die Plätze 1–6 und der Verbraucherplatz (pl:pfad:zeile, Zeile 6 = Verbraucher)
@@ -1375,7 +1413,7 @@ const PLAN = (() => {
         });
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker: 'kr:' + b.kreise[0].kr.id });
       });
     }
     for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => {
@@ -1384,7 +1422,7 @@ const PLAN = (() => {
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));
       aus.push({ svg, verteiler: p.v.name, titel: p.v.name, nr: blattNr, art: 'klemmen' });
     });
-    return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen };
+    return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen, raster: { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H } };
   }
   return { blaetter };
 })();

@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.24: Etappe F1 – Szene: der Generator schreibt je Blatt mit, welche Geräte (mit Anschlüssen, Kennzeichen,
+           Beschriftung) und Leiter entstehen (Plan bitgleich); im Editor sind die Geräte eines gewählten Abgangs
+           bzw. der Einspeisung einzeln antippbar (erst Abgang, dann Gerät; Esc zurück zum Abgang)
      v1.23: Etappe F0 – Fundament fürs freie Zeichnen: Zeichen-Cache im Generator (Plan rund 3–4× schneller), der
            Editor erzeugt nur die Blätter des offenen Verteilers; Prüfung der Projektfassung beim Öffnen einer Datei;
            Designsystem mit Farbtokens, Oberfläche in Graphit, Signalfarbe Violett (getrennt vom blauen N-Leiter),
@@ -306,6 +309,10 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.ziel{cursor:pointer;outline:none}
 @media (hover:hover){.ed rect.ziel:hover{fill:rgba(106,53,232,.07)}}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
+.ed rect.teil{pointer-events:none}
+.ed rect.teil[data-aktiv]{pointer-events:auto;stroke:var(--ov);stroke-width:.2;stroke-dasharray:.8 .6;fill:rgba(106,53,232,.04)}
+@media (hover:hover){.ed rect.teil[data-aktiv]:hover{fill:rgba(106,53,232,.12)}}
+.ed rect.teil[data-sel]{fill:rgba(106,53,232,.16);stroke:var(--ov);stroke-width:.45;stroke-dasharray:none}
 .ed rect.ziel:focus-visible{stroke:var(--ov);stroke-width:.5;stroke-dasharray:1.4 .9}
 .ed .marke{cursor:pointer;outline:none}
 .ed .marke circle:not(.treffer){transition:fill .12s}
@@ -1762,7 +1769,7 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'v') return tun('einfuegen');
   if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
-  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel) waehle(null); }
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && b.sel.startsWith('t:')) waehle(teilBesitzer(b.sel.slice(2))); else if (b.sel) waehle(null); }
 });
 
 // ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
@@ -1825,12 +1832,15 @@ function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
   if (art === 'pl') return !!kreisMitPfad(v, id);
   if (art === 'g') return !!(v.steuerung && v.steuerung.geraete.some(g => g.id === id));
   if (art === 'kopf') return !!KOPF_TITEL[id];
-  return ['e', 's', 'st', 'p'].includes(art);
+  if (art === 't') { const bes = teilBesitzer(z.slice(2)); return !!bes && editorZiel(v, bes); }
+  if (art === 's') return !!v.spd.zeichen;
+  return ['e', 'st', 'p'].includes(art);
 }
 // Inhalt der Eigenschaften-Leiste: { titel, inhalt }
 function editorEigenschaften(v, z, b) {
   const [art, id, zl] = (z || '').split(':');
   if (!z) return eingebettet(() => bVerteiler({ s: 'editor', vid: v.id }));
+  if (art === 't') return editorTeil(v, z.slice(2), b);
   if (art === 'pl') return editorPlatz(v, b, id, +zl);
   if (art === 'k') { const r = knoten(v, id); return eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id })); }
   if (art === 'kr') return eingebettet(() => bKreis({ s: 'editor', vid: v.id, krid: id }));
@@ -1845,6 +1855,14 @@ function editorEigenschaften(v, z, b) {
     kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung), kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
     kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter), kopfZeile(v, 'spd', 'Überspannungsschutz', e.kopf.spd)));
   return r;
+}
+// Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
+function editorTeil(v, key, b) {
+  const bes = teilBesitzer(key), r = editorEigenschaften(v, bes, b);
+  const kopf = h('div', {}, h('h2', {}, 'Gerät im Plan'), h('div', { class: 'liste' },
+    zeile(teilName(key), 'automatisch angeordnet', () => waehle(bes), { ohnePfeil: true, un: 'Zum Abgang: oben ‹ oder Esc' })));
+  r.inhalt.prepend(kopf);
+  return { titel: `${teilName(key)} · ${r.titel}`, inhalt: r.inhalt };
 }
 // Palette des Plan-Editors (ab v1.18; ab v1.21 mit Gruppen und Kennzeichnung 1~/3~)
 const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
@@ -1935,6 +1953,36 @@ function waehle(sel, opt = {}) {
 function markieren() {
   ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
   if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === ED.b.sel) r.setAttribute('data-sel', ''); });
+  // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar
+  const bes = ED.b.sel && (ED.b.sel.startsWith('t:') ? teilBesitzer(ED.b.sel.slice(2)) : ED.b.sel);
+  ED.blaetter.querySelectorAll('rect.teil').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
+}
+// ---- Geräte im Blatt (ab v1.24): Teile der Szene als eigene Antippflächen -------------------
+// Ein Teil ist ein Gerät mit Kennzeichen und Beschriftung (Schutzorgan, Schaltgerät, Klemmen,
+// Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
+const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
+const teilBesitzer = key => { const m = /^([eks]):([^/]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
+const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
+function teilFlaechen() {
+  ED.liste.forEach(bl => {
+    if (!bl.szene) return;
+    const svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
+    const I = M.inverse(), pt = (x, y) => new DOMPoint(x, y).matrixTransform(I);
+    Object.values(bl.szene.teile).forEach(tl => {
+      if (!tl.els.length) return;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const dazu = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+      tl.els.forEach(el => { const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
+        const a = pt(q.left, q.top), c = pt(q.right, q.bottom); dazu(a.x, a.y); dazu(c.x, c.y); });
+      tl.ports.forEach(p => dazu(p.x, p.y));
+      if (!isFinite(x0)) return;
+      tl.box = { x0: x0 - 0.8, y0: y0 - 0.8, x1: x1 + 0.8, y1: y1 + 0.8 };
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
+        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilBesitzer(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
+      svg.append(r);
+    });
+  });
 }
 function zeigeAuswahl() {
   const s = ED.blaetter.querySelector('[data-sel]'); if (!s) return;
@@ -1974,6 +2022,8 @@ function kontextNeu() {
       ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+  } else if (art === 't') {
+    kn.push(ik('hoch', 'Ganzen Abgang wählen', () => waehle(teilBesitzer(b.sel.slice(2))), { text: 'Abgang' }));
   } else if (art === 'kr') {
     const kr = v.steuerung.kreise.find(x => x.id === id);
     kn.push(ik('vorlage', 'Vorlage einsetzen', () => vorlageWahl(v, kr), { text: 'Vorlage' }),
@@ -2217,6 +2267,8 @@ function bEditor(b) {
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (res) res.begrenzen();
+  ED.raster = res && res.raster;
+  teilFlaechen(); markieren();
   kontextNeu(); blattAnzeigen();
   if (b.springen) { b.springen = false; zeigeAuswahl(); }
   let rafS = 0;

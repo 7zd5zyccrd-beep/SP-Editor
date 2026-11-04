@@ -249,6 +249,10 @@ Overlay fest `#6a35e8`, nie im Druck). Offen (nicht freigegeben, ändert Pläne)
 nach 81346-2:2019.
 - F0 v1.23: Zeichen-Cache `qz()` in plan.js, `PLAN.blaetter(…, { nur: vid })` für den Editor,
   `PROJEKT_VERSION`/`migriere()`, Farbtokens (`--akzent` Violett, `--ov` Overlay), dunkler Modus der Oberfläche.
+- F1 v1.24: Szene in plan.js (`szeneStart/szeneEnde`, `teil(key)`, `teilPort()`): Teile `k:<id>/f|q|x|xd`,
+  `k:<gruppe>/f`, `s:<vid>`, `e:<vid>/<feld>` mit Elementen und Anschlüssen; Leiter = Linien 0,25 mm außerhalb
+  der Teile mit Leiterart. Blätter tragen `szene` und `anker` (erster Abgang bzw. `e:`). Editor: `teilFlaechen()`
+  legt `rect.teil[data-ziel=t:<key>]` über die Geräte, aktiv nur im gewählten Abgang.
 
 ## Technische Eckwerte
 

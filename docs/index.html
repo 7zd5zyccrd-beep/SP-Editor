@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.33 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.33.1 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,7 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.33.1: Endschalter (Schließer/Öffner) ebenfalls -B
      v1.33: Melder (Dämmerungs-, Bewegungs-, Präsenzmelder) tragen -B nach DIN EN IEC 81346-2:2019 statt -S
      v1.32: Bibliothek v1.7 mit den Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (Generator, PV,
            Wechselrichter, Batterie, Netzumschalter, Netzteil, Motoren, Motorschutz, Überlastrelais und
@@ -2258,7 +2259,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.33';
+const FASSUNG = 'v1.33.1';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2537,8 +2538,9 @@ function berechne(v) {
 // -K eigenständige Zeitrelais), Anschlussnummern (Hilfskontakte Schließer n3/n4, Öffner n1/n2;
 // verzögerte Kontakte Schließer n7/n8, Öffner n5/n6), Abgriff im Abgang, Klemmen und Leitungen
 // der Feldgeräte (ab v1.13), Warnungen
-// Melder nach DIN EN IEC 81346-2:2019 als Sensoren -B (Jean, 04.11.2026); Taster, Schalter, Not-Aus -S
-const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B' };
+// Melder und Endschalter nach DIN EN IEC 81346-2:2019 als Sensoren -B (Jean, 04.11.2026); Taster, Schalter, Not-Aus -S
+const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B',
+  endschalter_s: 'B', endschalter_oe: 'B' };   // Endschalter als Positionssensoren (Jean, 04.11.2026)
 const istOeffner = z => /_oe/.test(z);
 const istVerzoegert = z => /^k_/.test(z);
 const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais');

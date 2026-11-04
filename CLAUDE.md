@@ -98,7 +98,8 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
 - -Q Hauptschalter und Schaltgeräte (Schütz, Stromstoßschalter), -K Zeitrelais,
   -F Schutzorgane, -P Zähler, -X1 Klemmleiste im Verteiler, -X2 … Geräteanschlussdosen,
   -XD Steckdosen, -E Leuchten, -W Leitungen; Steuerstromkreise: -S Taster, Schalter, Not-Aus,
-  Wahlschalter; -B Melder (Dämmerung, Bewegung, Präsenz; seit v1.33 nach 81346-2:2019, Jean
+  Wahlschalter; -B Melder (Dämmerung, Bewegung, Präsenz; seit v1.33) und Endschalter (seit v1.33.1), später auch
+  Schwimmerschalter (alle nach 81346-2:2019, Jean
   04.11.2026); -H Meldeleuchten.
 
 **Eingabe und Daten**

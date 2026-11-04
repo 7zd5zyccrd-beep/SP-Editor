@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.33.1 | Endschalter (Schließer/Öffner) mit Kennzeichen -B |
 | v1.33 | Melder (Dämmerung, Bewegung, Präsenz) mit Kennzeichen -B nach DIN EN IEC 81346-2:2019 statt -S |
 | v1.32 | Bibliothek v1.7 mit den Fach-Erweiterungen (noch ohne Verwendung) |
 | v1.31 | Etappe F8: Kontakte und Verbraucher im Steuerstromkreis frei im Raster; Leiter mit Abzweigen behalten ihre Flucht; abgetrennte Abzweige in der Prüfliste; Beispiel `steuerfrei` |

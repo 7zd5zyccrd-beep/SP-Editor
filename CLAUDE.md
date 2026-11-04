@@ -351,7 +351,8 @@ https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihe
   PV einpolig `ue_pv` mit mittigem G; Wechselrichter `wr*_t` mit Text „3~“/„=“ wie der Frequenzumrichter.
   Klingenregel: kurze LS-Klinge für Schutzorgane, lange EN-Klinge für Schalt- und Steuerglieder.
 - E4 Beschriftungsregel in drei Schritten mit Vorher/Nachher zur Abnahme (Schritt 1 R1/R5 v1.47, von Jean am
-  04.11.2026 abgenommen: „Passt so“): R1 Oberkante erste Zeile = erste sichtbare
+  04.11.2026 abgenommen: „Passt so“; Schritt 2 R2/R3 v1.50 abgenommen, Batterie am Hybrid-Wechselrichter bleibt rechts;
+  v1.51 Verbraucherplatz im Steuerstromkreis nicht in der Fluchtlinie, Spule wie Meldeleuchte 1,5 mm am Zeichen): R1 Oberkante erste Zeile = erste sichtbare
   Stelle des Zeichens, R5 Endgeräte-Grundlinie; R2 links (Ausnahmen IΔ-Kasten darunter, Melder/Schwimmer rechts), R3
   Textende 1,5 mm vor der gezeichneten linken Kante, Fluchtlinie je Spalte im Steuerstromkreis; R4 2,5 mm zwischen
   Geräten, R6 Zeilenfolge, R7 Pfadtexte unten auf einer Grundlinie, 3,4 mm Zeilenabstand, höchstens drei Zeilen.

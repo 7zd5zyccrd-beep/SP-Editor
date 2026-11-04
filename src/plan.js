@@ -1663,13 +1663,11 @@ const PLAN = (() => {
         anG.L.push(x);
         if (kl) klemme(x, ST_YL - ST_KL, kl.l[p.id], lName, !anG.L.slice(0, -1).length);
       }
-      // R3 (ab v1.50): eine Fluchtlinie je Spalte, 1,5 mm vor der am weitesten links gezeichneten Stelle aller Zeichen des Pfads
+      // R3 (ab v1.50): eine Fluchtlinie je Spalte, 1,5 mm vor der am weitesten links gezeichneten Stelle aller Kontakte des Pfads;
+      // der Verbraucher (Spule, Meldeleuchte) steht ab v1.51 mit 1,5 mm Abstand zu seinem eigenen Zeichen (Jean 04.11.2026)
       const zPl = pl => { if (!pl) return null; const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g), zArt = pl.z || (ger && ger.zeichen), z = ST_BILD[zArt] || zArt; return z && ZEICHEN[z] ? z : null; };
-      const zVb = vb => { const sa = vb && e.abgaenge[vb.g], ger = vb && !sa && gerVon(vb.g);
-        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : ger && ger.zeichen === 'zeitrelais' ? 'spule_' + (ger.fkt || 'aus') : ger ? ger.zeichen : null; return z && ZEICHEN[z] ? z : null; };
       const zSp = [];
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) zSp.push(zPl(p.plaetze[i]));
-      if (bis >= ST_PL) zSp.push(zVb(p.verbraucher));
       const xr = x - Math.max(0, ...zSp.filter(z => z && !ST_MELDER.test(z)).map(sichtLinks)) - 1.5;
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
@@ -1719,12 +1717,12 @@ const PLAN = (() => {
           const [, re] = seiten(z);
           if (sa) {
             const sg = sa.schalt;
-            bmkSt(g, x, xr, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || '']);
+            bmkSt(g, x, R3(z, x), R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4); teil(vk);      // der Kontaktspiegel bleibt unter N
           } else if (zr) {
-            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? zeitText(ger.zeit) : '']);
+            bmkSt(g, x, R3(z, x), R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? zeitText(ger.zeit) : '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger); teil(vk);
-          } else bmkSt(g, x, xr, R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
+          } else bmkSt(g, x, R3(z, x), R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
           text(g, x + re + 0.8, ST_YV + 2.2, sa || zr ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa || zr ? 'A2' : 'X2', 1.8);
           const fk = st.feld && st.feld[p.id + ':v'];
           if (fk) { feldKlemme(x, ST_YV - 1.6, fk[0], true); feldKlemme(x, y + 1.6, fk[1], true); }

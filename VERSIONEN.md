@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.51 | Steuerstromkreis: Beschriftung von Spule und Meldeleuchte 1,5 mm am eigenen Zeichen statt in der Fluchtlinie der Kontakte |
 | v1.50 | Prüfbericht E4 Schritt 2: Beschriftung links mit 1,5 mm Abstand zur gezeichneten Kante (R2/R3), Fluchtlinie je Spalte im Steuerstromkreis – zur Abnahme |
 | v1.49 | Bibliothek v1.12 (Angleichung v0.2): Motorschutzschalter ohne Ziffern, PV-Generator einpolig, Wechselrichter in Umrichter-Optik |
 | v1.48 | Prüfbericht E3/E5/E6c: Bibliothek v1.11 (Angleichung v0.1), Anschlussbezeichnungen vom Plan, vollständiger Übersichtsplan, eine Strichelung |

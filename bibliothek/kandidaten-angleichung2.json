@@ -1,0 +1,78 @@
+[
+ {
+  "gruppe": "Schutzorgane",
+  "rolle": "Motorschutzschalter 3-polig (D4, zweiter Anlauf)",
+  "dateien": [
+   {
+    "bau": "mss_kaesten",
+    "en": true,
+    "zusatz": "A: Klinge wie Leistungsschalter, Auslöser aufrecht in Kästen je Pol (thermisch, I>), Handbetätigung"
+   },
+   {
+    "bau": "mss_en",
+    "en": true,
+    "zusatz": "B: rein nach EN-Grundzeichen: Auslöser 02-08-01/02 im Leiter, Handbetätigung"
+   },
+   {
+    "bau": "motorschutz3_neu",
+    "en": true,
+    "zusatz": "C: Vorschlag aus v0.1 (LS-Familie) – zum Vergleich"
+   },
+   {
+    "pfad": "10_allpole/200_fuses_protective_gears/12_magneto_thermal_circuit_breakers/fa4202_disjoncteur_moteur_3p.elmt",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Übersicht (einpolig)",
+  "rolle": "PV-Generator einpolig (D12)",
+  "dateien": [
+   {
+    "bau": "ue_pv_zelle",
+    "en": true,
+    "zusatz": "A: ohne G – Kasten mit Solarzelle und Lichtpfeilen"
+   },
+   {
+    "bau": "ue_pv",
+    "en": true,
+    "zusatz": "B: mit G wie im allpoligen PV-Zeichen (EN 06-18-06: G = Generator)"
+   },
+   {
+    "bau": "ue_pv_kreis",
+    "en": true,
+    "zusatz": "C: Kreis mit G wie Motor/Generator einpolig"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeugung und Speicher",
+  "rolle": "Wechselrichter 3/N/PE (Optik Frequenzumrichter)",
+  "dateien": [
+   {
+    "bau": "wr3_t",
+    "en": true,
+    "zusatz": "Vorschlag: „3~“ und „=“ als Text wie beim Frequenzumrichter (gilt ebenso für 1/N/PE und Hybrid)"
+   },
+   {
+    "bau": "wr3",
+    "zusatz": "heute"
+   }
+  ]
+ },
+ {
+  "gruppe": "Erzeugung und Speicher",
+  "rolle": "Hybrid-Wechselrichter 3/N/PE (Optik Frequenzumrichter)",
+  "dateien": [
+   {
+    "bau": "wr3_hybrid_t",
+    "en": true,
+    "zusatz": "Vorschlag: wie Wechselrichter, DC unten PV + −, Batterie + −"
+   },
+   {
+    "bau": "wr3_hybrid",
+    "zusatz": "heute"
+   }
+  ]
+ }
+]

@@ -343,6 +343,11 @@ https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihe
   Auswahlblatt (wartet auf Jean): Vorschläge `…_neu`, `ue_motor`, `ue_pv` in `tools/baukasten.py` (`geraet_fi_neu`,
   `geraet_ls_neu`, `geraet_sicherung_neu`, `geraet_kontakt_neu`, `geraet_melder_neu` …):
   `python3 tools/auswahl_bauen.py kandidaten-angleichung.json build/angleichung-auswahl-v0.1.html 'Angleichung v0.1' 'Stromlaufplan · Prüfbericht E3 · Angleichung der Zeichenfamilien' 'slp.angleichung.auswahl.v1'`
+  Auswahl v0.1 (Jean 04.11.2026) übernommen in Bibliothek v1.11 / App v1.48; Ausnahmen: Motorschutzschalter „keine passt“,
+  Frequenzumrichter bleibt in heutiger Optik („3~“ als Text) und die Wechselrichter sollen daran angepasst werden,
+  PV einpolig offen („Warum G?“), Motor einpolig mit mittigem M. Dazu Auswahl v0.2 (`kandidaten-angleichung2.json`):
+  `python3 tools/auswahl_bauen.py kandidaten-angleichung2.json build/angleichung-auswahl-v0.2.html 'Angleichung v0.2' 'Stromlaufplan · Prüfbericht E3 · Motorschutzschalter, PV einpolig, Wechselrichter' 'slp.angleichung.auswahl.v2'`
+  Klingenregel: kurze LS-Klinge für Schutzorgane, lange EN-Klinge für Schalt- und Steuerglieder.
 - E4 Beschriftungsregel in drei Schritten mit Vorher/Nachher zur Abnahme: R1 Oberkante erste Zeile = erste sichtbare
   Stelle des Zeichens, R5 Endgeräte-Grundlinie; R2 links (Ausnahmen IΔ-Kasten darunter, Melder/Schwimmer rechts), R3
   Textende 1,5 mm vor der gezeichneten linken Kante, Fluchtlinie je Spalte im Steuerstromkreis; R4 2,5 mm zwischen

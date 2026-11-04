@@ -16,6 +16,12 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.48: Prüfbericht E3/E5/E6c – Bibliothek v1.11 nach Auswahl „Angleichung v0.1“ (FI aus der LS-Klinge, LS ohne
+           aufgedruckte Ziffern, LS 3-polig mit Wirkverbindung, einheitliche Kontaktkennzeichen, Sicherungstrenner mit
+           Wirkverbindung durch die Klingen, Stromstoß-Spule 40×20, Schließer ohne Drehpunkt-Kreis, Melder angeglichen,
+           Trennklemme Ø 5, einpolige Zeichen Motor/Wechselrichter/Umrichter); eine Strichelung der Wirkverbindung;
+           Anschlussbezeichnungen einheitlich vom Plan (Schutzorgane, Schaltgeräte, Überlastrelais, Umrichter, Motor);
+           Übersichtsplan mit Zusatzschützen, Überlastrelais, Umrichter und Wechselrichter, Batterie in Originalgröße
      v1.47: Prüfbericht E4 Schritt 1 – Beschriftungsregel R1: erste Zeile auf der ersten sichtbaren Stelle des Zeichens
            (`sichtOben()`, `R1()`), im Stromlaufplan, Steuerstromkreis und Übersichtsplan; R5: kleine Endgeräte auf
            gemeinsamer Grundlinie; Klemmen rücken unter lange Beschriftungen (1,5 mm frei, Vorgriff auf R4)
@@ -540,7 +546,8 @@ const GERAETE = {
   spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true },
   spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true },
   // Motorschutzschalter (ab v1.37): Kennzeichen -Q nach 81346-2 (Jean, 04.11.2026), Einstellbereich statt Nennstrom
-  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9 },
+  // eigeneNr: das Zeichen (Sammlung) trägt noch eigene Klemmenziffern – bis zur Auswahl „Angleichung v0.2“
+  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9, eigeneNr: true },
 };
 const WAHL = {
   abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', 'motorschutz3', ''],

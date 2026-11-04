@@ -683,7 +683,7 @@ def geraet_ue_maschine(name, buchst):
     """Maschine einpolig für den Übersichtsschaltplan: Kreis Ø 20 wie die übrigen einpoligen Zeichen."""
     b = Bau(name); b._q('06_08_01', 'einpolig, Kreis Ø 20')
     b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
-    b.ellipse(-10, 0, 20, 20); b.text(-3.6, 13.5, buchst, 8)
+    b.ellipse(-10, 0, 20, 20); b.text(-4.43, 13.8, buchst, 8)     # optisch mittig (Glyphenmitte = Kreismitte)
     return b
 
 def geraet_ue_pv():
@@ -712,6 +712,63 @@ def geraet_ue_umformer(name, oben, unten):
     zeichen(oben, -8.5, 2); zeichen(unten, 0.5, 15)
     return b
 
+# --- Angleichung v0.2 (Jean 04.11.2026: Motorschutzschalter „keine passt“, PV einpolig „Warum G?“,
+# Wechselrichter in der Optik des Frequenzumrichters) ------------------------------------------------
+def geraet_mss_kaesten():
+    """Motorschutzschalter wie die Schaltgeräte-Familie: lange Klinge mit Leistungsschalter-Kreuz (07-13-05),
+    je Pol darunter ein Kasten mit thermischem Auslöser (Haken wie Überlastrelais 07-15-21) und ein Kasten „I>“,
+    aufrecht; Handbetätigung links, Wirkverbindung durch die Klingen."""
+    b = Bau('Motorschutzschalter 3-polig')
+    for i in range(3):
+        x = 20 * i
+        b.setze(KONTAKT['leistung'], dx=x, anschluesse=False); b.anschluss(x, -40, 'n')
+        b.linie(x, 20, x, 24)
+        b.rect(x - 8, 24, 16, 12)                                  # thermisch: Haken im Leiter
+        b.linie(x, 24, x, 27); b.linie(x, 27, x - 4, 27); b.linie(x - 4, 27, x - 4, 33); b.linie(x - 4, 33, x, 33); b.linie(x, 33, x, 36)
+        b.rect(x - 8, 36, 16, 12); b.text(x - 5.5, 45.5, 'I>', 6)  # magnetisch
+        b.linie(x, 48, x, 60); b.anschluss(x, 60, 's')
+    b._q('07_15_21', 'thermischer Auslöser je Pol'); b._q('07_13_05', 'Leistungsschalter-Klinge')
+    b.linie(-35, -16.5, -35, -6.5); b._q('07_07_01', 'Handbetätigung')
+    b.wv(-35, WV_Y, 40 + _wv_x(WV_Y), WV_Y)
+    return b
+
+def geraet_mss_en():
+    """Motorschutzschalter rein nach EN-Grundzeichen: Leistungsschalter-Klinge, im Leiter thermischer (02-08-01)
+    und elektromagnetischer (02-08-02) Überstromauslöser je Pol, Handbetätigung links."""
+    b = Bau('Motorschutzschalter 3-polig')
+    y = kontakte(b, 'leistung', 3, [True, True, True]); unten_anschliessen(b, 3, y)
+    b.linie(-35, -16.5, -35, -6.5); b._q('07_07_01', 'Handbetätigung')
+    b.wv(-35, WV_Y, _wv_x(WV_Y), WV_Y)
+    return b
+
+def geraet_ue_pv_var(art):
+    """PV-Generator einpolig: 'zelle' Kasten mit Solarzelle (Batteriezeichen wie im allpoligen Zeichen) ohne G;
+    'kreis' Kreis wie Motor/Generator mit G und Lichtpfeilen."""
+    b = Bau('PV-Generator einpolig'); b._q('06_18_06', 'einpolig')
+    b.linie(0, -10, 0, 0); b.anschluss(0, -10, 'n')
+    if art == 'zelle':
+        b.rect(-10, 0, 20, 20)
+        b.linie(-6, 10, -1.5, 10); b.linie(-1.5, 6, -1.5, 14); b.linie(1.5, 4, 1.5, 16); b.linie(1.5, 10, 6, 10)
+    else:
+        b.ellipse(-10, 0, 20, 20); b.text(-4.43, 13.8, 'G', 8)
+    for dy in (0, 4):
+        b.linie(-21, 3 + dy, -14, 10 + dy)
+        b.teile.append(f'<polygon x1="-12" y1="{12 + dy}" x2="-15.5" y2="{11 + dy}" x3="-13" y3="{8.5 + dy}" closed="true" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="true"/>')
+    return b
+
+def geraet_wechselrichter_text(name, ac, dc=2):
+    """Wechselrichter in der Optik des Frequenzumrichters: Kasten mit Diagonale, Kennzeichnung als Text –
+    oben links „3~“ bzw. „1~“ (AC), unten rechts „=“ (DC); Anschlüsse AC oben, DC unten im Abstand 20."""
+    b = Bau(name); b._q('06_14_05', 'gedreht: AC oben, Kennzeichnung als Text wie Frequenzumrichter')
+    w = 20 * max(ac, dc, 2); x0 = -10
+    b.rect(x0, 0, w, 40); b.linie(x0, 40, x0 + w, 0)
+    b.text(x0 + 2, 10, '3~' if ac >= 5 else '1~', 8); b.text(x0 + w - 9, 36, '=', 8)
+    for i in range(ac):
+        b.linie(20 * i, 0, 20 * i, -20); b.anschluss(20 * i, -20, 'n')
+    for i in range(dc):
+        b.linie(20 * i, 40, 20 * i, 60); b.anschluss(20 * i, 60, 's')
+    return b
+
 BAUTEILE = {
     'fi2_neu':         (lambda: geraet_fi_neu('FI 2-polig', 2), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
     'fi4_neu':         (lambda: geraet_fi_neu('FI 4-polig', 4), 'Klinge des LS, Lasttrennkennzeichen; gleiche Höhe wie FI/LS'),
@@ -724,6 +781,8 @@ BAUTEILE = {
     'sichlasttrenn1_neu': (lambda: geraet_sicherung_neu('Sicherungslasttrennschalter 1-polig', '07_21_09', 1, True), 'Lasttrennkreis Ø 4 wie Lasttrennschalter'),
     'sichlasttrenn3_neu': (lambda: geraet_sicherung_neu('Sicherungslasttrennschalter 3-polig', '07_21_09', 3, True), 'Lasttrennkreis Ø 4, Wirkverbindung durch die Klingen'),
     'lasttrenn3_neu':  (lambda: geraet_kontakt_neu('Lasttrennschalter 3-polig', 'lasttrenn', 3), 'Trennstrich 6 E wie Trennschalter'),
+    'lasttrenn2_neu':  (lambda: geraet_kontakt_neu('Lasttrennschalter 2-polig', 'lasttrenn', 2), 'Trennstrich 6 E (wie 3-polig, Auswahl Angleichung)'),
+    'ue_lasttrenn_neu': (lambda: geraet_kontakt_neu('Lasttrennschalter einpolig', 'lasttrenn', 1), 'Trennstrich 6 E, für den Übersichtsschaltplan'),
     'hilfs_s_neu':     (lambda: geraet_hilfs_s_neu(), 'Form 1 ohne Kreis am Drehpunkt'),
     'daemmerung_neu':  (lambda: geraet_melder_neu('Dämmerungsschalter', 'lx'), 'Form 1, Kasten 20×20, Wirkverbindung y −10'),
     'bewegung_neu':    (lambda: geraet_melder_neu('Bewegungsmelder', 'PIR'), 'Form 1, Kasten 20×20, Wirkverbindung y −10'),
@@ -733,6 +792,14 @@ BAUTEILE = {
     'umrichter3_neu':  (lambda: geraet_umrichter_neu('Frequenzumrichter 3~/3~'), '~ als Bögen wie Wechselrichter'),
     'ue_motor':        (lambda: geraet_ue_maschine('Motor einpolig', 'M'), 'Kreis Ø 20 wie die anderen einpoligen Zeichen'),
     'ue_pv':           (lambda: geraet_ue_pv(), 'Kasten 20×20 mit G und Lichtpfeilen'),
+    'ue_pv_zelle':     (lambda: geraet_ue_pv_var('zelle'), 'Kasten mit Solarzelle, ohne G'),
+    'ue_pv_kreis':     (lambda: geraet_ue_pv_var('kreis'), 'Kreis mit G wie Generator, Lichtpfeile'),
+    'mss_kaesten':     (lambda: geraet_mss_kaesten(), 'Leistungsschalter-Klinge, Auslöser in Kästen je Pol, Handbetätigung'),
+    'mss_en':          (lambda: geraet_mss_en(), 'Leistungsschalter-Klinge, Auslöser 02-08-01/02 im Leiter, Handbetätigung'),
+    'wr1_t':           (lambda: geraet_wechselrichter_text('Wechselrichter 1/N/PE', 3), 'Optik wie Frequenzumrichter'),
+    'wr3_t':           (lambda: geraet_wechselrichter_text('Wechselrichter 3/N/PE', 5), 'Optik wie Frequenzumrichter'),
+    'wr1_hybrid_t':    (lambda: geraet_wechselrichter_text('Hybrid-Wechselrichter 1/N/PE', 3, 4), 'Optik wie Frequenzumrichter'),
+    'wr3_hybrid_t':    (lambda: geraet_wechselrichter_text('Hybrid-Wechselrichter 3/N/PE', 5, 4), 'Optik wie Frequenzumrichter'),
     'ue_wr':           (lambda: geraet_ue_umformer('Wechselrichter einpolig', '~', '='), 'AC oben, DC unten, Kasten 20×20'),
     'ue_umrichter':    (lambda: geraet_ue_umformer('Frequenzumrichter einpolig', '~', '~'), 'Kasten 20×20, ~ oben und unten'),
     'oe_thermisch':    (lambda: geraet_betaetigter_kontakt('Öffner, thermisch betätigt (95–96)', 'thermisch', 'oe'), 'Hilfsöffner mit thermischer Auslösung'),

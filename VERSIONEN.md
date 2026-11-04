@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.48 | Prüfbericht E3/E5/E6c: Bibliothek v1.11 (Angleichung v0.1), Anschlussbezeichnungen vom Plan, vollständiger Übersichtsplan, eine Strichelung |
 | v1.47 | Prüfbericht E4 Schritt 1: Beschriftung beginnt auf der ersten sichtbaren Stelle des Zeichens (R1), Endgeräte auf einer Linie (R5) – zur Abnahme |
 | v1.46 | Prüfbericht E6b: Umrichter mit PE, Schirmauflage, Verweis am Motorschutzschalter, Primär-LS 2-polig, PEN-Darstellung und Netzangabe, Haupterdungsschiene; Beispiel `tncs` |
 | v1.45 | Prüfbericht E6a: Klemmenplan mit innerem Ziel der Steuerklemmen und Motoranschluss; Leitungstyp bestimmt Adernzahl und -kennung (NYM-J mit gnge-Reserve) |
@@ -68,6 +69,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.11 | Angleichung v0.1: FI 2/4-polig und einpolig aus der LS-Klinge, LS 1/3-polig ohne Ziffern (3-polig mit Wirkverbindung), Sicherungs(last)trenner und Lasttrennschalter mit einheitlichen Kennzeichen, Stromstoß-Spule 40×20, Hilfsschließer Form 1, Melder angeglichen, Trennklemme Ø 5; neu: Motor, Wechselrichter, Frequenzumrichter einpolig |
 | v1.10 | Überlastrelais 1-polig (gleiche Zeichnung wie 3-polig); Platzhaltertexte „_“ aus Sammlungszeichen entfernt (Steuertrafo) |
 | v1.9 | Wallbox nach Auswahl „Wallbox v0.1“: Steckbuchsen wie Steckdose 3/N/PE im Kasten, „Typ 2“ (Anschlussleitungen bis an die Buchsen ergänzt) |
 | v1.8 | Für Etappe G (von Jean freigegeben, 04.11.2026): Wechselrichter 1/N/PE und 3/N/PE mit AC oben, Hybrid-Wechselrichter (PV und Batterie), PV-Generator mit Anschlüssen oben, Lasttrennschalter 2-polig – gleiche Zeichnung wie die ausgewählten Zeichen |
@@ -85,6 +87,7 @@
 - Zeichenbibliothek (Musterblatt) v0.1–v0.3: Auswahl der Grundzeichen; v0.2 nach Bedeutung geordnet, v0.3 mit EN-Baukasten.
 - Steuerung v0.1–v0.2: Auswahl der Steuerungszeichen; v0.2 eine Bedeutung je Karte.
 - Trafo v0.1: Auswahl des Steuertrafos (4 Karten aus der Sammlung, `bibliothek/kandidaten-trafo.json`), ausgewählt: allpolig `transformator_1f_2`, einpolig EN 06-09-01 → Bibliothek v1.5.
+- Angleichung v0.1–v0.2 (Prüfbericht E3): v0.1 → Bibliothek v1.11; v0.2 (Motorschutzschalter neu, PV einpolig, Wechselrichter in Umrichter-Optik) wartet auf Jean.
 - Wallbox v0.1: drei Vorschläge aus dem EN-Baukasten (`bibliothek/kandidaten-wallbox.json`), ausgewählt: Steckbuchsen im Kasten → Bibliothek v1.9.
 - Erweiterung v0.1–v0.2: Fach-Erweiterungen (`bibliothek/kandidaten-erweiterung.json`); v0.2 nach Plausibilitätsprüfung mit gleichen Familien auf gepaarten Karten → Bibliothek v1.7.
 - Blattrahmen v0.1–v0.5: Prototyp für Rahmen und Schriftfeld (in die App übernommen).

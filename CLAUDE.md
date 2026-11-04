@@ -256,6 +256,9 @@ nach 81346-2:2019.
 - F2 v1.25: `v.layout = { spalten, umbruch, lage }` (`lay()`, `layoutBereinigen()` in `sichern()`, `automatik()`,
   `vonHand()`), `planeVerteiler()` liest Wunschspalte/Umbruch; Ziehen eines Abgangs auf freie Fläche setzt die
   Spalte um die gezogene Strecke (`spalteUnter()`); Ablage nimmt die Vorgaben mit (`layoutDazu()`); `nadeln()`.
+- F3 v1.26: `lageAnwenden()` in plan.js (vor dem Schriftfeld): Teile per `transform` versetzen, Leiter an
+  ihren Anschlüssen folgen (gerade oder Knick `RASTER·(1+Rang)` vor dem Gerät, Rang nach x bzw. Zugrichtung).
+  Editor: `teilZiehen()` (Vorschau, Hilfslinien), `teilSchieben()`, Pfeiltasten, `prueflisteBerechnen()`.
 
 ## Technische Eckwerte
 

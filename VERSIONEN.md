@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.26 | Etappe F3: Geräte frei im 2,5-mm-Raster (Ziehen, Pfeiltasten), Leiter folgen mit gestaffeltem Knick, Hilfslinien, Prüfliste in der Fußleiste |
 | v1.25 | Etappe F2: Abgänge in freie Spalten ziehen (Lücke davor), neues Blatt ab einem Abgang, Stecknadel, „Automatik anwenden“; Projektfassung 2 mit `v.layout`; Beispiel `layout` |
 | v1.24 | Etappe F1: Szene je Blatt (Geräte mit Anschlüssen, Leiter mit Leiterart), Plan bitgleich; Geräte eines gewählten Abgangs einzeln antippbar |
 | v1.23 | Etappe F0: Zeichen-Cache (Plan 3–4× schneller), Editor erzeugt nur den offenen Verteiler, Prüfung der Projektfassung beim Öffnen, Designsystem mit Farbtokens, Signalfarbe Violett, dunkler Modus der Oberfläche |

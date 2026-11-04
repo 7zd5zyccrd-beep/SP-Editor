@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.26: Etappe F3 – Anordnen II: Geräte (Schutzorgan, Schaltgerät, Klemmen, Anschluss, Gruppengerät,
+           Überspannungsschutz, Geräte der Einspeisung) frei im 2,5-mm-Raster ziehen oder mit den Pfeiltasten
+           verschieben; Leiter folgen gerade oder mit gestaffeltem Knick; Hilfslinien beim Ziehen; Prüfliste
+           (Schriftfeld, Rahmen, Überdeckung, Leiter durch Gerät); Pencil zieht sofort, der Finger nach Halten
      v1.25: Etappe F2 – Anordnen I: Abgang bzw. Gruppe in eine freie Spalte ziehen oder mit ⇤/⇥ verschieben (Lücke
            davor, die Nachbarn rücken nach), „Neues Blatt ab hier“, Stecknadel an Teilen mit Vorgaben von Hand,
            „Automatik anwenden“ je Abgang und für den ganzen Verteiler; Projektfassung 2 mit v.layout
@@ -314,6 +318,8 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
 .ed rect.teil{pointer-events:none}
 .ed .nadel{pointer-events:none}
+.ed .hilfslinie{stroke:var(--ov);stroke-width:.2;stroke-dasharray:1 .8;pointer-events:none}
+.pruefknopf{border:0;background:var(--warn-hell);color:var(--warn);font-weight:700;border-radius:9px;padding:7px 11px;cursor:pointer;flex:0 0 auto}
 .ed .spaltenvorschau{fill:rgba(106,53,232,.10);stroke:var(--ov);stroke-width:.35;stroke-dasharray:1.2 .8;pointer-events:none}
 .ed rect.teil[data-aktiv]{pointer-events:auto;stroke:var(--ov);stroke-width:.2;stroke-dasharray:.8 .6;fill:rgba(106,53,232,.04)}
 @media (hover:hover){.ed rect.teil[data-aktiv]:hover{fill:rgba(106,53,232,.12)}}
@@ -1797,6 +1803,8 @@ document.addEventListener('keydown', ev => {
     if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return waehle(b.sel, { springen: true }); }
   }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
+  const tm = (b.sel || '').startsWith('t:') && { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
+  if (tm && !strg) { ev.preventDefault(); const f = ev.shiftKey ? 4 : 1; return teilSchieben(v, b.sel.slice(2), tm[0] * f, tm[1] * f); }
   if (!m && !strg && (t === 'arrowleft' || t === 'arrowright')) {       // Abgänge der Reihe nach wählen bzw. mit Alt verschieben
     ev.preventDefault();
     if (ev.altKey) return editorAktion(v, b, t === 'arrowleft' ? 'links' : 'rechts');
@@ -1923,8 +1931,11 @@ function lageZeilen(v, r, b) {
 // Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
 function editorTeil(v, key, b) {
   const bes = teilBesitzer(key), r = editorEigenschaften(v, bes, b);
+  const d = (v.layout && v.layout.lage && v.layout.lage[key]) || null;
   const kopf = h('div', {}, h('h2', {}, 'Gerät im Plan'), h('div', { class: 'liste' },
-    zeile(teilName(key), 'automatisch angeordnet', () => waehle(bes), { ohnePfeil: true, un: 'Zum Abgang: oben ‹ oder Esc' })));
+    zeile('Lage', d ? `x ${mm(d[0] * RASTER)} · y ${mm(d[1] * RASTER)} mm` : 'automatisch', () => {}, { ohnePfeil: true,
+      un: 'Ziehen oder Pfeiltasten (Umschalt: 10 mm); Raster 2,5 mm' }),
+    d ? zeile('Automatik anwenden', null, () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }, { ohnePfeil: true, un: 'Gerät wieder an seinen automatischen Platz' }) : null));
   r.inhalt.prepend(kopf);
   return { titel: `${teilName(key)} · ${r.titel}`, inhalt: r.inhalt };
 }
@@ -2027,6 +2038,55 @@ function abgangLage(kid) {
   for (let i = 0; i < ED.liste.length; i++) { const s = (ED.liste[i].spalten || []).find(x => x.id === kid); if (s) return Object.assign({ blatt: i }, s); }
   return null;
 }
+// ---- Geräte frei im Raster (ab v1.26, Etappe F3) -----------------------------------
+function teilVon(key) { for (const bl of (ED ? ED.liste : [])) { const tl = bl.szene && bl.szene.teile[key]; if (tl) return { bl, tl }; } return null; }
+const mm = x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(1).replace('.', ',');
+// Gerät um nx/ny Rasterschritte verschieben (Tasten, Kontextleiste, Ziehen)
+function teilSchieben(v, key, nx, ny, still) {
+  const L = lay(v), d = L.lage[key] || [0, 0], neu = [d[0] + nx, d[1] + ny];
+  if (neu[0] || neu[1]) L.lage[key] = neu; else delete L.lage[key];
+  aenderung('Gerät verschieben'); sichern();
+  if (!still) zeichne();
+}
+// Vorschau beim Ziehen: Gerät rastet in 2,5-mm-Schritten, Hilfslinien durch seine Anschlüsse
+function teilZiehen(ev) {
+  const { bl, tl } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
+  const I = M.inverse(), p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(I), p0 = new DOMPoint(zieh.x, zieh.y).matrixTransform(I);
+  const nx = Math.round((p.x - p0.x) / RASTER), ny = Math.round((p.y - p0.y) / RASTER);
+  if (nx === zieh.nx && ny === zieh.ny) return;
+  zieh.nx = nx; zieh.ny = ny;
+  const dx = nx * RASTER, dy = ny * RASTER;
+  tl.els.forEach((x, i) => { const o = zieh.orig[i]; x.setAttribute('transform', `translate(${dx} ${dy})` + (o ? ' ' + o : '')); });
+  if (zieh.ziel) zieh.ziel.setAttribute('transform', `translate(${dx} ${dy})`);
+  svg.querySelectorAll('.hilfslinie').forEach(x => x.remove());
+  const R = ED.raster, ns = 'http://www.w3.org/2000/svg';
+  const hl = (x1, y1, x2, y2) => { const l = document.createElementNS(ns, 'line'); [['x1', x1], ['y1', y1], ['x2', x2], ['y2', y2], ['class', 'hilfslinie']].forEach(([k, w]) => l.setAttribute(k, w)); svg.append(l); };
+  [...new Set(tl.ports.map(q => (q.x + dx).toFixed(2)))].forEach(x => hl(+x, 10, +x, R.sfTop));
+  [...new Set(tl.ports.map(q => (q.y + dy).toFixed(2)))].forEach(y => hl(R.x0, +y, R.x0 + R.sp * R.sb, +y));
+  const d = (ED.v.layout && ED.v.layout.lage && ED.v.layout.lage[tl.key]) || [0, 0];
+  zieh.geist.textContent = `${teilName(tl.key)} · x ${mm((d[0] + nx) * RASTER)} · y ${mm((d[1] + ny) * RASTER)} mm`;
+}
+// Prüfliste (ab v1.26): Hinweise zu verschobenen Geräten – Schriftfeld, Rahmen, Überlappung, Leiter durch Gerät
+function prueflisteBerechnen() {
+  const aus = [], L = (ED.v.layout && ED.v.layout.lage) || {}, R = ED.raster;
+  ED.liste.forEach(bl => {
+    if (!bl.szene) return;
+    const teile = Object.values(bl.szene.teile).filter(x => x.box);
+    teile.filter(x => L[x.key]).forEach(tl => {
+      const b = tl.box, wo = `Blatt ${bl.nr}: ${teilName(tl.key)}`;
+      if (b.y1 > R.sfTop - 2) aus.push({ key: tl.key, t: `${wo} reicht ins Schriftfeld` });
+      if (b.x0 < R.x0 || b.x1 > R.x0 + R.sp * R.sb || b.y0 < 10) aus.push({ key: tl.key, t: `${wo} liegt außerhalb des Rahmens` });
+      teile.forEach(o => { if (o === tl || (L[o.key] && o.key < tl.key)) return;
+        const ix = Math.min(b.x1, o.box.x1) - Math.max(b.x0, o.box.x0), iy = Math.min(b.y1, o.box.y1) - Math.max(b.y0, o.box.y0);
+        if (ix > 1.5 && iy > 1.5) aus.push({ key: tl.key, t: `${wo} überdeckt ${teilName(o.key)}` }); });
+      const nah = (a, c) => Math.abs(a - c) < 0.05, amPort = (x, y) => tl.ports.some(q => nah(q.x, x) && nah(q.y, y));
+      if (bl.szene.leiter.some(l => !amPort(l.x1, l.y1) && !amPort(l.x2, l.y2) &&
+        Math.max(l.x1, l.x2) > b.x0 + 1 && Math.min(l.x1, l.x2) < b.x1 - 1 && Math.max(l.y1, l.y2) > b.y0 + 1 && Math.min(l.y1, l.y2) < b.y1 - 1))
+        aus.push({ key: tl.key, t: `${wo}: ein Leiter läuft durch das Gerät` });
+    });
+  });
+  return aus;
+}
 // Stecknadeln (ab v1.25): wo von Hand angeordnet wurde, steht im Editor eine Nadel (nie im Druck)
 function nadeln() {
   const v = ED.v, L = v.layout; if (!L) return;
@@ -2113,7 +2173,11 @@ function kontextNeu() {
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
   } else if (art === 't') {
-    kn.push(ik('hoch', 'Ganzen Abgang wählen', () => waehle(teilBesitzer(b.sel.slice(2))), { text: 'Abgang' }));
+    const key = b.sel.slice(2), s = (x, y) => () => teilSchieben(v, key, x, y);
+    kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
+      ik('runter', '2,5 mm nach unten', s(0, 1), { taste: '↓' }), ik('rechts', '2,5 mm nach rechts', s(1, 0), { taste: '→' }), sep());
+    if (vonHand(v, key)) kn.push(ik('auto', 'Automatik anwenden', () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }), sep());
+    kn.push(ik('auf', 'Ganzen Abgang wählen', () => waehle(teilBesitzer(key)), { text: 'Abgang' }));
   } else if (art === 'kr') {
     const kr = v.steuerung.kreise.find(x => x.id === id);
     kn.push(ik('vorlage', 'Vorlage einsetzen', () => vorlageWahl(v, kr), { text: 'Vorlage' }),
@@ -2159,7 +2223,10 @@ function fussNeu() {
     [`Blatt ${bl.nr} · ${BLATT_ART[bl.art]}`, () => blattZeigen(i), { an: i === ED.blattI }])) } });
   ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
     ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
+  const pr = ED.pruef || [];
   fuss.append(
+    pr.length ? h('button', { class: 'pruefknopf', title: 'Prüfliste', on: { click: () => menue('Prüfliste', pr.map(x =>
+      [x.t, () => waehle('t:' + x.key, { springen: true }), { klein: 'Springen – „Automatik anwenden“ in der Leiste behebt es' }])) } }, `⚠ ${pr.length}`) : null,
     h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
     h('div', { class: 'hinweiszeile' + (b.tool ? ' an' : ''), 'aria-live': 'polite' }, h('span', { class: 'hinweistext' }, hinweis),
       b.tool ? h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig') : null),
@@ -2382,6 +2449,7 @@ function bEditor(b) {
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (res) res.begrenzen();
   teilFlaechen(); nadeln(); markieren();
+  ED.pruef = prueflisteBerechnen(); fussNeu();
   kontextNeu(); blattAnzeigen();
   if (b.springen) { b.springen = false; zeigeAuswahl(); }
   let rafS = 0;
@@ -2427,9 +2495,12 @@ function ziehBereit(ev, v, b) {
   if (b.tool || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
   const z = ev.target.closest('[data-ziel]'); if (!z) return;
   const id = z.dataset.ziel;
+  let teil = null;
   if (id.startsWith('pl:')) { if (!platzInhalt(v, id)) return; }
+  else if (id.startsWith('t:')) { teil = teilVon(id.slice(2)); if (!teil) return; }
   else if (!id.startsWith('k:')) return;
-  zieh = { id, v, b, x: ev.clientX, y: ev.clientY, aktiv: false, maus: ev.pointerType === 'mouse', timer: null };
+  // Maus und Pencil ziehen nach kurzer Bewegung, der Finger erst nach kurzem Halten (sonst blättert er)
+  zieh = { id, v, b, x: ev.clientX, y: ev.clientY, aktiv: false, maus: ev.pointerType !== 'touch', timer: null, teil, ziel: z };
   if (!zieh.maus) zieh.timer = setTimeout(ziehAn, 350);
 }
 function platzInhalt(v, id) {         // was liegt auf dem Platz pl:pfad:zeile?
@@ -2443,7 +2514,8 @@ function ziehAn() {
   const k0 = document.querySelector('.kontext'); if (k0) k0.remove();
   const e = berechne(zieh.v), [art, id] = zieh.id.split(':');
   const r = art === 'k' && knoten(zieh.v, id), a = r && e.abgaenge[id];
-  const name = r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
+  if (zieh.teil) { zieh.orig = zieh.teil.tl.els.map(x => x.getAttribute('transform')); zieh.nx = zieh.ny = 0; }
+  const name = zieh.teil ? teilName(zieh.id.slice(2)) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
   zieh.geist = h('div', { class: 'zieh' }, name);
   document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
   if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) {}
@@ -2462,6 +2534,12 @@ function ziehEnde(ev) {
   const z = zieh; clearTimeout(z.timer);
   if (!z.aktiv) { zieh = null; return; }
   if (z.geist) z.geist.remove();
+  if (z.teil) {                         // Gerät abgelegt: Abweichung in Rasterschritten merken
+    zieh = null; document.querySelectorAll('.hilfslinie').forEach(x => x.remove());
+    ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
+    if (ev && (z.nx || z.ny)) { teilSchieben(z.v, z.id.slice(2), z.nx, z.ny, true); z.b.sel = z.id; }
+    zeichne(); return;
+  }
   const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen
   zieh = null;
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
@@ -2506,6 +2584,7 @@ window.addEventListener('pointermove', ev => {
     return;
   }
   ziehGeist(ev.clientX, ev.clientY);
+  if (zieh.teil) return teilZiehen(ev);
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
   const z = ziehZiel(ev.clientX, ev.clientY); if (z) z.setAttribute('data-ueber', '');
   spaltenVorschau(!z && zieh.id.startsWith('k:') ? spalteUnter(ev.clientX, ev.clientY, zieh) : null);

@@ -105,6 +105,15 @@ with sync_playwright() as p:
                 fehler.append(f"grund: Abgang in freie Spalte ziehen ergab {pg.evaluate(f'JSON.stringify(P.verteiler[1].layout)')} statt Spalte {lg['col'] + 1}")
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             if pg.evaluate("!!P.verteiler[1].layout"): fehler.append('grund: Strg+Z nach Spalte nicht zurückgenommen')
+            # ab v1.26: Gerät im gewählten Abgang antippen und mit der Pfeiltaste verschieben; Strg+Z
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
+            kid = pg.evaluate("P.verteiler[0].knoten[1].id")
+            pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.locator(f'rect.teil[data-ziel="t:k:{kid}/xd"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
+            if pg.evaluate(f"JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.lage['k:{kid}/xd'])") != '[1,0]': fehler.append('grund: Gerät mit Pfeiltaste verschieben hat nicht geklappt')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            if pg.evaluate("!!P.verteiler[0].layout"): fehler.append('grund: Strg+Z nach Gerät verschieben nicht zurückgenommen')
             # leerer Verteiler: Marke „+“ im leeren Blatt
             pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)

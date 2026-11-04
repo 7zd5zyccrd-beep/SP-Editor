@@ -51,6 +51,58 @@ const PLAN = (() => {
   function szeneStart(g) { SZ.g = g; SZ.teil = null; SZ.teile = {}; SZ.leiter = []; }
   function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter }; SZ.g = null; SZ.teil = null; return s; }
   function teil(key) { SZ.teil = key && SZ.g ? (SZ.teile[key] = SZ.teile[key] || { key, els: [], ports: [] }) : null; }
+  // Lage von Hand anwenden (ab v1.26): verschobene Teile um ganze Rasterschritte (2,5 mm) versetzen;
+  // Leiter, die an einem ihrer Anschlüsse enden, folgen – gerade, wenn sie fluchten, sonst mit einem
+  // rechtwinkligen Knick kurz vor dem Gerät (mehrpolig gestaffelt, damit sich nichts kreuzt)
+  const RASTER = 2.5;
+  function lageAnwenden(g, lage) {
+    const teile = Object.values(SZ.teile).filter(t => lage[t.key] && (lage[t.key][0] || lage[t.key][1]));
+    if (!teile.length) return;
+    const nah = (a, b) => Math.abs(a - b) < 0.01, ports = [];
+    teile.forEach(t => {
+      const dx = lage[t.key][0] * RASTER, dy = lage[t.key][1] * RASTER;
+      t.d = [dx, dy];
+      t.els.forEach(e => { const tr = e.getAttribute('transform'); e.setAttribute('transform', `translate(${dx} ${dy})` + (tr ? ' ' + tr : '')); });
+      t.ports.forEach(p => ports.push({ x: p.x, y: p.y, dx, dy, t }));
+      t.ports = t.ports.map(p => ({ x: p.x + dx, y: p.y + dy }));
+    });
+    const an = (x, y) => ports.find(p => nah(p.x, x) && nah(p.y, y));
+    // Leiter mit Knick je Teil und Seite nach x ordnen: der Rang bestimmt den Abstand des Knicks vom Gerät
+    const knick = [];
+    SZ.leiter.slice().forEach(l => {
+      const a = an(l.x1, l.y1), b = an(l.x2, l.y2);
+      if (!a && !b) return;
+      const A = [l.x1 + (a ? a.dx : 0), l.y1 + (a ? a.dy : 0)], B = [l.x2 + (b ? b.dx : 0), l.y2 + (b ? b.dy : 0)];
+      const senk = nah(l.x1, l.x2);
+      if ((senk && nah(A[0], B[0])) || (!senk && nah(A[1], B[1]))) { setzeLinie(l, A, B); return; }
+      if (a && b) { knick.push({ l, F: A, M: B, senk, mitte: true }); return; }
+      knick.push({ l, F: a ? B : A, M: a ? A : B, senk, p: a || b, umgekehrt: !!a });
+    });
+    const gruppen = {};
+    knick.forEach(k => { if (k.mitte) return; const s = k.senk ? Math.sign(k.M[1] - k.F[1]) : Math.sign(k.M[0] - k.F[0]);
+      (gruppen[k.p.t.key + (k.senk ? 'v' : 'h') + s] = gruppen[k.p.t.key + (k.senk ? 'v' : 'h') + s] || []).push(k); });
+    Object.values(gruppen).forEach(ks => {
+      const d = ks[0].senk ? ks[0].p.dx : ks[0].p.dy;
+      ks.sort((u, w) => (u.senk ? u.l.x1 - w.l.x1 : u.l.y1 - w.l.y1) * (d >= 0 ? 1 : -1));
+      ks.forEach((k, i) => { k.off = RASTER * (1 + i); });
+    });
+    knick.forEach(k => {
+      const { l, F, M, senk } = k, s = senk ? Math.sign(M[1] - F[1]) : Math.sign(M[0] - F[0]);
+      const lang = Math.abs(senk ? M[1] - F[1] : M[0] - F[0]);
+      const off = k.mitte || k.off >= lang ? lang / 2 : k.off;
+      const q = senk ? M[1] - s * off : M[0] - s * off;          // Lage des Querstücks
+      const P1 = senk ? [F[0], q] : [q, F[1]], P2 = senk ? [M[0], q] : [q, M[1]];
+      const pfad = k.umgekehrt ? [M, P2, P1, F] : [F, P1, P2, M];
+      setzeLinie(l, pfad[0], pfad[1]);
+      const farbe = l.el.getAttribute('stroke');
+      linie(g, pfad[1][0], pfad[1][1], pfad[2][0], pfad[2][1], 0.25, farbe, l.art);
+      linie(g, pfad[2][0], pfad[2][1], pfad[3][0], pfad[3][1], 0.25, farbe, l.art);
+    });
+  }
+  function setzeLinie(l, A, B) {
+    [l.x1, l.y1, l.x2, l.y2] = [A[0], A[1], B[0], B[1]];
+    l.el.setAttribute('x1', A[0]); l.el.setAttribute('y1', A[1]); l.el.setAttribute('x2', B[0]); l.el.setAttribute('y2', B[1]);
+  }
   function teilPort(g, x, y) { if (SZ.teil && g === SZ.g) SZ.teil.ports.push({ x, y }); }
   function text(g, x, y, t, groesse, anker = 'start', extra = {}) {
     const e = el('text', Object.assign({ x, y, 'font-size': groesse, 'text-anchor': anker,
@@ -1400,6 +1452,7 @@ const PLAN = (() => {
         }
         if (opt.ziele && b.art !== 'einspeisung' && i === p.blaetter.findIndex(x => x.art !== 'einspeisung') && !v.knoten.length)
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
+        if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');

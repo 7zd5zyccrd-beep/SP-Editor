@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.45: Prüfbericht E6a – Klemmenplan: Steuerklemmen mit dem Nachbaranschluss im Strompfad als „intern“ (statt nur
+           „Steuerstromkreis -Q2“), Motorziel mit U1 V1 W1 (U2 V2 W2); Leitungen nach Typ: „-J“ mit grün-gelber
+           Reserveader (Adernzahl + 1), „-O“ ohne, Farben nach HD 308, Zahlen nur bei Steuerleitungen mit Zahlenkennung;
+           Leitungstyp NYM-O für Feldgeräte wählbar
      v1.44: Prüfbericht E7 – alle Schrift schwarz, auch Feldtitel im Schriftfeld und Tabellenköpfe (vorher dunkelgrau)
      v1.43: Prüfbericht E2 – Warnungen ohne Planänderung: TN-C hinter getrenntem N/PE, PEN unter 10 mm², ungeerdeter
            Steuerkreis (Isolationsüberwachung, beide Leiter absichern); vor dem Drucken Hinweis auf alle Warnungen
@@ -1065,7 +1069,7 @@ const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
   if (k.steuer) return '';
-  if (a.sd) return `${k.leitung.typ || 'NYM-J'} 4×${k.leitung.quer || '?'}, ${a.w2.t} 3×${k.leitung.quer || '?'}`;
+  if (a.sd) return `${k.leitung.typ || 'NYM-J'} 4×${k.leitung.quer || '?'}, ${a.w2.t} ${/-J$/.test(k.leitung.typ || 'NYM-J') ? 4 : 3}×${k.leitung.quer || '?'}`;
   return `${k.leitung.typ || 'NYM-J'} ${a.leiter.length}×${k.leitung.quer || '?'}`;
 }
 
@@ -1864,9 +1868,9 @@ function bSGeraet(b) {
       zeile('Einbauort', feld ? 'im Feld' : 'im Verteiler', () => wahlFeld('Einbauort', [
         ['feld', 'im Feld', 'bei Klemmleiste über -X1, mit eigener Leitung'], ['vt', 'im Verteiler', 'z. B. in der Tür; ohne Klemmen']],
         feld ? 'feld' : 'vt', w => g.feld = w === 'feld')),
-      feld ? zeile('Leitungstyp', g.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYY-J', 'H05VV-F', 'J-Y(St)Y', 'LiYY'], g.leitung.typ || 'NYM-J', w => g.leitung.typ = w)) : null,
+      feld ? zeile('Leitungstyp', g.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', ['NYM-J', 'NYM-O', 'NYY-J', 'H05VV-F', 'J-Y(St)Y', 'LiYY'], g.leitung.typ || 'NYM-J', w => g.leitung.typ = w)) : null,
       feld ? zeile('Querschnitt', (g.leitung.quer || '1,5') + ' mm²', () => wahlFeld('Querschnitt', ['0,5', '0,75', '1', '1,5', '2,5'].map(x => [x, x + ' mm²']), g.leitung.quer || '1,5', w => g.leitung.quer = w)) : null,
-      feld && lt ? zeile('Kennzeichen Leitung', lt.w.t, () => bmkFeld('Kennzeichen Leitung', g.leitung, lt.w.hand ? '' : lt.w.t), { un: `${lt.adern} Adern` }) : null));
+      feld && lt ? zeile('Kennzeichen Leitung', lt.w.t, () => bmkFeld('Kennzeichen Leitung', g.leitung, lt.w.hand ? '' : lt.w.t), { un: `${lt.adern} genutzte Adern` }) : null));
     if (feld && !lt) m.append(h('p', { class: 'hinweis' }, 'Ohne Klemmleiste im Verteiler wird das Feldgerät direkt angeschlossen (keine Klemmen, keine Leitung im Plan).'));
   }
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Gerät löschen', null, () => frage('Gerät löschen',

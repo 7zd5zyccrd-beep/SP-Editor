@@ -618,7 +618,7 @@ const PLAN = (() => {
     if (k.ziel.ort) { passend(text(g, mx, ty, k.ziel.ort, 2.2, 'middle'), max); ty += 3.2; }
     // Stern-Dreieck (ab v1.42): beide Leitungen in einer Zeile, damit der Abstand zum Schriftfeld bleibt
     passend(text(g, mx, ty, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${arten.length}×${k.leitung.quer || '?'}` +
-      (a.sd ? ` · ${a.w2.t} 3×${k.leitung.quer || '?'}` : ''), 2.2, 'middle'), max);
+      (a.sd ? ` · ${a.w2.t} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : ''), 2.2, 'middle'), max);
     teil(null);
     return { unten: ty + 2, natur };
   }
@@ -1217,6 +1217,16 @@ const PLAN = (() => {
   const ADER = { L: 'br', L1: 'br', L2: 'sw', L3: 'gr', N: 'bl', PE: 'gnge', PEN: 'gnge' };   // DIN VDE, deutsche Kürzel
   const KL_Y0 = 30, KL_ZH = 5;
   // Zeilen der Klemmleiste, je Abgang ein Block
+  // Leitungen der Feldgeräte und Zusatzleitungen (ab v1.45, Prüfbericht E6): Leitungstyp bestimmt Adernzahl und
+  // Kennung. „-J“ hat immer eine grün-gelbe Ader (hier Reserve bzw. Gehäuse-PE): Adernzahl + 1; „-O“ ohne gnge;
+  // Steuerleitungen mit Zahlenkennung (LiYY, J-Y(St)Y, H05VV5-F) tragen Zahlen, die übrigen Farben nach HD 308.
+  const ZAHLEN_TYP = /^(LiYY|LiYCY|J-Y\(St\)Y|H05VV5-F|H05VVC4V5-K)/;
+  const FARBEN = { 1: ['br'], 2: ['br', 'bl'], 3: ['br', 'sw', 'gr'], 4: ['bl', 'br', 'sw', 'gr'] };
+  function adern(typ, n) {
+    typ = typ || 'NYM-J';
+    const zahl = ZAHLEN_TYP.test(typ) || n > 4, j = /-J$/.test(typ) || /^H0[57]/.test(typ) && !ZAHLEN_TYP.test(typ);
+    return { gesamt: n + (j ? 1 : 0), kennung: i => zahl ? String(i + 1) : FARBEN[n][i] };
+  }
   function klemmenBloecke(v, e) {
     const bloecke = [], tnc = v.netzform === 'TN-C';
     const fiN = z => ['fils1n', 'fils3n', 'fi2', 'fi4'].includes(z);
@@ -1249,8 +1259,11 @@ const PLAN = (() => {
         const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
         const anzeige = l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l);
         const ader = sdI !== undefined ? ['br', 'sw', 'gr'][sdI] : a.drei ? ADER[l] : ADER[l === 'L' ? 'L' : l];
-        const ziel = k.speist ? `→ ${(hilfK.name(k.speist)) || 'Verteiler'}` : [a.xd && a.xd.t, k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ');
-        const leitung = a.sd ? (sdI !== undefined ? `${a.w2.t} ${k.leitung.typ || 'NYM-J'} 3×${k.leitung.quer || '?'}` : `${a.w.t} ${k.leitung.typ || 'NYM-J'} 4×${k.leitung.quer || '?'}`)
+        // Motor (ab v1.45): Ziel mit Motoranschluss U1 V1 W1 (U2 V2 W2) bzw. U1 U2 beim Wechselstrommotor
+        const ma = k.ziel.anschluss === 'motor' && a.xd ? ({ L1: 'U1', L2: 'V1', L3: 'W1', U2: 'U2', V2: 'V2', W2: 'W2', PE: 'PE' }[l]
+          || (l === 'L' ? 'U1' : l === 'N' ? 'U2' : l)) : null;
+        const ziel = k.speist ? `→ ${(hilfK.name(k.speist)) || 'Verteiler'}` : [a.xd && (ma ? `${a.xd.t}:${ma}` : a.xd.t), k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ');
+        const leitung = a.sd ? (sdI !== undefined ? `${a.w2.t} ${k.leitung.typ || 'NYM-J'} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : `${a.w.t} ${k.leitung.typ || 'NYM-J'} 4×${k.leitung.quer || '?'}`)
           : `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${a.leiter.length}×${k.leitung.quer || '?'}`;
         return [String(a.klemmen.von + i), anzeige, art, intern, leitung, ader, ziel];
       });
@@ -1288,17 +1301,51 @@ const PLAN = (() => {
       const kr = v.steuerung.kreise.find(x => x.id === f.kr);
       const sg = kr && kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
       const ml = f.z === 'meldeleuchte', an = ml ? ['X1', 'X2'] : (sf.kontakte[f.key] || {}).an || (/_oe|notaus/.test(f.z) ? ['11', '12'] : ['13', '14']);
-      const lt = sf.leitung[f.gid], le = g.leitung || {}, leitung = lt ? `${lt.w.t} ${le.typ || 'NYM-J'} ${lt.adern}×${le.quer || '1,5'}` : '';
+      const lt = sf.leitung[f.gid], le = g.leitung || {}, ad = lt ? adern(le.typ, lt.adern) : null;
+      const leitung = lt ? `${lt.w.t} ${le.typ || 'NYM-J'} ${ad.gesamt}×${le.quer || '1,5'}` : '';
+      const p = kr && kr.pfade.find(x => x.id === f.p), platz = /:v$/.test(f.key) ? 6 : +f.key.split(':')[1];
       const zeilen = nrn.map((nr, i) => {
         ader[f.gid] = (ader[f.gid] || 0) + 1;
+        // innen (ab v1.45): der Nachbar im Strompfad – oben der Anschluss darüber, unten der darunter
+        const innen = p ? stNachbar(v, e, kr, p, platz, i === 0) : '';
         return [String(nr), ml && i ? 'N' : '', ml && i ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme',
-          'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''), leitung, String(ader[f.gid]),
+          innen || 'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''), leitung, ad ? ad.kennung(ader[f.gid] - 1) : String(ader[f.gid]),
           `${kz}:${an[i]} ${[g.bez, g.ort].filter(Boolean).join(', ')}`.trim()];
       });
       bloecke.push({ kenn: kz, leiste: '-X1', zeilen });
     });
     return bloecke;
   }
+  // Nachbaranschluss eines Platzes im Steuerstromkreis (ab v1.45) für die Spalte „intern“ des Klemmenplans:
+  // oben = unterer Anschluss des nächsten Kontakts darüber (im Zweig weiter im Elternpfad, sonst die Steuerspannung L),
+  // unten = oberer Anschluss des nächsten Kontakts darunter bzw. des Verbrauchers (Zweig: zurück in den Elternpfad)
+  function stNachbar(v, e, kr, p, platz, oben) {
+    const sf = e.steuer, pf = kr.pfade, j = pf.indexOf(p);
+    const eltern = q => { const jj = pf.indexOf(q); if (!(jj > 0 && q.zweig)) return null;
+      if (q.zweig.an) { const h = pf.find(x => x.id === q.zweig.an); if (h) return h; }
+      let h = jj; while (h > 0 && pf[h].zweig) h--; return pf[h]; };
+    const name = pl => { const sa = e.abgaenge[pl.g], ger = (v.steuerung.geraete || []).find(x => x.id === pl.g), zA = ST_ART_PLAN(pl.z);
+      if (zA === 'ol') return sa && sa.ol ? sa.ol.bmk.t : '';
+      if (zA === 'ms') return sa && sa.f ? sa.f.t : '';
+      if (sa && sa.schalt) return sa.schalt.bmk.t;
+      return ger && sf.geraete[ger.id] ? sf.geraete[ger.id].t : ''; };
+    const zw = j > 0 && p.zweig ? p.zweig : null;
+    if (oben) {
+      for (let k = Math.min(platz, 6) - 1; k >= (zw ? zw.von : 0); k--) { const pl = p.plaetze[k];
+        if (pl) { const kn = sf.kontakte[p.id + ':' + k]; return kn ? `${name(pl)}:${kn.an[1]}` : name(pl); } }
+      if (zw) { const h = eltern(p); return h ? stNachbar(v, e, kr, h, zw.von, true) : ''; }
+      return 'Steuerspannung L';
+    }
+    for (let k = platz + 1; k <= (zw ? Math.min(zw.bis, 5) : 5); k++) { const pl = p.plaetze[k];
+      if (pl) { const kn = sf.kontakte[p.id + ':' + k]; return kn ? `${name(pl)}:${kn.an[0]}` : name(pl); } }
+    if (platz >= 6) return 'Steuerspannung N';
+    if (zw && zw.bis < 6) { const h = eltern(p); return h ? stNachbar(v, e, kr, h, zw.bis, false) : ''; }
+    const vb = p.verbraucher; if (!vb) return '';
+    const sa = e.abgaenge[vb.g], ger = (v.steuerung.geraete || []).find(x => x.id === vb.g);
+    if (sa && sa.schalt) return `${sa.schalt.bmk.t}:A1`;
+    return ger ? `${(sf.geraete[ger.id] || {}).t || ''}:${ger.zeichen === 'meldeleuchte' ? 'X1' : 'A1'}` : '';
+  }
+  const ST_ART_PLAN = z => /thermisch$/.test(z || '') ? 'ol' : /^mss_/.test(z || '') ? 'ms' : '';
   let hilfK = { name: () => '' };
   // Blöcke auf Blätter verteilen; ein Abgang wird nicht geteilt
   function klemmenBlaetter(bloecke, F) {

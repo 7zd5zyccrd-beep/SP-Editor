@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.45 | Prüfbericht E6a: Klemmenplan mit innerem Ziel der Steuerklemmen und Motoranschluss; Leitungstyp bestimmt Adernzahl und -kennung (NYM-J mit gnge-Reserve) |
 | v1.44 | Prüfbericht E7: alle Schrift schwarz (Feldtitel, Tabellenköpfe, Deckblatt) |
 | v1.43 | Prüfbericht E2: Warnungen (TN-C hinter TN-S/TN-C-S, PEN < 10 mm², ungeerdeter Steuerkreis), Hinweis vor dem Drucken |
 | v1.42 | Prüfbericht E1: Fehler behoben (Überlastrelais 1~, Stern-Dreieck-Abgriff, Spiegel-Spalten je Pol, Abgriff mit allen Kreisen, Texte am Rahmen, Hand/Auto, Stern-Dreieck-Leitungszeile, Trafo-Platzhalter); Bibliothek v1.10 |

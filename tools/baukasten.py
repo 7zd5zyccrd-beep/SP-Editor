@@ -52,11 +52,11 @@ class Bau:
         if (id_, bem) not in self.quellen:
             self.quellen.append((id_, bem))
 
-    def setze(self, id_, dx=0, dy=0, r=0, anschluesse=True, ohne=(), korr=None, bem='', ohne_tags=()):
-        """Fügt EN-Element id_ verschoben (und gedreht) ein."""
+    def setze(self, id_, dx=0, dy=0, r=0, anschluesse=True, ohne=(), korr=None, bem='', ohne_tags=(), ausser=None):
+        """Fügt EN-Element id_ verschoben (und gedreht) ein; ausser(tag, attrib) lässt einzelne Teile weg."""
         self._q(id_, bem)
         for e in en(id_).find('description'):
-            if e.tag in ('dynamic_text', 'input') or e.tag in ohne_tags:
+            if e.tag in ('dynamic_text', 'input') or e.tag in ohne_tags or (ausser and ausser(e.tag, e.attrib)):
                 continue
             if e.tag == 'terminal':
                 if not anschluesse:
@@ -413,7 +413,115 @@ def geraet_meldeleuchte():
     b.anschluss(0, -20, 'n'); b.anschluss(0, 20, 's')
     return b
 
+# --- Zeichenfamilien für die Fach-Erweiterungen (Auswahl „Erweiterung v0.2“) ----------------
+# Zusammengehörige Zeichen (Schließer/Öffner/Wechsler derselben Betätigung, Motor/Generator …)
+# entstehen aus denselben Grundzeichen und unterscheiden sich nur in dem, was sie bedeuten.
+# Schaltglieder wie die Hilfskontakte der Bibliothek (07-02-02/03/04, Schließer ohne Kontaktpunkt
+# wie 07-07-02), die Betätigung links auf Höhe der Wirkverbindung wie beim Taster (07-07-02).
+AKTOR = {'thermisch': ('02_13_25', 'thermische Auslösung'), 'schwimmer': ('02_14_01', 'Betätigung durch Flüssigkeitspegel'),
+         'schluessel': ('02_13_13', 'Betätigung durch Schlüssel')}
+def geraet_betaetigter_kontakt(name, aktor, art):
+    b = Bau(name)
+    if art == 's':
+        b._q('07_02_01', 'Schließer, Form wie 07-07-02')
+        b.linie(0, -20, 0, -40); b.linie(0, 0, 0, 20); b.linie(0, 0, -8, -23)
+        b.anschluss(0, -40, 'n'); b.anschluss(0, 20, 's'); xb = -4
+    elif art == 'oe':
+        b.setze('07_02_03'); xb = 3
+    else:
+        b.setze('07_02_04'); xb = -4
+    aid, bem = AKTOR[aktor]
+    b.setze(aid, dx=-16, dy=-10, bem=bem)        # deren Wirkverbindung endet bei x = -10
+    if xb > -10:
+        b.wv(-10, -10, xb, -10)
+    return b
+
+def _text_tausch(alt, neu):
+    def k(tag, a):
+        if tag == 'text' and a.get('text') == alt:
+            a['text'] = neu
+    return k
+def geraet_maschine(name, buchst='M', phasen='3', pe=False, unten=False):
+    """Drehstrommaschine nach 06-08-01 (Kreis, Anschlüsse im Abstand 20); Generator mit G,
+    Wechselstrom mit zwei Anschlüssen, wahlweise PE rechts und die Wicklungsenden unten (6 Anschlüsse)."""
+    b = Bau(name)
+    k = lambda tag, a: (_text_tausch('M', buchst)(tag, a), _text_tausch('3', phasen)(tag, a))
+    if phasen == '1':
+        weg = lambda tag, a: tag == 'line' and a.get('y1') == '-80'
+        b.setze('06_08_01', korr=k, anschluesse=False, ausser=weg, bem='zwei Anschlüsse')
+        for x in (-40, -20):
+            b.linie(x, -80, x, -58.3); b.anschluss(x, -80, 'n')
+    else:
+        b.setze('06_08_01', korr=k, bem='' if buchst == 'M' else 'Kennbuchstabe G nach 06-04-01')
+    if pe and phasen == '1':
+        # PE im Abstand 20 neben N, berührt den Kreis rechts (0|-30)
+        b.linie(0, -80, 0, -30); b.anschluss(0, -80, 'n')
+    elif pe:
+        b.linie(10, -80, 10, -30); b.linie(10, -30, 0, -30); b.anschluss(10, -80, 'n')
+    if unten:
+        for x, y in ((-50, -7.6), (-30, 0), (-10, -7.6)):
+            b.linie(x, y, x, 20); b.anschluss(x, 20, 's')
+    return b
+
+def geraet_mit_anschluessen(name, id_, oben=(), unten=(), y_oben=0, y_unten=0, r=0, extra=None, bem='Anschlüsse ergänzt'):
+    """EN-Zeichen ohne Anschlüsse (z. B. 06-14, 06-15, 06-18, 11-16): Anschlussleitungen ergänzt."""
+    b = Bau(name); b.setze(id_, r=r, bem=bem)
+    for x in oben:
+        b.linie(x, y_oben, x, y_oben - 20); b.anschluss(x, y_oben - 20, 'n')
+    for x in unten:
+        b.linie(x, y_unten, x, y_unten + 20); b.anschluss(x, y_unten + 20, 's')
+    if extra:
+        extra(b)
+    return b
+
+def geraet_ueberlastrelais(name, n):
+    """Überlastrelais n-polig: thermischer Auslöser 07-15-21 je Pol (Polabstand 20), ein gemeinsamer Kasten."""
+    b = Bau(name)
+    b._q('07_15_21', 'Auslöser je Pol, gemeinsamer Kasten')
+    b.rect(-10, -10, 20 * (n - 1) + 20, 20)
+    for i in range(n):
+        x = 20 * i
+        b.linie(x, -20, x, -10); b.linie(x, 10, x, 20)
+        b.teile.append(f'<polygon x1="{x}" y1="-10" x2="{x}" y2="-6" x3="{x + 6}" y3="-6" x4="{x + 6}" y4="6" x5="{x}" y5="6" x6="{x}" y6="10" closed="false" antialias="false" style="{STIL}"/>')
+        b.anschluss(x, -20, 'n'); b.anschluss(x, 20, 's')
+    return b
+
+def geraet_umrichter(name, oben, unten, links, rechts):
+    """Umrichter nach 06-14-01 (Kasten mit Diagonale), Kennzeichnung der Seiten als Text,
+    Anschlüsse oben und unten im Abstand 20; Kasten so breit wie nötig."""
+    b = Bau(name); b._q('06_14_01', 'Kasten verbreitert, Kennzeichnung als Text')
+    n = max(len(oben), len(unten)); w = max(40, 20 * n); x0 = -10
+    b.rect(x0, -40, w, 40); b.linie(x0, 0, x0 + w, -40)
+    b.text(x0 + 2, -30, links, 8); b.text(x0 + w - 14, -4, rechts, 8)
+    for i, _ in enumerate(oben):
+        b.linie(20 * i, -40, 20 * i, -60); b.anschluss(20 * i, -60, 'n')
+    for i, _ in enumerate(unten):
+        b.linie(20 * i, 0, 20 * i, 20); b.anschluss(20 * i, 20, 's')
+    return b
+
 BAUTEILE = {
+    'oe_thermisch':    (lambda: geraet_betaetigter_kontakt('Öffner, thermisch betätigt (95–96)', 'thermisch', 'oe'), 'Hilfsöffner mit thermischer Auslösung'),
+    's_thermisch':     (lambda: geraet_betaetigter_kontakt('Schließer, thermisch betätigt (97–98)', 'thermisch', 's'), 'Hilfsschließer mit thermischer Auslösung'),
+    'w_thermisch':     (lambda: geraet_betaetigter_kontakt('Wechsler, thermisch betätigt', 'thermisch', 'w'), 'Wechsler mit thermischer Auslösung'),
+    's_schwimmer':     (lambda: geraet_betaetigter_kontakt('Schwimmerschalter, Schließer', 'schwimmer', 's'), 'Schließer mit Schwimmer'),
+    'oe_schwimmer':    (lambda: geraet_betaetigter_kontakt('Schwimmerschalter, Öffner', 'schwimmer', 'oe'), 'Öffner mit Schwimmer'),
+    'w_schwimmer':     (lambda: geraet_betaetigter_kontakt('Schwimmerschalter, Wechsler', 'schwimmer', 'w'), 'Wechsler mit Schwimmer'),
+    's_schluessel':    (lambda: geraet_betaetigter_kontakt('Schlüsselschalter, Schließer', 'schluessel', 's'), 'Schließer mit Schlüsselbetätigung'),
+    'oe_schluessel':   (lambda: geraet_betaetigter_kontakt('Schlüsselschalter, Öffner', 'schluessel', 'oe'), 'Öffner mit Schlüsselbetätigung'),
+    'motor3':          (lambda: geraet_maschine('Motor Drehstrom'), '06-08-01 unverändert'),
+    'motor3_pe':       (lambda: geraet_maschine('Motor Drehstrom mit PE', pe=True), '06-08-01, PE rechts'),
+    'motor6_pe':       (lambda: geraet_maschine('Motor Drehstrom, 6 Anschlüsse, mit PE', pe=True, unten=True), '06-08-01, Wicklungsenden unten, PE rechts'),
+    'motor1_pe':       (lambda: geraet_maschine('Motor Wechselstrom mit PE', phasen='1', pe=True), 'Kreis wie 06-08-01, zwei Anschlüsse, PE rechts'),
+    'generator3_pe':   (lambda: geraet_maschine('Generator Drehstrom mit PE', buchst='G', pe=True), 'Kreis wie 06-08-01 mit G, PE rechts'),
+    'generator3':      (lambda: geraet_maschine('Generator Drehstrom', buchst='G'), 'Kreis wie 06-08-01 mit G'),
+    'ueberlast3':      (lambda: geraet_ueberlastrelais('Überlastrelais 3-polig', 3), 'thermische Auslöser 07-15-21, Polabstand 20'),
+    'batterie':        (lambda: geraet_mit_anschluessen('Batterie', '06_15_01', r=1, extra=lambda b: (b.linie(0, -20, 0, -10), b.linie(0, 15, 0, 20),
+                        b.anschluss(0, -20, 'n'), b.anschluss(0, 20, 's'))), 'senkrecht, Anschlüsse oben und unten'),
+    'pv':              (lambda: geraet_mit_anschluessen('PV-Generator', '06_18_06', unten=(10, 30), y_unten=40), 'Anschlüsse + und − unten'),
+    'tueroeffner':     (lambda: geraet_mit_anschluessen('Türöffner', '11_16_04', oben=(-50, -30), y_oben=-20), 'zwei Anschlüsse oben'),
+    'wechselrichter':  (lambda: geraet_mit_anschluessen('Wechselrichter', '06_14_05', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'DC oben, AC unten'),
+    'netzteil':        (lambda: geraet_mit_anschluessen('Netzteil (Gleichrichter)', '06_14_03', oben=(-30, -10), y_oben=-40, unten=(-30, -10)), 'AC oben, DC unten'),
+    'umrichter3':      (lambda: geraet_umrichter('Frequenzumrichter 3~/3~', 'L1 L2 L3'.split(), 'U V W'.split(), '3~', '3~'), 'Eingang oben, Motor unten'),
     'meldeleuchte':    (lambda: geraet_meldeleuchte(), 'Lampe 08-10-01 mit Anschlüssen oben und unten'),
     'taster_oe':       (lambda: geraet_taster_oe(), 'Öffner mit Druckbetätigung'),
     'hand0auto':       (lambda: geraet_hand0auto(), 'Wechsler mit Mittelstellung, Handbetätigung'),

@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.43 | Prüfbericht E2: Warnungen (TN-C hinter TN-S/TN-C-S, PEN < 10 mm², ungeerdeter Steuerkreis), Hinweis vor dem Drucken |
 | v1.42 | Prüfbericht E1: Fehler behoben (Überlastrelais 1~, Stern-Dreieck-Abgriff, Spiegel-Spalten je Pol, Abgriff mit allen Kreisen, Texte am Rahmen, Hand/Auto, Stern-Dreieck-Leitungszeile, Trafo-Platzhalter); Bibliothek v1.10 |
 | v1.41 | Etappe M5: Schwimmerschalter -B (Schließer, Öffner, Wechsler), Vorlage „Pumpe Hand-0-Automatik“ mit Trockenlaufschutz; Beispiel `pumpe` |
 | v1.40 | Etappe M4: Wendeschaltung und Stern-Dreieck mit Zusatzschützen, Vorlagen mit Verriegelung und Zeitrelais, zweite Leitung U2 V2 W2; Beispiel `schaltungen`; Prüfung: Steckdosenunterkante als Maßstab |

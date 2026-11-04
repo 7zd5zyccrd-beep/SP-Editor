@@ -227,7 +227,7 @@ with sync_playwright() as p:
             pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
             if pg.evaluate("P.verteiler[1].layout.zusatz.find(z => z.id === 'z1').a[0]") != 215: fehler.append('zusatz: gemeinsames Verschieben hat den Rahmen nicht mitgenommen')
             pg.evaluate("BEISPIELE.zusatz(); P.projekt.datum = '2026-10-24'")
-        pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
+        pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()
     b.close()

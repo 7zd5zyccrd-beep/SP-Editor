@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.43: Prüfbericht E2 – Warnungen ohne Planänderung: TN-C hinter getrenntem N/PE, PEN unter 10 mm², ungeerdeter
+           Steuerkreis (Isolationsüberwachung, beide Leiter absichern); vor dem Drucken Hinweis auf alle Warnungen
+           (unvollständige Kreise, Schaltgeräte ohne Spule) mit „Trotzdem drucken“
      v1.42: Prüfbericht E1 – Fehler behoben: Überlastrelais am Wechselstrommotor nur im Außenleiter (Bibliothek v1.10
            mit Überlastrelais 1-polig), Stern-Dreieck greift zwischen Netzschütz und Überlastrelais ab, Kontaktspiegel
            mit Spalte je Pol (Zusatzschütze, mitgeschalteter N), Abgriff nennt alle gespeisten Kreise, Texte im
@@ -824,7 +827,28 @@ function berechne(v) {
   });
   e.last = last;
   e.steuer = berechneSteuerung(v, e, bmk, klemme);
+  e.warn = verteilerWarnungen(v, e);
   return e;
+}
+// Warnungen zum Verteiler (ab v1.43, Prüfbericht E2; ändern keinen Plan)
+// PEN nach DIN VDE 0100-540: nach der Aufteilung N/PE nie wieder verbinden, PEN mindestens 10 mm² Cu
+function verteilerWarnungen(v, e) {
+  const w = [], sp = speisenderAbgang(v.id), quer = q => parseFloat(String(q || '').replace(',', '.')) || 0;
+  if (sp && v.netzform === 'TN-C' && sp.v.netzform !== 'TN-C')
+    w.push(`TN-C hinter ${sp.v.name} (${sp.v.netzform}): N und PE sind dort schon getrennt und dürfen nicht wieder zum PEN verbunden werden.`);
+  if (sp && v.netzform !== 'TN-S' && quer(sp.k.leitung.quer) < 10)
+    w.push(`PEN in der Zuleitung (${sp.k.leitung.quer || '?'} mm²): ein PEN braucht mindestens 10 mm² Cu.`);
+  alleKnoten(v, k => { if (k.trafo && !k.trafo.erde)
+    w.push(`${(e.abgaenge[k.id].t || {}).t || 'Steuertrafo'}: ungeerdeter Steuerkreis – Isolationsüberwachung vorsehen und beide Leiter absichern (EN 60204-1, 9.4.3 und 7.2.4).`); });
+  return w;
+}
+// Unvollständiges vor dem Drucken (ab v1.43): Kreise ohne Kontakt, Schaltgeräte ohne Spule, alle Warnungen
+function druckHinweise() {
+  const r = [];
+  P.verteiler.forEach(v => { const e = berechne(v);
+    [...e.warn, ...e.steuer.warn, ...Object.values(e.abgaenge).filter(a => a.warn).map(a => `${(a.f || {}).t || 'Abgang'}: ${a.warn}`)]
+      .forEach(t => r.push(`${v.name}: ${t}`)); });
+  return [...new Set(r)];
 }
 // Steuerstromkreise (Etappe C): v.steuerung = { geraete, kreise, spannung }.
 //   geraete: Befehlsgeber, Meldeleuchten und eigenständige Zeitrelais,
@@ -1226,7 +1250,7 @@ function bStart() {
   P.verteiler.forEach((v, i) => {
     const sp = speisenderAbgang(v.id), e = berechne(v);
     let n = 0; alleKnoten(v, k => { if (k.typ === 'abgang') n++; });
-    const nk = Object.keys(e.steuer.aktiv).length, warn = e.steuer.warn.length + Object.values(e.abgaenge).filter(a => a.warn).length;
+    const nk = Object.keys(e.steuer.aktiv).length, warn = e.warn.length + e.steuer.warn.length + Object.values(e.abgaenge).filter(a => a.warn).length;
     const karte = h('button', { class: 'vkarte', on: { click: () => { if (!sortieren) geh({ s: 'editor', vid: v.id }); } } },
       h('span', { class: 'vk-name' }, v.name),
       h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`),
@@ -1301,6 +1325,7 @@ function bVerteiler(b) {
   m.append(h('h2', {}, 'Einspeisung'), h('div', { class: 'liste' },
     zeile('Name', v.name, () => textFeld('Name des Verteilers', v.name, w => { if (w) v.name = w; }), {}),
     zeile('Einspeisung', eins, () => geh({ s: 'einspeisung', vid: v.id })),
+    ...e.warn.map(t => h('p', { class: 'warnung' }, '⚠ ' + t)),
     kopfZeile(v, 'vorsicherung', 'Vorsicherung', e.kopf.vorsicherung),
     kopfZeile(v, 'zaehler', 'Zähler', e.kopf.zaehler),
     kopfZeile(v, 'hauptschalter', 'Hauptschalter', e.kopf.hauptschalter),
@@ -3401,7 +3426,15 @@ function bPlan(b) {
   app.append(m);
   requestAnimationFrame(() => { res.begrenzen(); if (ziel) ziel.scrollIntoView(); });
 }
-function drucken() {
+function drucken(trotzdem) {
+  const hw = trotzdem === true ? [] : druckHinweise();     // Klick-Ereignis zählt nicht als „trotzdem“
+  if (hw.length) {         // ab v1.43: vor dem Drucken auf Unvollständiges hinweisen
+    fenster('Vor dem Drucken', h('div', { class: 'text' }, h('p', {}, 'Der Plan enthält noch Hinweise:'),
+      h('ul', {}, ...hw.slice(0, 12).map(t => h('li', {}, t))), hw.length > 12 ? h('p', {}, `… und ${hw.length - 12} weitere`) : null), s => [
+      h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+      h('button', { class: 'knopf', on: { click: () => { s(); setTimeout(() => drucken(true), 0); } } }, 'Trotzdem drucken')]);
+    return;
+  }
   const d = document.getElementById('druck'); d.innerHTML = '';
   const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang });
   res.blaetter.forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); d.append(w); });

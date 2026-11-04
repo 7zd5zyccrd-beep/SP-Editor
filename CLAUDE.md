@@ -236,6 +236,20 @@ bleibt, der Weg zum Plan ist kurz („Plan bearbeiten“ auf dem Start und oben 
   `sichern()`). `wahlFeld()`/`menue()` öffnen am angetippten Feld (`anker`), `textFeld()` bearbeitet in
   der Zeile; Esc schließt Fenster (`fensterStapel`).
 
+## Etappe F – Freies Zeichnen im Raster (Konzept des UX-Teams, von Jean am 04.11.2026 freigegeben: „alles umsetzen“)
+
+Konzeptseite: https://claude.ai/artifact/3f424j71BufBZFxsTu1Cif. Entscheidungen (Empfehlungen übernommen):
+Automatik bleibt Grundlage, Handarbeit wird als Abweichung je Verteiler gespeichert (`v.layout`), ohne
+Abweichungen bleibt jeder Plan bitgleich; kein Umschalter Auto/Frei – frei gesetzte Teile tragen eine
+Stecknadel, „Automatik anwenden“ setzt zurück; Ebenen Anordnen (Lage/Leiterweg, Logik unverändert),
+Verbinden (echte Verbindungen mit Prüfung, F5), Beschriften (Text/Rahmen ohne Logik); Raster Spalte / 5 mm /
+2,5 mm, verschoben wird in ganzen Schritten gegenüber der Generatorlage; gemeinsame Endhöhe wird Fanglinie;
+automatische Nachbarn rücken nach; Kennzeichen bleiben in Baumreihenfolge; Signalfarbe Violett (Editor-
+Overlay fest `#6a35e8`, nie im Druck). Offen (nicht freigegeben, ändert Pläne): -B statt -S für Melder
+nach 81346-2:2019.
+- F0 v1.23: Zeichen-Cache `qz()` in plan.js, `PLAN.blaetter(…, { nur: vid })` für den Editor,
+  `PROJEKT_VERSION`/`migriere()`, Farbtokens (`--akzent` Violett, `--ov` Overlay), dunkler Modus der Oberfläche.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

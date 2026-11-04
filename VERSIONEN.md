@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.23 | Etappe F0: Zeichen-Cache (Plan 3–4× schneller), Editor erzeugt nur den offenen Verteiler, Prüfung der Projektfassung beim Öffnen, Designsystem mit Farbtokens, Signalfarbe Violett, dunkler Modus der Oberfläche |
 | v1.22 | Kurze Auswahlwerte (Nennstrom, Kennlinie, Querschnitt …) als Raster zum schnellen Antippen; Feinschliff Palette und schmale Kopfleiste |
 | v1.21 | Neue Arbeitsfläche: Plan-Editor über den ganzen Bildschirm (Kopfleiste, Palette mit Gruppen, Eigenschaften-Leiste bzw. Fach von unten, Fußleiste mit Blattwahl und Zoom), Marken „+“ mit Einfügemenü und Anzahl, Kontextleiste, benanntes Rückgängig, alle Eingaben im Editor, Auswahl am Feld und Text in der Zeile, Startbildschirm mit Verteilerkarten |
 | v1.20.1 | Fehlerbehebung: Ausschneiden/Einfügen im Plan-Editor verschiebt das Teil samt Steuerstromkreis; Kopieren legt die Steuerstromkreise mit an |

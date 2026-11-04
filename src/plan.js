@@ -33,7 +33,7 @@ const PLAN = (() => {
   // Abschluss der Abgänge: Steckdose (und Leuchte) reichen 7,5 mm unter ihren
   // Anschluss; Endklemme und offenes Ende enden genau auf dieser Unterkante
   const UNTERKANTE = 7.5, END_TIEFE = 3.125;   // END_TIEFE: Anschluss bis Unterkante der Endklemme   // von der untersten Schiene bis zum oberen Geräteanschluss
-  let ZEICHEN = {};
+  let ZEICHEN = {}, ZEICHEN_BIB = null;
 
   // ---- Grundelemente ------------------------------------------------------
   function el(tag, a = {}, eltern) {
@@ -151,8 +151,15 @@ const PLAN = (() => {
     }
   }
   // setzt Zeichen kennung so, dass sein erster oberer Anschluss (oder anker) auf (x, y) liegt
+  // Zeichen-Cache (ab v1.23): jedes Zeichen wird nur einmal aus dem XML übersetzt, danach geklont
+  let ZC = {};
+  function qz(kennung) {
+    let c = ZC[kennung];
+    if (!c) { const r = QET.zeichne(ZEICHEN[kennung].xml, { labels: false }); c = ZC[kennung] = { g: r.g, anschluesse: r.anschluesse }; }
+    return { g: c.g.cloneNode(true), anschluesse: c.anschluesse.map(t => Object.assign({}, t)) };
+  }
   function setze(g, kennung, x, y, anker = null, arten = null, staerke = 1, nachher = null) {
-    const r = QET.zeichne(ZEICHEN[kennung].xml, { labels: false });
+    const r = qz(kennung);
     const a = anker ? r.anschluesse.find(anker) : r.anschluesse.filter(t => t.richtung === 'n').sort((p, q) => p.x - q.x)[0];
     const tx = x - a.x * E, ty = y - a.y * E;
     if (staerke !== 1) for (const e of r.g.querySelectorAll('[stroke-width]')) e.setAttribute('stroke-width', parseFloat(e.getAttribute('stroke-width')) * staerke);
@@ -175,7 +182,7 @@ const PLAN = (() => {
   }
   const unten = ans => ans.filter(t => t.richtung === 's').sort((p, q) => p.x - q.x);
   function hoehe(kennung) {   // Abstand oberer bis unterer Anschluss in mm
-    const r = QET.zeichne(ZEICHEN[kennung].xml, { labels: false });
+    const r = qz(kennung);
     const n = r.anschluesse.filter(t => t.richtung === 'n'), s = r.anschluesse.filter(t => t.richtung === 's');
     return (Math.max(...s.map(t => t.y)) - Math.min(...n.map(t => t.y))) * E;
   }
@@ -1155,12 +1162,12 @@ const PLAN = (() => {
   function marke(g, x, y, id) {
     const m = el('g', { class: 'marke', 'data-ziel': id }, g);
     el('circle', { cx: x, cy: y, r: 6, fill: 'transparent', class: 'treffer' }, m);     // Trefferfläche (ab v1.21)
-    el('circle', { cx: x, cy: y, r: 3.2, fill: '#fff', stroke: '#1f5fbf', 'stroke-width': 0.45 }, m);
-    linie(m, x - 1.8, y, x + 1.8, y, 0.5, '#1f5fbf'); linie(m, x, y - 1.8, x, y + 1.8, 0.5, '#1f5fbf');
+    el('circle', { cx: x, cy: y, r: 3.2, fill: '#fff', stroke: '#6a35e8', 'stroke-width': 0.45 }, m);
+    linie(m, x - 1.8, y, x + 1.8, y, 0.5, '#6a35e8'); linie(m, x, y - 1.8, x, y + 1.8, 0.5, '#6a35e8');
   }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
-    ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z]));
+    if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; ZEICHEN_BIB = BIB; }
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
     // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe)
@@ -1237,7 +1244,7 @@ const PLAN = (() => {
       el('rect', { x: 0, y: 0, width: F.w, height: F.h, fill: '#fff' }, svg);
       const g = el('g', {}, svg); rahmen(g, F); return { svg, g };
     };
-    if (mitVorn) {
+    if (mitVorn && !opt.nur) {
       // Inhalt je Planblatt: Einspeisung und Bereich der Kennzeichen
       const eintraege = [{ nr: 1, verteiler: '', inhalt: 'Deckblatt' }];
       for (let i = 0; i < nInhalt; i++) eintraege.push({ nr: 2 + i, verteiler: '', inhalt: 'Inhaltsverzeichnis' });
@@ -1280,6 +1287,7 @@ const PLAN = (() => {
       }
     }
     for (const p of plaene) {
+      if (opt.nur) continue;           // Editor (ab v1.23): nur die Blätter des offenen Verteilers
       const { v, e } = p, sp = hilf.speisenderAbgang(v.id);
       let herkunft = `Netz ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
       if (sp) { const l = lageUe[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
@@ -1291,6 +1299,7 @@ const PLAN = (() => {
       });
     }
     for (const p of plaene) {
+      if (opt.nur && p.v.id !== opt.nur) continue;
       const { v, e } = p;
       const sp = hilf.speisenderAbgang(v.id);
       let herkunft = `Netz ${v.netzform}, ${v.leiter === '3NPE' ? '3/N/PE' : '1/N/PE'}`;
@@ -1369,7 +1378,7 @@ const PLAN = (() => {
         aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id) });
       });
     }
-    for (const p of plaene) p.kl.forEach((b, i) => {
+    for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => {
       const blattNr = p.klStart + i, { svg, g } = neuesBlatt();
       zeichneKlemmenplan(g, F, p.v, b.bloecke, b.teil, b.teile, b.leiste);
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));

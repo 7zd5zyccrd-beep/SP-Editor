@@ -97,8 +97,9 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
 **Kennzeichen** (DIN EN IEC 81346, automatisch, von Hand überschreibbar)
 - -Q Hauptschalter und Schaltgeräte (Schütz, Stromstoßschalter), -K Zeitrelais,
   -F Schutzorgane, -P Zähler, -X1 Klemmleiste im Verteiler, -X2 … Geräteanschlussdosen,
-  -XD Steckdosen, -E Leuchten, -W Leitungen; für Steuerstromkreise vorgesehen: -S Taster,
-  Schalter, Melder; -H Meldeleuchten.
+  -XD Steckdosen, -E Leuchten, -W Leitungen; Steuerstromkreise: -S Taster, Schalter, Not-Aus,
+  Wahlschalter; -B Melder (Dämmerung, Bewegung, Präsenz; seit v1.33 nach 81346-2:2019, Jean
+  04.11.2026); -H Meldeleuchten.
 
 **Eingabe und Daten**
 - Bedienung wie SF E-Plan: eigene Bildschirme, ein Feld je Fenster, sofort gespeichert
@@ -245,8 +246,7 @@ Stecknadel, „Automatik anwenden“ setzt zurück; Ebenen Anordnen (Lage/Leiter
 Verbinden (echte Verbindungen mit Prüfung, F5), Beschriften (Text/Rahmen ohne Logik); Raster Spalte / 5 mm /
 2,5 mm, verschoben wird in ganzen Schritten gegenüber der Generatorlage; gemeinsame Endhöhe wird Fanglinie;
 automatische Nachbarn rücken nach; Kennzeichen bleiben in Baumreihenfolge; Signalfarbe Violett (Editor-
-Overlay fest `#6a35e8`, nie im Druck). Offen (nicht freigegeben, ändert Pläne): -B statt -S für Melder
-nach 81346-2:2019.
+Overlay fest `#6a35e8`, nie im Druck). -B statt -S für Melder: freigegeben am 04.11.2026, umgesetzt in v1.33.
 - F0 v1.23: Zeichen-Cache `qz()` in plan.js, `PLAN.blaetter(…, { nur: vid })` für den Editor,
   `PROJEKT_VERSION`/`migriere()`, Farbtokens (`--akzent` Violett, `--ov` Overlay), dunkler Modus der Oberfläche.
 - F1 v1.24: Szene in plan.js (`szeneStart/szeneEnde`, `teil(key)`, `teilPort()`): Teile `k:<id>/f|q|x|xd`,

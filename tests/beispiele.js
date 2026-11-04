@@ -137,6 +137,13 @@ window.BEISPIELE = {
     hv.knoten.find(k => k.ziel && k.ziel.anschluss === 'pv').pv.speicher = { kwh: '10' };
     const s = neuerAbgang(); s.ziel = { bez: 'Speicher', ort: 'Keller', anschluss: 'speicher' }; s.geraet = { zeichen: 'ls1', kennlinie: 'B', nenn: '16' }; s.leitung.quer = '4';
     s.speicher = { phasen: '1', kwh: '5' }; uv.knoten.push(s); sichern(); zeichne(); },
+  // Etappe G3: HV mit Wallbox 11 kW (FI/LS Typ A, DC-Fehlerstromerkennung in der Wallbox) über -X1,
+  // UV mit Wallbox 22 kW ohne DC-Fehlerstromerkennung (FI/LS Typ B)
+  wallbox: () => { BEISPIELE.grund(); const [hv, uv] = P.verteiler; hv.klemmen = 'leiste';
+    const a = neuerAbgang(); a.ziel = { bez: 'Wallbox', ort: 'Garage', anschluss: 'wallbox' }; a.wallbox = { kw: '11', rdc: true };
+    a.geraet = { zeichen: 'fils3n', kennlinie: 'B', nenn: '16', idn: '30', fityp: 'A' }; a.leitung.quer = '6'; hv.knoten.splice(2, 0, a);
+    const b = neuerAbgang(); b.ziel = { bez: 'Wallbox', ort: 'Hof', anschluss: 'wallbox' }; b.wallbox = { kw: '22', rdc: false };
+    b.geraet = { zeichen: 'fils3n', kennlinie: 'B', nenn: '32', idn: '30', fityp: 'B' }; b.leitung.quer = '10'; uv.knoten.push(b); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

@@ -482,10 +482,16 @@ const PLAN = (() => {
     // PV-Anlage: der PV-Generator schließt unten mit der Steckdosenunterkante ab, darüber
     // DC-Freischalter und Wechselrichter – der Abgang braucht entsprechend mehr Höhe
     const pvDc = ende === 'pv' && (!k.pv || k.pv.dc !== false);
-    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : 0;     // Geräte im Feld (ab v1.34)
+    const feldH = ende === 'pv' ? pvHoehe(pvDc) : ende === 'speicher' ? spHoehe() : ende === 'wallbox' ? WALLBOX_H : 0;     // Geräte im Feld (ab v1.34)
     const natur = feldH ? cursor + PV_LUECKE + feldH - UNTERKANTE : cursor + 6;
     const ye = Math.max(natur, yEnde || 0);
-    if (ende === 'steckdose3' || ende === 'steckdose5') {
+    if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
+      const yW = ye + UNTERKANTE - WALLBOX_H;
+      bis(yW);
+      teil(xd);
+      setze(g, 'wallbox', x0, yW, null, arten);
+      bmk(g, x0 - 4, yW + 6, a.xd.t, [k.wallbox && k.wallbox.kw ? `${k.wallbox.kw} kW` : '']);
+    } else if (ende === 'steckdose3' || ende === 'steckdose5') {
       bis(ye);
       teil(xd);
       setze(g, arten.length === 5 ? 'steckdose5' : 'steckdose3', x0, ye, null, arten);
@@ -567,6 +573,7 @@ const PLAN = (() => {
       if (e.getAttribute('stroke') && e.getAttribute('stroke') !== 'none') e.setAttribute('stroke', '#000');
     }
   }
+  const WALLBOX_H = 15;    // Anschluss bis Unterkante des Kastens (60 Einheiten)
   function spHoehe() { return hoehe('wr1') + PV_LUECKE + hoehe('batterie') + PV_LUECKE; }
   // Batterie unter dem Minus-Anschluss (oberer Anschluss des Zeichens = kurze Platte, −); Plus wird
   // links daneben bis unter die Batterie geführt und von unten angeschlossen. Gibt das untere Ende zurück.
@@ -889,7 +896,8 @@ const PLAN = (() => {
   // Ende eines Abgangs: Anschlusszeichen und senkrechte Beschriftung bis vor das Schriftfeld
   function ueEnde(g, ctx, v, k, a, x, yE, ySF) {
     const ende = k.speist ? 'fest' : k.ziel.anschluss;
-    if (ende === 'steckdose3' || ende === 'steckdose5') setze(g, 'ue_steckdose', x, yE);
+    // Wallbox: im engen Raster der Übersicht als Steckdose einpolig (Bezeichnung „Wallbox“ darunter)
+    if (ende === 'steckdose3' || ende === 'steckdose5' || ende === 'wallbox') setze(g, 'ue_steckdose', x, yE);
     else if (ende === 'dose') { linie(g, x, yE, x, yE + UNTERKANTE - END_TIEFE, 0.25); setze(g, 'endklemme', x, yE + UNTERKANTE - END_TIEFE); }
     else if (ende === 'leuchte') setze(g, 'ue_leuchte', x, yE);
     else if (ende === 'pv') {      // PV-Generator verkleinert, beide Anschlüsse an der einpoligen Leitung

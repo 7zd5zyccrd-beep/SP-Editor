@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.36 | Etappe G3: Wallbox (-E, 11/22 kW, DC-Fehlerstromerkennung, Warnungen zum FI); Palette „Wallbox“; Bibliothek v1.9; Beispiel `wallbox` |
 | v1.35 | Etappe G2: Speicher am Hybrid-Wechselrichter oder AC-gekoppelt (Batteriewechselrichter -T, Batterie -G); Palette „Speicher“; Beispiel `speicher` |
 | v1.34 | Etappe G1: PV-Anlage als Abgang (Wechselrichter -T ein-/dreiphasig, DC-Freischalter -Q, PV-Generator -G, Erzeugungszähler -P); Palette „Erzeugung“; Bibliothek v1.8; Beispiel `pv` |
 | v1.33.1 | Endschalter (Schließer/Öffner) mit Kennzeichen -B |
@@ -56,6 +57,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.9 | Wallbox nach Auswahl „Wallbox v0.1“: Steckbuchsen wie Steckdose 3/N/PE im Kasten, „Typ 2“ (Anschlussleitungen bis an die Buchsen ergänzt) |
 | v1.8 | Für Etappe G (von Jean freigegeben, 04.11.2026): Wechselrichter 1/N/PE und 3/N/PE mit AC oben, Hybrid-Wechselrichter (PV und Batterie), PV-Generator mit Anschlüssen oben, Lasttrennschalter 2-polig – gleiche Zeichnung wie die ausgewählten Zeichen |
 | v1.7 | Fach-Erweiterungen nach Auswahl „Erweiterung v0.2“ (29 Zeichen): Erzeugung und Speicher, Motoren, Überlastrelais-Kontakte, Schwimmer- und Schlüsselschalter (je gleiche Familie für Schließer/Öffner/Wechsler), Klingel/Gong/Summer/Hupe, Türöffner, Diode, Funkenstrecke, Schirm, Erdungsschiene (Anschlüsse ins Raster gelegt) |
 | v1.6 | Transformator einpolig (`ue_trafo`) im EN-Baukasten nachgebaut: Form 1 nach 06-09-01, Maßstab der einpoligen Zeichen, ohne Text |
@@ -71,6 +73,7 @@
 - Zeichenbibliothek (Musterblatt) v0.1–v0.3: Auswahl der Grundzeichen; v0.2 nach Bedeutung geordnet, v0.3 mit EN-Baukasten.
 - Steuerung v0.1–v0.2: Auswahl der Steuerungszeichen; v0.2 eine Bedeutung je Karte.
 - Trafo v0.1: Auswahl des Steuertrafos (4 Karten aus der Sammlung, `bibliothek/kandidaten-trafo.json`), ausgewählt: allpolig `transformator_1f_2`, einpolig EN 06-09-01 → Bibliothek v1.5.
+- Wallbox v0.1: drei Vorschläge aus dem EN-Baukasten (`bibliothek/kandidaten-wallbox.json`), ausgewählt: Steckbuchsen im Kasten → Bibliothek v1.9.
 - Erweiterung v0.1–v0.2: Fach-Erweiterungen (`bibliothek/kandidaten-erweiterung.json`); v0.2 nach Plausibilitätsprüfung mit gleichen Familien auf gepaarten Karten → Bibliothek v1.7.
 - Blattrahmen v0.1–v0.5: Prototyp für Rahmen und Schriftfeld (in die App übernommen).
 

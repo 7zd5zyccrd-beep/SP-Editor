@@ -275,7 +275,7 @@ Overlay fest `#6a35e8`, nie im Druck). -B statt -S für Melder: freigegeben am 0
   hält das Mittelstück eines Leiters in seiner Flucht und versetzt nur die Enden; abgetrennte Abzweige →
   `SZ.hinweise` → `blatt.pruef`. Editor: Platz wählen → Kontextleiste „Frei“ → Teil `t:kr:…`.
   Noch offen: Drehen von Zeichen (erst mit frei gesetzten neuen Zeichen sinnvoll), Fach-Erweiterungen.
-- Auswahl „Wallbox v0.1“ (Etappe G3, wartet auf Jean): Kasten mit Text, Kasten mit Steckdose 11-13-01, Steckbuchsen im Kasten:
+- Auswahl „Wallbox v0.1“ (Etappe G3, Jean 04.11.2026: Steckbuchsen im Kasten `wallbox_buchsen` → Bibliothek v1.9): Kasten mit Text, Kasten mit Steckdose 11-13-01, Steckbuchsen im Kasten:
   `python3 tools/auswahl_bauen.py kandidaten-wallbox.json build/wallbox-auswahl-v0.1.html 'Wallbox v0.1' 'Stromlaufplan · Etappe G · Auswahl Wallbox' 'slp.wallbox.auswahl.v1'`
 - Auswahl „Erweiterung v0.2“ (Jean hat am 04.11.2026 ausgewählt → Bibliothek v1.7, App v1.32; Zeichen noch ohne
   Verwendung im Plan; ersetzt v0.1 nach Plausibilitätsprüfung): gepaarte Karten (Öffner/Schließer/Wechsler
@@ -298,6 +298,9 @@ dem Baukasten (`geraet_wechselrichter`, gleiche Zeichnung, AC oben).
 - G2 v1.35: Hybrid `k.pv.speicher = { kwh, bat }` (Zeichen `wr*_hybrid`, Batterie an DC 3/4), AC-gekoppelt
   `k.ziel.anschluss = 'speicher'`, `k.speicher = { phasen, kwh, wr, bat }` (`speicherVon()`, `speicherNeu()`,
   `speicherZeilen()`); `batterie()` in plan.js: oberer Anschluss = kurze Platte (−), Plus von unten; Teil `k:<id>/bat`.
+- G3 v1.36: `k.ziel.anschluss = 'wallbox'`, `k.wallbox = { kw, rdc }` (`wallboxNeu()`), immer dreiphasig, Kennzeichen -E;
+  Zeichen `wallbox` (Unterkante des Kastens = Steckdosenunterkante, `WALLBOX_H`); Warnungen: eigener FI je Ladepunkt,
+  ohne DC-Fehlerstromerkennung FI Typ B; im Übersichtsplan `ue_steckdose`. Offen (optional): Lastmanagement/Rundsteuer-Kontakt.
 
 ## Technische Eckwerte
 

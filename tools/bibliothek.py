@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import baukasten
 from pfade import SAMMLUNG, SRC, BIB, DOCS, BUILD, sammlung_pruefen
 
-FASSUNG = 'v1.8'
+FASSUNG = 'v1.9'
 STAND = '2026-11-04'
 
 # (Gruppe, Kennung, Bedeutung, Quelle, neu?)
@@ -123,6 +123,7 @@ AUSWAHL = [
  ('Erzeugung und Speicher', 'wr1_hybrid', 'Hybrid-Wechselrichter 1/N/PE (PV und Batterie)', 'bau:wr1_hybrid', True),
  ('Erzeugung und Speicher', 'wr3_hybrid', 'Hybrid-Wechselrichter 3/N/PE (PV und Batterie)', 'bau:wr3_hybrid', True),
  ('Trennen und Schalten', 'lasttrenn2',   'Lasttrennschalter 2-polig (DC-Freischalter)', 'bau:lasttrenn2', True),
+ ('Erzeugung und Speicher', 'wallbox', 'Wallbox (Ladestation 3/N/PE)', 'bau:wallbox_buchsen', True),
 ]
 def daten():
     bau = baukasten.alle()

@@ -808,5 +808,51 @@
    "11 HV klemmen",
    "669dc6d5bd34412be53f5e445862c5eb"
   ]
+ ],
+ "wallbox": [
+  [
+   "1 Deckblatt deckblatt",
+   "6d3939ef6fa64e55707268ed1861426f"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "baba4a954539eee1460f84c9633bdc42"
+  ],
+  [
+   "3 HV uebersicht",
+   "edc3d830195e1e817fb2c8829fd5d793"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "f7ba436ca4dbb2ec717c9df3e0bd01c1"
+  ],
+  [
+   "5 HV einspeisung",
+   "e781a645912b0ff25e451ab128ca2b4c"
+  ],
+  [
+   "6 HV abgang",
+   "0340caa11abc602c68e40f0c7c9a91e3"
+  ],
+  [
+   "7 HV abgang",
+   "a91bb979138635ae614e21cda9cefafb"
+  ],
+  [
+   "8 HV abgang",
+   "c31f609444f31b1d9ebe0f64a456273d"
+  ],
+  [
+   "9 UV Werkstatt kombiniert",
+   "4e9b3b7db69d028d7f71408be7e678d6"
+  ],
+  [
+   "10 HV klemmen",
+   "a06df0ee5c563074bb991e15ae28084d"
+  ],
+  [
+   "11 HV klemmen",
+   "669dc6d5bd34412be53f5e445862c5eb"
+  ]
  ]
 }

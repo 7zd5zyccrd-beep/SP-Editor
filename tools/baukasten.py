@@ -544,6 +544,7 @@ def geraet_wallbox(name, art):
     if art == 'buchsen':
         for i in range(5):
             b.setze('03_03_01', dx=20 * i, dy=20, r=1, anschluesse=False)
+            b.linie(20 * i, -20, 20 * i, -10)      # Anschlussleitung bis an die Buchse
         b.text(64, 37, 'Typ 2', 7)
     else:
         for i in range(5):

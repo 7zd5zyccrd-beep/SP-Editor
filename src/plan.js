@@ -354,6 +354,17 @@ const PLAN = (() => {
     });
     return (SICHT[kennung] = isFinite(min) ? Math.max(0, (min - a.y) * E) : 0);
   }
+  // R3 (ab v1.50): Abstand der am weitesten links gezeichneten Stelle vom ersten oberen Anschluss in mm (Texte zählen nicht)
+  let SLI = {};
+  function sichtLinks(kennung) {
+    if (SLI[kennung] !== undefined) return SLI[kennung];
+    const r = qz(kennung), a = r.anschluesse.filter(t => t.richtung === 'n').sort((p, q) => p.x - q.x)[0];
+    let min = Infinity;
+    r.g.querySelectorAll('line,polyline,polygon,circle,ellipse,rect,path').forEach(e => { const xa = xAusdehnung(e); if (xa) min = Math.min(min, xa[0]); });
+    return (SLI[kennung] = isFinite(min) && a ? Math.max(0, (a.x - min) * E) : 0);
+  }
+  // R3: rechtes Ende der Beschriftung links neben einem Zeichen, dessen erster oberer Anschluss bei x liegt
+  const R3 = (kennung, x) => x - sichtLinks(kennung) - 1.5;
   // R1: Grundlinie der ersten Beschriftungszeile – Versalhöhe (1,8 mm) unter der ersten sichtbaren Stelle
   const R1 = (kennung, yAnschluss) => yAnschluss + sichtOben(kennung) + 1.8;
   // Unterkante eines Beschriftungsblocks (Kennzeichen mit Grundlinie y, darunter die Zeilen)
@@ -409,7 +420,7 @@ const PLAN = (() => {
       bmk(g, x0 - 1.5, yUnten + 3, kenn, zeilen);
       return yUnten + 3 + 2.8 * zeilen.length + 1;
     }
-    bmk(g, x0 - ((GERAETE[z] && GERAETE[z].bmkDx) || 5), R1(z, yG), kenn, zeilen);
+    bmk(g, R3(z, x0), R1(z, yG), kenn, zeilen);
     return yUnten;
   }
   const unten = ans => ans.filter(t => t.richtung === 's').sort((p, q) => p.x - q.x);
@@ -455,7 +466,7 @@ const PLAN = (() => {
   // greift ein Steuerstromkreis seine Spannung im Abgang ab, braucht der Abgang
   // rechts Platz für die gehenden Querverweise (rund drei Leiterabstände)
   // Wende- und Stern-Dreieck-Schaltung (ab v1.40): Platz für die Zusatzschütze rechts neben PE samt Beschriftung
-  function abgangSpalten(k, a, v, R) { return spaltenFuer(abgangArten(k, a, v).length + (a.abgriff ? 3 : 0) + (a.sd ? 11 : a.wende ? 6 : 0), R); }
+  function abgangSpalten(k, a, v, R) { return spaltenFuer(abgangArten(k, a, v).length + (a.abgriff ? 3 : 0) + (a.sd ? 12 : a.wende ? 6 : 0), R); }
 
   // ---- Abgang zeichnen --------------------------------------------------------
   // xSp: linke Kante der ersten Spalte; bars: {art: y}; yG: Höhe des oberen Geräteanschlusses.
@@ -536,7 +547,7 @@ const PLAN = (() => {
       const lage = key => { const l = ctx.steuer && ctx.steuer.kontakte[key]; return l ? ` /${l.blatt}.${l.spalte}` : ''; };
       const kont = [...((a.olKont || {}).o || []).map(key => '95–96' + lage(key)), ...((a.olKont || {}).s || []).map(key => '97–98' + lage(key))];
       const olZeilen = [a.ol.bereich ? `${a.ol.bereich} A` : '', ...kont];
-      bmk(g, x0 - 4, R1(olZ, top), a.ol.bmk.t, olZeilen);
+      bmk(g, R3(olZ, x0), R1(olZ, top), a.ol.bmk.t, olZeilen);
       textBis = Math.max(textBis, textEnde(R1(olZ, top), olZeilen));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
@@ -548,7 +559,7 @@ const PLAN = (() => {
       teil(`k:${k.id}/p`);
       const t = unten(setze(g, zz, x0, top, null, arten.slice(0, POLE[zz])));
       t.forEach((p, i) => { enden[i] = p.y; });
-      bmk(g, x0 - 5, R1(zz, top), a.p.t, ['Erzeugung']); textBis = Math.max(textBis, textEnde(R1(zz, top), ['Erzeugung']));
+      bmk(g, R3(zz, x0), R1(zz, top), a.p.t, ['Erzeugung']); textBis = Math.max(textBis, textEnde(R1(zz, top), ['Erzeugung']));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
@@ -563,7 +574,7 @@ const PLAN = (() => {
       // PE an den Umrichter (ab v1.46): Abzweig vom vorbeilaufenden PE an die rechte Kastenkante
       const iPE = arten.indexOf('PE');
       if (iPE >= 0) { const yp = top + 10; bis(yp); punkt(g, xs[iPE], yp, 'PE'); leiter(g, xs[iPE], yp, x0 + 12.5, yp, 'PE'); }
-      bmk(g, x0 - 4, R1('umrichter3', top), a.fu.t); textBis = Math.max(textBis, textEnde(R1('umrichter3', top)));
+      bmk(g, R3('umrichter3', x0), R1('umrichter3', top), a.fu.t); textBis = Math.max(textBis, textEnde(R1('umrichter3', top)));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
@@ -576,7 +587,7 @@ const PLAN = (() => {
       arten.forEach((art, i) => setze(g, trenn(art) ? 'trennklemme' : 'klemme', xs[i], ky, null, art));
       if (sd) { sd.bis(ky); sd.xs.forEach(x => setze(g, 'klemme', x, ky)); sd.bis(ky + 5, true); }
       arten.forEach((art, i) => enden[i] = ky + (trenn(art) ? 10 : 5));
-      bmk(g, x0 - 2, R1('klemme', ky), a.klemmen.bmk, [`${a.klemmen.von}–${a.klemmen.bis}`]);
+      bmk(g, R3('klemme', x0), R1('klemme', ky), a.klemmen.bmk, [`${a.klemmen.von}–${a.klemmen.bis}`]);
       teil(null);
       cursor = ky + (arten.some(trenn) ? 10 : 5);
     }
@@ -593,7 +604,7 @@ const PLAN = (() => {
       teil(xd);
       anschlussNr(g, setze(g, 'motor6', x0, yM, null, arten, 1, motorFarben), ['U1', 'V1', 'W1', 'PE'], ['U2', 'V2', 'W2']);
       const mo = k.motor || {};
-      bmk(g, x0 - 4, R1('motor6', yM), a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);
+      bmk(g, R3('motor6', x0), R1('motor6', yM), a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);
       teil(null);
       sd.xs.forEach((x, i) => { const yr = yb + 1.5 * (3 - i);
         leiter(g, x, sd.enden[i], x, yr, 'L'); leiter(g, x, yr, xs[i], yr, 'L'); leiter(g, xs[i], yr, xs[i], yb, 'L'); });
@@ -611,24 +622,25 @@ const PLAN = (() => {
       teil(xd);
       anschlussNr(g, setze(g, arten.length === 4 ? 'motor3' : 'motor1', x0, yM, null, arten, 1, motorFarben), arten.length === 4 ? ['U1', 'V1', 'W1', 'PE'] : ['U1', 'U2', 'PE'], []);
       const mo = k.motor || {};
-      bmk(g, x0 - (arten.length === 4 ? 4 : 6.5), R1(arten.length === 4 ? 'motor3' : 'motor1', yM), a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);   // links am Kreis vorbei
+      const zm = arten.length === 4 ? 'motor3' : 'motor1';
+      bmk(g, R3(zm, x0), R1(zm, yM), a.xd.t, [mo.kw ? `${mo.kw} kW` : '', mo.strom ? `${mo.strom} A` : '']);
     } else if (ende === 'wallbox') {      // Wallbox (ab v1.36): Unterkante des Kastens auf Höhe der Steckdosenunterkante
       const yW = ye + UNTERKANTE - WALLBOX_H;
       bis(yW);
       teil(xd);
       setze(g, 'wallbox', x0, yW, null, arten);
-      bmk(g, x0 - 4, R1('wallbox', yW), a.xd.t, [k.wallbox && k.wallbox.kw ? `${k.wallbox.kw} kW` : '']);
+      bmk(g, R3('wallbox', x0), R1('wallbox', yW), a.xd.t, [k.wallbox && k.wallbox.kw ? `${k.wallbox.kw} kW` : '']);
     } else if (ende === 'steckdose3' || ende === 'steckdose5') {
       bis(ye);
       teil(xd);
       setze(g, arten.length === 5 ? 'steckdose5' : 'steckdose3', x0, ye, null, arten);
-      bmk(g, x0 - 2, ye + 3, a.xd.t);
+      bmk(g, R3('steckdose3', x0), ye + 3, a.xd.t);
     } else if (ende === 'dose') {      // Geräteanschlussdose: je Leiter eine Endklemme,
       const yk = ye + UNTERKANTE - END_TIEFE;   // Unterkante wie die Steckdose
       bis(yk);
       teil(xd);
       arten.forEach((art, i) => setze(g, 'endklemme', xs[i], yk, null, art));
-      bmk(g, x0 - 2, ye + 3, a.xd.t);      // R5: gemeinsame Grundlinie der kleinen Endgeräte (ab v1.47)
+      bmk(g, R3('endklemme', x0), ye + 3, a.xd.t);      // R5: gemeinsame Grundlinie der kleinen Endgeräte (ab v1.47)
     } else if (ende === 'leuchte') {   // Lampe zwischen L und N, PE an das Gehäuse
       arten.forEach((art, i) => { if (art !== 'PE' && enden[i] < ye) leiter(g, xs[i], enden[i], xs[i], ye, art); });
       const iL = 0, iN = arten.indexOf('N'), iPE = arten.indexOf('PE');
@@ -640,14 +652,14 @@ const PLAN = (() => {
       leiter(g, xs[iPE], enden[iPE], xs[iPE], yu + 1.5, 'PE');
       teil(xd); teilPort(g, xs[iPE], yu + 1.5);
       leiter(g, xs[iPE], yu + 1.5, xm, yu + 1.5, 'PE'); leiter(g, xm, yu + 1.5, xm, yu, 'PE');
-      bmk(g, x0 - 2, ye + 3, a.xd.t);
+      bmk(g, R3('leuchte', x0), ye + 3, a.xd.t);
     } else if (ende === 'pv') {
       const yW = ye + UNTERKANTE - pvHoehe(pvDc);
       bis(yW);
       teil(`k:${k.id}/t`);
       const hyb = k.pv && k.pv.speicher;
       const tw = unten(setze(g, (arten.length === 5 ? 'wr3' : 'wr1') + (hyb ? '_hybrid' : ''), x0, yW, null, arten, 1, nurLeitungenFarbig));
-      bmk(g, x0 - 5, R1('wr1', yW), a.t.t);
+      bmk(g, R3('wr1', x0), R1('wr1', yW), a.t.t);
       teil(null);
       // DC-Seite schwarz: Plus links, Minus rechts
       let y = tw[0].y;
@@ -657,23 +669,23 @@ const PLAN = (() => {
         dcBis(y + PV_LUECKE);
         teil(`k:${k.id}/dc`);
         const t = unten(setze(g, 'lasttrenn2', xp, y));
-        bmk(g, xp - 5, R1('lasttrenn2', y), a.dcq.t, ['DC']);
+        bmk(g, R3('lasttrenn2', xp), R1('lasttrenn2', y), a.dcq.t, ['DC']);
         teil(null);
         y = t[0].y;
       }
       dcBis(y + PV_LUECKE);
       teil(`k:${k.id}/g`);
       setze(g, 'pv_oben', xp, y);
-      bmk(g, xp - 6, R1('pv_oben', y), a.g.t, [k.pv && k.pv.kwp ? `${k.pv.kwp} kWp` : '']);
+      bmk(g, R3('pv_oben', xp), R1('pv_oben', y), a.g.t, [k.pv && k.pv.kwp ? `${k.pv.kwp} kWp` : '']);
       teil(null);
       // Hybrid-Wechselrichter: Batterie an den rechten DC-Anschlüssen
-      if (hyb) batterie(g, tw[2].x, tw[3].x, tw[2].y, `k:${k.id}/bat`, a.bat.t, k.pv.speicher.kwh);
+      if (hyb) batterie(g, tw[2].x, tw[3].x, tw[2].y, `k:${k.id}/bat`, a.bat.t, k.pv.speicher.kwh, true);
     } else if (ende === 'speicher') {
       const yW = ye + UNTERKANTE - spHoehe();
       bis(yW);
       teil(`k:${k.id}/t`);
       const tw = unten(setze(g, arten.length === 5 ? 'wr3' : 'wr1', x0, yW, null, arten, 1, nurLeitungenFarbig));
-      bmk(g, x0 - 5, R1('wr1', yW), a.t.t);
+      bmk(g, R3('wr1', x0), R1('wr1', yW), a.t.t);
       teil(null);
       batterie(g, tw[0].x, tw[1].x, tw[0].y, `k:${k.id}/bat`, a.bat.t, k.speicher && k.speicher.kwh);
     } else { bis(ye + UNTERKANTE); teil(xd); arten.forEach((_, i) => teilPort(g, xs[i], ye + UNTERKANTE)); }  // offenes Ende auf Höhe der Steckdosenunterkante
@@ -735,13 +747,16 @@ const PLAN = (() => {
   function spHoehe() { return hoehe('wr1') + PV_LUECKE + hoehe('batterie') + PV_LUECKE; }
   // Batterie unter dem Minus-Anschluss (oberer Anschluss des Zeichens = kurze Platte, −); Plus wird
   // links daneben bis unter die Batterie geführt und von unten angeschlossen. Gibt das untere Ende zurück.
-  function batterie(g, xp, xm, y, key, kenn, kwh) {
+  function batterie(g, xp, xm, y, key, kenn, kwh, rechts = false) {
     const top = y + PV_LUECKE;
     leiter(g, xm, y, xm, top, 'DC');
     teil(key);
     const yb = unten(setze(g, 'batterie', xm, top))[0].y, yr = yb + PV_LUECKE;
-    if (kenn) text(g, xm + 3.5, R1('batterie', top), kenn, 2.5, 'start', { 'font-weight': 'bold' });
-    if (kwh) text(g, xm + 3.5, R1('batterie', top) + 3.2, `${kwh} kWh`, 2.2, 'start');
+    // R2 (ab v1.50): links neben der Plus-Leitung; am Hybrid-Wechselrichter liegt links der PV-Strang, dort bleibt sie rechts
+    if (rechts) { const yb1 = R1('batterie', top);
+      if (kenn) text(g, xm + 3.5, yb1, kenn, 2.5, 'start', { 'font-weight': 'bold' });
+      if (kwh) text(g, xm + 3.5, yb1 + 3.2, `${kwh} kWh`, 2.2, 'start');
+    } else bmk(g, Math.min(xp, xm - sichtLinks('batterie')) - 1.5, R1('batterie', top), kenn, [kwh ? `${kwh} kWh` : '']);
     teil(null);
     leiter(g, xp, y, xp, yr, 'DC'); leiter(g, xp, yr, xm, yr, 'DC'); leiter(g, xm, yr, xm, yb, 'DC');
     return yr;
@@ -768,23 +783,20 @@ const PLAN = (() => {
     if (n > 1) el('line', { x1: xs[0] - 1, y1: yW, x2: xs[n - 1] - 1, y2: yW, stroke: '#000', 'stroke-width': 0.25, 'stroke-dasharray': '1 0.5' }, g);
     const zeile2 = sg.typ === 'zeitrelais' ? (sg.zr.zeit ? `t = ${sg.zr.zeit}` : '') : sg.typ === 'stromstoss' ? 'Stromstoß' : sg.rolle || '';
     // spuleRef: Lage der Spule im Steuerstromkreis; beim Zeitrelais dann links am Verzögerungszeichen vorbei
-    bmk(g, xs[0] - (spuleRef && sg.typ === 'zeitrelais' ? 12 : 5), R1(kenn, top), sg.bmk.t, [zeile2, spuleRef]);
+    bmk(g, R3(kenn, xs[0]), R1(kenn, top), sg.bmk.t, [zeile2, spuleRef]);
     teil(null);
     // nicht geschaltete Leiter (N, PE) laufen durch
     arten.forEach((art, i) => { if (i >= n && enden[i] < unten) { leiter(g, xs[i], enden[i], xs[i], unten, art); enden[i] = unten; } });
     return unten;
   }
-  // Hauptkontakte eines Zusatzschützes an den Stellen xq ab top (ab v1.40); Beschriftung rechts daneben
+  // Hauptkontakte eines Zusatzschützes an den Stellen xq ab top (ab v1.40); Beschriftung links daneben (ab v1.50)
   function zusatzKontakte(g, zs, xq, top, ref, key) {
     teil(key);
     const u = xq.map((x, i) => { const t = setze(g, 'schuetz1', x, top); anschlussNr(g, t, [String(2 * i + 1)], [String(2 * i + 2)]);
       return t.find(p => p.richtung === 's').y; });
     const yW = top + (40 - 11.5) * E;
     el('line', { x1: xq[0] - 1, y1: yW, x2: xq[xq.length - 1] - 1, y2: yW, stroke: '#000', 'stroke-width': 0.25, 'stroke-dasharray': '1 0.5' }, g);
-    const xt = xq[xq.length - 1] + 2;
-    const yb = R1('schuetz1', top);
-    text(g, xt, yb, zs.bmk.t, 2.5, 'start', { 'font-weight': 'bold' });
-    [zs.rolle, ref].filter(Boolean).forEach((z, i) => text(g, xt, yb + 3.2 + 2.8 * i, z, 2.2, 'start'));
+    bmk(g, R3('schuetz1', xq[0]), R1('schuetz1', top), zs.bmk.t, [zs.rolle, ref]);     // R2: links (ab v1.50)
     teil(null);
     return Math.max(...u);
   }
@@ -804,7 +816,8 @@ const PLAN = (() => {
   // Stern-Dreieck (ab v1.40): Leitungen U2 V2 W2 rechts neben PE mit dem Dreieck-Schütz, daneben auf gleicher Höhe
   // das Stern-Schütz: oben gebrückt (Sternpunkt), unten auf U2 V2 W2. Gibt { cursor, xs, enden, bis } von U2 V2 W2 zurück.
   function zeichneSternDreieck(g, k, a, arten, xs, cursor, bis, spRef) {
-    const xd = [0, 1, 2].map(i => xs[0] + ABSTAND * (5 + i)), xst = [0, 1, 2].map(i => xs[0] + ABSTAND * (10 + i));
+    // ab v1.50 je 5 mm weiter rechts: Platz für die Beschriftung links zwischen PE und Dreieck-Schütz (R2)
+    const xd = [0, 1, 2].map(i => xs[0] + ABSTAND * (6 + i)), xst = [0, 1, 2].map(i => xs[0] + ABSTAND * (11 + i));
     const quelle = [1, 2, 0], top = cursor + 8;
     bis(cursor + 6);
     xd.forEach((x, i) => { const j = quelle[i], y = cursor + 1.5 * (i + 1);
@@ -847,7 +860,7 @@ const PLAN = (() => {
     prim.forEach((art, i) => leiter(g, xs[i], enden[i], xs[i], yT, art));
     const tt = unten(setze(g, 'trafo', x0, yT));
     const yS = Math.max(...tt.map(p => p.y));
-    bmk(g, x0 - 5, R1('trafo', yT), a.t && a.t.t, [`${T.prim}/${T.sek} V`, T.va ? `${T.va} VA` : '']);
+    bmk(g, R3('trafo', x0), R1('trafo', yT), a.t && a.t.t, [`${T.prim}/${T.sek} V`, T.va ? `${T.va} VA` : '']);
     // Rückleitung 0 V, geerdet: PE von der Schiene rechts herunter
     const yE = yS + 3;
     if (T.erde && bars.PE !== undefined || T.erde && bars.PEN !== undefined) {
@@ -969,7 +982,7 @@ const PLAN = (() => {
     const xr = xs[xs.length - 1] + ABSTAND, yPe = bars[quelle('PE', bars)];
     leiter(g, pe.x, pe.y, pe.x, pe.y + 4, 'PE'); leiter(g, pe.x, pe.y + 4, xr, pe.y + 4, 'PE');
     leiter(g, xr, pe.y + 4, xr, yPe, 'PE'); punkt(g, xr, yPe, 'PE');
-    teil(`s:${v.id}`); bmk(g, x0 - 5, R1(z, yG), e.kopf.spd.t, []); teil(null);
+    teil(`s:${v.id}`); bmk(g, R3(z, x0), R1(z, yG), e.kopf.spd.t, []); teil(null);
     return pe.y + 8;
   }
 
@@ -1007,7 +1020,7 @@ const PLAN = (() => {
       const tp = setze(g, gz, x0, top, null, namen.slice(0, pole)), t = unten(tp);
       if (!/^zaehler/.test(gz)) anschlussNr(g, tp, ...polNr(namen.slice(0, pole)));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
-      bmk(g, x0 - 5, R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]));
+      bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
@@ -1112,7 +1125,7 @@ const PLAN = (() => {
     const t = setze(g, UE[z], x, y);
     const u = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y), y);
     if (GERAETE[z] && GERAETE[z].fi) { ueBmk(g, x - 1.5, u + 3, kenn, zeilen, P - 3); return { unten: u, frei: u + 3 + 2.8 * zeilen.length + 1 }; }
-    ueBmk(g, x - 4.5, R1(UE[z], y), kenn, zeilen, P - 5.5);
+    ueBmk(g, R3(UE[z], x), R1(UE[z], y), kenn, zeilen, P - (x - R3(UE[z], x)));
     return { unten: u, frei: u };
   }
   // Ende eines Abgangs: Anschlusszeichen und senkrechte Beschriftung bis vor das Schriftfeld
@@ -1126,10 +1139,10 @@ const PLAN = (() => {
     else if (ende === 'motor') setze(g, 'ue_motor', x, yE);          // ab v1.48: eigenes einpoliges Zeichen
     else if (ende === 'speicher') setze(g, 'batterie', x, yE + UNTERKANTE - 10);   // ab v1.48: Batterie in Originalgröße, unten bündig mit den Steckdosen
     else linie(g, x, yE, x, yE + UNTERKANTE, 0.25);
-    if (ende === 'speicher') text(g, x - 3, yE + 3.6, a.bat.t, 2.2, 'end');
-    else if (ende === 'motor') text(g, x - 4.5, yE + 3.6, a.xd.t, 2.2, 'end');
-    else if (ende === 'pv') text(g, x - 6, yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
-    else if (a.xd && a.xd.t && ende !== 'fest') text(g, x - 2.2, yE + 3.6, a.xd.t, 2.2, 'end');
+    if (ende === 'speicher') text(g, R3('batterie', x), yE + 3.6, a.bat.t, 2.2, 'end');
+    else if (ende === 'motor') text(g, R3('ue_motor', x), yE + 3.6, a.xd.t, 2.2, 'end');
+    else if (ende === 'pv') text(g, R3('ue_pv', x), yE + 3.6, a.g.t, 2.2, 'end');     // am Zeichen steht der PV-Generator
+    else if (a.xd && a.xd.t && ende !== 'fest') text(g, R3(ende === 'dose' ? 'endklemme' : ende === 'leuchte' ? 'ue_leuchte' : 'ue_steckdose', x), yE + 3.6, a.xd.t, 2.2, 'end');
     const yL = yE + 9.5, max = ySF - 2 - yL;
     const senk = (dx, t, gr, fett) => passend(text(g, x + dx, yL, t, gr, 'end',
       Object.assign({ transform: `rotate(-90 ${x + dx} ${yL})` }, fett ? { 'font-weight': 'bold' } : {})), max);
@@ -1157,7 +1170,7 @@ const PLAN = (() => {
       const top = Math.max(frei, y) + 3;
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ue_trafo', x, top);
-      ueBmk(g, x - 6.5, R1('ue_trafo', top), a.t && a.t.t, [`${k.trafo.prim}/${k.trafo.sek} V`], P - 7.5);
+      ueBmk(g, R3('ue_trafo', x), R1('ue_trafo', top), a.t && a.t.t, [`${k.trafo.prim}/${k.trafo.sek} V`], P - (x - R3('ue_trafo', x)));
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y));
       const ls = k.trafo.ls && k.trafo.ls.zeichen || 'ls1', top2 = y + 2.5;
       linie(g, x, y, x, top2, 0.25);
@@ -1170,21 +1183,21 @@ const PLAN = (() => {
       const t = setze(g, 'schuetz1', x, top);
       // Zusatzschütze (ab v1.48): Wende bzw. Stern-Dreieck mit ihren Kennzeichen unter dem Netzschütz genannt
       const zs = (a.zusatz || []).map(z => z.schalt.bmk.t);
-      ueBmk(g, x - 4.5, R1('schuetz1', top), a.schalt.bmk.t, zs, P - 5.5);
+      ueBmk(g, R3('schuetz1', x), R1('schuetz1', top), a.schalt.bmk.t, zs, P - (x - R3('schuetz1', x)));
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('schuetz1', top), zs));
     }
     if (a.ol) {         // Überlastrelais einpolig (ab v1.48)
       const top = Math.max(frei, y) + 2.5;
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ueberlast1', x, top), zl = [a.ol.bereich ? `${a.ol.bereich} A` : ''];
-      ueBmk(g, x - 4.5, R1('ueberlast1', top), a.ol.bmk.t, zl, P - 5.5);
+      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - (x - R3('ueberlast1', x)));
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('ueberlast1', top), zl));
     }
     if (a.fu) {         // Frequenzumrichter einpolig (ab v1.48)
       const top = Math.max(frei, y) + 2.5;
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ue_umrichter', x, top);
-      ueBmk(g, x - 4.5, R1('ue_umrichter', top), a.fu.t, [], P - 5.5);
+      ueBmk(g, R3('ue_umrichter', x), R1('ue_umrichter', top), a.fu.t, [], P - (x - R3('ue_umrichter', x)));
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = y;
     }
     if (a.p) {          // Erzeugungszähler der PV-Anlage (ab v1.34)
@@ -1198,7 +1211,7 @@ const PLAN = (() => {
       const wr = !k.speist && (k.ziel.anschluss === 'pv' || k.ziel.anschluss === 'speicher') && a.t, hW = wr ? 10 : 0;
       linie(g, x, y, x, yE - hW, 0.25);
       leiterzahl(g, x, Math.max(Math.max(frei, y) + 4, yE - 4.5 - hW), abgangArten(k, a, v).length);
-      if (wr) { setze(g, 'ue_wr', x, yE - hW); ueBmk(g, x - 4.5, R1('ue_wr', yE - hW), a.t.t, [], P - 5.5); }
+      if (wr) { setze(g, 'ue_wr', x, yE - hW); ueBmk(g, R3('ue_wr', x), R1('ue_wr', yE - hW), a.t.t, [], P - (x - R3('ue_wr', x))); }
       ueEnde(g, ctx, v, k, a, x, yE, ySF);
     }
     return Math.max(frei, y) + 7;    // Platz für die Leiterzahl
@@ -1491,6 +1504,7 @@ const PLAN = (() => {
     const li = kennung === 'meldeleuchte' ? 3 : hs ? Math.min(+hs[1] * E, 11) : 5;
     return [li, ST_RECHTS[kennung] || 1.4];
   }
+  const ST_MELDER = /^(daemmerung|bewegung|praesenz|s_schwimmer|oe_schwimmer)$/;   // Beschriftung rechts (links sitzt die Betätigung)
   const ST_LINKS = 19;                              // Pfad in der Spalte: Platz links für Kennzeichen und Text
   const stKnoten = (v, kid) => { let r = null; const such = l => l.forEach(k => { if (k.id === kid) r = k; if (k.kinder) such(k.kinder); }); such(v.knoten); return r; };
   // Kreise auf Blätter verteilen; ein Kreis wird nicht geteilt. Bei gemeinsamer
@@ -1581,6 +1595,7 @@ const PLAN = (() => {
   // Steuerspannung, dann ohne eigene Schienen, Anschlüsse in anG (bei Brücke über Klemmen)
   // Beschriftung im Steuerstromkreis (ab v1.42): rechtsbündig bis xr, links begrenzt auf die eigene Spalte
   // (erste Spalte: Rahmen + 1,5 mm, sonst Nachbarpfad); zu lange Zeilen werden an Leerzeichen bzw. Bindestrich umbrochen, der Rest begrenzt
+  const zeitText = z => ('t = ' + z).replace(/ /g, '\u00a0');     // Zeitangabe wird nicht umbrochen (ab v1.50)
   function bmkSt(g, xPfad, xr, y, kenn, zeilen = []) {
     // links: in der ersten Spalte der Rahmen + 1,5 mm, sonst die Anschlussnummern des Nachbarpfads + 1,5 mm
     const links = xPfad - ST_LINKS - RAND_L < 0.5 ? RAND_L + 1.5 : xPfad - ST_LINKS - 1;
@@ -1648,6 +1663,14 @@ const PLAN = (() => {
         anG.L.push(x);
         if (kl) klemme(x, ST_YL - ST_KL, kl.l[p.id], lName, !anG.L.slice(0, -1).length);
       }
+      // R3 (ab v1.50): eine Fluchtlinie je Spalte, 1,5 mm vor der am weitesten links gezeichneten Stelle aller Zeichen des Pfads
+      const zPl = pl => { if (!pl) return null; const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g), zArt = pl.z || (ger && ger.zeichen), z = ST_BILD[zArt] || zArt; return z && ZEICHEN[z] ? z : null; };
+      const zVb = vb => { const sa = vb && e.abgaenge[vb.g], ger = vb && !sa && gerVon(vb.g);
+        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : ger && ger.zeichen === 'zeitrelais' ? 'spule_' + (ger.fkt || 'aus') : ger ? ger.zeichen : null; return z && ZEICHEN[z] ? z : null; };
+      const zSp = [];
+      for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) zSp.push(zPl(p.plaetze[i]));
+      if (bis >= ST_PL) zSp.push(zVb(p.verbraucher));
+      const xr = x - Math.max(0, ...zSp.filter(z => z && !ST_MELDER.test(z)).map(sichtLinks)) - 1.5;
       for (let i = von; i <= Math.min(bis, ST_PL - 1); i++) {
         const pl = p.plaetze[i]; if (!pl) continue;
         const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g);
@@ -1657,24 +1680,24 @@ const PLAN = (() => {
         const t = setze(g, z, x, top);
         const u = t.filter(q => q.richtung === 's').sort((p1, p2) => Math.abs(p1.x - x) - Math.abs(p2.x - x))[0];
         y = u ? u.y : top + 15;
-        const [li, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
+        const [, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
         let an;
         const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && ger.zeichen === 'zeitrelais' && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
         if (kn && (kn.ol || kn.ms)) {       // Überlastrelais bzw. Motorschutzschalter: Verweis auf den Abgang (ab v1.38)
           const la = ctx.lage[pl.g], kz = kn.ol ? (sa && sa.ol ? sa.ol.bmk.t : '?') : (sa && sa.f ? sa.f.t : '?');
-          bmkSt(g, x, x - li - 1, R1(z, top), kz, [la ? `/${la.blatt}.${la.spalte}` : '']);
+          bmkSt(g, x, xr, R1(z, top), kz, [la ? `/${la.blatt}.${la.spalte}` : '']);
           an = kn.an;
         } else if (relais) {            // Kontakt eines Schaltgeräts oder eigenständigen Zeitrelais mit Verweis auf die Spule
           const sp = ctx.steuer.spulen[pl.g];
-          bmkSt(g, x, x - li - 1, R1(z, top), relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
+          bmkSt(g, x, xr, R1(z, top), relais, [sp ? `/${sp.blatt}.${sp.spalte}` : '']);
           an = kn ? kn.an : ['', ''];
         } else {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [pl.bez || ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
-          if (/^(daemmerung|bewegung|praesenz|s_schwimmer|oe_schwimmer)$/.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
+          if (ST_MELDER.test(z)) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
             const yb = R1(z, top);
             text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' });
             zl.filter(Boolean).forEach((s, n) => text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'));
-          } else bmkSt(g, x, x - li - 1, R1(z, top), kz, zl);
+          } else bmkSt(g, x, xr, R1(z, top), kz, zl);
           an = kn ? kn.an : /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }
         text(g, x + re + 0.8, top + 2.2, an[0], 1.8); text(g, x + re + 0.8, y - 0.6, an[1], 1.8);
@@ -1693,15 +1716,15 @@ const PLAN = (() => {
           teil(vk);
           const t = setze(g, z, x, ST_YV);
           const u = t.find(q => q.richtung === 's'); y = u ? u.y : ST_YV + 10;
-          const [li, re] = seiten(z);
+          const [, re] = seiten(z);
           if (sa) {
             const sg = sa.schalt;
-            bmkSt(g, x, x - li - 1, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? `t = ${sg.zr.zeit}` : sg.rolle || '']);
+            bmkSt(g, x, xr, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4); teil(vk);      // der Kontaktspiegel bleibt unter N
           } else if (zr) {
-            bmkSt(g, x, x - li - 1, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? `t = ${ger.zeit}` : '']);
+            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? zeitText(ger.zeit) : '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger); teil(vk);
-          } else bmkSt(g, x, x - li - 1, R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
+          } else bmkSt(g, x, xr, R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
           text(g, x + re + 0.8, ST_YV + 2.2, sa || zr ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa || zr ? 'A2' : 'X2', 1.8);
           const fk = st.feld && st.feld[p.id + ':v'];
           if (fk) { feldKlemme(x, ST_YV - 1.6, fk[0], true); feldKlemme(x, y + 1.6, fk[1], true); }
@@ -1802,7 +1825,7 @@ const PLAN = (() => {
   function blattAnker(v, b) { const it = b.items.find(x => x.art !== 'spd'); return it ? 'k:' + it.k.id : 'e:' + v.id; }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
-    if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; SICHT = {}; ZEICHEN_BIB = BIB; }
+    if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; SICHT = {}; SLI = {}; ZEICHEN_BIB = BIB; }
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
     // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe)

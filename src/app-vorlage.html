@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.31: Etappe F8 – Kontakte und Verbraucher im Steuerstromkreis frei im Raster (Platz wählen, „Frei“, dann
+           ziehen oder Pfeiltasten); Leiter mit Abzweigen bleiben in ihrer Flucht, nur die Enden werden versetzt;
+           ein abgetrennter Abzweig steht in der Prüfliste
      v1.30: Etappe F7 – Abgang bzw. Gruppe auf ein anderes Blatt ziehen (landet in der Reihenfolge an der Stelle
            und in der Spalte unter dem Zeiger); „Blatt festhalten“ über dem Blatt: dessen Abgänge behalten Spalte und
            Blatt, auch wenn davor etwas dazukommt; „Freigeben“ nimmt das zurück
@@ -584,11 +587,13 @@ verlauf.stand = JSON.stringify(P);
 const RASTER = 2.5, LAYOUT_ARTEN = ['spalten', 'umbruch', 'lage', 'wege'];
 function lay(v) { const L = v.layout = v.layout || {}; LAYOUT_ARTEN.forEach(x => { L[x] = L[x] || {}; }); return L; }
 // Besitzer eines Teil- oder Leiterschlüssels: 'k:<id>', 's:<vid>' oder 'e:<vid>'
-const besitzerVon = key => { const m = /^([eks]):([^/#]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
+const besitzerVon = key => { const m = /^(kr|[eks]):([^/#]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
 function layoutBereinigen(v) {
   const L = v.layout; if (!L) return;
   const da = new Set(); alleKnoten(v, k => da.add(k.id));
-  const gibt = key => { const m = /^([eks]):([^/#]+)(?:\/(\w+))?/.exec(key);
+  const gibt = key => { const m = /^(kr|[eks]):([^/#]+)(?:\/(\w+))?/.exec(key);
+    if (m && m[1] === 'kr') { const kr = ((v.steuerung && v.steuerung.kreise) || []).find(x => x.id === m[2]), q = /\/pl:([^:]+):\d$/.exec(key);
+      return !!kr && (!q || kr.pfade.some(pf => pf.id === q[1])); }
     return !!m && (m[1] === 'k' ? da.has(m[2]) : m[1] === 's' ? !!v.spd.zeichen : m[1] === 'e' && (!m[3] || !!(v[m[3]] && v[m[3]].zeichen))); };
   ['spalten', 'umbruch'].forEach(x => Object.keys(L[x] || {}).forEach(kid => { if (!da.has(kid) || !L[x][kid]) delete L[x][kid]; }));
   Object.keys(L.lage || {}).forEach(key => { const d = L.lage[key]; if (!d || !(d[0] || d[1]) || !gibt(key)) delete L.lage[key]; });
@@ -1885,7 +1890,7 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
   if (t === 'escape' && ED.zeichnen) { ev.preventDefault(); ED.zeichnen = null; return zeichenVorschau(null); }
-  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerVon(b.sel.slice(2))); else if (b.sel) waehle(null); }
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerTeilOderLeiter(b.sel)); else if (b.sel) waehle(null); }
 });
 
 // ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
@@ -1998,7 +2003,8 @@ function lageZeilen(v, r, b) {
 }
 // Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
 function editorTeil(v, key, b) {
-  const bes = teilBesitzer(key), r = editorEigenschaften(v, bes, b);
+  const pq = /\/pl:([^:]+):(\d)$/.exec(key);
+  const bes = teilBesitzer(key), r = pq ? editorPlatz(v, b, pq[1], +pq[2]) : editorEigenschaften(v, bes, b);
   const d = (v.layout && v.layout.lage && v.layout.lage[key]) || null;
   const kopf = h('div', {}, h('h2', {}, 'Gerät im Plan'), h('div', { class: 'liste' },
     zeile('Lage', d ? `x ${mm(d[0] * RASTER)} · y ${mm(d[1] * RASTER)} mm` : 'automatisch', () => {}, { ohnePfeil: true,
@@ -2220,7 +2226,8 @@ function markieren() {
 // ---- Leiter im Blatt (ab v1.27, Etappe F4) -------------------------------------------------
 // Leiterstücke eines gewählten Abgangs sind antippbar (w:<schlüssel>); das ganze Netz, mit dem ein gewähltes
 // Stück auf dem Blatt verbunden ist, wird hinterlegt; verschoben wird parallel in Rasterschritten
-const besitzerTeilOderLeiter = sel => sel.startsWith('t:') || sel.startsWith('w:') ? besitzerVon(sel.slice(2)) : sel;
+const teilAnzeige = key => { const m = /\/(pl:[^/]+)$/.exec(key); return m ? m[1] : besitzerVon(key); };
+const besitzerTeilOderLeiter = sel => sel.startsWith('t:') ? teilAnzeige(sel.slice(2)) : sel.startsWith('w:') ? besitzerVon(sel.slice(2)) : sel;
 function leiterFlaechen() {
   const ns = 'http://www.w3.org/2000/svg';
   ED.liste.forEach(bl => {
@@ -2408,7 +2415,7 @@ function prueflisteBerechnen() {
         aus.push({ key: tl.key, t: `${wo}: ein Leiter läuft durch das Gerät` });
     });
   });
-  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: 'z:' + x.id, t: `Blatt ${bl.nr}: ${x.t}` })));
+  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: x.teil ? 't:' + x.teil : 'z:' + x.id, t: `Blatt ${bl.nr}: ${x.t}` })));
   return aus;
 }
 // Stecknadeln (ab v1.25): wo von Hand angeordnet wurde, steht im Editor eine Nadel (nie im Druck)
@@ -2430,7 +2437,7 @@ function nadeln() {
 // Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
 const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
 const teilBesitzer = besitzerVon;
-const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
+const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : /\/pl:[^:]+:6$/.test(key) ? 'Verbraucher' : /\/pl:/.test(key) ? 'Kontakt' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
 function teilFlaechen() {
   ED.liste.forEach(bl => {
     if (!bl.szene) return;
@@ -2447,7 +2454,7 @@ function teilFlaechen() {
       tl.box = { x0: x0 - 0.8, y0: y0 - 0.8, x1: x1 + 0.8, y1: y1 + 0.8 };
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
-        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilBesitzer(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
+        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
       svg.append(r);
     });
   });
@@ -2496,6 +2503,8 @@ function kontextNeu() {
       ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+    const tk = `kr:${r.kr.id}/pl:${id}:${s.i}`;          // frei im Raster verschieben (ab v1.31)
+    if (teilVon(tk)) kn.push(sep(), ik('breite', 'Frei im Raster verschieben', () => waehle('t:' + tk), { text: 'Frei' }));
   } else if (art === 'm') {
     const s = (x, y) => () => gruppeSchieben(v, b.mehr, x, y);
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
@@ -2517,7 +2526,7 @@ function kontextNeu() {
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
       ik('runter', '2,5 mm nach unten', s(0, 1), { taste: '↓' }), ik('rechts', '2,5 mm nach rechts', s(1, 0), { taste: '→' }), sep());
     if (vonHand(v, key)) kn.push(ik('auto', 'Automatik anwenden', () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }), sep());
-    kn.push(ik('auf', 'Ganzen Abgang wählen', () => waehle(teilBesitzer(key)), { text: 'Abgang' }));
+    kn.push(ik('auf', /\/pl:/.test(key) ? 'Platz wählen' : 'Ganzen Abgang wählen', () => waehle(teilAnzeige(key)), { text: /\/pl:/.test(key) ? 'Platz' : 'Abgang' }));
   } else if (art === 'kr') {
     const kr = v.steuerung.kreise.find(x => x.id === id);
     kn.push(ik('vorlage', 'Vorlage einsetzen', () => vorlageWahl(v, kr), { text: 'Vorlage' }),

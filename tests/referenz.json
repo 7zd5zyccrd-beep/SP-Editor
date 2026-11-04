@@ -614,7 +614,7 @@
   ],
   [
    "6 HV abgang",
-   "02e1b058038f8c9bddf4a07a6597772d"
+   "9149fc58424355848753453dcec31968"
   ],
   [
    "7 HV abgang",
@@ -665,6 +665,56 @@
   [
    "8 UV Werkstatt kombiniert",
    "065d70ac40bc09c89a9a3b2ba18329c2"
+  ]
+ ],
+ "steuerfrei": [
+  [
+   "1 Deckblatt deckblatt",
+   "8629f76fb9503ac4461df100a7c473d5"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "21526a1a501ef47ea51119d72b954345"
+  ],
+  [
+   "3 HV uebersicht",
+   "6aeedd16cd2269950854d9e6f92248a1"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "064046d6ea87f10c87abe0a8d9ee1ee2"
+  ],
+  [
+   "5 HV einspeisung",
+   "3b56404dbd75efe4032f9ac7dff29f15"
+  ],
+  [
+   "6 HV abgang",
+   "877d7e6d26ab86ccb651bfa3e90ae937"
+  ],
+  [
+   "7 HV abgang",
+   "a584802ca2ef1642b59f4c6dedd14099"
+  ],
+  [
+   "8 HV abgang",
+   "ea9f448eba2cf08677d0658b4727f940"
+  ],
+  [
+   "9 HV steuerung",
+   "423a44b3788de757a4880725d74148f7"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "dc12cc5ec47fbaf8f3ba344aacad2143"
+  ],
+  [
+   "11 HV klemmen",
+   "229867d8c4b1e39715f358217f3132c3"
+  ],
+  [
+   "12 HV klemmen",
+   "76d2531345ceea082f7d57bd1f8da81c"
   ]
  ]
 }

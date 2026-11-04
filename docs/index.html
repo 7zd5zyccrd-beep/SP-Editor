@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.30 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.31 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.31: Etappe F8 – Kontakte und Verbraucher im Steuerstromkreis frei im Raster (Platz wählen, „Frei“, dann
+           ziehen oder Pfeiltasten); Leiter mit Abzweigen bleiben in ihrer Flucht, nur die Enden werden versetzt;
+           ein abgetrennter Abzweig steht in der Prüfliste
      v1.30: Etappe F7 – Abgang bzw. Gruppe auf ein anderes Blatt ziehen (landet in der Reihenfolge an der Stelle
            und in der Spalte unter dem Zeiger); „Blatt festhalten“ über dem Blatt: dessen Abgänge behalten Spalte und
            Blatt, auch wenn davor etwas dazukommt; „Freigeben“ nimmt das zurück
@@ -677,8 +680,8 @@ const PLAN = (() => {
   // Grundlage für freie Lage (Gummiband), Antippen einzelner Geräte, Netze und Prüfungen.
   // Ab v1.27 tragen Leiter einen Schlüssel aus ihrem Ort (Abgang, Gruppe, Einspeisung) und ihrer Reihenfolge
   // darin (k:<id>#3); Verbindungspunkte werden mitgeschrieben, damit sie beim Umlegen eines Leiters folgen.
-  const SZ = { g: null, teil: null, teile: null, leiter: null, punkte: null, ort: null, zaehler: null };
-  function szeneStart(g) { Object.assign(SZ, { g, teil: null, teile: {}, leiter: [], punkte: [], ort: null, zaehler: {} }); }
+  const SZ = { g: null, teil: null, teile: null, leiter: null, punkte: null, ort: null, zaehler: null, hinweise: null };
+  function szeneStart(g) { Object.assign(SZ, { g, teil: null, teile: {}, leiter: [], punkte: [], ort: null, zaehler: {}, hinweise: [] }); }
   function szeneEnde() { const s = { teile: SZ.teile, leiter: SZ.leiter, punkte: SZ.punkte }; SZ.g = null; SZ.teil = null; SZ.ort = null; return s; }
   function mitOrt(key, f) { const alt = SZ.ort; SZ.ort = key; try { return f(); } finally { SZ.ort = alt; } }
   function teil(key) { SZ.teil = key && SZ.g ? (SZ.teile[key] = SZ.teile[key] || { key, els: [], ports: [] }) : null; }
@@ -698,36 +701,58 @@ const PLAN = (() => {
       t.ports = t.ports.map(p => ({ x: p.x + dx, y: p.y + dy }));
     });
     const an = (x, y) => ports.find(p => nah(p.x, x) && nah(p.y, y));
-    // Leiter mit Knick je Teil und Seite nach x ordnen: der Rang bestimmt den Abstand des Knicks vom Gerät
-    const knick = [];
+    // Leiter mit verschobenen Enden: das Mittelstück bleibt in seiner Flucht (dort hängen Abzweige), je
+    // verschobenem Ende entsteht ein rechtwinkliger Versatz kurz vor dem Gerät. Der Abstand des Versatzes
+    // wird je Gerät und Seite gestaffelt (Rang nach der Lage quer zur Leitung), damit sich nichts kreuzt.
+    const betroffen = [];
     SZ.leiter.slice().forEach(l => {
       const a = an(l.x1, l.y1), b = an(l.x2, l.y2);
-      if (!a && !b) return;
-      const A = [l.x1 + (a ? a.dx : 0), l.y1 + (a ? a.dy : 0)], B = [l.x2 + (b ? b.dx : 0), l.y2 + (b ? b.dy : 0)];
-      const senk = nah(l.x1, l.x2);
-      if ((senk && nah(A[0], B[0])) || (!senk && nah(A[1], B[1]))) { setzeLinie(l, A, B); return; }
-      if (a && b) { knick.push({ l, F: A, M: B, senk, mitte: true }); return; }
-      knick.push({ l, F: a ? B : A, M: a ? A : B, senk, p: a || b, umgekehrt: !!a });
+      if (a || b) betroffen.push({ l, a, b, senk: nah(l.x1, l.x2), A: [l.x1, l.y1], B: [l.x2, l.y2] });
     });
+    // Abzweige im Inneren eines Leiters (Enden anderer Leiter)
+    const abzweige = q => SZ.leiter.filter(s => s !== q.l).flatMap(s => [[s.x1, s.y1], [s.x2, s.y2]]).filter(([x, y]) => q.senk
+      ? nah(x, q.A[0]) && y > Math.min(q.A[1], q.B[1]) + 0.01 && y < Math.max(q.A[1], q.B[1]) - 0.01
+      : nah(y, q.A[1]) && x > Math.min(q.A[0], q.B[0]) + 0.01 && x < Math.max(q.A[0], q.B[0]) - 0.01).map(([x, y]) => q.senk ? y : x);
+    const enden = [];
+    betroffen.forEach(q => [['a', q.a, q.A, q.B], ['b', q.b, q.B, q.A]].forEach(([w, p, E, O]) => {
+      if (!p) return;
+      const quer = q.senk ? p.dx : p.dy;
+      if (!quer) return;
+      enden.push({ q, w, p, s: Math.sign((q.senk ? O[1] - E[1] : O[0] - E[0]) || 1), quer });
+    }));
     const gruppen = {};
-    knick.forEach(k => { if (k.mitte) return; const s = k.senk ? Math.sign(k.M[1] - k.F[1]) : Math.sign(k.M[0] - k.F[0]);
-      (gruppen[k.p.t.key + (k.senk ? 'v' : 'h') + s] = gruppen[k.p.t.key + (k.senk ? 'v' : 'h') + s] || []).push(k); });
-    Object.values(gruppen).forEach(ks => {
-      const d = ks[0].senk ? ks[0].p.dx : ks[0].p.dy;
-      ks.sort((u, w) => (u.senk ? u.l.x1 - w.l.x1 : u.l.y1 - w.l.y1) * (d >= 0 ? 1 : -1));
-      ks.forEach((k, i) => { k.off = RASTER * (1 + i); });
+    enden.forEach(n => { const k = n.p.t.key + (n.q.senk ? 'v' : 'h') + n.s; (gruppen[k] = gruppen[k] || []).push(n); });
+    Object.values(gruppen).forEach(ns => {
+      ns.sort((u, w) => ((u.q.senk ? u.q.A[0] - w.q.A[0] : u.q.A[1] - w.q.A[1]) * (ns[0].quer >= 0 ? 1 : -1)));
+      ns.forEach((n, i) => { n.off = RASTER * (1 + i); });
     });
-    knick.forEach(k => {
-      const { l, F, M, senk } = k, s = senk ? Math.sign(M[1] - F[1]) : Math.sign(M[0] - F[0]);
-      const lang = Math.abs(senk ? M[1] - F[1] : M[0] - F[0]);
-      const off = k.mitte || k.off >= lang ? lang / 2 : k.off;
-      const q = senk ? M[1] - s * off : M[0] - s * off;          // Lage des Querstücks
-      const P1 = senk ? [F[0], q] : [q, F[1]], P2 = senk ? [M[0], q] : [q, M[1]];
-      const pfad = k.umgekehrt ? [M, P2, P1, F] : [F, P1, P2, M];
-      setzeLinie(l, pfad[0], pfad[1]);
-      const farbe = l.el.getAttribute('stroke');
-      linie(g, pfad[1][0], pfad[1][1], pfad[2][0], pfad[2][1], 0.25, farbe, l.art);
-      linie(g, pfad[2][0], pfad[2][1], pfad[3][0], pfad[3][1], 0.25, farbe, l.art);
+    betroffen.forEach(q => {
+      const dA = q.a ? [q.a.dx, q.a.dy] : [0, 0], dB = q.b ? [q.b.dx, q.b.dy] : [0, 0];
+      const A2 = [q.A[0] + dA[0], q.A[1] + dA[1]], B2 = [q.B[0] + dB[0], q.B[1] + dB[1]];
+      const i = q.senk ? 0 : 1, j = 1 - i;                     // i: Querlage, j: Längslage
+      const fl = q.A[i];                                        // Flucht des Leiters
+      if (nah(A2[i], fl) && nah(B2[i], fl)) { setzeLinie(q.l, A2, B2); return; }
+      const ab = abzweige(q), s = Math.sign(B2[j] - A2[j]) || 1, lang = Math.abs(B2[j] - A2[j]);
+      const versatz = (E, w) => {                               // Längslage des Versatzes an Ende E
+        const n = enden.find(x => x.q === q && x.w === w), off0 = n ? n.off : RASTER;
+        const nahT = ab.map(y => Math.abs(y - E[j])).filter(d => d > 0.01);
+        let off = Math.min(off0, lang / (nah(A2[i], fl) || nah(B2[i], fl) ? 1.5 : 3));
+        if (nahT.length) off = Math.min(off, Math.min(...nahT) / 2);
+        return E[j] + (w === 'a' ? s : -s) * off;
+      };
+      const P = (quer, laengs) => q.senk ? [quer, laengs] : [laengs, quer];
+      const pfad = [A2];
+      if (!nah(A2[i], fl)) { const y = versatz(A2, 'a'); pfad.push(P(A2[i], y), P(fl, y)); }
+      if (!nah(B2[i], fl)) { const y = versatz(B2, 'b'); pfad.push(P(fl, y), P(B2[i], y)); }
+      pfad.push(B2);
+      const pk = pfad.filter((pt, k) => k === 0 || !(nah(pt[0], pfad[k - 1][0]) && nah(pt[1], pfad[k - 1][1])));
+      // liegt ein Abzweig nicht mehr auf dem Stück in der Flucht, ist er abgetrennt: in die Prüfliste
+      const inFlucht = pk.slice(0, -1).map((p0, k) => [p0, pk[k + 1]]).filter(([u, w]) => nah(u[i], fl) && nah(w[i], fl));
+      [...new Set(ab.map(y => +y.toFixed(2)))].forEach(y => { if (!inFlucht.some(([u, w]) => y >= Math.min(u[j], w[j]) - 0.01 && y <= Math.max(u[j], w[j]) + 0.01)) {
+        const tk = (q.a || q.b).t.key; SZ.hinweise.push({ teil: tk, art: 'abzweig', t: 'Abzweig vom Leiter abgetrennt – Gerät weniger weit verschieben', p: P(fl, y) }); } });
+      const farbe = q.l.el.getAttribute('stroke');
+      setzeLinie(q.l, pk[0], pk[1]);
+      for (let k = 1; k + 1 < pk.length; k++) linie(g, pk[k][0], pk[k][1], pk[k + 1][0], pk[k + 1][1], 0.25, farbe, q.l.art);
     });
   }
   // Leiterwege von Hand (ab v1.27): ein Leiterstück parallel um n Rasterschritte versetzen; an seinen Enden
@@ -1852,6 +1877,7 @@ const PLAN = (() => {
         const sa = e.abgaenge[pl.g], ger = !sa && gerVon(pl.g);
         const z = pl.z || (ger && ger.zeichen); if (!z || !ZEICHEN[z]) continue;
         const top = stB(i) + 0.5; lt(x, y, x, top, lName);
+        teil(`kr:${kr.id}/pl:${p.id}:${i}`);          // Kontakt samt Beschriftung als Teil der Szene (ab v1.31)
         const t = setze(g, z, x, top);
         const u = t.filter(q => q.richtung === 's').sort((p1, p2) => Math.abs(p1.x - x) - Math.abs(p2.x - x))[0];
         y = u ? u.y : top + 15;
@@ -1873,6 +1899,7 @@ const PLAN = (() => {
         text(g, x + re + 0.8, top + 2.2, an[0], 1.8); text(g, x + re + 0.8, y - 0.6, an[1], 1.8);
         const fk = st.feld && st.feld[p.id + ':' + i];
         if (fk) { feldKlemme(x, top + 1.2, fk[0]); feldKlemme(x, y - 1.2, fk[1]); }
+        teil(null);
       }
       if (bis >= ST_PL) {
         const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g];
@@ -1881,20 +1908,23 @@ const PLAN = (() => {
         const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : zr ? 'spule_' + (ger.fkt || 'aus') : ger ? ger.zeichen : null;
         if (z && ZEICHEN[z]) {
           lt(x, y, x, ST_YV, lName);
+          const vk = `kr:${kr.id}/pl:${p.id}:${ST_PL}`;
+          teil(vk);
           const t = setze(g, z, x, ST_YV);
           const u = t.find(q => q.richtung === 's'); y = u ? u.y : ST_YV + 10;
           const [li, re] = seiten(z);
           if (sa) {
             const sg = sa.schalt;
             bmk(g, x - li - 1, ST_YV + 4, sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? `t = ${sg.zr.zeit}` : '']);
-            stSpiegel(g, ctx, e, vb.g, x, yN + 4);
+            teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4); teil(vk);      // der Kontaktspiegel bleibt unter N
           } else if (zr) {
             bmk(g, x - li - 1, ST_YV + 4, st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? `t = ${ger.zeit}` : '']);
-            stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger);
+            teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger); teil(vk);
           } else bmk(g, x - li - 1, ST_YV + 4, ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
           text(g, x + re + 0.8, ST_YV + 2.2, sa || zr ? 'A1' : 'X1', 1.8); text(g, x + re + 0.8, y - 0.6, sa || zr ? 'A2' : 'X2', 1.8);
           const fk = st.feld && st.feld[p.id + ':v'];
           if (fk) { feldKlemme(x, ST_YV - 1.6, fk[0], true); feldKlemme(x, y + 1.6, fk[1], true); }
+          teil(null);
         }
         // Leitung vom Verbraucher bis zum Abzweig bzw. zur Klemme schwarz; blau ist nur die N-Leitung
         lt(x, y, x, ST_YN, lName);
@@ -2183,7 +2213,7 @@ const PLAN = (() => {
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
         if (v.layout && v.layout.wege) wegeAnwenden(g, v.layout.wege);
-        const anker = blattAnker(v, b), pruef = zusatzZeichnen(g, zusaetze(v, anker, i === 0), opt);
+        const anker = blattAnker(v, b), pruef = SZ.hinweise.concat(zusatzZeichnen(g, zusaetze(v, anker, i === 0), opt));
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
@@ -2194,7 +2224,8 @@ const PLAN = (() => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
         szeneStart(g);
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
-        const anker = 'kr:' + b.kreise[0].kr.id, pruef = zusatzZeichnen(g, zusaetze(v, anker, false), opt);
+        if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
+        const anker = 'kr:' + b.kreise[0].kr.id, pruef = SZ.hinweise.concat(zusatzZeichnen(g, zusaetze(v, anker, false), opt));
         const szene = szeneEnde();
         if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
           ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
@@ -2222,7 +2253,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.30';
+const FASSUNG = 'v1.31';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -2348,11 +2379,13 @@ verlauf.stand = JSON.stringify(P);
 const RASTER = 2.5, LAYOUT_ARTEN = ['spalten', 'umbruch', 'lage', 'wege'];
 function lay(v) { const L = v.layout = v.layout || {}; LAYOUT_ARTEN.forEach(x => { L[x] = L[x] || {}; }); return L; }
 // Besitzer eines Teil- oder Leiterschlüssels: 'k:<id>', 's:<vid>' oder 'e:<vid>'
-const besitzerVon = key => { const m = /^([eks]):([^/#]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
+const besitzerVon = key => { const m = /^(kr|[eks]):([^/#]+)/.exec(key); return m ? m[1] + ':' + m[2] : null; };
 function layoutBereinigen(v) {
   const L = v.layout; if (!L) return;
   const da = new Set(); alleKnoten(v, k => da.add(k.id));
-  const gibt = key => { const m = /^([eks]):([^/#]+)(?:\/(\w+))?/.exec(key);
+  const gibt = key => { const m = /^(kr|[eks]):([^/#]+)(?:\/(\w+))?/.exec(key);
+    if (m && m[1] === 'kr') { const kr = ((v.steuerung && v.steuerung.kreise) || []).find(x => x.id === m[2]), q = /\/pl:([^:]+):\d$/.exec(key);
+      return !!kr && (!q || kr.pfade.some(pf => pf.id === q[1])); }
     return !!m && (m[1] === 'k' ? da.has(m[2]) : m[1] === 's' ? !!v.spd.zeichen : m[1] === 'e' && (!m[3] || !!(v[m[3]] && v[m[3]].zeichen))); };
   ['spalten', 'umbruch'].forEach(x => Object.keys(L[x] || {}).forEach(kid => { if (!da.has(kid) || !L[x][kid]) delete L[x][kid]; }));
   Object.keys(L.lage || {}).forEach(key => { const d = L.lage[key]; if (!d || !(d[0] || d[1]) || !gibt(key)) delete L.lage[key]; });
@@ -3649,7 +3682,7 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
   if (t === 'escape' && ED.zeichnen) { ev.preventDefault(); ED.zeichnen = null; return zeichenVorschau(null); }
-  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerVon(b.sel.slice(2))); else if (b.sel) waehle(null); }
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerTeilOderLeiter(b.sel)); else if (b.sel) waehle(null); }
 });
 
 // ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
@@ -3762,7 +3795,8 @@ function lageZeilen(v, r, b) {
 }
 // Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
 function editorTeil(v, key, b) {
-  const bes = teilBesitzer(key), r = editorEigenschaften(v, bes, b);
+  const pq = /\/pl:([^:]+):(\d)$/.exec(key);
+  const bes = teilBesitzer(key), r = pq ? editorPlatz(v, b, pq[1], +pq[2]) : editorEigenschaften(v, bes, b);
   const d = (v.layout && v.layout.lage && v.layout.lage[key]) || null;
   const kopf = h('div', {}, h('h2', {}, 'Gerät im Plan'), h('div', { class: 'liste' },
     zeile('Lage', d ? `x ${mm(d[0] * RASTER)} · y ${mm(d[1] * RASTER)} mm` : 'automatisch', () => {}, { ohnePfeil: true,
@@ -3984,7 +4018,8 @@ function markieren() {
 // ---- Leiter im Blatt (ab v1.27, Etappe F4) -------------------------------------------------
 // Leiterstücke eines gewählten Abgangs sind antippbar (w:<schlüssel>); das ganze Netz, mit dem ein gewähltes
 // Stück auf dem Blatt verbunden ist, wird hinterlegt; verschoben wird parallel in Rasterschritten
-const besitzerTeilOderLeiter = sel => sel.startsWith('t:') || sel.startsWith('w:') ? besitzerVon(sel.slice(2)) : sel;
+const teilAnzeige = key => { const m = /\/(pl:[^/]+)$/.exec(key); return m ? m[1] : besitzerVon(key); };
+const besitzerTeilOderLeiter = sel => sel.startsWith('t:') ? teilAnzeige(sel.slice(2)) : sel.startsWith('w:') ? besitzerVon(sel.slice(2)) : sel;
 function leiterFlaechen() {
   const ns = 'http://www.w3.org/2000/svg';
   ED.liste.forEach(bl => {
@@ -4172,7 +4207,7 @@ function prueflisteBerechnen() {
         aus.push({ key: tl.key, t: `${wo}: ein Leiter läuft durch das Gerät` });
     });
   });
-  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: 'z:' + x.id, t: `Blatt ${bl.nr}: ${x.t}` })));
+  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: x.teil ? 't:' + x.teil : 'z:' + x.id, t: `Blatt ${bl.nr}: ${x.t}` })));
   return aus;
 }
 // Stecknadeln (ab v1.25): wo von Hand angeordnet wurde, steht im Editor eine Nadel (nie im Druck)
@@ -4194,7 +4229,7 @@ function nadeln() {
 // Anschluss, Geräte der Einspeisung); antippbar, sobald sein Abgang gewählt ist (erst Abgang, dann Gerät)
 const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
 const teilBesitzer = besitzerVon;
-const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
+const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : /\/pl:[^:]+:6$/.test(key) ? 'Verbraucher' : /\/pl:/.test(key) ? 'Kontakt' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
 function teilFlaechen() {
   ED.liste.forEach(bl => {
     if (!bl.szene) return;
@@ -4211,7 +4246,7 @@ function teilFlaechen() {
       tl.box = { x0: x0 - 0.8, y0: y0 - 0.8, x1: x1 + 0.8, y1: y1 + 0.8 };
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
-        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilBesitzer(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
+        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
       svg.append(r);
     });
   });
@@ -4260,6 +4295,8 @@ function kontextNeu() {
       ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+    const tk = `kr:${r.kr.id}/pl:${id}:${s.i}`;          // frei im Raster verschieben (ab v1.31)
+    if (teilVon(tk)) kn.push(sep(), ik('breite', 'Frei im Raster verschieben', () => waehle('t:' + tk), { text: 'Frei' }));
   } else if (art === 'm') {
     const s = (x, y) => () => gruppeSchieben(v, b.mehr, x, y);
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
@@ -4281,7 +4318,7 @@ function kontextNeu() {
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
       ik('runter', '2,5 mm nach unten', s(0, 1), { taste: '↓' }), ik('rechts', '2,5 mm nach rechts', s(1, 0), { taste: '→' }), sep());
     if (vonHand(v, key)) kn.push(ik('auto', 'Automatik anwenden', () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }), sep());
-    kn.push(ik('auf', 'Ganzen Abgang wählen', () => waehle(teilBesitzer(key)), { text: 'Abgang' }));
+    kn.push(ik('auf', /\/pl:/.test(key) ? 'Platz wählen' : 'Ganzen Abgang wählen', () => waehle(teilAnzeige(key)), { text: /\/pl:/.test(key) ? 'Platz' : 'Abgang' }));
   } else if (art === 'kr') {
     const kr = v.steuerung.kreise.find(x => x.id === id);
     kn.push(ik('vorlage', 'Vorlage einsetzen', () => vorlageWahl(v, kr), { text: 'Vorlage' }),

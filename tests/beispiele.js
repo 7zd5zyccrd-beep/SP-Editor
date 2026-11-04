@@ -123,4 +123,8 @@ window.BEISPIELE = {
       { id: 'z2', art: 'text', blatt: anker, a: [215, 150], t: 'Platz für Lastmanagement', g: 2.5 },
       { id: 'z3', art: 'leiter', blatt: anker, a: [245, 65.5], b: [245, 110], leiter: 'PE', knick: 'vh' } ];
     sichern(); zeichne(); },
+  // ab v1.31: Kontakt und Spule im Steuerstromkreis frei verschoben (Abzweig des Parallelzweigs bleibt angeschlossen)
+  steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
+    L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
+    sichern(); zeichne(); },
 };

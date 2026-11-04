@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -204,6 +204,13 @@ with sync_playwright() as p:
                 return [ok1, ok2]; }""")
             if not r[0]: fehler.append('steuerung: Ausschneiden/Einfügen hat den Steuerstromkreis verloren')
             if not r[1]: fehler.append('steuerung: Kopieren/Einfügen hat keinen eigenen Steuerstromkreis angelegt')
+            # ab v1.31: Kontakt im Steuerstromkreis über „Frei“ wählen und mit der Pfeiltaste verschieben
+            pg.evaluate("BEISPIELE.steuerung(); const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1); window.KR = kr; stapel = [{ s: 'start' }, { s: 'editor', vid: v.id }]; zeichne(); waehle('pl:' + kr.pfade[0].id + ':0', { springen: true })")
+            pg.wait_for_timeout(300)
+            pg.locator('.kontext button[aria-label="Frei im Raster verschieben"]').click(); pg.wait_for_timeout(200)
+            pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
+            if pg.evaluate("JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.lage['kr:' + KR.id + '/pl:' + KR.pfade[0].id + ':0'])") != '[1,0]':
+                fehler.append('steuerung: Kontakt frei verschieben hat nicht geklappt')
             pg.evaluate("BEISPIELE.steuerung(); P.projekt.datum = '2026-10-24'")
         if name == 'zusatz':
             # ab v1.29: Rahmenauswahl (Werkzeug Auswahl) über Geräte und Zusätze, gemeinsam mit der Pfeiltaste verschieben

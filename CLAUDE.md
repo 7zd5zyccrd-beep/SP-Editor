@@ -270,6 +270,10 @@ nach 81346-2:2019.
   Pencil-Hover `data-hover`.
 - F7 v1.30: `abgangAufBlatt()` (Reihenfolge + Wunschspalte), `blattFesthalten()` setzt Spalten aller Abgänge
   und Umbrüche am Blattanfang/-ende, merkt `v.layout.fest[anker]`.
+- F8 v1.31: Teile `kr:<kreis>/pl:<pfad>:<zeile>` im Steuerstromkreis (Kontaktspiegel bleibt fest); `lageAnwenden()`
+  hält das Mittelstück eines Leiters in seiner Flucht und versetzt nur die Enden; abgetrennte Abzweige →
+  `SZ.hinweise` → `blatt.pruef`. Editor: Platz wählen → Kontextleiste „Frei“ → Teil `t:kr:…`.
+  Noch offen: Drehen von Zeichen (erst mit frei gesetzten neuen Zeichen sinnvoll), Fach-Erweiterungen.
 
 ## Technische Eckwerte
 

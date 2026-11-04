@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.40: Etappe M4 – Schaltung des Drehstrommotors: Wendeschaltung (Schütze Rechts/Links, L1 und L3 getauscht) und
+           Stern-Dreieck (Schütze Netz/Stern/Dreieck, Motor mit 6 Anschlüssen, zweite Leitung U2 V2 W2); Zusatzschütze als
+           <abgang>~2/~3; Vorlagen mit Verriegelung und Zeitrelais; Zweige können an einem anderen Zweig hängen
+           (zweig.an); Fehlerbehebung: „null“ in der Motorliste (v1.39)
      v1.39: Etappe M3 – Frequenzumrichter -T vor dem Drehstrommotor (im Verteiler vor den Klemmen, PE läuft vorbei),
            geschirmte Leitungen 2YSLCY-J und NYCWY mit Schirmzeichen; Klemmenplan nimmt Umrichter (U V W) und
            Überlastrelais (2 4 6) als Herkunft; Beispiel `umrichter`
@@ -546,6 +550,9 @@ const wallboxNeu = () => ({ kw: '11', rdc: true });
 // Drehstrommotor mit L1 L2 L3 PE (ohne N, Leitung 4-adrig), Wechselstrommotor mit L N PE; Kennzeichen -M
 const motorVon = k => k.motor || { art: '3', kw: '' };
 const motorNeu = v => ({ art: v.leiter === '1NPE' ? '1' : '3', kw: '4' });
+// Schaltungen des Drehstrommotors (ab v1.40): Zusatzschütze ~2/~3 mit Rolle; k.motor.schaltung, k.motor.q2/q3 = { bmk, hs, ho }
+const SCHALTUNG = { direkt: 'Direktstart', wende: 'Wendeschaltung', sd: 'Stern-Dreieck' };
+const SCHALT_ROLLEN = { wende: ['Rechts', 'Links'], sd: ['Netz', 'Stern', 'Dreieck'] };
 const speicherVon = k => k.speicher || { phasen: '3', kwh: '' };
 const PHASEN = ['auto', 'L1', 'L2', 'L3'];
 // Schaltgeräte im Abgang (Etappe B); Kennzeichen nach DIN EN IEC 81346-2: -Q schaltet Energie, -K Zeitrelais
@@ -676,7 +683,8 @@ const vById = vid => P.verteiler.find(v => v.id === vid);
 function alleKnoten(v, f, liste = v.knoten, eltern = null, tiefe = 0) {
   liste.forEach((k, i) => { f(k, eltern, liste, i, tiefe); if (k.typ === 'gruppe') alleKnoten(v, f, k.kinder, k, tiefe + 1); });
 }
-function knoten(v, kid) { let r = null; alleKnoten(v, (k, e, l, i) => { if (k.id === kid) r = { k, eltern: e, liste: l, i }; }); return r; }
+// Zusatzschütze eines Motorabgangs (ab v1.40) tragen die Kennung <abgang>~2 bzw. ~3 und führen zum Abgang
+function knoten(v, kid) { if (typeof kid === 'string' && kid.includes('~')) kid = kid.split('~')[0]; let r = null; alleKnoten(v, (k, e, l, i) => { if (k.id === kid) r = { k, eltern: e, liste: l, i }; }); return r; }
 // welcher Abgang speist diesen Verteiler?
 function speisenderAbgang(vid) {
   for (const v of P.verteiler) { let r = null; alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) return r; }
@@ -731,6 +739,17 @@ function berechne(v) {
     const sg = k.schalt && k.schalt.typ ? k.schalt : null;
     if (sg) a.schalt = { typ: sg.typ, bmk: bmk(sg.typ === 'zeitrelais' ? 'K' : 'Q', sg.bmk),
       pole: (a.drei ? ['L1', 'L2', 'L3'] : ['L']).concat(sg.nMit ? ['N'] : []), hs: sg.hs || 0, ho: sg.ho || 0, zr: sg.zr };
+    // Wende- und Stern-Dreieck-Schaltung (ab v1.40): Zusatzschütze als eigene Einträge <id>~2, <id>~3
+    const schaltung = a.ohneN && sg && sg.typ === 'schuetz' && k.motor && SCHALT_ROLLEN[k.motor.schaltung] ? k.motor.schaltung : null;
+    if (schaltung) {
+      const rollen = SCHALT_ROLLEN[schaltung];
+      a.schalt.rolle = rollen[0]; a[schaltung] = true; a.zusatz = [];
+      rollen.slice(1).forEach((rolle, i) => {
+        const d = k.motor['q' + (i + 2)] || {}, zid = `${k.id}~${i + 2}`;
+        const zs = { typ: 'schuetz', bmk: bmk('Q', d.bmk), pole: ['L1', 'L2', 'L3'], hs: d.hs === undefined ? 1 : d.hs, ho: d.ho === undefined ? 1 : d.ho, rolle };
+        e.abgaenge[zid] = { schalt: zs, zusatzVon: k.id, f: a.f, phase: a.phase, leiter: a.leiter }; a.zusatz.push({ id: zid, schalt: zs });
+      });
+    }
     // Überlastrelais unter dem Schütz (ab v1.38) und Hilfsschalter des Motorschutzschalters
     if (sg && sg.typ === 'schuetz' && sg.ol) a.ol = { bmk: bmk('F', sg.ol.bmk), bereich: sg.ol.bereich || '' };
     if (k.geraet.zeichen === 'motorschutz3') a.mssHk = { s: k.geraet.hks || 0, o: k.geraet.hko || 0 };
@@ -743,12 +762,14 @@ function berechne(v) {
     if (a.drei && einLeiterGruppe(eltern)) a.warn = 'Dreiphasiger Abgang hinter einem 2-poligen FI.';
     // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
     a.mitKlemmen = !k.steuer && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
-    if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + a.leiter.length, bmk: '-X1' }; klemme += a.leiter.length; }
+    const nKl = a.leiter.length + (a.ohneN && k.motor && k.motor.schaltung === 'sd' && sg && sg.typ === 'schuetz' ? 3 : 0);
+    if (a.mitKlemmen) { a.klemmen = { von: klemme + 1, bis: klemme + nKl, bmk: '-X1' }; klemme += nKl; }
     else a.klemmen = null;
     // PV-Anlage: Erzeugungszähler im Verteiler vor der Leitung
     const pv = !k.speist && k.ziel.anschluss === 'pv' ? pvVon(k) : null;
     if (pv && pv.zaehler) a.p = bmk('P', pv.p && pv.p.bmk);
     a.w = k.steuer ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
+    if (a.sd) { a.w2 = bmk('W', k.motor.w2 && k.motor.w2.bmk); a.leiter = a.leiter.concat(['U2', 'V2', 'W2']); }     // zweite Leitung zu U2 V2 W2
     if (pv) {     // im Feld: Wechselrichter, DC-Freischalter, PV-Generator
       a.t = bmk('T', pv.wr && pv.wr.bmk); a.xd = a.t;
       if (pv.dc !== false) a.dcq = bmk('Q', pv.dcq && pv.dcq.bmk);
@@ -977,13 +998,15 @@ function neuesSteuerGeraet(v, zeichen) {
 function kreisOhneSchaltgeraet(v) { const kr = { id: id(), quelle: null, pfade: [neuerPfad()] }; stDaten(v).kreise.push(kr); return kr; }
 // Verbraucher eines Kreises für Überschriften: Schaltgerät eines Abgangs oder Gerät
 function kreisKopf(v, e, kr) {
-  for (const p of kr.pfade) { const a = p.verbraucher && e.abgaenge[p.verbraucher.g]; if (a && a.schalt) return { bmk: a.schalt.bmk, name: abgangName(knoten(v, p.verbraucher.g).k), art: SCHALT[a.schalt.typ] }; }
+  for (const p of kr.pfade) { const a = p.verbraucher && e.abgaenge[p.verbraucher.g], kn = a && knoten(v, p.verbraucher.g); if (a && a.schalt && kn) return { bmk: a.schalt.bmk, name: abgangName(kn.k), art: SCHALT[a.schalt.typ] }; }
   for (const p of kr.pfade) { const g = p.verbraucher && ((v.steuerung && v.steuerung.geraete) || []).find(x => x.id === p.verbraucher.g);
     if (g) return { bmk: e.steuer.geraete[g.id], name: [g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], art: ST_ZEICHEN[g.zeichen][0] }; }
   return null;
 }
 // Abgänge mit Schaltgerät (für Hilfskontakte und Spulen)
-function schaltAbgaenge(v, e) { const r = []; alleKnoten(v, k => { if (k.typ === 'abgang' && e.abgaenge[k.id] && e.abgaenge[k.id].schalt) r.push(k); }); return r; }
+function schaltAbgaenge(v, e) { const r = []; alleKnoten(v, k => { if (k.typ === 'abgang' && e.abgaenge[k.id] && e.abgaenge[k.id].schalt) { r.push(k);
+  // Zusatzschütze (ab v1.40) als eigene Einträge mit der Rolle in der Bezeichnung
+  (e.abgaenge[k.id].zusatz || []).forEach(z => r.push({ id: z.id, typ: 'abgang', ziel: { bez: `${k.ziel.bez || ''} ${z.schalt.rolle}`.trim(), ort: k.ziel.ort } })); } }); return r; }
 const abgangName = k => k.trafo ? `${k.ziel.bez || 'Steuertrafo'} ${k.trafo.prim}/${k.trafo.sek} V` : k.steuer ? (k.ziel.bez || 'Steuerspannung') : (k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(' ') || 'ohne Bezeichnung');
 
 function bemessung(g) {
@@ -1000,8 +1023,8 @@ const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
   if (k.steuer) return '';
-  const adern = a.leiter.length;
-  return `${k.leitung.typ || 'NYM-J'} ${adern}×${k.leitung.quer || '?'}`;
+  if (a.sd) return `${k.leitung.typ || 'NYM-J'} 4×${k.leitung.quer || '?'}, ${a.w2.t} 3×${k.leitung.quer || '?'}`;
+  return `${k.leitung.typ || 'NYM-J'} ${a.leiter.length}×${k.leitung.quer || '?'}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1430,10 +1453,17 @@ function bAbgang(b) {
         [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
       zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => mo.kw = w.replace(/\s*kW$/i, ''), { platz: 'z. B. 4' })),
       zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => mo.strom = w.replace(/\s*A$/i, ''), { platz: 'z. B. 8,2' }), { un: 'erscheint im Plan neben dem Motor' })));
-    if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(
+    if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
+      zeile('Schaltung', SCHALTUNG[mo.schaltung || 'direkt'], () => wahlFeld('Schaltung', [['direkt', 'Direktstart', 'ein Schütz oder ohne'],
+        ['wende', 'Wendeschaltung', 'Schütze Rechts und Links mit gegenseitiger Verriegelung'], ['sd', 'Stern-Dreieck', 'Schütze Netz, Stern, Dreieck und Zeitrelais; Motor mit 6 Anschlüssen']],
+        mo.schaltung || 'direkt', w => schaltungSetzen(v, k, w))),
+      ...(a.zusatz ? [zeile(`Kennzeichen Schütz ${a.schalt.rolle}`, a.schalt.bmk.t, () => bmkFeld('Kennzeichen', k.schalt, a.schalt.bmk.hand ? '' : a.schalt.bmk.t))]
+        .concat(a.zusatz.map((z, i) => zeile(`Kennzeichen Schütz ${z.schalt.rolle}`, z.schalt.bmk.t, () => bmkFeld('Kennzeichen', mo['q' + (i + 2)] || (mo['q' + (i + 2)] = {}), z.schalt.bmk.hand ? '' : z.schalt.bmk.t)))) : []),
+      a.sd ? zeile('Kennzeichen zweite Leitung', `${a.w2.t} (U2 V2 W2)`, () => bmkFeld('Kennzeichen', mo.w2 || (mo.w2 = {}), a.w2.hand ? '' : a.w2.t)) : null].filter(Boolean));
+    if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
       zeile('Frequenzumrichter', mo.fu ? 'ja' : 'nein', () => wahlFeld('Frequenzumrichter', [['ja', 'ja', 'im Verteiler zwischen Schutzorgan und Klemmen; Motorleitung geschirmt'], ['nein', 'nein']],
         mo.fu ? 'ja' : 'nein', w => { mo.fu = w === 'ja' ? (mo.fu || {}) : null; if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) k.leitung.typ = '2YSLCY-J'; })),
-      a.fu ? zeile('Kennzeichen Frequenzumrichter', a.fu.t, () => bmkFeld('Kennzeichen', mo.fu, a.fu.hand ? '' : a.fu.t)) : null);
+      a.fu ? zeile('Kennzeichen Frequenzumrichter', a.fu.t, () => bmkFeld('Kennzeichen', mo.fu, a.fu.hand ? '' : a.fu.t)) : null].filter(Boolean));
     if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) m.append(h('p', { class: 'warnung' }, 'Hinter dem Frequenzumrichter ist eine geschirmte Motorleitung üblich (z. B. 2YSLCY-J, NYCWY).'));
     if (mo.art === '1' && a.drei) m.append(h('p', { class: 'warnung' }, 'Wechselstrommotor an einem 3-poligen Schutzorgan: der Abgang wird dreiphasig gezeichnet.'));
     if (mo.art !== '1' && ge.zeichen && GERAETE[ge.zeichen].pole === 1) m.append(h('p', { class: 'warnung' }, 'Ein Drehstrommotor braucht ein 3-poliges Schutzorgan.')); }
@@ -1510,6 +1540,18 @@ function speicherZeilen(v, k, a) {
     zeile('Kennzeichen Batterie', a.bat.t, () => bmkFeld('Kennzeichen', sp.bat || (sp.bat = {}), a.bat.hand ? '' : a.bat.t))];
 }
 
+// Schaltung des Motors setzen (ab v1.40): Schütz anlegen, Zusatzschütze und Steuerstromkreis aus der Vorlage
+function schaltungSetzen(v, k, w) {
+  const mo = k.motor; mo.schaltung = w === 'direkt' ? undefined : w;
+  const st = stDaten(v), pre = `${k.id}~`;
+  // Spulen und Kontakte der Zusatzschütze entfernen
+  st.kreise.forEach(kr => { kr.pfade = kr.pfade.filter(p => !(p.verbraucher && String(p.verbraucher.g).startsWith(pre)));
+    kr.pfade.forEach(p => p.plaetze.forEach((pl, i) => { if (pl && String(pl.g).startsWith(pre)) p.plaetze[i] = null; })); });
+  if (w === 'direkt') return;
+  if (!k.schalt || !k.schalt.typ) k.schalt = neuesSchalt('schuetz'); else k.schalt.typ = 'schuetz';
+  k.schalt.hs = Math.max(k.schalt.hs || 0, 1); k.schalt.ho = Math.max(k.schalt.ho || 0, 1);
+  vorlageEinsetzen(v, kreisAnlegen(v, k), w === 'wende' ? 'wende' : 'sterndreieck', {});
+}
 // Überlastrelais (ab v1.38): Öffner 95–96 auf den untersten freien Platz über der Spule setzen bzw. entfernen
 function olEinsetzen(v, k) {
   const kr = kreisAnlegen(v, k), p = kr.pfade.find(q => q.verbraucher && q.verbraucher.g === k.id);
@@ -1854,7 +1896,9 @@ const VORLAGEN = [
   ['selbst', 'Selbsthaltung Ein/Aus', 'Aus- und Ein-Taster, Hilfsschließer parallel zum Ein-Taster'],
   ['selbstnot', 'Selbsthaltung mit Not-Aus', 'wie Selbsthaltung, Not-Aus davor'],
   ['hand0auto', 'Hand-0-Automatik', 'Wahlschalter: „Hand“ schaltet direkt, „Automatik“ über einen Melder'],
-  ['motor', 'Motor Ein/Aus', 'Selbsthaltung mit Überlastrelais-Öffner 95–96, Meldeleuchten „Betrieb“ und „Störung“']];
+  ['motor', 'Motor Ein/Aus', 'Selbsthaltung mit Überlastrelais-Öffner 95–96, Meldeleuchten „Betrieb“ und „Störung“'],
+  ['wende', 'Wendeschaltung', 'Taster Rechts/Links mit Selbsthaltung und gegenseitiger Verriegelung (Motor mit Schaltung „Wende“)'],
+  ['sterndreieck', 'Stern-Dreieck', 'Netz, Stern und Dreieck mit Zeitrelais und Verriegelung (Motor mit Schaltung „Stern-Dreieck“)']];
 function vorlageWahl(v, kr) {
   const vb = (kr.pfade.find(p => p.verbraucher) || {}).verbraucher;
   if (!vb) { meldung('Zuerst einen Verbraucher (Spule) setzen'); return; }
@@ -1866,6 +1910,8 @@ function vorlageWahl(v, kr) {
     if (art === 'taster') wahlFeld('Wie viele Taster?', [1, 2, 3, 4, 5].map(n => [String(n), `${n} Taster`]), '', n => setTimeout(() => los({ n: +n }), 0));
     else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
       z => setTimeout(() => los({ melder: z }), 0));
+    else if ((art === 'wende' || art === 'sterndreieck') && !(sa && sa[art === 'wende' ? 'wende' : 'sd'])) meldung(`Zuerst am Motor die Schaltung „${art === 'wende' ? 'Wendeschaltung' : 'Stern-Dreieck'}“ wählen`);
+    else if (art === 'wende' || art === 'sterndreieck') los({});
     else if (!sa || !sa.schalt) meldung('Selbsthaltung braucht ein Schaltgerät mit Hilfsschließer');
     else if (art === 'motor') wahlFeld('Störmeldung?', [['ja', 'mit Meldeleuchte „Störung“', 'über den Schließer 97–98 des Überlastrelais'], ['nein', 'ohne Störmeldung']], '',
       w => setTimeout(() => los({ meldung: true, stoerung: w === 'ja' }), 0));
@@ -1882,6 +1928,29 @@ function vorlageEinsetzen(v, kr, art, o) {
   if (art === 'taster') {
     haupt.plaetze[0] = { g: neu('taster_s', 'Taster 1') };
     for (let i = 2; i <= (o.n || 1); i++) { const zw = neuerPfad(null, { von: 0, bis: 0 }); zw.plaetze[0] = { g: neu('taster_s', `Taster ${i}`) }; pfade.push(zw); }
+  } else if (art === 'wende') {        // Wendeschaltung (ab v1.40): 95–96 und Aus gemeinsam, dann Rechts bzw. Links
+    const q1 = vb.g, q2 = `${vb.g}~2`, k = knoten(v, vb.g);
+    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' };
+    haupt.plaetze[0] = { g: q1, z: 'oe_thermisch' };
+    haupt.plaetze[1] = { g: neu('taster_oe', 'Aus') };
+    haupt.plaetze[2] = { g: neu('taster_s', 'Rechts') };
+    haupt.plaetze[3] = { g: q2, z: 'hilfs_oe' };                          // Verriegelung
+    const a = neuerPfad(null, { von: 2, bis: 2 }); a.plaetze[2] = { g: q1, z: 'hilfs_s' };   // Selbsthaltung Rechts
+    const b = neuerPfad({ g: q2 }, { von: 2, bis: 6, an: haupt.id }); b.plaetze[2] = { g: neu('taster_s', 'Links') }; b.plaetze[3] = { g: q1, z: 'hilfs_oe' };
+    const c = neuerPfad(null, { von: 2, bis: 2, an: b.id }); c.plaetze[2] = { g: q2, z: 'hilfs_s' };   // Selbsthaltung Links
+    pfade.push(a, b, c);
+  } else if (art === 'sterndreieck') {  // Stern-Dreieck (ab v1.40): Netz mit Selbsthaltung, Zeitrelais, Stern bzw. Dreieck verriegelt
+    const q1 = vb.g, q2 = `${vb.g}~2`, q3 = `${vb.g}~3`, k = knoten(v, vb.g);
+    if (k && k.k.schalt) k.k.schalt.ol = k.k.schalt.ol || { bereich: '6,3–10' };
+    const kz = neuesSteuerGeraet(v, 'zeitrelais'); Object.assign(kz, { fkt: 'ein', zeit: '5 s', hs: 1, ho: 1, bez: 'Umschaltung', feld: false });
+    haupt.plaetze[0] = { g: q1, z: 'oe_thermisch' };
+    haupt.plaetze[1] = { g: neu('taster_oe', 'Aus') };
+    haupt.plaetze[2] = { g: neu('taster_s', 'Ein') };
+    const a = neuerPfad(null, { von: 2, bis: 2 }); a.plaetze[2] = { g: q1, z: 'hilfs_s' };
+    const t = neuerPfad({ g: kz.id }, { von: 3, bis: 6, an: haupt.id });
+    const st = neuerPfad({ g: q2 }, { von: 3, bis: 6, an: haupt.id }); st.plaetze[3] = { g: kz.id, z: 'k_oe_ein' }; st.plaetze[4] = { g: q3, z: 'hilfs_oe' };
+    const dr = neuerPfad({ g: q3 }, { von: 3, bis: 6, an: haupt.id }); dr.plaetze[3] = { g: kz.id, z: 'k_s_ein' }; dr.plaetze[4] = { g: q2, z: 'hilfs_oe' };
+    pfade.push(a, t, st, dr);
   } else if (art === 'motor') {        // Motor Ein/Aus (ab v1.38): wie Selbsthaltung, 95–96 unten im Spulenpfad
     haupt.plaetze[0] = { g: neu('taster_oe', 'Aus') };
     haupt.plaetze[1] = { g: neu('taster_s', 'Ein') };
@@ -2881,11 +2950,14 @@ function ablageHolen(v) {
   }
   // Kopie: neue Kennungen für Abgänge, Kreise, Pfade und Befehlsgeber; ein Unterverteiler wird nicht doppelt gespeist
   const um = {}, c = kopie(A.k);
-  const neu = x => { const n = id(); um[x.id] = n; x.id = n; if (x.speist) x.speist = null; if (x.schalt) x.schalt.bmk = undefined; (x.kinder || []).forEach(neu); };
+  const neu = x => { const n = id(); um[x.id] = n; x.id = n; if (x.speist) x.speist = null; if (x.schalt) x.schalt.bmk = undefined;
+    if (x.motor) ['q2', 'q3', 'w2'].forEach(q => { if (x.motor[q]) x.motor[q].bmk = undefined; });
+    (x.kinder || []).forEach(neu); };
   neu(c);
   A.geraete.forEach(g0 => { const g = Object.assign(kopie(g0), { id: id(), bmk: undefined }); if (g.leitung) g.leitung.bmk = undefined; um[g0.id] = g.id; st.geraete.push(g); });
   const da = new Set(); alleKnoten(v, x => da.add(x.id));
-  const ref = pl => pl && (um[pl.g] ? { ...pl, g: um[pl.g] } : da.has(pl.g) ? pl : null);
+  const ref = pl => { if (!pl) return null; const [b, suf] = String(pl.g).split('~');     // Zusatzschütze <abgang>~n (ab v1.40)
+    return um[b] ? { ...pl, g: um[b] + (suf ? '~' + suf : '') } : da.has(b) ? pl : null; };
   A.kreise.forEach(kr0 => { const kr = kopie(kr0); kr.id = id(); kr.name = undefined;
     if (kr.quelle && kr.quelle.kid) kr.quelle = { art: 'abgang', kid: um[kr.quelle.kid] || kr.quelle.kid };
     kr.pfade.forEach(p => { p.id = id(); p.plaetze = p.plaetze.map(ref); p.verbraucher = ref(p.verbraucher); });

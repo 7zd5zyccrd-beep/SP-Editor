@@ -164,6 +164,12 @@ window.BEISPIELE = {
   umrichter: () => { BEISPIELE.motor(); const [hv] = P.verteiler;
     const l = hv.knoten.find(k => k.ziel && k.ziel.bez === 'Lüfter'); l.motor.fu = {}; l.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '16' };
     l.leitung.typ = '2YSLCY-J'; sichern(); zeichne(); },
+  // Etappe M4: wie motorsteuerung; Förderband als Wendeschaltung, dazu Kompressor 11 kW Stern-Dreieck (je mit Überlastrelais)
+  schaltungen: () => { BEISPIELE.motorsteuerung(); const [hv] = P.verteiler;
+    const f = hv.knoten.find(k => k.ziel && k.ziel.bez === 'Förderband'); schaltungSetzen(hv, f, 'wende');
+    const c = neuerAbgang(); c.ziel = { bez: 'Kompressor', ort: 'Halle', anschluss: 'motor' }; c.motor = { art: '3', kw: '11', strom: '21' };
+    c.geraet = { zeichen: 'ls3', kennlinie: 'C', nenn: '32' }; c.leitung.quer = '4'; hv.knoten.splice(4, 0, c);
+    schaltungSetzen(hv, c, 'sd'); c.schalt.ol = { bereich: '9–14' }; sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

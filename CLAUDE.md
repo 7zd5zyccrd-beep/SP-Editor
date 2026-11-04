@@ -318,6 +318,10 @@ und Stern-Dreieck-Schaltung, M5 v1.41 Pumpe mit Schwimmerschalter.
   kein Abgriff, Warnung (Steuerspannung über Steuer-LS/Steuertrafo).
 - M3 v1.39: `k.motor.fu = { bmk }` → `a.fu` (nur Drehstrommotor), Zeichen `umrichter3` vor den Klemmen (Teil `k:<id>/fu`);
   `GESCHIRMT` (2YSLCY-J, NYCWY) → `schirm()` in plan.js (Zeichen `schirm` oben und gedreht unten, gestreckt).
+- M4 v1.40: `k.motor.schaltung = 'wende' | 'sd'` (`schaltungSetzen()`), Zusatzschütze als `e.abgaenge['<id>~2'|'<id>~3']`
+  (`a.zusatz`, Rollen `SCHALT_ROLLEN`, Daten `k.motor.q2/q3/w2`); `knoten()` löst `~n` auf; plan.js `zeichneWende()`,
+  `zeichneSternDreieck()`, `zusatzKontakte()`, Motor `motor6` mit U2 V2 W2 von unten (`SD_H`); Zweige mit `zweig.an`
+  (Elternpfad) für die Verriegelung; Vorlagen `wende`, `sterndreieck` (Zeitrelais -K einschaltverzögert, 5 s).
 
 ## Technische Eckwerte
 

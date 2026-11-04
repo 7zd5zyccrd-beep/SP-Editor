@@ -196,6 +196,18 @@ with sync_playwright() as p:
             if not r[0]: fehler.append('steuerung: Ausschneiden/Einfügen hat den Steuerstromkreis verloren')
             if not r[1]: fehler.append('steuerung: Kopieren/Einfügen hat keinen eigenen Steuerstromkreis angelegt')
             pg.evaluate("BEISPIELE.steuerung(); P.projekt.datum = '2026-10-24'")
+        if name == 'zusatz':
+            # ab v1.29: Rahmenauswahl (Werkzeug Auswahl) über Geräte und Zusätze, gemeinsam mit der Pfeiltaste verschieben
+            pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
+            cp = lambda x, y: pg.evaluate(f"(() => {{ const s = ED.liste[0].svg; s.scrollIntoView(); const p = new DOMPoint({x},{y}).matrixTransform(s.getScreenCTM()); return [p.x, p.y]; }})()")
+            pg.locator('.werkzeug', has_text='Auswahl').first.click(); pg.wait_for_timeout(150)
+            a = cp(100, 70); e2 = cp(280, 160)
+            pg.mouse.move(*a); pg.mouse.down(); pg.mouse.move(e2[0], e2[1], steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+            n = pg.evaluate("stapel.at(-1).sel === 'm:' ? stapel.at(-1).mehr.length : 0")
+            if n < 3: fehler.append(f'zusatz: Rahmenauswahl ergab {n} Teile')
+            pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
+            if pg.evaluate("P.verteiler[1].layout.zusatz.find(z => z.id === 'z1').a[0]") != 215: fehler.append('zusatz: gemeinsames Verschieben hat den Rahmen nicht mitgenommen')
+            pg.evaluate("BEISPIELE.zusatz(); P.projekt.datum = '2026-10-24'")
         pg.evaluate("window.print = () => {}; drucken()"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()

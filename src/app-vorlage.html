@@ -16,6 +16,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.29: Etappe F6 – Mehrfachauswahl (Werkzeug „Auswahl“ bzw. Rahmen mit Maus/Pencil auf freier Fläche oder mit
+           Umschalt; links→rechts ganz umschlossene, rechts→links auch angeschnittene; Umschalt+Tippen ergänzt),
+           gemeinsames Verschieben von Geräten und Zusätzen (Ziehen, Pfeiltasten); Zusätze ziehen; Lupe beim
+           Ziehen mit dem Finger; Pencil-Hover hebt hervor, was ein Tippen trifft
      v1.28: Etappe F5 – Verbinden und Beschriften: Werkzeuge „Leiter“, „Text“, „Rahmen“ (Gruppe Zeichnen der
            Palette); freie Leiter rasten an Anschlüssen, Leiterenden und Leitern ein, rechtwinklig mit Knick, Farbe aus
            der Leiterart; Netzprüfung (Kurzschluss zwischen L1/L2/L3/N/PE, offenes Ende) mit Markierung im Editor
@@ -326,6 +330,13 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.ziel[data-sel]{fill:rgba(106,53,232,.12);stroke:var(--ov);stroke-width:.7}
 .ed rect.teil{pointer-events:none}
 .ed .nadel{pointer-events:none}
+.ed .auswahlrahmen{fill:rgba(106,53,232,.06);stroke:var(--ov);stroke-width:.3;pointer-events:none}
+.ed .auswahlrahmen.schneidet{stroke-dasharray:1.2 .8}
+.ed [data-zusatz]{pointer-events:none}
+.ed rect.ziel[data-hover],.ed rect.teil[data-aktiv][data-hover]{fill:rgba(106,53,232,.10)}
+.ed .marke[data-hover] circle:not(.treffer){fill:var(--ov)}
+.lupe{position:fixed;z-index:41;width:140px;height:140px;border-radius:50%;overflow:hidden;background:#fff;border:2px solid var(--ov);box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none}
+.lupe svg{display:block;width:100%;height:100%}
 .ed .zvorschau{pointer-events:none}
 .ed .zvorschau line{stroke:var(--ov);stroke-width:.35;stroke-dasharray:1 .7}
 .ed .zvorschau circle{fill:none;stroke:var(--ov);stroke-width:.4}
@@ -1834,6 +1845,10 @@ document.addEventListener('keydown', ev => {
     if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return waehle(b.sel, { springen: true }); }
   }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
+  if (b.sel === 'm:' && !strg) {
+    const mm2 = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
+    if (mm2) { ev.preventDefault(); const f = ev.shiftKey ? 4 : 1; return gruppeSchieben(v, b.mehr, mm2[0] * f, mm2[1] * f); }
+  }
   if ((b.sel || '').startsWith('z:') && !strg) {
     const zm = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t], zid = b.sel.slice(2);
     if (zm) { ev.preventDefault(); const f = ev.shiftKey ? 4 : 1; return zusatzSchieben(v, zid, zm[0] * f, zm[1] * f); }
@@ -1929,6 +1944,7 @@ function editorZiel(v, z) {          // gibt es das gewählte Teil noch?
   if (art === 'kopf') return !!KOPF_TITEL[id];
   if (art === 't' || art === 'w') { const bes = besitzerVon(z.slice(2)); return !!bes && editorZiel(v, bes); }
   if (art === 'z') return !!zusatzVon(v, id);
+  if (art === 'm') { const b = stapel[stapel.length - 1]; b.mehr = (b.mehr || []).filter(x => editorZiel(v, x)); return b.mehr.length > 1; }
   if (art === 's') return !!v.spd.zeichen;
   return ['e', 'st', 'p'].includes(art);
 }
@@ -1939,6 +1955,7 @@ function editorEigenschaften(v, z, b) {
   if (art === 't') return editorTeil(v, z.slice(2), b);
   if (art === 'w') return editorLeiter(v, z.slice(2), b);
   if (art === 'z') return editorZusatz(v, id);
+  if (art === 'm') return editorMehr(v, b);
   if (art === 'pl') return editorPlatz(v, b, id, +zl);
   if (art === 'k') { const r = knoten(v, id), e = eingebettet(() => (r.k.typ === 'gruppe' ? bGruppe : bAbgang)({ s: 'editor', vid: v.id, kid: id }));
     e.inhalt.prepend(lageZeilen(v, r, b)); return e; }
@@ -1987,8 +2004,8 @@ const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
   ['steckdose', 'Steckdose', 'steckdose3', '1~', 'Abgänge'], ['cee', 'CEE-Steckdose', 'steckdose5', '3~', 'Abgänge'], ['leuchte', 'Leuchte', 'leuchte', '', 'Abgänge'],
   ['dose', 'Geräte\u00adanschluss', 'endklemme', '', 'Abgänge'], ['uv', 'Unter\u00adverteiler', 'uv', '', 'Abgänge'], ['gruppe', 'FI-Gruppe', 'fi4', '', 'Gruppen'],
   ['steuerls', 'Steuer-LS', 'ls1', 'S', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
-const ZEICHNEN = [['zleiter', 'Leiter', 'zleiter'], ['ztext', 'Text', 'ztext'], ['zrahmen', 'Rahmen', 'zrahmen']];
-const PAL_NAME = t => istZeichenWerkzeug(t) ? ZEICHNEN.find(x => x[0] === t)[1] : t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
+const ZEICHNEN = [['zauswahl', 'Auswahl', 'zauswahl'], ['zleiter', 'Leiter', 'zleiter'], ['ztext', 'Text', 'ztext'], ['zrahmen', 'Rahmen', 'zrahmen']];
+const PAL_NAME = t => istZeichenWerkzeug(t) || t === 'zauswahl' ? ZEICHNEN.find(x => x[0] === t)[1] : t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
 // Bildzeichen der Abgangs-Palette (ab v1.21): eigene, gut unterscheidbare Bilder statt der Planzeichen
 const PIKTO = {
   steckdose3: '<circle cx="20" cy="20" r="13"/><circle cx="14" cy="20" r="2.2" fill="currentColor"/><circle cx="26" cy="20" r="2.2" fill="currentColor"/><path d="M20 7v4M20 29v4"/>',
@@ -2002,6 +2019,7 @@ const PIKTO = {
   zleiter: '<path d="M8 8v14h24v10"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/><circle cx="32" cy="32" r="2.2" fill="currentColor"/>',
   ztext: '<path d="M10 9h20M20 9v23M15 32h10" stroke-width="2.4"/>',
   zrahmen: '<rect x="6" y="9" width="28" height="22" stroke-dasharray="6 2 1.5 2"/>',
+  zauswahl: '<rect x="5" y="6" width="24" height="20" stroke-dasharray="3 2.4"/><path d="M22 19l11 5-4.6 1.6L32 31l-2.4 1.6-3.4-5.4-3.2 3.4z" fill="currentColor"/>',
   klemme: '<rect x="11" y="6" width="18" height="24" rx="2"/><path d="M15 6V3h10v3M16 14h8M16 19h8M16 24h5"/><path d="M24 30v6M21 33l3 3 3-3"/>',
 };
 function piktogramm(kennung) {
@@ -2029,7 +2047,7 @@ function werkzeug(t) {
   if (!ED) { stapel[stapel.length - 1].tool = t; return; }
   const b = ED.b; b.tool = t; ED.zeichnen = null; zeichenVorschau(null);
   ED.ed.classList.toggle('einfuegen', !!t && !istSteuerWerkzeug(t) && !istZeichenWerkzeug(t));
-  ED.ed.classList.toggle('zeichnen', istZeichenWerkzeug(t));
+  ED.ed.classList.toggle('zeichnen', istZeichenWerkzeug(t) || t === 'zauswahl');
   paletteNeu(); fussNeu();
 }
 function paletteWahl(w) {
@@ -2068,7 +2086,7 @@ function paletteNeu() {
 function zeichnenGruppe(gruppe) {
   const b = ED.b;
   return gruppe('Zeichnen', ZEICHNEN.map(([tool, name, bild]) => kachel(name, bild, '', () => werkzeug(b.tool === tool ? null : tool), { an: b.tool === tool,
-    titel: { zleiter: 'Freier Leiter: Anfang und Ende antippen – rastet an Anschlüssen und Leitern', ztext: 'Text ins Blatt setzen', zrahmen: 'Strichpunktierter Rahmen: zwei Ecken antippen' }[tool] })));
+    titel: { zauswahl: 'Rahmen aufziehen: wählt mehrere Geräte und Zusätze (von rechts nach links auch angeschnittene)', zleiter: 'Freier Leiter: Anfang und Ende antippen – rastet an Anschlüssen und Leitern', ztext: 'Text ins Blatt setzen', zrahmen: 'Strichpunktierter Rahmen: zwei Ecken antippen' }[tool] })));
 }
 // Punkt im Blatt einrasten: Anschluss oder Leiterende (2 mm), sonst auf einen Leiter (1,5 mm), sonst Raster 2,5 mm
 function fang(bl, x, y) {
@@ -2151,11 +2169,31 @@ function editorZusatz(v, zid) {
     ...hw.map(x => h('p', { class: x.art === 'kurzschluss' ? 'warnung gefahr' : 'warnung' }, '⚠ ' + x.t)),
     h('h2', {}, ''), h('div', { class: 'liste' }, zeile(art + ' löschen', null, () => zusatzLoeschen(v, zid), { rot: true, ohnePfeil: true }))) };
 }
+// Eigenschaften der Mehrfachauswahl
+function editorMehr(v, b) {
+  const ids = b.mehr || [], teile = ids.filter(x => x.startsWith('t:')), zus = ids.filter(x => x.startsWith('z:'));
+  const zl = ids.map(x => zeile(x.startsWith('t:') ? teilName(x.slice(2)) : ({ leiter: 'Freier Leiter', text: 'Text', rahmen: 'Rahmen' }[(zusatzVon(v, x.slice(2)) || {}).art] || 'Zusatz'),
+    x.startsWith('t:') ? (editorEigenschaftenTitel(v, besitzerVon(x.slice(2))) || '') : '', () => waehle(x)));
+  return { titel: `${ids.length} Teile gewählt`, inhalt: h('div', {},
+    h('p', { class: 'hinweis' }, 'Ziehen oder Pfeiltasten verschieben alle gemeinsam (Umschalt: 10 mm). Umschalt+Tippen nimmt Teile dazu oder heraus.'),
+    h('h2', {}, 'Auswahl'), h('div', { class: 'liste' }, ...zl),
+    h('h2', {}, ''), h('div', { class: 'liste' },
+      teile.some(x => vonHand(v, x.slice(2))) ? zeile('Automatik anwenden', null, () => { teile.forEach(x => automatik(v, x.slice(2))); aenderung('Automatik anwenden'); sichern(); zeichne(); },
+        { ohnePfeil: true, un: 'gewählte Geräte wieder an ihren automatischen Platz' }) : null,
+      zus.length ? zeile(`${zus.length === 1 ? 'Zusatz' : zus.length + ' Zusätze'} löschen`, null, () => { const L = lay(v); const weg = new Set(zus.map(x => x.slice(2)));
+        L.zusatz = (L.zusatz || []).filter(z => !weg.has(z.id)); b.mehr = teile; b.sel = teile.length > 1 ? 'm:' : teile[0] || null; aenderung('Zusätze löschen'); sichern(); zeichne(); }, { rot: true, ohnePfeil: true }) : null)) };
+}
+function editorEigenschaftenTitel(v, bes) {
+  const [art, id] = (bes || '').split(':'); if (art !== 'k') return art === 'e' ? 'Einspeisung' : art === 's' ? 'Überspannungsschutz' : '';
+  const r = knoten(v, id); if (!r) return ''; const e = berechne(v);
+  return r.k.typ === 'gruppe' ? (e.geraete[id] || {}).t || 'Gruppe' : ((e.abgaenge[id] || {}).f || {}).t || abgangName(r.k);
+}
 // Auswahl ändern, ohne die Blätter neu zu erzeugen
 function waehle(sel, opt = {}) {
   if (!ED) return;
   const b = ED.b;
   if (!opt.zurueck) b.pz = [];
+  if (sel !== 'm:') b.mehr = null;
   b.sel = sel; b.blatt = !!sel || !!opt.offen;
   const w = /^(pl|kr):/.test(sel || '') ? 'st' : /^k:/.test(sel || '') ? 'ab' : b.palette;
   if (w !== b.palette) paletteWahl(w);
@@ -2164,7 +2202,8 @@ function waehle(sel, opt = {}) {
 }
 function markieren() {
   ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
-  if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (r.dataset.ziel === ED.b.sel) r.setAttribute('data-sel', ''); });
+  const gew = ED.b.sel === 'm:' ? new Set(ED.b.mehr || []) : new Set([ED.b.sel]);
+  if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (gew.has(r.dataset.ziel)) r.setAttribute('data-sel', ''); });
   // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar
   const bes = ED.b.sel && besitzerTeilOderLeiter(ED.b.sel);
   ED.blaetter.querySelectorAll('rect.teil, line.leiterziel').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
@@ -2242,24 +2281,95 @@ function teilSchieben(v, key, nx, ny, still) {
   if (!still) zeichne();
 }
 // Vorschau beim Ziehen: Gerät rastet in 2,5-mm-Schritten, Hilfslinien durch seine Anschlüsse
+// Was beim Ziehen mitgeht (ab v1.29): das gezogene Gerät bzw. der Zusatz – oder, wenn er zur Mehrfachauswahl
+// gehört, alle gewählten Geräte und Zusätze. Je Eintrag die Elemente im Blatt für die Vorschau.
+function gruppeZumZiehen(id, b) {
+  const ids = b.sel === 'm:' && (b.mehr || []).includes(id) ? b.mehr : [id], gruppe = [];
+  ids.forEach(x => {
+    if (x.startsWith('t:')) { const f = teilVon(x.slice(2)); if (!f) return;
+      gruppe.push({ id: x, bl: f.bl, els: f.tl.els.concat([...f.bl.svg.querySelectorAll(`rect.teil[data-ziel="${x}"]`)]), ports: f.tl.ports, key: f.tl.key }); }
+    else { const zid = x.slice(2), bl = ED.liste.find(q => q.svg.querySelector(`[data-ziel="${x}"]`)); if (!bl) return;
+      gruppe.push({ id: x, bl, els: [...bl.svg.querySelectorAll(`[data-zusatz="${zid}"], [data-ziel="${x}"]`)], ports: [] }); }
+  });
+  const erstes = gruppe.find(g => g.id === id) || gruppe[0];
+  return erstes ? { gruppe, bl: erstes.bl } : null;
+}
+const gruppeName = g => g.length > 1 ? `${g.length} Teile` : g[0].id.startsWith('t:') ? teilName(g[0].key) : 'Zusatz';
 function teilZiehen(ev) {
   if (zieh.teil.weg) return wegZiehen(ev);
-  const { bl, tl } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
+  const { bl, gruppe } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
   const I = M.inverse(), p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(I), p0 = new DOMPoint(zieh.x, zieh.y).matrixTransform(I);
   const nx = Math.round((p.x - p0.x) / RASTER), ny = Math.round((p.y - p0.y) / RASTER);
+  if (zieh.lupe) lupeZeigen(ev, bl, p, nx !== zieh.nx || ny !== zieh.ny);
   if (nx === zieh.nx && ny === zieh.ny) return;
   zieh.nx = nx; zieh.ny = ny;
   const dx = nx * RASTER, dy = ny * RASTER;
-  tl.els.forEach((x, i) => { const o = zieh.orig[i]; x.setAttribute('transform', `translate(${dx} ${dy})` + (o ? ' ' + o : '')); });
-  if (zieh.ziel) zieh.ziel.setAttribute('transform', `translate(${dx} ${dy})`);
-  svg.querySelectorAll('.hilfslinie').forEach(x => x.remove());
-  const R = ED.raster, ns = 'http://www.w3.org/2000/svg';
-  const hl = (x1, y1, x2, y2) => { const l = document.createElementNS(ns, 'line'); [['x1', x1], ['y1', y1], ['x2', x2], ['y2', y2], ['class', 'hilfslinie']].forEach(([k, w]) => l.setAttribute(k, w)); svg.append(l); };
-  [...new Set(tl.ports.map(q => (q.x + dx).toFixed(2)))].forEach(x => hl(+x, 10, +x, R.sfTop));
-  [...new Set(tl.ports.map(q => (q.y + dy).toFixed(2)))].forEach(y => hl(R.x0, +y, R.x0 + R.sp * R.sb, +y));
-  const d = (ED.v.layout && ED.v.layout.lage && ED.v.layout.lage[tl.key]) || [0, 0];
-  zieh.geist.textContent = `${teilName(tl.key)} · x ${mm((d[0] + nx) * RASTER)} · y ${mm((d[1] + ny) * RASTER)} mm`;
+  gruppe.forEach(g => g.els.forEach((x, i) => { const o = g.orig[i]; x.setAttribute('transform', `translate(${dx} ${dy})` + (o ? ' ' + o : '')); }));
+  ED.blaetter.querySelectorAll('.hilfslinie').forEach(x => x.remove());
+  const R = ED.raster, ns = 'http://www.w3.org/2000/svg', erstes = gruppe.find(g => g.ports.length);
+  const hl = (x1, y1, x2, y2) => { const l = document.createElementNS(ns, 'line'); [['x1', x1], ['y1', y1], ['x2', x2], ['y2', y2], ['class', 'hilfslinie']].forEach(([k, w]) => l.setAttribute(k, w)); erstes.bl.svg.append(l); };
+  if (erstes) { [...new Set(erstes.ports.map(q => (q.x + dx).toFixed(2)))].forEach(x => hl(+x, 10, +x, R.sfTop));
+    [...new Set(erstes.ports.map(q => (q.y + dy).toFixed(2)))].forEach(y => hl(R.x0, +y, R.x0 + R.sp * R.sb, +y)); }
+  const d = gruppe.length === 1 && gruppe[0].key && ((ED.v.layout && ED.v.layout.lage && ED.v.layout.lage[gruppe[0].key]) || [0, 0]) || [0, 0];
+  zieh.geist.textContent = `${gruppeName(gruppe)} · x ${mm((d[0] + nx) * RASTER)} · y ${mm((d[1] + ny) * RASTER)} mm`;
 }
+// Lupe beim Ziehen mit dem Finger (ab v1.29): vergrößerter Ausschnitt über dem Finger
+function lupeZeigen(ev, bl, p, neu) {
+  const L = zieh.lupe;
+  if (neu || !L.firstChild) { L.innerHTML = ''; const c = bl.svg.cloneNode(true); c.removeAttribute('style'); c.setAttribute('width', '100%'); c.setAttribute('height', '100%'); L.append(c); }
+  L.firstChild.setAttribute('viewBox', `${p.x - 12} ${p.y - 12} 24 24`);
+  L.style.left = (ev.clientX - 70) + 'px'; L.style.top = Math.max(4, ev.clientY - 170) + 'px';
+}
+// Geräte und Zusätze gemeinsam um Rasterschritte verschieben (Ziehen, Pfeiltasten, Mehrfachauswahl)
+function gruppeSchieben(v, ids, nx, ny, still) {
+  const L = lay(v);
+  ids.forEach(x => {
+    if (x.startsWith('t:')) { const k = x.slice(2), d = L.lage[k] || [0, 0], n = [d[0] + nx, d[1] + ny]; if (n[0] || n[1]) L.lage[k] = n; else delete L.lage[k]; }
+    else { const z = zusatzVon(v, x.slice(2)); if (z) [z.a, z.b].forEach(q => { if (q) { q[0] += nx * RASTER; q[1] += ny * RASTER; } }); }
+  });
+  aenderung(ids.length > 1 ? 'Auswahl verschieben' : ids[0].startsWith('t:') ? 'Gerät verschieben' : 'Zusatz verschieben'); sichern();
+  if (!still) zeichne();
+}
+// ---- Mehrfachauswahl (ab v1.29): Umschalt+Tippen oder Rahmen aufziehen (Maus/Pencil auf freier Fläche,
+// mit Umschalt überall); von links nach rechts nur ganz umschlossene, von rechts nach links auch angeschnittene
+function mehrWaehlen(ids) {
+  ids = [...new Set(ids)];
+  if (!ids.length) return waehle(null);
+  if (ids.length === 1) return waehle(ids[0]);
+  ED.b.mehr = ids; waehle('m:');
+}
+let rahmenZug = null;
+function rahmenStart(ev, bl) {
+  const q = svgPunkt(bl.svg, ev); if (!q) return;
+  rahmenZug = { bl, a: q, b: q, mehr: ev.shiftKey, el: null };
+}
+function rahmenBewegen(ev) {
+  const R = rahmenZug, q = svgPunkt(R.bl.svg, ev); if (!q) return;
+  R.b = q;
+  if (!R.el) { if (Math.hypot(q[0] - R.a[0], q[1] - R.a[1]) < 1.5) return;
+    R.el = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); R.el.setAttribute('class', 'auswahlrahmen'); R.bl.svg.append(R.el); }
+  const x = Math.min(R.a[0], q[0]), y = Math.min(R.a[1], q[1]);
+  [['x', x], ['y', y], ['width', Math.abs(q[0] - R.a[0])], ['height', Math.abs(q[1] - R.a[1])]].forEach(([k, w]) => R.el.setAttribute(k, w));
+  R.el.classList.toggle('schneidet', q[0] < R.a[0]);
+}
+function rahmenEnde() {
+  const R = rahmenZug; rahmenZug = null; if (!R || !R.el) return;
+  R.el.remove(); ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
+  const x0 = Math.min(R.a[0], R.b[0]), x1 = Math.max(R.a[0], R.b[0]), y0 = Math.min(R.a[1], R.b[1]), y1 = Math.max(R.a[1], R.b[1]), schneiden = R.b[0] < R.a[0];
+  const trifft = b => schneiden ? b.x0 < x1 && b.x1 > x0 && b.y0 < y1 && b.y1 > y0 : b.x0 >= x0 && b.x1 <= x1 && b.y0 >= y0 && b.y1 <= y1;
+  const ids = [];
+  if (R.bl.szene) Object.values(R.bl.szene.teile).forEach(tl => { if (tl.box && trifft(tl.box)) ids.push('t:' + tl.key); });
+  const zb = {};
+  R.bl.svg.querySelectorAll('[data-ziel^="z:"]').forEach(e => { const bb = e.getBBox(), z = e.dataset.ziel, o = zb[z];
+    zb[z] = o ? { x0: Math.min(o.x0, bb.x), y0: Math.min(o.y0, bb.y), x1: Math.max(o.x1, bb.x + bb.width), y1: Math.max(o.y1, bb.y + bb.height) }
+      : { x0: bb.x, y0: bb.y, x1: bb.x + bb.width, y1: bb.y + bb.height }; });
+  Object.entries(zb).forEach(([z, b]) => { if (trifft(b)) ids.push(z); });
+  const vorher = R.mehr ? (ED.b.sel === 'm:' ? ED.b.mehr : /^[tz]:/.test(ED.b.sel || '') ? [ED.b.sel] : []) : [];
+  if (ED.b.tool === 'zauswahl') werkzeug(null);
+  mehrWaehlen(vorher.concat(ids));
+}
+window.addEventListener('pointermove', ev => { if (rahmenZug) rahmenBewegen(ev); });
+window.addEventListener('pointerup', () => { if (rahmenZug) rahmenEnde(); });
 // Vorschau beim Ziehen eines Leiterstücks: rastet quer zu seiner Richtung in 2,5-mm-Schritten
 function wegZiehen(ev) {
   const { bl, l } = zieh.teil, svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
@@ -2378,6 +2488,11 @@ function kontextNeu() {
       ik('zweig', 'Zweig ab hier', a('zweig')), sep(),
       ik('kopieren', 'Kopieren', a('kopieren'), { taste: 'Strg+C' }), ik('einfuegen', 'Einfügen', a('einfuegen'), { aus: !ak || !platzAblage, taste: 'Strg+V' }),
       ik('loeschen', 'Leeren', a('loeschen'), { cls: 'rot', aus: !ak, taste: 'Entf' }));
+  } else if (art === 'm') {
+    const s = (x, y) => () => gruppeSchieben(v, b.mehr, x, y);
+    kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
+      ik('runter', '2,5 mm nach unten', s(0, 1), { taste: '↓' }), ik('rechts', '2,5 mm nach rechts', s(1, 0), { taste: '→' }), sep(),
+      ik('zu', 'Auswahl aufheben', () => waehle(null), { taste: 'Esc' }));
   } else if (art === 'z') {
     const s = (x, y) => () => zusatzSchieben(v, id, x, y);
     kn.push(ik('links', '2,5 mm nach links', s(-1, 0), { taste: '←' }), ik('hoch', '2,5 mm nach oben', s(0, -1), { taste: '↑' }),
@@ -2405,7 +2520,7 @@ function kontextNeu() {
 }
 function kontextLage() {
   const L = ED && ED.blaetter.querySelector('.kontext'); if (!L) return;
-  const s = ED.blaetter.querySelector('[data-sel]'); if (!s) { L.remove(); return; }
+  const s = ED.blaetter.querySelector('[data-sel]'); if (!s) { L.remove(); return; }      // bei Mehrfachauswahl am ersten
   const B = ED.blaetter.getBoundingClientRect(), r = s.getBoundingClientRect(), lw = L.offsetWidth, lh = L.offsetHeight;
   const x = Math.max(4, Math.min(B.width - lw - 4, r.left - B.left + r.width / 2 - lw / 2));
   let y = r.top - B.top - lh - 8; if (y < 4) y = r.bottom - B.top + 8;
@@ -2434,7 +2549,8 @@ function blattZeigen(i) { const k = ED.karten[i]; if (k) ED.flaeche.scrollTo({ t
 function fussNeu() {
   const { b, fuss } = ED; fuss.innerHTML = '';
   const stW = istSteuerWerkzeug(b.tool);
-  const hinweis = istZeichenWerkzeug(b.tool) ? { zleiter: 'Leiter: Anfang antippen, dann Ende – rastet an Anschlüssen und Leitern', ztext: 'Text: Stelle im Blatt antippen',
+  const hinweis = b.tool === 'zauswahl' ? 'Auswahl: Rahmen aufziehen – links→rechts ganz umschlossene, rechts→links auch angeschnittene'
+    : istZeichenWerkzeug(b.tool) ? { zleiter: 'Leiter: Anfang antippen, dann Ende – rastet an Anschlüssen und Leitern', ztext: 'Text: Stelle im Blatt antippen',
       zrahmen: 'Rahmen: erste Ecke antippen, dann die gegenüberliegende' }[b.tool]
     : b.tool ? `${stW ? WERKZEUG_NAME(b.tool) : PAL_NAME(b.tool)}: ${stW ? 'Plätze im Steuerstromkreis antippen' : 'eine Marke „+“ antippen'}`
     : b.palette === 'st' ? 'Platz antippen zum Bearbeiten · Werkzeug wählen und Plätze antippen' : 'Teil antippen zum Bearbeiten · „+“ im Blatt fügt ein';
@@ -2658,7 +2774,15 @@ function bEditor(b) {
       r.setAttribute('aria-label', /^(vor|nach|in|leer)$/.test(art) ? 'Hier einfügen' : art === 'e' ? 'Einspeisung' : art === 's' ? 'Überspannungsschutz' : art === 'kr' ? 'Steuerstromkreis'
         : kk ? (kk.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}` : `${a && a.f ? a.f.t + ' ' : ''}${abgangName(kk.k)}`) : z);
     });
-    svg.addEventListener('pointerdown', ev => ziehBereit(ev, v, b));
+    svg.addEventListener('pointerdown', ev => {
+      const frei = !ev.target.closest('[data-ziel]') || ev.shiftKey;
+      if (b.tool === 'zauswahl' || (frei && !b.tool && ev.pointerType !== 'touch' && (ev.pointerType !== 'mouse' || ev.button === 0))) return rahmenStart(ev, bl);
+      ziehBereit(ev, v, b); });
+    // Pencil-Hover (ab v1.29): was ein Tippen treffen würde, ist schon vor dem Aufsetzen hervorgehoben
+    svg.addEventListener('pointermove', ev => { if (ev.pointerType !== 'pen' || ev.buttons) return;
+      const z = ev.target.closest('[data-ziel]'); svg.querySelectorAll('[data-hover]').forEach(x => { if (x !== z) x.removeAttribute('data-hover'); });
+      if (z) z.setAttribute('data-hover', ''); });
+    svg.addEventListener('pointerleave', () => svg.querySelectorAll('[data-hover]').forEach(x => x.removeAttribute('data-hover')));
     svg.addEventListener('click', ev => editorKlick(ev, v, b));
     svg.addEventListener('pointermove', ev => { if (!istZeichenWerkzeug(b.tool)) return; const q = svgPunkt(svg, ev); if (q) zeichenVorschau((b.tool === 'zleiter' ? fang(bl, q[0], q[1]) : rasterFang(q)).p, bl); });
     const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr}`), h('span', {}, BLATT_ART[bl.art])), svg);
@@ -2690,9 +2814,14 @@ function bEditor(b) {
 function editorKlick(ev, v, b) {
   if (ziehKlickSperre) return;
   if (istZeichenWerkzeug(b.tool)) return zeichnenKlick(ev, v, b);
+  if (b.tool === 'zauswahl') return;
   const z = ev.target.closest('[data-ziel]');
   if (!z) return;
   const id = z.dataset.ziel, stW = istSteuerWerkzeug(b.tool);
+  if (ev.shiftKey && /^[tz]:/.test(id)) {
+    const da = b.sel === 'm:' ? b.mehr.slice() : /^[tz]:/.test(b.sel || '') ? [b.sel] : [];
+    return mehrWaehlen(da.includes(id) ? da.filter(x => x !== id) : da.concat([id]));
+  }
   if (/^(vor|nach|in|leer):/.test(id)) {
     if (b.tool && !stW) return editorEinfuegen(v, b, id);
     anker = { r: z.getBoundingClientRect(), zeit: Date.now() };
@@ -2714,12 +2843,12 @@ function editorKlick(ev, v, b) {
 let zieh = null, ziehKlickSperre = false;
 function ziehBereit(ev, v, b) {
   if (b.tool || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
-  if (/^z:/.test((ev.target.closest('[data-ziel]') || { dataset: {} }).dataset.ziel || '')) return;
+  if (ev.shiftKey) return;                  // Umschalt: Rahmenauswahl bzw. Auswahl erweitern
   const z = ev.target.closest('[data-ziel]'); if (!z) return;
   const id = z.dataset.ziel;
   let teil = null;
   if (id.startsWith('pl:')) { if (!platzInhalt(v, id)) return; }
-  else if (id.startsWith('t:')) { teil = teilVon(id.slice(2)); if (!teil) return; }
+  else if (id.startsWith('t:') || id.startsWith('z:')) { teil = gruppeZumZiehen(id, b); if (!teil) return; }
   else if (id.startsWith('w:')) { if (b.sel !== id) return; teil = Object.assign({ weg: true }, leiterVon(id.slice(2))); if (!teil.l) return; }
   else if (!id.startsWith('k:')) return;
   // Maus und Pencil ziehen nach kurzer Bewegung, der Finger erst nach kurzem Halten (sonst blättert er)
@@ -2737,9 +2866,11 @@ function ziehAn() {
   const k0 = document.querySelector('.kontext'); if (k0) k0.remove();
   const e = berechne(zieh.v), [art, id] = zieh.id.split(':');
   const r = art === 'k' && knoten(zieh.v, id), a = r && e.abgaenge[id];
-  if (zieh.teil && !zieh.teil.weg) { zieh.orig = zieh.teil.tl.els.map(x => x.getAttribute('transform')); }
+  if (zieh.teil && zieh.teil.gruppe) zieh.teil.gruppe.forEach(g => { g.orig = g.els.map(x => x.getAttribute('transform')); });
   if (zieh.teil) zieh.nx = zieh.ny = 0;
-  const name = zieh.teil && zieh.teil.weg ? 'Leiter ' + zieh.teil.l.art : zieh.teil ? teilName(zieh.id.slice(2)) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
+  if (!zieh.maus && zieh.teil) zieh.lupe = h('div', { class: 'lupe' });
+  if (zieh.lupe) document.body.append(zieh.lupe);
+  const name = zieh.teil && zieh.teil.weg ? 'Leiter ' + zieh.teil.l.art : zieh.teil ? gruppeName(zieh.teil.gruppe) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
   zieh.geist = h('div', { class: 'zieh' }, name);
   document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
   if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) {}
@@ -2758,11 +2889,12 @@ function ziehEnde(ev) {
   const z = zieh; clearTimeout(z.timer);
   if (!z.aktiv) { zieh = null; return; }
   if (z.geist) z.geist.remove();
+  if (z.lupe) z.lupe.remove();
   if (z.teil) {                         // Gerät abgelegt: Abweichung in Rasterschritten merken
     zieh = null; document.querySelectorAll('.hilfslinie').forEach(x => x.remove());
     ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
     if (ev && z.teil.weg && z.nx) { wegSchieben(z.v, z.id.slice(2), z.nx, true); z.b.sel = z.id; }
-    else if (ev && !z.teil.weg && (z.nx || z.ny)) { teilSchieben(z.v, z.id.slice(2), z.nx, z.ny, true); z.b.sel = z.id; }
+    else if (ev && !z.teil.weg && (z.nx || z.ny)) { gruppeSchieben(z.v, z.teil.gruppe.map(g => g.id), z.nx, z.ny, true); if (z.b.sel !== 'm:') z.b.sel = z.id; }
     zeichne(); return;
   }
   const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen

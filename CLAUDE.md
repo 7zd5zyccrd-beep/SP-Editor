@@ -265,8 +265,9 @@ nach 81346-2:2019.
 - F5 v1.28: `v.layout.zusatz` (Leiter/Text/Rahmen, Blatt über `anker`, auf dem ersten Blatt auch solche mit
   verschwundenem Anker), `zusatzZeichnen()` in plan.js mit Punkten und Netzprüfung → `blatt.pruef`. Editor:
   Werkzeuge `zleiter|ztext|zrahmen` (`zeichnenKlick()`, `fang()`, `zeichenVorschau()`), Auswahl `z:<id>`.
-  Noch nicht umgesetzt: Ziehen über Blattgrenzen, „Blatt festhalten“, freie Teile im Steuerstromkreis, Drehen,
-  Lasso/Mehrfachauswahl, Lupe, Pencil-Hover; Fach-Erweiterungen (zweite Einspeisung, PV, Wallbox …).
+- F6 v1.29: Mehrfachauswahl `b.sel = 'm:'`, `b.mehr = [t:…, z:…]` (`mehrWaehlen()`, `rahmenStart/…Ende()`, Werkzeug
+  `zauswahl`), `gruppeZumZiehen()`/`gruppeSchieben()`, Zusatz-Elemente im Editor mit `data-zusatz`, `lupeZeigen()`,
+  Pencil-Hover `data-hover`.
 
 ## Technische Eckwerte
 

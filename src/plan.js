@@ -144,13 +144,14 @@ const PLAN = (() => {
     const nah = (a, b) => Math.abs(a - b) < 0.02, hinweise = [];
     liste.filter(z => z.art === 'rahmen').forEach(z => {
       const x = Math.min(z.a[0], z.b[0]), y = Math.min(z.a[1], z.b[1]), w = Math.abs(z.b[0] - z.a[0]), hh = Math.abs(z.b[1] - z.a[1]);
-      el('rect', { x, y, width: w, height: hh, fill: 'none', stroke: '#000', 'stroke-width': 0.35, 'stroke-dasharray': '4 1 0.6 1' }, g);
-      if (z.t) text(g, x + 1, y + 3.2, z.t, 2.5, 'start', { 'font-weight': 'bold' });
+      const zk = opt.ziele ? { 'data-zusatz': z.id } : {};       // im Editor markiert (Vorschau beim Ziehen)
+      el('rect', Object.assign({ x, y, width: w, height: hh, fill: 'none', stroke: '#000', 'stroke-width': 0.35, 'stroke-dasharray': '4 1 0.6 1' }, zk), g);
+      if (z.t) text(g, x + 1, y + 3.2, z.t, 2.5, 'start', Object.assign({ 'font-weight': 'bold' }, zk));
       if (opt.ziele) { ziel(g, x - 1, y - 1, w + 2, 2, 'z:' + z.id); ziel(g, x - 1, y + hh - 1, w + 2, 2, 'z:' + z.id);
         ziel(g, x - 1, y - 1, 2, hh + 2, 'z:' + z.id); ziel(g, x + w - 1, y - 1, 2, hh + 2, 'z:' + z.id); }
     });
     liste.filter(z => z.art === 'text').forEach(z => {
-      const e = text(g, z.a[0], z.a[1], z.t || 'Text', z.g || 2.5, 'start', z.fett ? { 'font-weight': 'bold' } : {});
+      const e = text(g, z.a[0], z.a[1], z.t || 'Text', z.g || 2.5, 'start', Object.assign(z.fett ? { 'font-weight': 'bold' } : {}, opt.ziele ? { 'data-zusatz': z.id } : {}));
       if (opt.ziele) ziel(g, z.a[0] - 1, z.a[1] - (z.g || 2.5) - 0.5, Math.max(8, (z.t || 'Text').length * (z.g || 2.5) * 0.55) + 2, (z.g || 2.5) + 2, 'z:' + z.id);
       return e;
     });
@@ -159,7 +160,8 @@ const PLAN = (() => {
       const [A, B] = [z.a, z.b], P = nah(A[0], B[0]) || nah(A[1], B[1]) ? null : z.knick === 'vh' ? [A[0], B[1]] : [B[0], A[1]];
       const pkt = P ? [A, P, B] : [A, B], farbe = FARBE[z.leiter] || '#000', segs = [];
       SZ.ort = 'z:' + z.id;
-      for (let i = 0; i + 1 < pkt.length; i++) { linie(g, pkt[i][0], pkt[i][1], pkt[i + 1][0], pkt[i + 1][1], 0.25, farbe, z.leiter || 'L'); segs.push(SZ.leiter[SZ.leiter.length - 1]); }
+      for (let i = 0; i + 1 < pkt.length; i++) { const e = linie(g, pkt[i][0], pkt[i][1], pkt[i + 1][0], pkt[i + 1][1], 0.25, farbe, z.leiter || 'L');
+        if (opt.ziele) e.setAttribute('data-zusatz', z.id); segs.push(SZ.leiter[SZ.leiter.length - 1]); }
       SZ.ort = null;
       neu.push({ z, segs, pkt });
       if (opt.ziele) pkt.slice(1).forEach((q, i) => el('line', { x1: pkt[i][0], y1: pkt[i][1], x2: q[0], y2: q[1], class: 'ziel zleiter', stroke: 'transparent', 'stroke-width': 2, 'data-ziel': 'z:' + z.id }, g));

@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.28 | Etappe F5: freie Leiter mit Netzprüfung (Kurzschluss, offenes Ende), Texte, strichpunktierte Rahmen; Werkzeuge in der Palette „Zeichnen“; Beispiel `zusatz` |
 | v1.27 | Etappe F4: Leiterstücke antippen (Netz hinterlegt), parallel versetzen (Ziehen, Pfeiltasten), Abzweigstellen wandern samt Verbindungspunkt |
 | v1.26 | Etappe F3: Geräte frei im 2,5-mm-Raster (Ziehen, Pfeiltasten), Leiter folgen mit gestaffeltem Knick, Hilfslinien, Prüfliste in der Fußleiste |
 | v1.25 | Etappe F2: Abgänge in freie Spalten ziehen (Lücke davor), neues Blatt ab einem Abgang, Stecknadel, „Automatik anwenden“; Projektfassung 2 mit `v.layout`; Beispiel `layout` |

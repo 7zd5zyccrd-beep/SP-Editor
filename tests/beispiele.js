@@ -115,4 +115,12 @@ window.BEISPIELE = {
     const pe = sz.leiter.filter(l => l.key && l.key.startsWith('k:' + g.id + '#') && l.art === 'PE' && Math.abs(l.x1 - l.x2) < .01).sort((a, b) => Math.min(a.y1, a.y2) - Math.min(b.y1, b.y2))[0];
     L.wege[pe.key] = { n: -3, senk: true };
     sichern(); zeichne(); },
+  // ab v1.28: Zusätze von Hand in der UV – PE-Brücke zwischen zwei PE-Punkten, Text, strichpunktierter Rahmen
+  zusatz: () => { BEISPIELE.grund(); const [, uv] = P.verteiler, L = lay(uv);
+    const anker = 'k:' + uv.knoten[0].id;
+    L.zusatz = [
+      { id: 'z1', art: 'rahmen', blatt: anker, a: [212.5, 75], b: [272.5, 140], t: 'Reserve Wallbox' },
+      { id: 'z2', art: 'text', blatt: anker, a: [215, 150], t: 'Platz für Lastmanagement', g: 2.5 },
+      { id: 'z3', art: 'leiter', blatt: anker, a: [245, 65.5], b: [245, 110], leiter: 'PE', knick: 'vh' } ];
+    sichern(); zeichne(); },
 };

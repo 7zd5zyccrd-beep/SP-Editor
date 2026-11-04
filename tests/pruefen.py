@@ -15,7 +15,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -125,6 +125,17 @@ with sync_playwright() as p:
             if pg.evaluate(f"JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.wege['{wz[2:]}'])") != '{"n":-1,"senk":true}': fehler.append('grund: Leiter mit Pfeiltaste versetzen hat nicht geklappt')
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             if pg.evaluate("!!P.verteiler[0].layout"): fehler.append('grund: Strg+Z nach Leiter versetzen nicht zurückgenommen')
+            # ab v1.28: freien Leiter zeichnen (L1-Schiene auf N-Schiene) → Kurzschluss in der Prüfliste; Strg+Z
+            pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
+            pg.locator('.werkzeug', has_text='Leiter').first.click(); pg.wait_for_timeout(150)
+            def blattklick(x, y):
+                c = pg.evaluate(f"(() => {{ const s = ED.liste[0].svg; s.scrollIntoView(); const p = new DOMPoint({x},{y}).matrixTransform(s.getScreenCTM()); return [p.x, p.y]; }})()")
+                pg.mouse.click(c[0], c[1]); pg.wait_for_timeout(250)
+            ys = pg.evaluate("Object.fromEntries(ED.liste[0].szene.leiter.filter(l => !l.key && Math.abs(l.y1 - l.y2) < .01).map(l => [l.art, l.y1]))")
+            blattklick(230, ys['L1'] + 0.3); blattklick(230, ys['N'] - 0.3)
+            if not pg.evaluate("ED.pruef.some(x => /Kurzschluss/.test(x.t))"): fehler.append('grund: Kurzschluss durch freien Leiter nicht gemeldet')
+            pg.keyboard.press('Escape'); pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            if pg.evaluate("!!P.verteiler[1].layout"): fehler.append('grund: Strg+Z nach freiem Leiter nicht zurückgenommen')
             # leerer Verteiler: Marke „+“ im leeren Blatt
             pg.evaluate("const w = neuerVerteiler('Leer'); P.verteiler.push(w); sichern(); stapel = [{ s: 'start' }, { s: 'editor', vid: w.id }]; zeichne()"); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="leer:"]').first.dispatch_event('click'); pg.wait_for_timeout(200)

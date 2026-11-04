@@ -262,6 +262,11 @@ nach 81346-2:2019.
 - F4 v1.27: Leiter tragen Schlüssel `<ort>#<n>` (`mitOrt()`), Punkte werden mitgeschrieben; `v.layout.wege`
   `{ n, senk }`, `wegeAnwenden()` (Querstücke, nicht auf Schienen; Punkte neu nach ≥ 3 Linien). Editor:
   `leiterFlaechen()` (`line.leiterziel`, `w:<schlüssel>`), `netzVon()`/`netzHalo()`, `wegSchieben()`, `wegZiehen()`.
+- F5 v1.28: `v.layout.zusatz` (Leiter/Text/Rahmen, Blatt über `anker`, auf dem ersten Blatt auch solche mit
+  verschwundenem Anker), `zusatzZeichnen()` in plan.js mit Punkten und Netzprüfung → `blatt.pruef`. Editor:
+  Werkzeuge `zleiter|ztext|zrahmen` (`zeichnenKlick()`, `fang()`, `zeichenVorschau()`), Auswahl `z:<id>`.
+  Noch nicht umgesetzt: Ziehen über Blattgrenzen, „Blatt festhalten“, freie Teile im Steuerstromkreis, Drehen,
+  Lasso/Mehrfachauswahl, Lupe, Pencil-Hover; Fach-Erweiterungen (zweite Einspeisung, PV, Wallbox …).
 
 ## Technische Eckwerte
 

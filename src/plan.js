@@ -134,6 +134,61 @@ const PLAN = (() => {
       if (n < 3 && da) { da.el.remove(); SZ.punkte.splice(SZ.punkte.indexOf(da), 1); }
     });
   }
+  // Zusätze von Hand (ab v1.28): freie Leiter (Verbinden), Texte und strichpunktierte Rahmen (Beschriften).
+  // z = { id, art: 'leiter'|'text'|'rahmen', blatt: Anker, … }; Leiter rechtwinklig von a nach b (knick 'hv'
+  // erst waagerecht, 'vh' erst senkrecht) mit Leiterart; danach Verbindungspunkte und die Netzprüfung:
+  // verbindet ein Zusatzleiter verschiedene Leiter (L1/L2/L3/N/PE), ist das ein Kurzschluss; ein Ende, das
+  // nichts berührt, ist offen. Ergebnis als Liste von Hinweisen am Blatt.
+  function zusatzZeichnen(g, liste, opt) {
+    if (!liste.length) return [];
+    const nah = (a, b) => Math.abs(a - b) < 0.02, hinweise = [];
+    liste.filter(z => z.art === 'rahmen').forEach(z => {
+      const x = Math.min(z.a[0], z.b[0]), y = Math.min(z.a[1], z.b[1]), w = Math.abs(z.b[0] - z.a[0]), hh = Math.abs(z.b[1] - z.a[1]);
+      el('rect', { x, y, width: w, height: hh, fill: 'none', stroke: '#000', 'stroke-width': 0.35, 'stroke-dasharray': '4 1 0.6 1' }, g);
+      if (z.t) text(g, x + 1, y + 3.2, z.t, 2.5, 'start', { 'font-weight': 'bold' });
+      if (opt.ziele) { ziel(g, x - 1, y - 1, w + 2, 2, 'z:' + z.id); ziel(g, x - 1, y + hh - 1, w + 2, 2, 'z:' + z.id);
+        ziel(g, x - 1, y - 1, 2, hh + 2, 'z:' + z.id); ziel(g, x + w - 1, y - 1, 2, hh + 2, 'z:' + z.id); }
+    });
+    liste.filter(z => z.art === 'text').forEach(z => {
+      const e = text(g, z.a[0], z.a[1], z.t || 'Text', z.g || 2.5, 'start', z.fett ? { 'font-weight': 'bold' } : {});
+      if (opt.ziele) ziel(g, z.a[0] - 1, z.a[1] - (z.g || 2.5) - 0.5, Math.max(8, (z.t || 'Text').length * (z.g || 2.5) * 0.55) + 2, (z.g || 2.5) + 2, 'z:' + z.id);
+      return e;
+    });
+    const neu = [];
+    liste.filter(z => z.art === 'leiter').forEach(z => {
+      const [A, B] = [z.a, z.b], P = nah(A[0], B[0]) || nah(A[1], B[1]) ? null : z.knick === 'vh' ? [A[0], B[1]] : [B[0], A[1]];
+      const pkt = P ? [A, P, B] : [A, B], farbe = FARBE[z.leiter] || '#000', segs = [];
+      SZ.ort = 'z:' + z.id;
+      for (let i = 0; i + 1 < pkt.length; i++) { linie(g, pkt[i][0], pkt[i][1], pkt[i + 1][0], pkt[i + 1][1], 0.25, farbe, z.leiter || 'L'); segs.push(SZ.leiter[SZ.leiter.length - 1]); }
+      SZ.ort = null;
+      neu.push({ z, segs, pkt });
+      if (opt.ziele) pkt.slice(1).forEach((q, i) => el('line', { x1: pkt[i][0], y1: pkt[i][1], x2: q[0], y2: q[1], class: 'ziel zleiter', stroke: 'transparent', 'stroke-width': 2, 'data-ziel': 'z:' + z.id }, g));
+    });
+    if (!neu.length) return hinweise;
+    // Verbindungspunkte an den Enden und Knicken der Zusatzleiter neu bestimmen
+    const zaehle = (x, y) => SZ.leiter.reduce((n, s) => {
+      const ende = (nah(s.x1, x) && nah(s.y1, y)) || (nah(s.x2, x) && nah(s.y2, y));
+      const innen = !ende && (nah(s.x1, s.x2) ? nah(s.x1, x) && y > Math.min(s.y1, s.y2) + 0.02 && y < Math.max(s.y1, s.y2) - 0.02
+        : nah(s.y1, s.y2) && nah(s.y1, y) && x > Math.min(s.x1, s.x2) + 0.02 && x < Math.max(s.x1, s.x2) - 0.02);
+      return n + (ende ? 1 : innen ? 2 : 0); }, 0);
+    neu.forEach(({ z, pkt }) => [pkt[0], pkt[pkt.length - 1]].forEach(([x, y]) => {
+      if (zaehle(x, y) >= 3 && !SZ.punkte.some(q => nah(q.x, x) && nah(q.y, y))) punkt(g, x, y, z.leiter || 'L');
+    }));
+    // Netzprüfung über alle Leiter des Blatts (Enden und Abzweige verbinden, Kreuzungen nicht)
+    const L = SZ.leiter, auf = (p, s) => nah(s.x1, s.x2) ? nah(p[0], s.x1) && p[1] >= Math.min(s.y1, s.y2) - 0.02 && p[1] <= Math.max(s.y1, s.y2) + 0.02
+      : nah(p[1], s.y1) && p[0] >= Math.min(s.x1, s.x2) - 0.02 && p[0] <= Math.max(s.x1, s.x2) + 0.02;
+    const ber = (a, b) => [[a.x1, a.y1], [a.x2, a.y2]].some(p => auf(p, b)) || [[b.x1, b.y1], [b.x2, b.y2]].some(p => auf(p, a));
+    const HAUPT = { L1: 'L1', L2: 'L2', L3: 'L3', N: 'N', PE: 'PE' };
+    neu.forEach(({ z, segs, pkt }) => {
+      const netz = new Set(segs), offen = segs.slice();
+      while (offen.length) { const s = offen.pop(); L.forEach(o => { if (!netz.has(o) && ber(s, o)) { netz.add(o); offen.push(o); } }); }
+      const arten = new Set([...netz].filter(s => !segs.includes(s)).map(s => s.art === 'PEN' ? null : HAUPT[s.art]).filter(Boolean));
+      if (arten.size > 1) hinweise.push({ id: z.id, art: 'kurzschluss', t: `Kurzschluss: der Leiter verbindet ${[...arten].join(' und ')}`, p: pkt[0] });
+      [pkt[0], pkt[pkt.length - 1]].forEach(p => { if (!L.some(s => !segs.includes(s) && auf(p, s))) hinweise.push({ id: z.id, art: 'offen', t: 'Offenes Leiterende', p }); });
+    });
+    if (opt.ziele) hinweise.forEach(h => el('circle', { cx: h.p[0], cy: h.p[1], r: 1.4, fill: 'none', stroke: h.art === 'kurzschluss' ? '#d92d20' : '#c27a0e', 'stroke-width': 0.4, 'stroke-dasharray': h.art === 'offen' ? '0.8 0.5' : null, class: 'zhinweis' }, g));
+    return hinweise;
+  }
   function setzeLinie(l, A, B) {
     [l.x1, l.y1, l.x2, l.y2] = [A[0], A[1], B[0], B[1]];
     l.el.setAttribute('x1', A[0]); l.el.setAttribute('y1', A[1]); l.el.setAttribute('x2', B[0]); l.el.setAttribute('y2', B[1]);
@@ -1292,6 +1347,12 @@ const PLAN = (() => {
     el('circle', { cx: x, cy: y, r: 3.2, fill: '#fff', stroke: '#6a35e8', 'stroke-width': 0.45 }, m);
     linie(m, x - 1.8, y, x + 1.8, y, 0.5, '#6a35e8'); linie(m, x, y - 1.8, x, y + 1.8, 0.5, '#6a35e8');
   }
+  // Zusätze eines Blatts: Anker gleich; auf dem ersten Blatt auch solche, deren Anker kein Blatt mehr hat
+  let ankerAlle = null;
+  function zusaetze(v, anker, erstes) {
+    const z = (v.layout && v.layout.zusatz) || [];
+    return z.filter(x => x.blatt === anker || (erstes && ankerAlle && !ankerAlle.has(x.blatt)));
+  }
   // Kennung eines Blatts, unabhängig von seiner Nummer: erster Abgang bzw. die Einspeisung
   function blattAnker(v, b) { const it = b.items.find(x => x.art !== 'spd'); return it ? 'k:' + it.k.id : 'e:' + v.id; }
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
@@ -1356,6 +1417,7 @@ const PLAN = (() => {
       p.stStart = nr + 1; nr += p.st.length;     // Steuerstromkreise direkt hinter dem Stromlaufplan des Verteilers
     }
     for (const p of plaene) { p.klStart = nr + 1; nr += p.kl.length; }
+    ankerAlle = new Set(); plaene.forEach(p => { p.blaetter.forEach(b => ankerAlle.add(blattAnker(p.v, b))); p.st.forEach(b => ankerAlle.add('kr:' + b.kreise[0].kr.id)); });
     const gesamt = nr;
     // Lage der Abgänge (für Querverweise vom Unterverteiler zurück)
     const lage = {};
@@ -1491,16 +1553,18 @@ const PLAN = (() => {
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
         if (v.layout && v.layout.wege) wegeAnwenden(g, v.layout.wege);
+        const anker = blattAnker(v, b), pruef = zusatzZeichnen(g, zusaetze(v, anker, i === 0), opt);
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker: blattAnker(v, b),
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker, pruef,
           spalten: b.items.map(it => ({ id: it.k ? it.k.id : null, col: it.col, w: it.w })) });
       });
       p.st.forEach((b, i) => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
         szeneStart(g);
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
+        const anker = 'kr:' + b.kreise[0].kr.id, pruef = zusatzZeichnen(g, zusaetze(v, anker, false), opt);
         const szene = szeneEnde();
         if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
           ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
@@ -1511,7 +1575,7 @@ const PLAN = (() => {
         });
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker: 'kr:' + b.kreise[0].kr.id });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker, pruef });
       });
     }
     for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => {

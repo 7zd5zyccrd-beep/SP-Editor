@@ -362,6 +362,28 @@ https://claude.ai/artifact/WDc2vNc4wqF6Lbrgqv4UFS). Freigegeben, in dieser Reihe
   Motorschutzschalter, PEN-Darstellung, Primär-LS 2-polig.
 - E7 alle Schrift schwarz, auch Feldtitel und Tabellenköpfe.
 
+## Etappe N – Nutzertest (Jean 04.11.2026: vollautomatisch, Team entscheidet ohne Rückfrage)
+
+Sechs Testrollen (Planer Desktop, Planer iPad, Facharbeiter iPhone/iPad, Laie iPhone/Desktop, Ingenieur, Design) auf
+Desktop, iPad und iPhone; zwei Runden. Runde 1 (v1.51): 111 Befunde (hoch 21) → Umsetzung v1.52–v1.56. Runde 2 (v1.56):
+59 Befunde (hoch 2) → Umsetzung v1.57–v1.58. Wichtige Neuerungen:
+- v1.52 Import-/Speicherprüfung `pruefeProjekt()`, Zahlenprüfung, Fachwarnungen (Steckdose ohne FI, Nennstrom > Iz,
+  Bemessungskette, Wiederanlaufschutz), Schutzorgan folgt der Polzahl, TN-C-UV mit PEN (Beispiel `tncuv`).
+- v1.53 Auswahl immer sichtbar, Fach in drei Stufen (iPad), Palettenklick fügt einmal ein (Doppelklick/Halten =
+  Dauerwerkzeug), Marken mit 44-px-Trefferfläche, Lupe im Plan.
+- v1.54 Startseite mit Beispiel (`/*BEISPIEL*/` eingebettet aus `grund`), Hilfe `hilfe()` mit Glossar `BEGRIFFE`,
+  beschriftete Kontextleiste, Reiter „Zeichnen“, Unterverteiler aus der Palette, `tipp()` (anklicken/antippen).
+- v1.55 Safe Areas, Touch-Mindestmaß 44 px, Browser-Zurück (`pushState`), Doppeltipp-Zoom, Fach über der Tastatur.
+- v1.56 Projektliste (`slp.projekte.v1`, `slp.projekt.<id>`, `slp.projekt.aktiv`), Sammeländerung, Vorlage
+  Treppenlicht (Beispiel `treppenlicht`), Hinweis bei geänderten Kennzeichen, CSV-Export.
+- v1.57 Palettenklick in gewählte Gruppe, Smartphone quer mit Fach als Spalte, MSS-Bereich aus dem Motorstrom mit
+  Warnung, TN-C-Aufteilungswarnung, Sicherungsreihe mit 35 A, Importreparatur ändert nur das Unbekannte.
+- v1.58 Marken klein und nur am gewählten Abgang voll, Meldungen ohne Überdeckung, Blattzählung wie im Druck,
+  Namensfenster für neue Projekte, Sicherungsmahnung je Projekt, „So beheben“ an Warnungen.
+Treppenlicht-Kontakt im Abgang 1–2 (Hauptkontakt nach EN 50005), nicht 17–18. Offen für Jean: Auswahlblätter
+Drehstromzähler mit N und Wandlermessung, E4 Schritt 3, Prüfung am echten iPad/iPhone (Tastatur, Safe Areas,
+Pencil), Stückliste/TE-Plan, Fachetappe Bemessung, Revisionen/Kennzeichen festschreiben, Spulenspannung am Spiegel.
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

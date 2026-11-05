@@ -136,6 +136,7 @@ with sync_playwright() as p:
             if pg.evaluate("!!P.verteiler[0].layout"): fehler.append('grund: Strg+Z nach Leiter versetzen nicht zurückgenommen')
             # ab v1.28: freien Leiter zeichnen (L1-Schiene auf N-Schiene) → Kurzschluss in der Prüfliste; Strg+Z
             pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
+            pg.locator('.segment button[data-w="ze"]').click(); pg.wait_for_timeout(150)      # ab v1.54 eigener Reiter
             pg.locator('.werkzeug', has_text='Leiter').first.click(); pg.wait_for_timeout(150)
             def blattklick(x, y):
                 c = pg.evaluate(f"(() => {{ const s = ED.liste[0].svg; s.scrollIntoView(); const p = new DOMPoint({x},{y}).matrixTransform(s.getScreenCTM()); return [p.x, p.y]; }})()")
@@ -225,6 +226,7 @@ with sync_playwright() as p:
             # ab v1.29: Rahmenauswahl (Werkzeug Auswahl) über Geräte und Zusätze, gemeinsam mit der Pfeiltaste verschieben
             pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[1].id }]; zeichne()"); pg.wait_for_timeout(300)
             cp = lambda x, y: pg.evaluate(f"(() => {{ const s = ED.liste[0].svg; s.scrollIntoView(); const p = new DOMPoint({x},{y}).matrixTransform(s.getScreenCTM()); return [p.x, p.y]; }})()")
+            pg.locator('.segment button[data-w="ze"]').click(); pg.wait_for_timeout(150)      # ab v1.54 eigener Reiter
             pg.locator('.werkzeug', has_text='Auswahl').first.click(); pg.wait_for_timeout(150)
             a = cp(100, 70); e2 = cp(280, 160)
             pg.mouse.move(*a); pg.mouse.down(); pg.mouse.move(e2[0], e2[1], steps=8); pg.mouse.up(); pg.wait_for_timeout(300)

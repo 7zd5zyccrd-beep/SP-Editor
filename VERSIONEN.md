@@ -4,6 +4,7 @@
 
 | Fassung | Inhalt |
 |---|---|
+| v1.54 | Nutzertest Etappe 3: Start mit Erklärung und „Beispiel ansehen“, Hilfe mit Gesten und Begriffen, Erklärzeilen für Schutzorgan/Kennlinie/FI-Typ, beschriftete Kontextleiste, Unterverteiler mit Namen anlegen, „Neuer Verteiler“ mit Vorschlag, „Sichern und neu“, Speicherstatus, Blattwahl mit Namen, Reiter „Zeichnen“, Palette ohne Silbentrennung, Vorlagen nach Abgangsart, Sprung aus „Vor dem Drucken“, gestauchte Texte in der Prüfliste; Pläne unverändert |
 | v1.53 | Nutzertest Etappe 2: Ansicht springt zur Auswahl, Zoom um die Auswahl, Fach in drei Stufen, kompakte iPhone-Fußleiste, Marken „+“ mit 44 px Trefferfläche, Kontextleiste ohne Überdeckung, Palettenklick fügt einmal ein (Doppelklick/Halten = Dauerwerkzeug), Werkzeugband, Lupe in der Planansicht, Palette im dunklen Modus; Pläne unverändert |
 | v1.52 | Nutzertest Etappe 1: Fehler (Fußleiste „null“, Import prüfen und reparieren, Druck weiß) und fachliche Prüfungen (FI an Steckdosen, Belastbarkeit, Bemessungskette, Wiederanlaufschutz, Zahlenfelder, Anschlusswechsel, Überlastrelais bei Stern-Dreieck); PEN-Zuleitung zu TN-C-UV, Übersicht „4 + 3“, gnge an PE, Melder-Texte begrenzt; Beispiel `tncuv` |
 | v1.51 | Steuerstromkreis: Beschriftung von Spule und Meldeleuchte 1,5 mm am eigenen Zeichen statt in der Fluchtlinie der Kontakte |

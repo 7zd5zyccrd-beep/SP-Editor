@@ -239,11 +239,15 @@ const PLAN = (() => {
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
   const zuBegrenzen = [];
   function passend(t, max) { zuBegrenzen.push([t, max]); }
+  // ab v1.54: gibt die Texte zurück, die stärker als auf 85 % gestaucht werden ({ el, text, faktor }, für die Prüfliste im Editor)
   function begrenzen() {
+    const gestaucht = [];
     while (zuBegrenzen.length) {
       const [t, max] = zuBegrenzen.pop();
-      try { if (t.getComputedTextLength() > max) { t.setAttribute('textLength', max); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } } catch (e) {}
+      try { const l = t.getComputedTextLength(); if (l > max) { t.setAttribute('textLength', max); t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+        if (max / l < 0.85) gestaucht.push({ el: t, text: t.textContent, faktor: max / l }); } } catch (e) {}
     }
+    return gestaucht;
   }
   function datumDE(iso) { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : (iso || ''); }
   function bmk(g, x, y, kenn, zeilen = []) {   // links neben dem Gerät, rechtsbündig
@@ -2042,7 +2046,7 @@ const PLAN = (() => {
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: b.art, szene, anker, pruef,
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, gesamt, art: b.art, szene, anker, pruef,
           spalten: b.items.map(it => ({ id: it.k ? it.k.id : null, col: it.col, w: it.w })) });
       });
       p.st.forEach((b, i) => {
@@ -2061,7 +2065,7 @@ const PLAN = (() => {
         });
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
-        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker, pruef });
+        aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, gesamt, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker, pruef });
       });
     }
     for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => {

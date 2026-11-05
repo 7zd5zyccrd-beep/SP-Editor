@@ -1,16 +1,22 @@
 """Baut die App als eine HTML-Datei: Vorlage + Bibliothek + Übersetzer + Generator.
 Aufruf: python3 tools/app_bauen.py v1.7
 Ergebnis: docs/index.html (GitHub Pages) und build/stromlaufplan-v1.7.html"""
-import json, sys, pathlib
+import json, re, sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from pfade import SRC, BIB, DOCS, BUILD
 
 fassung = sys.argv[1]
 bib = json.loads((BIB / 'bibliothek.json').read_text())
 daten = json.dumps(bib, ensure_ascii=False).replace('</', '<\\/')
+# Beispielprojekt (ab v1.54): „grund“ aus tests/beispiele.js wird als „Beispiel ansehen“ eingebettet
+from pfade import WURZEL
+bsp = (WURZEL / 'tests' / 'beispiele.js').read_text()
+m = re.search(r"\n  grund: \(\)=>\{\n(.*?)\},\n  // wie grund", bsp, re.S)
+if not m: sys.exit('Beispiel „grund“ in tests/beispiele.js nicht gefunden')
 t = (SRC / 'app-vorlage.html').read_text()
 t = t.replace('/*BIBLIOTHEK*/', daten).replace('/*RENDERER*/', (SRC / 'qet-render.js').read_text())
 t = t.replace('/*PLAN*/', (SRC / 'plan.js').read_text()).replace('/*FASSUNG*/', fassung)
+t = t.replace('/*BEISPIEL*/', m.group(1).replace('</', '<\\/'))
 DOCS.mkdir(exist_ok=True); BUILD.mkdir(exist_ok=True)
 (DOCS / 'index.html').write_text(t)
 aus = BUILD / f'stromlaufplan-{fassung}.html'; aus.write_text(t)

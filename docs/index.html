@@ -2,10 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.54 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.55 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.55: Nutzertest Etappe 4 „Plattform-Design iPad und iPhone“: seitliche Safe Areas (Kopf, Palette, Fach, Fußleiste,
+           Fenster, Lupe); Touch-Bedienflächen ≥ 44 px (`pointer:coarse`), Geräteflächen nur im gewählten Abgang als Knopf;
+           Bezeichnung und Wert umbrechen statt kürzen; iPhone hoch: Reiter in zweiter Kopfzeile, Verteilerknopf ≥ 72 px mit ▾;
+           Türzettel unter 640 px eingepasst, Antippen öffnet die Lupe; Browser-Zurück/Wischgeste schließt Fenster, Lupe, Fach,
+           dann Bildschirm (`historie()`, Zustand { t }); Doppeltipp im Blatt 2× bzw. zurück auf Blattbreite, Zoom „Auf
+           Auswahl“, Startzoom 150 % bei schmaler Fläche bzw. 130 % für die Steuerung auf Touch; Fach über der Bildschirmtastatur
+           (`visualViewport`); Meldung bei offenem Fach oben; Ziehen mit dem Finger: Etikett über dem Finger, Ziel violett und
+           größer; Editor-Knopf „‹ Projekt“ ab 1000 px; Pläne unverändert
      v1.54: Nutzertest Etappe 3 „Verständlichkeit und Auffindbarkeit“: Start mit Erklärung, drei Schritten und „Beispiel
            ansehen“ (Beispiel „grund“ beim Bau eingebettet), Hilfe („?“ in Start- und Editorkopf: Erste Schritte, Gesten, Maus
            und Tasten, Anordnen von Hand, Speichern, Begriffe), Erklärzeilen für Schutzorgan, Kennlinie, FI-Typ, Nennfehlerstrom
@@ -410,7 +418,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .segment button{border:0;background:none;padding:7px 16px;border-radius:8px;font-size:14.5px;font-weight:600;color:var(--leise);cursor:pointer;min-height:36px}
 .segment button[aria-selected="true"]{background:var(--karte);color:var(--tinte);box-shadow:0 1px 3px rgba(0,0,0,.14)}
 .luecke{flex:1}
-.edpal{grid-area:pal;width:104px;overflow-y:auto;overscroll-behavior:contain;background:var(--karte);border-right:1px solid var(--linie);padding:6px 6px 20px;z-index:2}
+.edpal{grid-area:pal;width:calc(104px + env(safe-area-inset-left, 0px));overflow-y:auto;overscroll-behavior:contain;background:var(--karte);border-right:1px solid var(--linie);padding:6px 6px 20px;z-index:2}
 .palgruppe{margin-bottom:8px}
 .paltitel{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--leise);margin:8px 4px 4px}
 .palkacheln{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
@@ -490,7 +498,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .kontext .ikon:disabled{opacity:.3}
 .kontext .ikon.rot{color:var(--rot-hell)}
 .kontext .sep{background:rgba(255,255,255,.22)}
-.edeigen{grid-area:eigen;width:384px;display:flex;flex-direction:column;min-height:0;background:var(--karte);border-left:1px solid var(--linie);z-index:2}
+.edeigen{grid-area:eigen;width:calc(384px + env(safe-area-inset-right, 0px));display:flex;flex-direction:column;min-height:0;background:var(--karte);border-left:1px solid var(--linie);z-index:2}
 .ed.eigenzu .edeigen{display:none}
 .eigenkopf{display:flex;align-items:center;gap:2px;padding:6px 8px 6px 16px;border-bottom:1px solid var(--linie);min-height:54px}
 .eigenkopf .ikon:first-child{margin-left:-10px}
@@ -514,14 +522,13 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .planzeichen [stroke="#000"]{stroke:currentColor}.planzeichen [fill="#000"]{fill:currentColor}
 .werkzeug{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
-@media (max-width:999px){body.imeditor:has(.ed.fachhalb) .meldung{bottom:calc(min(40vh,340px) + 64px)}body.imeditor:has(.ed.fachvoll) .meldung{bottom:calc(min(62vh,600px) + 64px)}}
 .paltitel{overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}
-@media (max-width:1299px){.edeigen{width:340px}}
+@media (max-width:1299px){.edeigen{width:calc(340px + env(safe-area-inset-right, 0px))}}
 .nurschmal{display:none}
 .zieh{position:fixed;z-index:40;pointer-events:none;background:var(--ov);color:#fff;font-size:13px;padding:5px 10px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.25);white-space:nowrap}
 .fenster .taste{padding:3px 0;font-size:14.5px}
 .fenster .taste b{display:inline-block;min-width:130px}
-@media (min-width:1500px){.edpal{width:184px}.palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}.edeigen{width:420px}}
+@media (min-width:1500px){.edpal{width:calc(184px + env(safe-area-inset-left, 0px))}.palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}.edeigen{width:calc(420px + env(safe-area-inset-right, 0px))}}
 @media (pointer:fine){.zeile{min-height:42px;padding-top:8px;padding-bottom:8px}.edeigen .zeile{min-height:40px}}
 /* iPad hoch und schmaler: Palette als Streifen, Eigenschaften als Fach von unten */
 @media (max-width:999px){
@@ -555,7 +562,7 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   .ikon.mittext .ikontext{display:none}
 }
 @media (max-width:560px){.segment .lang,.edkopf .hilfeikon{display:none}.segment .kurz{display:inline}.zoomnav .ikon{display:none}.blattwahl .lang{display:none}.blattwahl .kurz{display:inline}.edfuss{gap:2px}
-  .edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
+  .edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:max(4px, env(safe-area-inset-left));padding-right:max(4px, env(safe-area-inset-right))}.vwahl{max-width:120px}}
 /* ab v1.54: Verständlichkeit – Einführung, Hilfe, Erklärungen, beschriftete Kontextleiste, Palette ohne Silbentrennung */
 .kopf .seite.r:has(.kopfknoepfe){width:auto}
 .kopfknoepfe{display:flex;align-items:center;gap:4px}
@@ -583,10 +590,70 @@ dl.begriffe{margin:4px 0;font-size:14.5px}dl.begriffe dt{font-weight:700;margin-
 .kontext .ikon svg{width:20px;height:20px}
 .kontext .ikontext{font-size:10.5px;line-height:1.1;white-space:nowrap;font-weight:500}
 .werkzeug,.paltitel{hyphens:manual;-webkit-hyphens:manual;overflow-wrap:normal}
-@media (min-width:1000px){.edpal.zweispaltig{width:184px}.edpal.zweispaltig .palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1000px){.edpal.zweispaltig{width:calc(184px + env(safe-area-inset-left, 0px))}.edpal.zweispaltig .palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .leerkarte{position:absolute;z-index:3;background:var(--karte);border:1.5px dashed var(--akzent);color:var(--tinte);border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.35;
   box-shadow:0 4px 14px rgba(0,0,0,.12);pointer-events:none;width:max-content}
 @media (min-width:561px){.blattwahl .lang{display:inline-block;max-width:44vw;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}}
+/* ab v1.55: Plattform-Design iPad und iPhone – seitliche Safe Areas (Notch im Querformat), Tippflächen ≥ 44 px auf Touch,
+   Werte umbrechen statt kürzen, iPhone-Kopf in zwei Zeilen, Türzettel eingepasst, Meldung über dem offenen Fach */
+.kopf{padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
+main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
+.eigeninhalt main{padding:0}
+.edkopf{padding-left:max(10px, env(safe-area-inset-left));padding-right:max(10px, env(safe-area-inset-right))}
+.edpal{padding-left:max(6px, env(safe-area-inset-left))}
+.edeigen{padding-right:env(safe-area-inset-right)}
+.edfuss{padding-left:max(8px, env(safe-area-inset-left));padding-right:max(8px, env(safe-area-inset-right))}
+.meldung{max-width:calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));text-align:center}
+.planlupe .lupekopf{padding-left:max(14px, env(safe-area-inset-left));padding-right:max(8px, env(safe-area-inset-right))}
+.schleier .mitte{padding-left:max(14px, env(safe-area-inset-left));padding-right:max(14px, env(safe-area-inset-right))}
+.fehlerband{padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
+/* Bezeichnung und Wert: ist es zu eng, rückt der Wert rechtsbündig in die nächste Zeile; nichts wird mit „…“ gekürzt */
+.zeile .tw{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px}
+.zeile .tw .t{flex:1 1 6em;min-width:auto}
+.zeile .ob,.zeile .un{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word}
+.zeile .w{flex:0 1 auto;margin-left:auto;max-width:100%;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word}
+.eigenkopf h2.eigentitel{white-space:normal;overflow-wrap:break-word;line-height:1.25}
+.vwahl{min-width:72px}
+.vw-name{display:flex;align-items:baseline;min-width:0}
+.vw-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vw-name .leise{flex:0 0 auto;white-space:pre}
+.tzwrap.eingepasst{overflow:hidden;margin-bottom:16px}
+.tzwrap.eingepasst .tz{width:720px;min-width:720px;margin:0;transform-origin:0 0}
+.tz{cursor:zoom-in}
+/* iPhone hoch: Reiter als ein Knopf mit Menü, damit der Verteilername lesbar bleibt */
+.reiterwahl{display:none;align-items:center;gap:5px;border:1px solid var(--linie);background:var(--grund);border-radius:10px;padding:0 10px;min-height:40px;margin-left:4px;
+  font-size:14px;font-weight:650;cursor:pointer;flex:0 0 auto;white-space:nowrap}
+@media (max-width:429px){.edkopf .segment{display:none}.reiterwahl{display:inline-flex}.edkopf .sep{display:none}.vwahl{max-width:150px}}
+@media (pointer:coarse){.reiterwahl{min-height:44px}}
+@media (max-width:999px){
+  .edpal{padding-left:max(8px, env(safe-area-inset-left));padding-right:max(8px, env(safe-area-inset-right))}
+  .edeigen{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  body.imeditor.fachoffen .meldung{top:var(--meldungoben,72px);bottom:auto}
+}
+/* Touch: jede Bedienfläche mindestens 44 × 44 px */
+@media (pointer:coarse){
+  .ikon{min-width:44px;height:44px}
+  .kopfknopf,.zurueck{min-height:44px;min-width:44px}
+  .segment button{min-height:44px}
+  .knopf,.knopf.klein{min-height:44px}
+  .leiste button{min-height:44px}
+  .festknopf{min-height:44px;min-width:44px}
+  .blattwahl,.zoomwert,.pruefknopf{min-height:44px;min-width:44px}
+  .pallink{min-height:44px}
+  .linkknopf{min-height:44px;display:inline-flex;align-items:center}
+  .sort button{width:44px;height:44px}
+  .wahl button{min-height:44px}
+  .werkzeugband .knopf{min-height:40px}
+  .hilfeknopf{position:relative;width:44px;height:44px;margin:-11px -5px -11px 0;border-color:transparent}
+  .hilfeknopf::before{content:"";position:absolute;inset:11px;border:1.5px solid var(--akzent);border-radius:50%}
+  .hilfeknopf.gross{margin:0}.hilfeknopf.gross::before{inset:7px}
+}
+/* Ziehen mit dem Finger: Ziel deutlich violett und größer, das Etikett steht über dem Finger */
+.ed.finger [data-ueber]{fill:rgba(106,53,232,.38);stroke:var(--ov);stroke-width:.8}
+.ed.finger rect.ziel[data-ueber]{transform:scale(1.18);transform-box:fill-box;transform-origin:center}
+.ed.finger g.marke[data-ueber]{stroke:none}
+.ed.finger g.marke[data-ueber] circle:not(.treffer){fill:var(--ov);transform:scale(calc(var(--mks,1) * 1.5))}
+.zieh.finger{font-size:14px;padding:7px 12px}
 #druck{display:none}
 @media print{
   html,body{background:#fff !important}      /* ab v1.52: auch im dunklen Modus weiß */
@@ -2871,7 +2938,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.54';
+const FASSUNG = 'v1.55';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3503,6 +3570,35 @@ function geh(z) {
   stapel.push(z); sortieren = false; zeichne(); window.scrollTo(0, 0);
 }
 function zurueck() { if (einbettung) return; stapel.pop(); sortieren = false; zeichne(); }
+// Browser-Zurück und Wischgeste (ab v1.55): Jede App-Ebene – Bildschirm, offenes Fach (iPad hoch), Lupe, Fenster – hat
+// einen Eintrag im Verlauf (Zustand { t: Tiefe }); der Editor zählt als ein Bildschirm. Zurück schließt zuerst das
+// Fenster, dann Lupe und Fach, dann geht es einen Bildschirm zurück. Geht die App selbst zurück, folgt der Verlauf.
+let histTiefe = 0, histIgnor = false, histPlan = false;
+const appTiefe = () => (stapel.length - 1) + fensterStapel.length + (planLupeOffen ? 1 : 0) + (ED && schmal() && ED.b.blatt ? 1 : 0);
+function historie() {        // nach jeder Änderung der Ebenen; gesammelt, damit Schließen + Öffnen im selben Zug nichts tut
+  if (histPlan) return; histPlan = true;
+  queueMicrotask(() => { histPlan = false; const soll = appTiefe();
+    try {
+      if (soll > histTiefe) { for (let t = histTiefe + 1; t <= soll; t++) history.pushState({ t }, ''); histTiefe = soll; }
+      else if (soll < histTiefe && !histIgnor) { histIgnor = true; history.go(soll - histTiefe); histTiefe = soll; }
+    } catch (er) { /* Verlauf nicht verfügbar (z. B. eingebettet) */ }
+  });
+}
+function appZurueckEinen() {
+  if (fensterStapel.length) { const s = fensterStapel[fensterStapel.length - 1]; s(!s.still); return true; }
+  if (planLupeOffen) { planLupeOffen.zu(); return true; }
+  if (ED && schmal() && ED.b.blatt) { fachSetzen('zu'); return true; }
+  if (stapel.length > 1 && !einbettung) { stapel.pop(); sortieren = false; zeichne(); return true; }
+  return false;
+}
+try { history.replaceState({ t: 0 }, ''); history.scrollRestoration = 'manual'; } catch (er) {}
+window.addEventListener('popstate', ev => {
+  const t = ev.state && typeof ev.state.t === 'number' ? ev.state.t : 0;
+  if (histIgnor) { histIgnor = false; histTiefe = t; historie(); return; }      // eigener Rücksprung
+  histTiefe = t;
+  for (let n = 0; n < 20 && appTiefe() > t; n++) if (!appZurueckEinen()) break;
+  historie();
+});
 // Steuerstromkreis im Plan-Editor öffnen: Kreis gewählt, Steuerungs-Palette, Blatt im Blick
 function imPlan(v, kr) { geh({ s: 'editor', vid: v.id, sel: 'kr:' + kr.id, palette: 'st', springen: true }); }
 // nach Löschen/Auflösen: im Plan-Editor zur vorigen Ansicht der Eigenschaften-Leiste, sonst zum vorigen Bildschirm
@@ -3531,8 +3627,9 @@ function svgZurueck() {
 function zeile(ob, wert, klick, opt = {}) {
   return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), on: { click: ev => { ankerZeile(ev.currentTarget); klick(ev); } } },
     opt.bmk ? h('span', { class: 'bmk' + (opt.bmk.hand ? ' hand' : '') }, opt.bmk.t) : null,
-    h('span', { class: 't' }, h('span', { class: 'ob' + (opt.rot ? ' gefahr' : '') }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null),
-    wert !== null && wert !== undefined ? h('span', { class: 'w' }, wert) : null,
+    h('span', { class: 'tw' },      // ab v1.55: Bezeichnung und Wert umbrechen gemeinsam, der Pfeil bleibt rechts
+      h('span', { class: 't' }, h('span', { class: 'ob' + (opt.rot ? ' gefahr' : '') }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null),
+      wert !== null && wert !== undefined ? h('span', { class: 'w' }, wert) : null),
     opt.ohnePfeil ? null : h('span', { class: 'pfeil' }, PFEIL));
 }
 
@@ -3574,6 +3671,7 @@ function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {})
   const schl = (neu = true) => {
     if (zu) return; zu = true; s.remove();
     const i = fensterStapel.indexOf(schl); if (i >= 0) fensterStapel.splice(i, 1);
+    historie();
     if (beimSchliessen) beimSchliessen();
     if (neu) { zeichne(); if (!ED) window.scrollTo(0, merk); }
   };
@@ -3582,7 +3680,7 @@ function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {})
   const f = h('div', { class: 'fenster' + (pop ? ' pop' : '') + (opt.still ? ' still' : '') + (opt.cls ? ' ' + opt.cls : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titel, 'data-breit': opt.breit ? '1' : null },
     titel ? h('h3', {}, titel) : null, h('div', { class: 'inhalt' }, inhalt), fuss);
   const s = h('div', { class: 'schleier' + (pop ? ' pop' : ''), on: { click: ev => { if (ev.target === s || ev.target.classList.contains('mitte')) schl(!opt.still); } } }, pop ? f : h('div', { class: 'mitte' }, f));
-  document.body.appendChild(s); fensterStapel.push(schl); schl.el = f;
+  document.body.appendChild(s); fensterStapel.push(schl); schl.el = f; historie();
   if (pop) popLage(f, a.r);
   setTimeout(() => { if (zu || f.contains(document.activeElement)) return;
     const x = f.querySelector('[aria-checked="true"], .an') || f.querySelector('input, .wahl button, .kacheln button, .fuss .knopf'); if (x) x.focus({ preventScroll: true }); }, 30);
@@ -3732,7 +3830,8 @@ function hilfe(ab = null) {
       h('p', {}, 'Kennzeichen, Klemmen, Phasenverteilung und Anordnung macht die App automatisch.')),
     abschnitt('gesten', 'Gesten', liste([['Antippen', 'Teil wählen; die Eigenschaften öffnen sich im Fach unten bzw. rechts'],
       ['Halten und ziehen', 'nach kurzem Halten (0,35 s) Abgang auf eine Marke „+“ oder Kontakt auf einen Platz ziehen; ohne Halten blättert das Wischen'],
-      ['Zwei Finger', 'zoomen (Pinch)'], ['Doppeltipp', 'in „Stromlaufplan ansehen“ vergrößern'],
+      ['Zwei Finger', 'zoomen (Pinch)'], ['Doppeltipp', 'im Blatt 2× vergrößern, ein zweiter zurück auf Blattbreite; in „Stromlaufplan ansehen“ und beim Türzettel ebenso'],
+      ['Zurück-Geste', 'schließt erst Fenster, Lupe und Fach, dann geht es einen Bildschirm zurück'],
       ['Palette', 'einmal antippen fügt hinter dem gewählten Abgang ein; doppelt antippen oder halten macht die Kachel zum Dauerwerkzeug für die Marken „+“ bis „Fertig“'],
       ['Fach', 'Kopf antippen öffnet und schließt es, nach oben ziehen vergrößert'], ['Apple Pencil', 'beim Schweben ist hervorgehoben, was ein Tippen trifft']])),
     abschnitt('tasten', 'Maus und Tasten', liste([['Klick', 'Teil wählen; Doppelklick auf eine Kachel: Dauerwerkzeug'], ['Umschalt+Klick, Rahmen ziehen', 'mehrere Teile wählen']]),
@@ -3776,9 +3875,10 @@ function zeichne() {
   if (planLupeOffen) planLupeOffen.zu();
   ED = null;
   app.innerHTML = '';
-  document.body.classList.toggle('imeditor', b.s === 'editor');
+  document.body.classList.toggle('imeditor', b.s === 'editor'); document.body.classList.remove('fachoffen');
   ({ start: bStart, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
      steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
+  historie();
 }
 
 // Startbildschirm (ab v1.21): Projekt, Verteiler als Karten – ein Tippen öffnet den Plan-Editor
@@ -4899,6 +4999,7 @@ function icon(n) {
   s.innerHTML = `<path d="${ICONS[n]}" fill="none" stroke="currentColor" stroke-width="${n === 'menue' ? 3.2 : 1.9}" stroke-linecap="round" stroke-linejoin="round"/>`;
   return s;
 }
+const iconKl = (n, kl) => { const s = icon(n); s.setAttribute('class', kl); return s; };
 const ik = (name, label, f, opt = {}) => h('button', { class: 'ikon' + (opt.cls ? ' ' + opt.cls : ''), 'aria-label': label, title: label + (opt.taste ? ` (${opt.taste})` : ''),
   disabled: opt.aus || null, 'data-w': opt.w || null, on: { click: f } }, icon(name), opt.text ? h('span', { class: 'ikontext' }, opt.text) : null);
 
@@ -5065,12 +5166,14 @@ function werkzeug(t) {
   ED.ed.classList.toggle('zeichnen', istZeichenWerkzeug(t) || t === 'zauswahl');
   paletteNeu(); fussNeu();
 }
+const REITER = { ab: ['Abgänge', 'Steckdosen, Leuchten, Gruppen, Motoren …'], st: ['Steuerung', 'Steuerstromkreise: Taster, Kontakte, Spulen'], ze: ['Zeichnen', 'freie Leiter, Texte, Rahmen'] };
 function paletteWahl(w) {
   const b = ED.b; b.palette = w;
   // ab v1.54: ein Werkzeug gilt nur in seinem Reiter (Abgänge, Steuerung, Zeichnen)
   const reiter = t => istZeichenWerkzeug(t) || t === 'zauswahl' ? 'ze' : istSteuerWerkzeug(t) ? 'st' : 'ab';
   if (b.tool && reiter(b.tool) !== w) werkzeug(null);
   ED.ed.querySelectorAll('.segment button').forEach(x => x.setAttribute('aria-selected', String(x.dataset.w === w)));
+  ED.ed.querySelectorAll('.reiterwahl .rw-t').forEach(x => { x.textContent = REITER[w][0]; });
   paletteNeu(); fussNeu();
 }
 function paletteNeu() {
@@ -5235,7 +5338,8 @@ function markieren() {
   if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (gew.has(r.dataset.ziel)) r.setAttribute('data-sel', ''); });
   // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar
   const bes = ED.b.sel && besitzerTeilOderLeiter(ED.b.sel);
-  ED.blaetter.querySelectorAll('rect.teil, line.leiterziel').forEach(r => r.toggleAttribute('data-aktiv', !!bes && r.dataset.besitzer === bes));
+  ED.blaetter.querySelectorAll('rect.teil, line.leiterziel').forEach(r => { const an = !!bes && r.dataset.besitzer === bes; r.toggleAttribute('data-aktiv', an);
+    if (r.tagName === 'rect') { if (an) r.setAttribute('role', 'button'); else r.removeAttribute('role'); } });      // ab v1.55: nur antippbare Geräte sind Knöpfe
   netzHalo();
 }
 // ---- Leiter im Blatt (ab v1.27, Etappe F4) -------------------------------------------------
@@ -5477,7 +5581,7 @@ function teilFlaechen() {
       tl.box = { x0: x0 - 0.8, y0: y0 - 0.8, x1: x1 + 0.8, y1: y1 + 0.8 };
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
-        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['role', 'button'], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
+        ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
       svg.append(r);
     });
   });
@@ -5503,6 +5607,10 @@ function fachKlassen() {
   ED.eigen.classList.toggle('auf', st !== 'zu');
   ED.ed.classList.toggle('fachhalb', st === 'halb'); ED.ed.classList.toggle('fachvoll', st === 'voll');
   ED.fach = st;
+  // ab v1.55: bei offenem Fach erscheint die Meldung oben unter Kopf und Palette statt über einer Eigenschaftszeile
+  document.body.classList.toggle('fachoffen', st !== 'zu');
+  const pal = ED.pal.getBoundingClientRect(); document.body.style.setProperty('--meldungoben', Math.round(Math.max(pal.bottom, 56) + 8) + 'px');
+  historie();
   if (alt && alt !== st && schmal()) setTimeout(() => { zeigeAuswahl(); kontextLage(); }, 240);     // nach dem Aufklappen
 }
 function fachSetzen(st) { const b = ED.b; b.blatt = st !== 'zu'; b.fachVoll = st === 'voll'; eigenNeu(); }
@@ -5649,6 +5757,27 @@ function zoomSetzen(z, px = null, py = null) {
   if (holen) zeigeAuswahl(true);
   if (knopf) kontextNeu();
 }
+// Doppeltipp auf das Blatt (ab v1.55, Finger und Pencil, ohne Werkzeug): 2× um die Stelle, ein zweiter zurück auf Blattbreite
+const beruehrung = () => matchMedia('(pointer:coarse)').matches;
+let dtipp = null, dtZeiger = null;
+function doppeltipp(ev) {
+  const b = ED && ED.b;
+  if (!b || (dtZeiger !== 'touch' && dtZeiger !== 'pen') || b.tool || ziehKlickSperre || fensterStapel.length) { dtipp = null; return false; }
+  const t = Date.now(), d = dtipp; dtipp = { t, x: ev.clientX, y: ev.clientY };
+  if (!d || t - d.t > 350 || Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 30) return false;
+  dtipp = null;
+  const R = ED.flaeche.getBoundingClientRect();
+  zoomSetzen(b.zoom >= 199 ? 100 : Math.min(400, Math.max(200, b.zoom * 2)), ev.clientX - R.left, ev.clientY - R.top);
+  return true;
+}
+// Zoom-Menü „Auf Auswahl“ (ab v1.55): das gewählte Teil füllt die Fläche (mit Rand für die Kontextleiste)
+function zoomAufAuswahl() {
+  if (!ED) return;
+  const rs = [...ED.blaetter.querySelectorAll('[data-sel]')].map(x => x.getBoundingClientRect()); if (!rs.length) return;
+  const w = Math.max(...rs.map(r => r.right)) - Math.min(...rs.map(r => r.left)), hh = Math.max(...rs.map(r => r.bottom)) - Math.min(...rs.map(r => r.top));
+  const f = ED.flaeche, k = Math.min((f.clientWidth - 48) / Math.max(w, 1), (f.clientHeight - 120) / Math.max(hh, 1));
+  zoomSetzen(ED.b.zoom * k); zeigeAuswahl(true); kontextLage();
+}
 // Blattwahl in der Fußleiste
 function aktuellesBlatt() { const f = ED.flaeche, y = f.scrollTop + f.clientHeight * 0.35; let i = 0; ED.karten.forEach((k, j) => { if (k.offsetTop <= y) i = j; }); return i; }
 function blattAnzeigen() {
@@ -5676,7 +5805,8 @@ function fussNeu() {
   ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', on: { click: blattMenue } });
   ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
     ['Größer', () => zoomSetzen(b.zoom * 1.25), { klein: '+' }], ['Kleiner', () => zoomSetzen(b.zoom * 0.8), { klein: '−' }], '—',      // ab v1.53 (schmal ohne Knöpfe)
-    ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
+    ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ['Auf Auswahl', zoomAufAuswahl, { klein: b.sel ? 'gewähltes Teil bildfüllend' : 'zuerst ein Teil wählen', aus: !b.sel }],
+    ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
   const pr = ED.pruef || [];
   fuss.append(...[      // ohne Prüfliste kein „null“ in der Fußleiste (ab v1.52)
     pr.length ? h('button', { class: 'pruefknopf', title: 'Prüfliste', on: { click: () => menue('Prüfliste', pr.map(x =>
@@ -5693,6 +5823,8 @@ function fussNeu() {
     ED.band.replaceChildren(...(b.tool ? [h('span', {}, hinweis), h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig')] : []));
   }
   blattAnzeigen();
+  // ab v1.55: ein allgemeiner Hinweis, der nicht ganz passt, entfällt, statt mitten im Wort abzubrechen
+  requestAnimationFrame(() => { const t = fuss.querySelector('.hinweistext'); if (t && !b.tool) t.style.visibility = t.scrollWidth > t.clientWidth + 1 ? 'hidden' : ''; });
 }
 // Menüs der Kopfleiste
 function verteilerMenue(v) {
@@ -5881,7 +6013,7 @@ function abgangVonKreis(v, sel) {
 function bEditor(b) {
   const v = vById(b.vid) || P.verteiler[0]; if (!v) { stapel = [{ s: 'start' }]; zeichne(); return; }
   if (b.vid !== v.id) { b.vid = v.id; b.sx = b.sy = 0; }
-  b.zoom = b.zoom || 100; b.pz = b.pz || []; b.tool = b.tool || null;
+  b.pz = b.pz || []; b.tool = b.tool || null;
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
   if (b.blatt === undefined) b.blatt = !!b.sel;
   if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : istZeichenWerkzeug(b.tool) || b.tool === 'zauswahl' ? 'ze' : 'ab';
@@ -5893,9 +6025,11 @@ function bEditor(b) {
     if (w === 'st') {
       const kr = sel.startsWith('k:') && kreisVonAbgang(v, sel.slice(2));
       paletteWahl(w);
+      if (beruehrung() && b.zoom < 130) { b.zoom = 130; zoomAnwenden(true); }     // ab v1.55: Kontaktplätze auf Touch größer
       if (kr) return waehle('kr:' + kr.id, { springen: true });
       if (sel && !stSel) waehle(null);
-      const k = ED.karten.find(x => x.dataset.art === 'steuerung'); if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' });
+      // ab v1.55 ohne Animation: der Größenabgleich nach dem Palettenwechsel brach den weichen Bildlauf ab
+      const k = ED.karten.find(x => x.dataset.art === 'steuerung'); if (k) ED.flaeche.scrollTop = k.offsetTop - 12;
     } else {
       const kid = /^(pl|kr):/.test(sel) && abgangVonKreis(v, sel);
       paletteWahl(w);
@@ -5903,10 +6037,16 @@ function bEditor(b) {
       if (stSel) waehle(null);
     } } } }, h('span', { class: 'lang' }, t), h('span', { class: 'kurz', 'aria-hidden': 'true' }, kurz));      // kurz: Smartphone (ab v1.54)
   const kopfL = h('header', { class: 'edkopf' },
-    ik('haus', 'Projektübersicht', () => { stapel = [{ s: 'start' }]; zeichne(); }),
-    h('button', { class: 'vwahl', 'aria-label': 'Verteiler wählen', on: { click: () => verteilerMenue(v) } },
-      h('span', { class: 'vw-pj' }, P.projekt.projekt || 'Projekt'), h('span', { class: 'vw-name' }, v.name, h('span', { class: 'leise' }, ' ▾'))),
+    // ab v1.55 wie „Zurück“ der übrigen Bildschirme: breit „‹ Projekt“, schmal das Haus
+    h('button', { class: 'ikon mittext', 'aria-label': 'Projektübersicht', title: 'Zur Projektübersicht', on: { click: () => { stapel = [{ s: 'start' }]; zeichne(); } } },
+      iconKl('links', 'nurbreit'), iconKl('haus', 'nurschmal'), h('span', { class: 'ikontext' }, 'Projekt')),
+    h('button', { class: 'vwahl', 'aria-label': `Verteiler wählen (${v.name})`, on: { click: () => verteilerMenue(v) } },      // ab v1.55: Name und ▾ getrennt, ▾ bleibt sichtbar
+      h('span', { class: 'vw-pj' }, P.projekt.projekt || 'Projekt'), h('span', { class: 'vw-name' }, h('span', { class: 'vw-n' }, v.name), h('span', { class: 'leise' }, ' ▾'))),
     h('div', { class: 'segment', role: 'tablist', 'aria-label': 'Palette' }, tab('ab', 'Abgänge', 'Abgänge'), tab('st', 'Steuerung', 'Steuer.'), tab('ze', 'Zeichnen', '✎')),
+    // ab v1.55 unter 430 px statt des Segments ein Knopf mit Menü – so bleibt Platz für den Verteilernamen
+    h('button', { class: 'reiterwahl', 'aria-label': 'Palette wechseln', on: { click: () => menue('Palette', Object.entries(REITER).map(([w, [t, klein]]) =>
+      [t, () => { const k = ED && ED.ed.querySelector(`.segment [data-w="${w}"]`); if (k) k.click(); }, { an: b.palette === w, klein }])) } },
+      h('span', { class: 'rw-t' }, REITER[b.palette][0]), h('span', { class: 'leise' }, ' ▾')),
     h('span', { class: 'luecke' }),
     ik('rueck', nZ ? `Rückgängig: ${verlauf.zurueck[nZ - 1].n}` : 'Rückgängig', () => projektRueck(false), { aus: !nZ, taste: 'Strg+Z' }),
     ik('vor', nV ? `Wiederholen: ${verlauf.vor[nV - 1].n}` : 'Wiederholen', () => projektRueck(true), { aus: !nV, taste: 'Strg+Y' }),
@@ -5922,6 +6062,9 @@ function bEditor(b) {
   const band = h('div', { class: 'werkzeugband', role: 'status', 'aria-live': 'polite', hidden: true });
   flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, band, eigen, fuss); app.append(ed);
   ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, band, karten: [], liste: [], blattI: 0 };
+  // Startzoom (ab v1.55): schmale Fläche (iPhone hoch) 150 % mit Ausschnitt am ersten Abgang, Steuerung auf Touch 130 %
+  let startAusschnitt = false;
+  if (!b.zoom) { const w = flaeche.clientWidth; b.zoom = w < 600 ? 150 : beruehrung() && b.palette === 'st' ? 130 : 100; startAusschnitt = w < 600 && !b.sel && !b.sx && !b.sy; }
   // Blätter dieses Verteilers mit Antippflächen
   let res = null;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true, nur: v.id }); }
@@ -5942,6 +6085,7 @@ function bEditor(b) {
         : kk ? (kk.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}` : `${a && a.f ? a.f.t + ' ' : ''}${abgangName(kk.k)}`) : z);
     });
     svg.addEventListener('pointerdown', ev => {
+      dtZeiger = ev.pointerType;
       const frei = !ev.target.closest('[data-ziel]') || ev.shiftKey;
       if (b.tool === 'zauswahl' || (frei && !b.tool && ev.pointerType !== 'touch' && (ev.pointerType !== 'mouse' || ev.button === 0))) return rahmenStart(ev, bl);
       ziehBereit(ev, v, b); });
@@ -5950,7 +6094,7 @@ function bEditor(b) {
       const z = ev.target.closest('[data-ziel]'); svg.querySelectorAll('[data-hover]').forEach(x => { if (x !== z) x.removeAttribute('data-hover'); });
       if (z) z.setAttribute('data-hover', ''); });
     svg.addEventListener('pointerleave', () => svg.querySelectorAll('[data-hover]').forEach(x => x.removeAttribute('data-hover')));
-    svg.addEventListener('click', ev => editorKlick(ev, v, b));
+    svg.addEventListener('click', ev => { if (!doppeltipp(ev)) editorKlick(ev, v, b); });
     svg.addEventListener('pointermove', ev => { if (!istZeichenWerkzeug(b.tool)) return; const q = svgPunkt(svg, ev); if (q) zeichenVorschau((b.tool === 'zleiter' ? fang(bl, q[0], q[1]) : rasterFang(q)).p, bl); });
     // ab v1.54 mit Erklärung; auf Touch (ohne Tooltip) im Menü „…“ des Blatts
     const festT = 'Spalten aller Abgänge dieses Blatts festhalten, damit spätere Änderungen sie nicht verschieben', fest = blattFest(v, bl);
@@ -5965,6 +6109,11 @@ function bEditor(b) {
   paletteNeu(); eigenNeu(); fussNeu();
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
+  if (startAusschnitt) {        // ab v1.55: erster Abgang (im leeren Verteiler die Marke „+“) links oben im Blick
+    const z = blaetter.querySelector('rect.ziel[data-ziel^="k:"], g.marke[data-ziel^="leer:"]'), k = z && z.closest('.blatt');
+    if (k) { const F = flaeche.getBoundingClientRect(), r = z.getBoundingClientRect();
+      flaeche.scrollLeft = Math.max(0, r.left - F.left - 16); flaeche.scrollTop = Math.max(0, k.offsetTop - 12); b.sx = flaeche.scrollLeft; b.sy = flaeche.scrollTop; }
+  }
   ED.gestaucht = res ? (res.begrenzen() || []) : [];       // ab v1.54: stark gestauchte Texte für die Prüfliste
   leiterFlaechen(); teilFlaechen(); nadeln(); markieren();
   // Marken „+“ zuletzt ins Blatt (ab v1.53): ihr vergrößerter Trefferkreis liegt vor Abgangs- und Geräteflächen
@@ -6064,11 +6213,18 @@ function ziehAn() {
   if (!zieh.maus && zieh.teil) zieh.lupe = h('div', { class: 'lupe' });
   if (zieh.lupe) document.body.append(zieh.lupe);
   const name = zieh.teil && zieh.teil.weg ? 'Leiter ' + zieh.teil.l.art : zieh.teil ? gruppeName(zieh.teil.gruppe) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
-  zieh.geist = h('div', { class: 'zieh' }, name);
+  zieh.geist = h('div', { class: 'zieh' + (zieh.maus ? '' : ' finger') }, name);
+  if (!zieh.maus && m) m.classList.add('finger');       // ab v1.55: Ziel unter dem Finger deutlich hervorheben
   document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
   if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) {}
 }
-function ziehGeist(x, y) { if (zieh && zieh.geist) { zieh.geist.style.left = (x + 14) + 'px'; zieh.geist.style.top = (y + 10) + 'px'; } }
+// Etikett beim Ziehen: Maus rechts unter dem Zeiger; Finger (ab v1.55) mittig 56 px darüber, mit Lupe über der Lupe
+function ziehGeist(x, y) {
+  const g = zieh && zieh.geist; if (!g) return;
+  if (zieh.maus) { g.style.left = (x + 14) + 'px'; g.style.top = (y + 10) + 'px'; return; }
+  const w = g.offsetWidth, hh = g.offsetHeight, ab = zieh.lupe ? 176 : 56;
+  g.style.left = Math.max(4, Math.min(innerWidth - w - 4, x - w / 2)) + 'px'; g.style.top = Math.max(4, y - ab - hh) + 'px';
+}
 function ziehZiel(x, y) {             // erlaubtes Ziel unter dem Zeiger
   const el = document.elementFromPoint(x, y), z = el && el.closest && el.closest('[data-ziel]'); if (!z) return null;
   const t = z.dataset.ziel;
@@ -6282,7 +6438,7 @@ function planLupe(liste, i) {
     if (j < 0 || j >= liste.length) return;
     idx = j; const bl = liste[j], svg = bl.svg.cloneNode(true);
     svg.removeAttribute('role'); svg.removeAttribute('aria-label');
-    innen.replaceChildren(svg); titel.textContent = `Blatt ${bl.nr} · ${bl.titel}`;
+    innen.replaceChildren(svg); titel.textContent = bl.kopf || `Blatt ${bl.nr} · ${bl.titel}`;
     setze(1); fl.scrollTop = 0; fl.scrollLeft = 0;
   };
   const abst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
@@ -6315,9 +6471,9 @@ function planLupe(liste, i) {
     else if (ev.key === '+') setze(z * 1.25); else if (ev.key === '-') setze(z * 0.8);
   };
   const ro = new ResizeObserver(() => setze(z));
-  function zu() { L.remove(); ro.disconnect(); document.removeEventListener('keydown', taste, true); planLupeOffen = null; }
+  function zu() { L.remove(); ro.disconnect(); document.removeEventListener('keydown', taste, true); planLupeOffen = null; historie(); }
   document.body.append(L); document.addEventListener('keydown', taste, true); ro.observe(fl);
-  planLupeOffen = { zu };
+  planLupeOffen = { zu }; historie();
   zeige(idx);
 }
 function drucken(trotzdem) {
@@ -6377,9 +6533,33 @@ function bTuer(b) {
   const liste = b.vid ? [vById(b.vid)] : P.verteiler;
   app.append(kopf('Türzettel', h('button', { class: 'kopfknopf', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
   const m = h('main');
-  m.append(h('p', { class: 'hinweis' }, 'Sicherungsübersicht für die Verteilertür, A4 hoch. Beim Drucken auf Skalierung 100 % achten.'));
-  liste.forEach(v => m.append(h('div', { class: 'tzwrap' }, tuerzettel(v))));
-  app.append(m);
+  m.append(h('p', { class: 'hinweis' }, `Sicherungsübersicht für die Verteilertür, A4 hoch. Zettel ${tipp()} zum Vergrößern. Beim Drucken auf Skalierung 100 % achten.`));
+  liste.forEach((v, i) => { const tz = tuerzettel(v); tz.setAttribute('role', 'button'); tz.setAttribute('aria-label', `Türzettel ${v.name} vergrößern`);
+    tz.addEventListener('click', () => tuerLupe(liste, i)); m.append(h('div', { class: 'tzwrap' }, tz)); });
+  app.append(m); tzEinpassen();
+}
+// Türzettel unter 640 px (ab v1.55): in 720 px Breite gesetzt und auf die Bildschirmbreite verkleinert, wie ein Planblatt
+function tzEinpassen() {
+  document.querySelectorAll('#app .tzwrap').forEach(w => {
+    const tz = w.firstChild; w.classList.remove('eingepasst'); tz.style.transform = ''; w.style.height = '';
+    const W = w.clientWidth; if (W >= 640) return;
+    w.classList.add('eingepasst'); const k = W / 720;
+    tz.style.transform = `scale(${k})`; w.style.height = Math.ceil(tz.offsetHeight * k) + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (stapel[stapel.length - 1].s === 'tuer') tzEinpassen(); });
+// Lupe für Türzettel (ab v1.55): der Zettel als SVG mit foreignObject, damit Pinch, Doppeltipp und Wischen der Planlupe gelten
+function tuerLupe(liste, i) {
+  const NS = 'http://www.w3.org/2000/svg';
+  planLupe(liste.map((v, j) => {
+    const tz = tuerzettel(v); tz.style.margin = '0'; tz.style.boxShadow = 'none'; tz.style.borderRadius = '0'; tz.style.cursor = 'default';
+    const mess = h('div', { style: 'position:absolute;left:-10000px;top:0;width:720px' }, tz); document.body.append(mess);
+    const H = Math.ceil(tz.offsetHeight); mess.remove();
+    const svg = document.createElementNS(NS, 'svg'), fo = document.createElementNS(NS, 'foreignObject');
+    svg.setAttribute('viewBox', `0 0 720 ${H}`); fo.setAttribute('width', '720'); fo.setAttribute('height', String(H)); tz.style.width = '720px';
+    fo.append(tz); svg.append(fo);
+    return { svg, nr: j + 1, titel: v.name, kopf: `Türzettel ${v.name}` };
+  }), i);
 }
 function tuerDrucken(liste) {
   const d = document.getElementById('druck'); d.innerHTML = '';
@@ -6511,6 +6691,23 @@ function meldung(t) { const m = document.getElementById('meldung'); m.textConten
 function fehler(t) { const f = document.getElementById('fehlerband'); f.textContent = 'Fehler: ' + t; f.style.display = 'block'; }
 window.addEventListener('error', e => fehler(e.message));
 window.addEventListener('unhandledrejection', e => fehler(e.reason && e.reason.message || String(e.reason)));
+// Bildschirmtastatur (ab v1.55): Wird im Fach (iPad hoch) ein Feld bearbeitet, hebt sich das Fach über die Tastatur
+// (iOS verkleinert nur den sichtbaren Ausschnitt, visualViewport), und das Feld rückt in die Mitte des Fachs
+(() => {
+  const vv = window.visualViewport; if (!vv) return;
+  let gehoben = 0;
+  const heben = zentrieren => {
+    const fach = ED && ED.eigen, el = document.activeElement;
+    const imFach = !!fach && schmal() && !!el && fach.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+    const kb = imFach ? Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop)) : 0, neu = kb > 60 ? kb : 0;
+    if (fach && neu !== gehoben) { fach.style.bottom = neu ? neu + 'px' : ''; fach.style.maxHeight = neu ? Math.max(160, vv.height - 24) + 'px' : ''; }
+    gehoben = fach ? neu : 0;
+    if (neu && zentrieren) el.scrollIntoView({ block: 'center' });
+  };
+  vv.addEventListener('resize', () => heben(true)); vv.addEventListener('scroll', () => heben(false));
+  document.addEventListener('focusin', () => setTimeout(() => heben(true), 60));
+  document.addEventListener('focusout', () => setTimeout(() => heben(false), 60));
+})();
 // Seitenzoom des Browsers nur im Editor und in der Lupe unterdrücken (dort zoomt die App selbst; ab v1.53)
 document.addEventListener('gesturestart', e => { if (ED || planLupeOffen) e.preventDefault(); });
 // Start (ab v1.52): gespeicherten Stand prüfen; lässt er sich nicht zeichnen, als Datei sichern und neu beginnen

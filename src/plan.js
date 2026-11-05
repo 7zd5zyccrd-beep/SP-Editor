@@ -1200,7 +1200,9 @@ const PLAN = (() => {
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ueberlast1', x, top), zl = [a.ol.bereich ? `${a.ol.bereich} A` : ''];
       const vor = ueOl.get(g), dx = x - R3('ueberlast1', x), nah = vor && x - vor.x <= P + 0.01 && x > vor.x && Math.abs(top - vor.top) < 6;
-      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, P - dx - (nah ? dx - 1 : 0));
+      // ab v1.58 (C40): neben einem Überlastrelais endet die Beschriftung 1,5 mm vor dessen Kasten (R3); die rechte
+      // Kastenkante liegt bei vor.x + dx − 1,5, die Grenze also bei vor.x + dx
+      ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, nah ? x - vor.x - 2 * dx : P - dx);
       ueOl.set(g, { x, top });
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('ueberlast1', top), zl));
     }
@@ -1615,17 +1617,19 @@ const PLAN = (() => {
   // Umbruch an Leerzeichen bzw. Bindestrich (Breite geschätzt); ab v1.52 erst, wenn die Zeile auch auf 85 % gestaucht
   // nicht passt – sonst wurden kurze Texte wie „Taster 1“ in der ersten Spalte umbrochen, ihre Nachbarn nicht
   const breitSt = (t, gr) => t.length * gr * 0.5;
-  function umbrechenSt(t, max) {
-    if (breitSt(t, 2.2) * 0.85 <= max) return [t];
+  function umbrechenSt(t, max, zugabe = 0) {
+    if (breitSt(t, 2.2) * 0.85 <= max + zugabe) return [t];
     const teile = t.split(/(?<=[ -])/), r = ['']; teile.forEach(w => { if (r[r.length - 1] && breitSt(r[r.length - 1] + w, 2.2) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
     return r.map(z => z.trim()).filter(Boolean);
   }
   function bmkSt(g, xPfad, xr, y, kenn, zeilen = []) {
     // links: in der ersten Spalte der Rahmen + 1,5 mm, sonst die Anschlussnummern des Nachbarpfads + 1,5 mm
-    const links = xPfad - ST_LINKS - RAND_L < 0.5 ? RAND_L + 1.5 : xPfad - ST_LINKS - 1;
+    const erste = xPfad - ST_LINKS - RAND_L < 0.5, links = erste ? RAND_L + 1.5 : xPfad - ST_LINKS - 1;
     const max = xr - links;
     if (kenn) passend(text(g, xr, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
-    zeilen.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
+    // ab v1.58 (C39): in der ersten Spalte ist der Platz 2,5 mm schmaler; was in den übrigen Spalten einzeilig passt,
+    // bleibt auch hier einzeilig (etwas stärker gestaucht) – „Taster 1“ wie „Taster 2“
+    zeilen.filter(Boolean).flatMap(t => umbrechenSt(t, max, erste ? 2.5 : 0)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
   }
   function stKreis(g, ctx, v, e, kr, col, R, lt, gem, anG) {
     const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);

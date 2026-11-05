@@ -182,6 +182,11 @@ window.BEISPIELE = {
   // Nutzertest Etappe 1 (v1.52): HV und UV in TN-C, Klemmleiste in der HV; die Zuleitung zur UV führt L1 L2 L3 PEN (4 Leiter, 10 mm²)
   tncuv: () => { BEISPIELE.grund(); const [hv, uv] = P.verteiler; hv.netzform = 'TN-C'; uv.netzform = 'TN-C'; hv.klemmen = 'leiste';
     hv.knoten.find(k => k.speist === uv.id).leitung.quer = '10'; sichern(); zeichne(); },
+  // Nutzertest Etappe 5 (v1.56): wie grund; Vorlage „Treppenlicht“ am Abgang Licht Flur – Zeitrelais -K ausschaltverzögert
+  // 3 min im Abgang, drei Taster parallel auf die Spule
+  treppenlicht: () => { BEISPIELE.grund(); const [hv] = P.verteiler;
+    let l; alleKnoten(hv, k => { if (k.typ === 'abgang' && k.ziel.bez === 'Licht' && k.ziel.ort === 'Flur') l = k; });
+    const kr = kreisAnlegen(hv, l); vorlageEinsetzen(hv, kr, 'treppenlicht', { n: 3, zeit: '3 min' }); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

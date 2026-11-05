@@ -62,15 +62,21 @@ with sync_playwright() as p:
             pg.locator('rect.ziel[data-ziel^="k:"]').nth(1).dispatch_event('click'); pg.wait_for_timeout(300)
             if not pg.locator('.eigen', has_text='Schutzorgan').count(): fehler.append('grund: Plan-Editor – Eigenschaften nach Antippen fehlen')
             pg.screenshot(path=str(AUS / 'grund_editor.png'), full_page=False)
-            # Einfügen: Werkzeug Leuchte, Marke „+“ hinter dem ersten Abgang, dann Strg+Z
+            # Palettenklick fügt einmal ein, hinter dem gewählten Abgang (ab v1.53), Strg+Z nimmt es zurück
             n0 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
-            pg.locator('.werkzeug', has_text='Leuchte').click(); pg.wait_for_timeout(300)
+            pg.locator('.werkzeug', has_text='Leuchte').click(); pg.wait_for_timeout(600)
+            n1 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+            if n1 != n0 + 1 or pg.evaluate("ED.b.tool") is not None: fehler.append(f'grund: Plan-Editor – Palettenklick ergab {n0} → {n1}, Werkzeug {pg.evaluate("ED.b.tool")}')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
+            # Einfügen: Dauerwerkzeug Leuchte (Doppelklick), Marke „+“ hinter dem ersten Abgang, dann Strg+Z
+            pg.locator('.werkzeug', has_text='Leuchte').dblclick(); pg.wait_for_timeout(300)
             pg.locator('g.marke[data-ziel^="nach:"]').first.dispatch_event('click'); pg.wait_for_timeout(300)
             n1 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
             if n1 != n0 + 1: fehler.append(f'grund: Plan-Editor – Einfügen ergab {n0} → {n1}')
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             n2 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
             if n2 != n0: fehler.append(f'grund: Plan-Editor – Strg+Z ergab {n2} statt {n0}')
+            pg.keyboard.press('Escape'); pg.wait_for_timeout(100)
             # Ziehen mit der Maus: ersten Abgang (Gruppe -F3) hinter den letzten Abgang ziehen
             pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
             erst = pg.evaluate("P.verteiler[0].knoten[0].id"); letzt = pg.evaluate("P.verteiler[0].knoten.at(-1).id")

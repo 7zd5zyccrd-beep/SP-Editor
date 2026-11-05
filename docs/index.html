@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.52 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.53 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.53: Nutzertest Etappe 2 „Auswahl sichtbar, Einfügen sicher, Plan lesbar“: Ansicht springt zum eingefügten,
+           duplizierten oder gewählten Teil (ganz sichtbar, auch auf anderem Blatt), Zoom-Knöpfe zoomen um die Auswahl,
+           Reiterwechsel nimmt Abgang ↔ Steuerstromkreis mit; Fach unter 1000 px in drei Stufen (zu/halb/voll), Blätter und
+           Fußleiste bleiben darüber; iPhone-Fußleiste kompakt („4/6“, Zoom über das Menü); Marken „+“ mit mindestens
+           44 px Trefferfläche vor den Abgangsflächen; Kontextleiste im sichtbaren Bereich ohne Marken zu verdecken;
+           Palettenklick fügt einmal ein (hinter dem gewählten Abgang), Doppelklick/Halten = Dauerwerkzeug;
+           Werkzeugband unter 1000 px; Lupe in „Stromlaufplan ansehen“ (Pinch, Doppeltipp, Wischen); Planzeichen der
+           Steuerungs-Palette im dunklen Modus hell
      v1.52: Nutzertest Etappe 1 „Fehler und fachliche Prüfungen“: kein „null“ in Fußleiste und Klassen; Import und
            gespeicherter Stand werden geprüft und repariert (`pruefeProjekt()`, Probe vor dem Übernehmen); Warnungen: Steckdose
            ohne FI ≤ 30 mA, Nennstrom über der Belastbarkeit der Leitung (`IZ_MAX`), Bemessungskette, Motorschutzschalter ohne
@@ -425,6 +433,16 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed .marke[data-hover] circle:not(.treffer){fill:var(--ov)}
 .lupe{position:fixed;z-index:41;width:140px;height:140px;border-radius:50%;overflow:hidden;background:#fff;border:2px solid var(--ov);box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none}
 .lupe svg{display:block;width:100%;height:100%}
+/* ab v1.53: Blatt in der Ansicht „Stromlaufplan“ vergrößern (Pinch, Doppeltipp, Wischen zum Nachbarblatt) */
+.lupe.planlupe{inset:0;width:auto;height:auto;border-radius:0;border:0;box-shadow:none;pointer-events:auto;display:flex;flex-direction:column;background:var(--flaeche);z-index:35}
+.planlupe .lupekopf{display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px 14px;background:var(--karte);border-bottom:1px solid var(--linie);min-height:52px}
+.planlupe .lupetitel{flex:1;min-width:0;font-weight:650;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planlupe .lupezoom{font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--leise);padding:0 6px}
+.planlupe .lupeflaeche{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.planlupe .lupeinnen{padding:12px;width:max-content;margin:0 auto}
+.planlupe .lupeinnen svg{display:block;width:100%;height:auto;background:var(--karte);box-shadow:0 1px 2px rgba(0,0,0,.1),0 8px 24px rgba(0,0,0,.08)}
+.planlupe .lupefuss{padding:6px 12px calc(env(safe-area-inset-bottom) + 6px);font-size:12.5px;color:var(--leise);text-align:center;background:var(--karte);border-top:1px solid var(--linie)}
+.blattkarte svg{cursor:zoom-in}
 .ed .zvorschau{pointer-events:none}
 .ed .zvorschau line{stroke:var(--ov);stroke-width:.35;stroke-dasharray:1 .7}
 .ed .zvorschau circle{fill:none;stroke:var(--ov);stroke-width:.4}
@@ -445,6 +463,9 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed rect.teil[data-sel]{fill:rgba(106,53,232,.16);stroke:var(--ov);stroke-width:.45;stroke-dasharray:none}
 .ed rect.ziel:focus-visible{stroke:var(--ov);stroke-width:.5;stroke-dasharray:1.4 .9}
 .ed .marke{cursor:pointer;outline:none}
+/* ab v1.53: Marken wachsen am Bildschirm mit – Trefferkreis mindestens 44 px, Zeichen bis 28 px (--mkt/--mks aus zoomAnwenden) */
+.ed .marke .treffer{transform:scale(var(--mkt,1));transform-box:fill-box;transform-origin:center}
+.ed .marke circle:not(.treffer),.ed .marke line{transform:scale(var(--mks,1));transform-box:fill-box;transform-origin:center}
 .ed .marke circle:not(.treffer){transition:fill .12s}
 .ed.einfuegen .marke circle:not(.treffer),.ed .marke:focus-visible circle:not(.treffer){fill:var(--ov)}
 .ed.einfuegen .marke line,.ed .marke:focus-visible line{stroke:#fff}
@@ -452,7 +473,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ed.ziehen rect.ziel{cursor:grabbing}
 .ed [data-ueber]{fill:rgba(106,53,232,.24)}
 .ed g.marke[data-ueber] circle:not(.treffer){fill:#4a1fb8}
-.kontext{position:absolute;z-index:3;display:flex;align-items:center;gap:1px;padding:4px;background:var(--dunkel);color:#fff;border-radius:13px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.kontext{position:absolute;z-index:3;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:1px;padding:4px;background:var(--dunkel);color:#fff;border-radius:13px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
 .kontext .ikon{color:#fff;min-width:40px;height:40px;font-size:14px}
 .kontext .ikon:hover{background:rgba(255,255,255,.14)}
 .kontext .ikon:disabled{opacity:.3}
@@ -474,7 +495,14 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .hinweiszeile{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--leise);white-space:nowrap;overflow:hidden}
 .hinweiszeile.an{color:var(--akzent);font-weight:650}
 .hinweistext{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* ab v1.53: Werkzeughinweis als Band über dem Blatt, wenn die Hinweiszeile fehlt (unter 1000 px) */
+.werkzeugband{display:none}
+.blattwahl .kurz{display:none}
+/* ab v1.53: Planzeichen in Kacheln und Listen in der Schriftfarbe der Oberfläche (dunkler Modus) */
+.planzeichen [stroke="#000"]{stroke:currentColor}.planzeichen [fill="#000"]{fill:currentColor}
+.werkzeug{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
+@media (max-width:999px){body.imeditor:has(.ed.fachhalb) .meldung{bottom:calc(min(40vh,340px) + 64px)}body.imeditor:has(.ed.fachvoll) .meldung{bottom:calc(min(62vh,600px) + 64px)}}
 .paltitel{overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}
 @media (max-width:1299px){.edeigen{width:340px}}
 .nurschmal{display:none}
@@ -494,8 +522,16 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   .pallink{flex:0 0 auto;white-space:nowrap}
   .werkzeug{width:78px;min-height:58px}
   .edeigen{position:fixed;left:0;right:0;bottom:0;width:auto;height:min(62vh,600px);border-left:0;border-radius:16px 16px 0 0;box-shadow:0 -6px 26px rgba(0,0,0,.18);
-    transform:translateY(calc(100% - 56px));transition:transform .22s ease;z-index:12;padding-bottom:env(safe-area-inset-bottom)}
+    transform:translateY(calc(100% - 56px));transition:transform .22s ease,height .22s ease;z-index:12;padding-bottom:env(safe-area-inset-bottom)}
   .edeigen.auf{transform:none}
+  /* ab v1.53: Fach in drei Stufen (zu, halb, voll); Blätter und Fußleiste rücken über das Fach */
+  .ed.fachhalb{padding-bottom:min(40vh,340px)}.ed.fachhalb .edeigen{height:min(40vh,340px)}
+  .ed.fachvoll{padding-bottom:min(62vh,600px)}
+  .eigenkopf{touch-action:none}
+  .werkzeugband:not([hidden]){display:flex;grid-area:flaeche;align-self:start;justify-self:center;align-items:center;gap:10px;margin:8px 8px 0;max-width:calc(100% - 16px);
+    z-index:4;padding:6px 6px 6px 14px;border-radius:14px;background:var(--akzent);color:var(--auf-akzent);font-size:13.5px;font-weight:650;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+  .werkzeugband span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .werkzeugband .knopf{flex:0 0 auto;background:var(--auf-akzent);color:var(--akzent)}
   .ed.eigenzu .edeigen{display:flex}
   .eigenkopf{cursor:pointer;min-height:56px;position:relative}
   .eigenkopf::before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--linie2)}
@@ -506,7 +542,8 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   .vw-pj{display:none}
   .ikon.mittext .ikontext{display:none}
 }
-@media (max-width:560px){.edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
+@media (max-width:560px){.zoomnav .ikon{display:none}.blattwahl .lang{display:none}.blattwahl .kurz{display:inline}.edfuss{gap:2px}
+  .edkopf .ikon[aria-label^='Wiederholen']{display:none}.segment button{padding:6px 8px;font-size:13.5px}.edkopf{gap:0;padding-left:4px;padding-right:4px}.vwahl{max-width:120px}}
 #druck{display:none}
 @media print{
   html,body{background:#fff !important}      /* ab v1.52: auch im dunklen Modus weiß */
@@ -2787,7 +2824,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.52';
+const FASSUNG = 'v1.53';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3583,6 +3620,7 @@ function bmkFeld(titel, objekt, auto) {
 function zeichne() {
   const b = stapel[stapel.length - 1];
   if (ED && ED.ro) ED.ro.disconnect();
+  if (planLupeOffen) planLupeOffen.zu();
   ED = null;
   app.innerHTML = '';
   document.body.classList.toggle('imeditor', b.s === 'editor');
@@ -4447,8 +4485,9 @@ const istZeichenWerkzeug = t => /^z(leiter|text|rahmen)$/.test(t || '');
 const WERKZEUG_NAME = z => z === 'spule' ? 'Spule' : z === 'leer' ? 'Radierer' : ST_ZEICHEN[z][0];
 function zeichenIcon(kennung) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('class', 'planzeichen');      // ab v1.53: Schwarz wird zur Schriftfarbe (dunkler Modus)
   if (kennung === 'leer') { s.setAttribute('viewBox', '0 0 40 40');
-    s.innerHTML = '<path d="M11 11l18 18M29 11L11 29" stroke="#b42318" stroke-width="2.5" stroke-linecap="round"/>'; return s; }
+    s.innerHTML = '<path d="M11 11l18 18M29 11L11 29" stroke="currentColor" style="color:var(--rot)" stroke-width="2.5" stroke-linecap="round"/>'; return s; }
   const z = BIB.zeichen.find(x => x.kennung === kennung); if (!z) return s;
   const r = QET.zeichne(z.xml, { labels: false }), d = r.def;
   const w = +d.getAttribute('width'), hh = +d.getAttribute('height'), hx = +d.getAttribute('hotspot_x'), hy = +d.getAttribute('hotspot_y'), mm = Math.max(w, hh);
@@ -4775,9 +4814,26 @@ function zuschneiden(wurzel) {
     s.setAttribute('viewBox', zuschnitt[k]); s.removeAttribute('data-zuschnitt');
   });
 }
+// opt.dauer (ab v1.53): Doppelklick bzw. -tipp oder langes Halten ruft dauer() statt klick() (Dauerwerkzeug);
+// der einfache Klick wartet dafür kurz ab
 function kachel(name, zeichen, zusatz, klick, opt = {}) {
-  return h('button', { class: 'werkzeug', 'aria-pressed': opt.an !== undefined ? String(!!opt.an) : null, title: opt.titel || name.replace(/\u00ad/g, ''), on: { click: klick } },
+  let t = null, halten = null, gehalten = false;
+  const on = !opt.dauer ? { click: klick } : {
+    click: ev => { if (gehalten) { gehalten = false; return; }
+      if (t) { clearTimeout(t); t = null; opt.dauer(ev); } else t = setTimeout(() => { t = null; klick(ev); }, 260); },
+    pointerdown: () => { gehalten = false; clearTimeout(halten); halten = setTimeout(() => { gehalten = true; clearTimeout(t); t = null; opt.dauer(); }, 500); },
+    pointerup: () => clearTimeout(halten), pointerleave: () => clearTimeout(halten), pointercancel: () => clearTimeout(halten),
+    contextmenu: ev => ev.preventDefault() };
+  return h('button', { class: 'werkzeug', 'aria-pressed': opt.an !== undefined ? String(!!opt.an) : null, title: opt.titel || name.replace(/\u00ad/g, ''), on },
     piktogramm(zeichen), h('span', { class: 'wname' }, name), zusatz ? h('span', { class: 'wzusatz' }, zusatz) : null);
+}
+// Wohin ein Palettenklick einfügt (ab v1.53): hinter den gewählten Abgang bzw. die Gruppe, sonst ans Ende des Verteilers
+function paletteZiel(v, b, tool) {
+  const bes = b.sel && /^[ktw]:/.test(b.sel) ? (b.sel.startsWith('k:') ? b.sel : besitzerVon(b.sel.slice(2))) : null;
+  const r = bes && bes.startsWith('k:') ? knoten(v, bes.slice(2)) : null;
+  if (!r) return 'leer:' + v.id;
+  const gruppe = tool === 'gruppe' || (tool === 'ablage' && editorAblage && editorAblage.k.typ === 'gruppe');
+  return 'nach:' + (gruppe && r.eltern ? r.eltern.id : r.k.id);
 }
 // Werkzeug wählen bzw. beenden (ohne das Blatt neu zu erzeugen)
 function werkzeug(t) {
@@ -4810,11 +4866,14 @@ function paletteNeu() {
     zuschneiden(pal);
     return;
   }
-  const leer = !v.knoten.length, gruppen = {};
-  EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => (gruppen[grp] = gruppen[grp] || []).push(kachel(name, zeichen, zusatz, () => {
-    if (leer) return editorEinfuegen(v, b, 'leer:' + v.id, tool);
-    werkzeug(b.tool === tool ? null : tool); }, { an: b.tool === tool })));
-  if (editorAblage) gruppen.Ablage = [kachel(PAL_NAME('ablage'), 'klemme', '', () => leer ? editorEinfuegen(v, b, 'leer:' + v.id, 'ablage') : werkzeug(b.tool === 'ablage' ? null : 'ablage'), { an: b.tool === 'ablage' })];
+  // ab v1.53 einheitlich: Klick fügt einmal ein (hinter dem gewählten Abgang, sonst am Ende); Doppelklick oder
+  // langes Halten macht die Kachel zum Dauerwerkzeug für die Marken „+“ (bis „Fertig“ oder Esc)
+  const gruppen = {};
+  const einmal = tool => () => { if (b.tool === tool) return werkzeug(null); if (b.tool) werkzeug(null); editorEinfuegen(v, b, paletteZiel(v, b, tool), tool); };
+  const dauer = tool => () => { werkzeug(tool); meldung(`${PAL_NAME(tool)}: Marken „+“ antippen – „Fertig“ oder Esc beendet`); };
+  EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => (gruppen[grp] = gruppen[grp] || []).push(kachel(name, zeichen, zusatz, einmal(tool),
+    { an: b.tool === tool, dauer: dauer(tool), titel: `${name.replace(/\u00ad/g, '')} einfügen – Doppelklick oder Halten: mehrere über die Marken „+“` })));
+  if (editorAblage) gruppen.Ablage = [kachel(PAL_NAME('ablage'), 'klemme', '', einmal('ablage'), { an: b.tool === 'ablage', dauer: dauer('ablage') })];
   Object.entries(gruppen).forEach(([t, k]) => pal.append(gruppe(t, k)));
   pal.append(zeichnenGruppe(gruppe));
   zuschneiden(pal);
@@ -5182,24 +5241,50 @@ function teilFlaechen() {
     });
   });
 }
-function zeigeAuswahl() {
+// Auswahl in den sichtbaren Bereich holen (ab v1.53: ganz, auch auf einem anderen Blatt; oben Platz für die
+// Kontextleiste). Unter 1000 px endet die Fläche über Fußleiste und Fach, die Rechnung bleibt dieselbe.
+function zeigeAuswahl(sofort = false) {
+  if (!ED) return;
   const s = ED.blaetter.querySelector('[data-sel]'); if (!s) return;
   const f = ED.flaeche, F = f.getBoundingClientRect(), r = s.getBoundingClientRect();
-  const sichtbar = r.top >= F.top + 40 && r.top <= F.bottom - 120 && r.left >= F.left && r.right <= F.right;
-  if (!sichtbar) f.scrollTo({ top: f.scrollTop + r.top - F.top - 70, left: Math.max(0, f.scrollLeft + r.left - F.left - Math.max(20, (F.width - r.width) / 2)), behavior: 'smooth' });
+  const oben = F.top + 56, unten = F.top + f.clientHeight - 10, links = F.left + 10, rechts = F.left + f.clientWidth - 10;
+  if (r.top >= oben && r.bottom <= unten && r.left >= links && r.right <= rechts) return;
+  const dy = r.height <= unten - oben ? r.top - (oben + (unten - oben - r.height) / 2) : r.top - oben;
+  const dx = r.width <= rechts - links ? r.left - (links + (rechts - links - r.width) / 2) : r.left - links;
+  f.scrollTo({ top: Math.max(0, f.scrollTop + dy), left: Math.max(0, f.scrollLeft + dx), behavior: sofort ? 'auto' : 'smooth' });
 }
+// Fach der Eigenschaften unter 1000 px (ab v1.53): zu, halb (Voreinstellung beim Wählen) oder voll
+const schmal = () => matchMedia('(max-width:999px)').matches;
+function fachStufe() { const b = ED.b; return !b.blatt ? 'zu' : b.fachVoll ? 'voll' : 'halb'; }
+function fachKlassen() {
+  if (!ED) return;
+  const st = fachStufe(), alt = ED.fach;
+  ED.eigen.classList.toggle('auf', st !== 'zu');
+  ED.ed.classList.toggle('fachhalb', st === 'halb'); ED.ed.classList.toggle('fachvoll', st === 'voll');
+  ED.fach = st;
+  if (alt && alt !== st && schmal()) setTimeout(() => { zeigeAuswahl(); kontextLage(); }, 240);     // nach dem Aufklappen
+}
+function fachSetzen(st) { const b = ED.b; b.blatt = st !== 'zu'; b.fachVoll = st === 'voll'; eigenNeu(); }
 function eigenNeu() {
   const { b, v, eigen } = ED; eigen.innerHTML = '';
   let r;
   try { r = editorEigenschaften(v, b.sel, b); } catch (er) { r = { titel: 'Eigenschaften', inhalt: h('p', { class: 'warnung' }, er.message) }; fehler(er.message); }
-  const umschalten = ev => { if (ev.target.closest('button')) return; b.blatt = !b.blatt; eigen.classList.toggle('auf', b.blatt); };
-  eigen.append(h('div', { class: 'eigenkopf', on: { click: umschalten } },
+  const st = fachStufe();
+  // Kopf antippen: zu ↔ halb; ziehen (ab v1.53): nach oben eine Stufe größer, nach unten kleiner
+  let zug = null;
+  const kopf = h('div', { class: 'eigenkopf', on: {
+    click: ev => { if (ev.target.closest('button') || (zug && zug.weg)) { zug = null; return; } zug = null; fachSetzen(fachStufe() === 'zu' ? 'halb' : 'zu'); },
+    pointerdown: ev => { if (!ev.target.closest('button') && schmal()) zug = { y: ev.clientY, weg: false }; },
+    pointerup: ev => { if (!zug) return; const dy = ev.clientY - zug.y; if (Math.abs(dy) < 30) return; zug.weg = true;
+      const stufen = ['zu', 'halb', 'voll'], i = stufen.indexOf(fachStufe()); fachSetzen(stufen[Math.max(0, Math.min(2, i + (dy < 0 ? 1 : -1)))]); } } },
     b.pz && b.pz.length ? ik('links', 'Zurück', () => waehle(b.pz.pop(), { zurueck: true })) : null,
     h('h2', { class: 'eigentitel' }, r.titel || (b.sel ? 'Eigenschaften' : v.name)),
     b.sel ? ik('zu', 'Auswahl aufheben', () => waehle(null), { taste: 'Esc' }) : null,
-    ik(b.blatt ? 'ab' : 'auf', b.blatt ? 'Einklappen' : 'Ausklappen', () => { b.blatt = !b.blatt; eigenNeu(); }, { cls: 'nurschmal' })),
-    h('div', { class: 'eigeninhalt' }, r.inhalt));
-  eigen.classList.toggle('auf', !!b.blatt);
+    st === 'zu' ? ik('auf', 'Ausklappen', () => fachSetzen('halb'), { cls: 'nurschmal' })
+      : ik(st === 'voll' ? 'ab' : 'auf', st === 'voll' ? 'Fach verkleinern' : 'Fach vergrößern', () => fachSetzen(st === 'voll' ? 'halb' : 'voll'), { cls: 'nurschmal' }),
+    st !== 'zu' ? ik('runter', 'Einklappen', () => fachSetzen('zu'), { cls: 'nurschmal' }) : null);
+  eigen.append(kopf, h('div', { class: 'eigeninhalt' }, r.inhalt));
+  fachKlassen();
 }
 // Kontextleiste am gewählten Teil: Aktionen, die die Lage im Plan betreffen
 function kontextNeu() {
@@ -5258,13 +5343,27 @@ function kontextNeu() {
   blaetter.append(h('div', { class: 'kontext', role: 'toolbar', 'aria-label': 'Aktionen für die Auswahl' }, kn));
   kontextLage();
 }
+// Lage der Kontextleiste (ab v1.53): ganz im sichtbaren Bereich der Fläche, ohne Marken „+“ und das gewählte Teil
+// zu verdecken – erst über dem Teil, dann darunter, dann über dem Blattkopf, sonst oben an der Fläche
 function kontextLage() {
   const L = ED && ED.blaetter.querySelector('.kontext'); if (!L) return;
   const s = ED.blaetter.querySelector('[data-sel]'); if (!s) { L.remove(); return; }      // bei Mehrfachauswahl am ersten
-  const B = ED.blaetter.getBoundingClientRect(), r = s.getBoundingClientRect(), lw = L.offsetWidth, lh = L.offsetHeight;
-  const x = Math.max(4, Math.min(B.width - lw - 4, r.left - B.left + r.width / 2 - lw / 2));
-  let y = r.top - B.top - lh - 8; if (y < 4) y = r.bottom - B.top + 8;
-  L.style.left = x + 'px'; L.style.top = y + 'px';
+  const f = ED.flaeche, F = f.getBoundingClientRect(), B = ED.blaetter.getBoundingClientRect();
+  const V = { l: Math.max(F.left, 0) + 4, t: Math.max(F.top, 0) + 4, r: Math.min(F.left + f.clientWidth, innerWidth) - 4, b: Math.min(F.top + f.clientHeight, innerHeight) - 4 };
+  L.style.maxWidth = Math.max(120, f.clientWidth - 16) + 'px';
+  const lw = L.offsetWidth, lh = L.offsetHeight, r = s.getBoundingClientRect();
+  const weg = [...ED.blaetter.querySelectorAll('.marke circle:not(.treffer)')].map(c => c.getBoundingClientRect())
+    .filter(m => m.bottom > V.t && m.top < V.b && m.right > V.l && m.left < V.r).map(m => ({ l: m.left - 4, t: m.top - 4, r: m.right + 4, b: m.bottom + 4 }));
+  weg.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+  const frei = (x, y) => y >= V.t && y + lh <= V.b && !weg.some(m => x < m.r && x + lw > m.l && y < m.b && y + lh > m.t);
+  const xin = x => Math.max(V.l, Math.min(V.r - lw, x));
+  const karte = s.closest('.blatt'), kopf = karte ? karte.getBoundingClientRect().top - lh - 2 : null;
+  const ys = [r.top - lh - 8, r.bottom + 8, kopf].filter(y => y !== null);
+  const xs = [r.left + r.width / 2 - lw / 2, r.left, r.right - lw, V.l, V.r - lw].map(xin);
+  let pos = null;
+  for (const y of ys) { for (const x of xs) if (frei(x, y)) { pos = [x, y]; break; } if (pos) break; }
+  if (!pos) pos = [xin(r.left + r.width / 2 - lw / 2), V.t];
+  L.style.left = (pos[0] - B.left) + 'px'; L.style.top = (pos[1] - B.top) + 'px';
 }
 // Zoom: 100 % = Blattbreite der Arbeitsfläche; Ausschnitt bleibt um den Bezugspunkt stehen
 function zoomAnwenden(halten = true, px = null, py = null) {
@@ -5273,17 +5372,34 @@ function zoomAnwenden(halten = true, px = null, py = null) {
   const rx = (f.scrollLeft + fx) / (f.scrollWidth || 1), ry = (f.scrollTop + fy) / (f.scrollHeight || 1);
   const breite = Math.max(280, cw - 40) * ED.b.zoom / 100;
   ED.karten.forEach(k => { k.style.width = breite + 'px'; });
+  // Marken „+“ (ab v1.53): Trefferkreis (r 6 mm) mindestens 44 px, sichtbares Zeichen (r 3,2 mm) bis 28 px
+  const bw = ED.liste[0] ? +ED.liste[0].svg.getAttribute('viewBox').split(' ')[2] : 297, pmm = breite / bw;
+  ED.ed.style.setProperty('--mkt', Math.max(1, 22 / (6 * pmm)).toFixed(3));
+  ED.ed.style.setProperty('--mks', Math.max(1, 14 / (3.2 * pmm)).toFixed(3));
   if (halten) { f.scrollLeft = rx * f.scrollWidth - fx; f.scrollTop = ry * f.scrollHeight - fy; }
   if (ED.zoomKnopf) ED.zoomKnopf.textContent = `${Math.round(ED.b.zoom)} %`;
   kontextLage();
 }
-function zoomSetzen(z, px = null, py = null) { if (!ED) return; ED.b.zoom = Math.max(40, Math.min(400, z)); zoomAnwenden(true, px, py); }
+// ohne Bezugspunkt (Knöpfe, Tasten) zoomt es ab v1.53 um die Mitte der Auswahl, liegt sie außerhalb, wird sie danach geholt
+function zoomSetzen(z, px = null, py = null) {
+  if (!ED) return;
+  const knopf = px === null, s = knopf && ED.blaetter.querySelector('[data-sel]');
+  let holen = false;
+  if (s) {
+    const F = ED.flaeche.getBoundingClientRect(), r = s.getBoundingClientRect(), cx = r.left + r.width / 2 - F.left, cy = r.top + Math.min(r.height / 2, 60) - F.top;
+    if (cx >= 0 && cx <= ED.flaeche.clientWidth && cy >= 0 && cy <= ED.flaeche.clientHeight) { px = cx; py = cy; } else holen = true;
+  }
+  ED.b.zoom = Math.max(40, Math.min(400, z)); zoomAnwenden(true, px, py);
+  if (holen) zeigeAuswahl(true);
+  if (knopf) kontextNeu();
+}
 // Blattwahl in der Fußleiste
 function aktuellesBlatt() { const f = ED.flaeche, y = f.scrollTop + f.clientHeight * 0.35; let i = 0; ED.karten.forEach((k, j) => { if (k.offsetTop <= y) i = j; }); return i; }
 function blattAnzeigen() {
   if (!ED || !ED.blattKnopf) return;
   const i = aktuellesBlatt(), bl = ED.liste[i]; ED.blattI = i;
-  ED.blattKnopf.textContent = bl ? `Blatt ${bl.nr} · ${BLATT_ART[bl.art]}` : 'keine Blätter';
+  ED.blattKnopf.replaceChildren(h('span', { class: 'lang' }, bl ? `Blatt ${bl.nr} · ${BLATT_ART[bl.art]}` : 'keine Blätter'),
+    h('span', { class: 'kurz' }, bl ? `${i + 1}/${ED.liste.length}` : '–'));      // ab v1.53: schmal „4/6“
 }
 function blattZeigen(i) { const k = ED.karten[i]; if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); }
 function fussNeu() {
@@ -5297,6 +5413,7 @@ function fussNeu() {
   ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', on: { click: () => menue('Blätter', ED.liste.map((bl, i) =>
     [`Blatt ${bl.nr} · ${BLATT_ART[bl.art]}`, () => blattZeigen(i), { an: i === ED.blattI }])) } });
   ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
+    ['Größer', () => zoomSetzen(b.zoom * 1.25), { klein: '+' }], ['Kleiner', () => zoomSetzen(b.zoom * 0.8), { klein: '−' }], '—',      // ab v1.53 (schmal ohne Knöpfe)
     ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
   const pr = ED.pruef || [];
   fuss.append(...[      // ohne Prüfliste kein „null“ in der Fußleiste (ab v1.52)
@@ -5308,6 +5425,10 @@ function fussNeu() {
     h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: '−' }), ED.zoomKnopf,
       ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' }))].filter(Boolean));
   ED.zoomKnopf.textContent = `${Math.round(b.zoom)} %`;
+  if (ED.band) {           // ab v1.53: unter 1000 px steht der Werkzeughinweis als Band über dem Blatt
+    ED.band.hidden = !b.tool;
+    ED.band.replaceChildren(...(b.tool ? [h('span', {}, hinweis), h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig')] : []));
+  }
   blattAnzeigen();
 }
 // Menüs der Kopfleiste
@@ -5437,11 +5558,12 @@ function editorEinfuegen(v, b, marke, tool = b.tool, n = 1) {
   else if (art === 'in') { liste = knoten(v, mid).k.kinder; idx = liste.length; inGruppe = true; }
   else { const r = knoten(v, mid); liste = r.liste; idx = r.i + (art === 'nach' ? 1 : 0); inGruppe = !!r.eltern; }
   if (inGruppe && (tool === 'gruppe' || (tool === 'ablage' && editorAblage && editorAblage.k.typ === 'gruppe'))) { meldung('Eine Gruppe kann nicht in einer Gruppe stehen'); return; }
+  while (fensterStapel.length) fensterStapel[fensterStapel.length - 1](false);      // ab v1.53: offenes Einfügemenü schließen
   const name = PAL_NAME(tool), neu = [];
   for (let i = 0; i < n && (tool !== 'ablage' || editorAblage); i++) neu.push(editorNeu(v, tool));
   liste.splice(idx, 0, ...neu); aenderung(`Einfügen: ${name}`); sichern();
   if (tool === 'ablage' && !editorAblage && b.tool === 'ablage') b.tool = null;
-  b.sel = 'k:' + neu[0].id; b.pz = []; b.blatt = true;
+  b.sel = 'k:' + neu[0].id; b.pz = []; b.blatt = true; b.springen = true;      // ab v1.53: zum neuen Teil springen
   zeichne();
   meldung(neu.length > 1 ? `${neu.length}× ${name} eingefügt` : `${name} eingefügt`);
 }
@@ -5473,21 +5595,45 @@ function editorAktion(v, b, was) {
     case 'ausschneiden': ablageSetzen(v, r.k, true);
       r.liste.splice(r.i, 1); b.sel = null; aenderung('Ausschneiden'); sichern(); meldung('Ausgeschnitten – Marke „+“ → Ausgeschnittenes'); return zeichne();
     case 'duplizieren': { const alt = editorAblage; ablageSetzen(v, r.k, false); const c = ablageHolen(v); editorAblage = alt;
-      r.liste.splice(r.i + 1, 0, c); b.sel = 'k:' + c.id; aenderung('Duplizieren'); sichern(); return zeichne(); }
+      r.liste.splice(r.i + 1, 0, c); b.sel = 'k:' + c.id; b.springen = true; aenderung('Duplizieren'); sichern(); return zeichne(); }
     case 'loeschen': return frage(r.k.typ === 'gruppe' ? 'Gruppe löschen' : 'Abgang löschen', r.k.typ === 'gruppe' ? 'Gruppe mit allen ihren Abgängen löschen?' : 'Diesen Abgang löschen?',
       () => { r.liste.splice(r.i, 1); b.sel = null; });
   }
 }
+// Steuerstromkreis eines Abgangs (gezeichnet) und Abgang eines Kreises bzw. Platzes (ab v1.53)
+function kreisVonAbgang(v, kid) {
+  const aktiv = berechne(v).steuer.aktiv;
+  return ((v.steuerung || {}).kreise || []).find(kr => aktiv[kr.id] && kr.pfade.some(p => p.verbraucher && String(p.verbraucher.g).split('~')[0] === kid)) || null;
+}
+function abgangVonKreis(v, sel) {
+  const [art, id] = sel.split(':'), kr = art === 'kr' ? ((v.steuerung || {}).kreise || []).find(x => x.id === id) : (kreisMitPfad(v, id) || {}).kr;
+  if (!kr) return null;
+  for (const p of kr.pfade) { const g = p.verbraucher && String(p.verbraucher.g).split('~')[0]; if (g && knoten(v, g)) return g; }
+  return null;
+}
 function bEditor(b) {
   const v = vById(b.vid) || P.verteiler[0]; if (!v) { stapel = [{ s: 'start' }]; zeichne(); return; }
   if (b.vid !== v.id) { b.vid = v.id; b.sx = b.sy = 0; }
-  b.zoom = b.zoom || 100; b.pz = b.pz || [];
+  b.zoom = b.zoom || 100; b.pz = b.pz || []; b.tool = b.tool || null;
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
   if (b.blatt === undefined) b.blatt = !!b.sel;
   if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : 'ab';
   const nZ = verlauf.zurueck.length, nV = verlauf.vor.length;
+  // Reiterwechsel (ab v1.53): Auswahl folgt – Abgang ↔ sein Steuerstromkreis, sonst wird sie aufgehoben
   const tab = (w, t) => h('button', { role: 'tab', 'data-w': w, 'aria-selected': String(b.palette === w), on: { click: () => {
-    paletteWahl(w); if (w === 'st') { const k = ED.karten.find(x => x.dataset.art === 'steuerung'); if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); } } } }, t);
+    const sel = b.sel || '', stSel = /^(pl|kr|g|st):/.test(sel);
+    if (w === 'st') {
+      const kr = sel.startsWith('k:') && kreisVonAbgang(v, sel.slice(2));
+      paletteWahl(w);
+      if (kr) return waehle('kr:' + kr.id, { springen: true });
+      if (sel && !stSel) waehle(null);
+      const k = ED.karten.find(x => x.dataset.art === 'steuerung'); if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' });
+    } else {
+      const kid = /^(pl|kr):/.test(sel) && abgangVonKreis(v, sel);
+      paletteWahl(w);
+      if (kid) return waehle('k:' + kid, { springen: true });
+      if (stSel) waehle(null);
+    } } } }, t);
   const kopfL = h('header', { class: 'edkopf' },
     ik('haus', 'Projektübersicht', () => { stapel = [{ s: 'start' }]; zeichne(); }),
     h('button', { class: 'vwahl', 'aria-label': 'Verteiler wählen', on: { click: () => verteilerMenue(v) } },
@@ -5504,8 +5650,9 @@ function bEditor(b) {
   const pal = h('aside', { class: 'edpal', 'aria-label': 'Palette' });
   const flaeche = h('section', { class: 'edflaeche', 'aria-label': 'Planblätter' }), blaetter = h('div', { class: 'blaetter' });
   const eigen = h('aside', { class: 'edeigen eigen', 'aria-label': 'Eigenschaften' }), fuss = h('footer', { class: 'edfuss' });
-  flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, eigen, fuss); app.append(ed);
-  ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, karten: [], liste: [], blattI: 0 };
+  const band = h('div', { class: 'werkzeugband', role: 'status', 'aria-live': 'polite', hidden: true });
+  flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, band, eigen, fuss); app.append(ed);
+  ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, band, karten: [], liste: [], blattI: 0 };
   // Blätter dieses Verteilers mit Antippflächen
   let res = null;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true, nur: v.id }); }
@@ -5546,12 +5693,14 @@ function bEditor(b) {
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (res) res.begrenzen();
   leiterFlaechen(); teilFlaechen(); nadeln(); markieren();
+  // Marken „+“ zuletzt ins Blatt (ab v1.53): ihr vergrößerter Trefferkreis liegt vor Abgangs- und Geräteflächen
+  ED.liste.forEach(bl => bl.svg.querySelectorAll('g.marke').forEach(m => bl.svg.append(m)));
   ED.pruef = prueflisteBerechnen(); fussNeu();
   kontextNeu(); blattAnzeigen();
-  if (b.springen) { b.springen = false; zeigeAuswahl(); }
+  if (b.springen) { b.springen = false; zeigeAuswahl(true); }      // ab v1.53 sofort: ein weicher Bildlauf würde vom ersten Zoomabgleich abgebrochen
   let rafS = 0;
   flaeche.addEventListener('scroll', () => { b.sx = flaeche.scrollLeft; b.sy = flaeche.scrollTop;
-    if (!rafS) rafS = requestAnimationFrame(() => { rafS = 0; blattAnzeigen(); }); }, { passive: true });
+    if (!rafS) rafS = requestAnimationFrame(() => { rafS = 0; blattAnzeigen(); kontextLage(); }); }, { passive: true });
   // Zoom mit zwei Fingern und mit Strg + Mausrad (Trackpad: Zusammenziehen)
   let pinch = null;
   const abst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
@@ -5805,7 +5954,7 @@ function bPlan(b) {
   const m = h('main');
   m.append(h('div', { class: 'liste' },
     zeile('Format', `${P.projekt.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w))));
-  m.append(h('p', { class: 'hinweis' }, 'Beim Drucken auf Skalierung 100 % achten. Über das Teilen- bzw. Druckmenü lässt sich der Plan auch als PDF sichern.'));
+  m.append(h('p', { class: 'hinweis' }, 'Blatt antippen zum Vergrößern. Beim Drucken auf Skalierung 100 % achten. Über das Teilen- bzw. Druckmenü lässt sich der Plan auch als PDF sichern.'));
   let res;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); }
   catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
@@ -5814,11 +5963,78 @@ function bPlan(b) {
     const k = h('div', { class: 'blattkarte' }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : '')));
     k.append(bl.svg); m.append(k);
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
+    const i = res.blaetter.indexOf(bl);
+    bl.svg.setAttribute('role', 'button'); bl.svg.setAttribute('aria-label', `Blatt ${bl.nr} vergrößern`);
+    bl.svg.addEventListener('click', () => planLupe(res.blaetter, i));
     if (b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = k;
   });
   if (!res.blaetter.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
   app.append(m);
   requestAnimationFrame(() => { res.begrenzen(); if (ziel) ziel.scrollIntoView(); });
+}
+// Lupe für ein Planblatt (ab v1.53): Vollbild, Pinch und Strg+Mausrad zoomen, Doppeltipp 1×/2×/4×,
+// Wischen (bei 1×) bzw. Pfeiltasten zum Nachbarblatt, Esc oder „Schließen“
+let planLupeOffen = null;
+function planLupe(liste, i) {
+  if (planLupeOffen) planLupeOffen.zu();
+  let z = 1, idx = i, pinch = null, wisch = null, tipp = 0;
+  const titel = h('div', { class: 'lupetitel' }), wert = h('span', { class: 'lupezoom' });
+  const innen = h('div', { class: 'lupeinnen' }), fl = h('div', { class: 'lupeflaeche' }, innen);
+  const L = h('div', { class: 'lupe planlupe', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Blatt vergrößert' },
+    h('div', { class: 'lupekopf' }, ik('links', 'Voriges Blatt', () => zeige(idx - 1)), titel, wert, ik('rechts', 'Nächstes Blatt', () => zeige(idx + 1)),
+      ik('zu', 'Schließen', () => zu(), { taste: 'Esc' })),
+    fl, h('div', { class: 'lupefuss' }, 'Zwei Finger oder Doppeltipp zoomen · wischen blättert'));
+  const basis = () => { const bl = liste[idx], vb = bl.svg.viewBox.baseVal, cw = fl.clientWidth - 24, ch = fl.clientHeight - 24;
+    return Math.max(200, Math.min(cw, ch * vb.width / vb.height)); };
+  // Maßstab setzen, Punkt (fx, fy) der Fläche bleibt stehen
+  const setze = (nz, fx = fl.clientWidth / 2, fy = fl.clientHeight / 2) => {
+    nz = Math.max(1, Math.min(6, nz));
+    const rx = (fl.scrollLeft + fx) / (fl.scrollWidth || 1), ry = (fl.scrollTop + fy) / (fl.scrollHeight || 1);
+    z = nz; innen.style.width = (basis() * z + 24) + 'px';
+    fl.scrollLeft = rx * fl.scrollWidth - fx; fl.scrollTop = ry * fl.scrollHeight - fy;
+    L.dataset.zoom = String(Math.round(z * 100) / 100); wert.textContent = `${Math.round(z * 100)} %`;
+  };
+  const zeige = j => {
+    if (j < 0 || j >= liste.length) return;
+    idx = j; const bl = liste[j], svg = bl.svg.cloneNode(true);
+    svg.removeAttribute('role'); svg.removeAttribute('aria-label');
+    innen.replaceChildren(svg); titel.textContent = `Blatt ${bl.nr} · ${bl.titel}`;
+    setze(1); fl.scrollTop = 0; fl.scrollLeft = 0;
+  };
+  const abst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const punkt = (x, y) => { const R = fl.getBoundingClientRect(); return [x - R.left, y - R.top]; };
+  fl.addEventListener('touchstart', ev => {
+    if (ev.touches.length === 2) { pinch = { d: abst(ev.touches), z }; wisch = null; }
+    else if (ev.touches.length === 1) wisch = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, z };
+  }, { passive: true });
+  fl.addEventListener('touchmove', ev => { if (!pinch || ev.touches.length !== 2) return; ev.preventDefault();
+    const [mx, my] = punkt((ev.touches[0].clientX + ev.touches[1].clientX) / 2, (ev.touches[0].clientY + ev.touches[1].clientY) / 2);
+    setze(pinch.z * abst(ev.touches) / pinch.d, mx, my); }, { passive: false });
+  fl.addEventListener('touchend', ev => {
+    if (ev.touches.length < 2) pinch = null;
+    if (wisch && !ev.touches.length && ev.changedTouches.length) {
+      const dx = ev.changedTouches[0].clientX - wisch.x, dy = ev.changedTouches[0].clientY - wisch.y;
+      if (wisch.z === 1 && z === 1 && Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) zeige(idx + (dx < 0 ? 1 : -1));
+      wisch = null;
+    }
+  });
+  fl.addEventListener('click', ev => {         // Doppeltipp bzw. Doppelklick: 1× → 2× → 4× → 1×
+    const jetzt = Date.now();
+    if (jetzt - tipp < 320) { tipp = 0; const [px, py] = punkt(ev.clientX, ev.clientY); setze(z < 1.5 ? 2 : z < 3 ? 4 : 1, px, py); }
+    else tipp = jetzt;
+  });
+  fl.addEventListener('wheel', ev => { if (!ev.ctrlKey && !ev.metaKey) return; ev.preventDefault();
+    const [px, py] = punkt(ev.clientX, ev.clientY); setze(z * Math.exp(-ev.deltaY * 0.0025), px, py); }, { passive: false });
+  const taste = ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopImmediatePropagation(); zu(); }
+    else if (ev.key === 'ArrowRight' && z === 1) zeige(idx + 1); else if (ev.key === 'ArrowLeft' && z === 1) zeige(idx - 1);
+    else if (ev.key === '+') setze(z * 1.25); else if (ev.key === '-') setze(z * 0.8);
+  };
+  const ro = new ResizeObserver(() => setze(z));
+  function zu() { L.remove(); ro.disconnect(); document.removeEventListener('keydown', taste, true); planLupeOffen = null; }
+  document.body.append(L); document.addEventListener('keydown', taste, true); ro.observe(fl);
+  planLupeOffen = { zu };
+  zeige(idx);
 }
 function drucken(trotzdem) {
   const hw = trotzdem === true ? [] : druckHinweise();     // Klick-Ereignis zählt nicht als „trotzdem“
@@ -5996,7 +6212,8 @@ function meldung(t) { const m = document.getElementById('meldung'); m.textConten
 function fehler(t) { const f = document.getElementById('fehlerband'); f.textContent = 'Fehler: ' + t; f.style.display = 'block'; }
 window.addEventListener('error', e => fehler(e.message));
 window.addEventListener('unhandledrejection', e => fehler(e.reason && e.reason.message || String(e.reason)));
-document.addEventListener('gesturestart', e => e.preventDefault());
+// Seitenzoom des Browsers nur im Editor und in der Lupe unterdrücken (dort zoomt die App selbst; ab v1.53)
+document.addEventListener('gesturestart', e => { if (ED || planLupeOffen) e.preventDefault(); });
 // Start (ab v1.52): gespeicherten Stand prüfen; lässt er sich nicht zeichnen, als Datei sichern und neu beginnen
 try { pruefeProjekt(P); zeichne(); }
 catch (e) {

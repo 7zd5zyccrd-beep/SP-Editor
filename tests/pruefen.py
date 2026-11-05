@@ -69,13 +69,17 @@ with sync_playwright() as p:
             if n1 != n0 + 1 or pg.evaluate("ED.b.tool") is not None: fehler.append(f'grund: Plan-Editor – Palettenklick ergab {n0} → {n1}, Werkzeug {pg.evaluate("ED.b.tool")}')
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             # Einfügen: Dauerwerkzeug Leuchte (Doppelklick), Marke „+“ hinter dem ersten Abgang, dann Strg+Z
-            pg.locator('.werkzeug', has_text='Leuchte').dblclick(); pg.wait_for_timeout(300)
+            # ab v1.59 (D08): mit der Maus fügt schon der erste Klick des Doppelklicks ein, der zweite schaltet das Dauerwerkzeug ein
+            pg.locator('.werkzeug', has_text='Leuchte').dblclick(); pg.wait_for_timeout(1000)
+            nd = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+            if nd != n0 + 1 or pg.evaluate("ED.b.tool") != 'leuchte': fehler.append(f'grund: Plan-Editor – Doppelklick ergab {n0} → {nd}, Werkzeug {pg.evaluate("ED.b.tool")}')
             pg.locator('g.marke[data-ziel^="nach:"]').first.dispatch_event('click'); pg.wait_for_timeout(300)
             n1 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
-            if n1 != n0 + 1: fehler.append(f'grund: Plan-Editor – Einfügen ergab {n0} → {n1}')
+            if n1 != nd + 1: fehler.append(f'grund: Plan-Editor – Einfügen ergab {nd} → {n1}')
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             n2 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
-            if n2 != n0: fehler.append(f'grund: Plan-Editor – Strg+Z ergab {n2} statt {n0}')
+            if n2 != nd: fehler.append(f'grund: Plan-Editor – Strg+Z ergab {n2} statt {nd}')
+            pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
             pg.keyboard.press('Escape'); pg.wait_for_timeout(100)
             # Ziehen mit der Maus: ersten Abgang (Gruppe -F3) hinter den letzten Abgang ziehen
             pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)

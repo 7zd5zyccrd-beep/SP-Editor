@@ -16,6 +16,12 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.59: Desktop-Runde D1, Etappe 1 „Fehler beheben“: Klick ins Leere hebt die Auswahl auf (Maus: weiße Spaltenfläche ohne
+           Zeichnung, Rand, graue Fläche; Finger: Rand und graue Fläche), Strg+P druckt den Plan und der Browserdruck füllt ihn
+           selbst (beforeprint), Strg+S sichert als Datei, Strg+O öffnet, Leertaste/Mitteltaste+Ziehen schwenkt die Ansicht, Esc
+           bricht Ziehen/Rahmen ab, Einfügelinie und blasse Quelle beim Ziehen, doppelte Kennzeichen als Warnung (Feld,
+           Hinweise; gleiche Hinweise an verschiedenen Stellen bleiben getrennt), „1 Abgang“, Kachel mit der Maus sofort
+           (Doppelklick zusätzlich Dauerwerkzeug); Pläne unverändert
      v1.58: Nutzertest Runde 2, Etappe 2 „Plattform-Feinschliff und Kleinigkeiten“: Marken „+“ kleiner und blass (voll am
            gewählten Teil, nicht in Steuerung/Zeichnen), Meldung nie über Kontextleiste/Band, alte Meldung weicht der nächsten
            Änderung, Steuerung auf Touch 130 % am linken Blattrand (auch über „Steuerstromkreis bearbeiten“), „Auf Auswahl“
@@ -327,6 +333,7 @@ h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--le
 .fenster.mitklein:not(.pop){max-height:calc(100dvh - 24px);display:flex;flex-direction:column}.fenster.mitklein:not(.pop) .inhalt{overflow-y:auto;min-height:0}
 .abhilfe{display:block;color:var(--tinte);font-size:13px;margin-top:2px}      /* ab v1.58 (C29): zweite Zeile „So beheben: …“ */
 .feldfehler{color:var(--rot);font-size:13px;margin:6px 2px 0}.zeile .un.feldfehler{color:var(--rot);white-space:normal;overflow:visible}.feldfehler[hidden]{display:none !important}input.fehler{border-color:var(--rot) !important;outline-color:var(--rot)}
+.feldfehler.feldwarn,.zeile .un.feldfehler.feldwarn{color:var(--warn)}input.warn{border-color:var(--warn) !important;outline-color:var(--warn)}
 .sort{display:flex;gap:4px;flex:0 0 auto}
 .sort button{border:1px solid var(--linie);background:var(--karte);border-radius:8px;width:36px;height:32px;cursor:pointer;color:var(--akzent)}
 .sort button:disabled{opacity:.3}
@@ -545,6 +552,9 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 @media (hover:hover){.ed .marke:hover circle,.ed .marke:hover line{opacity:1}}
 .ed[data-reiter="st"] .marke,.ed[data-reiter="ze"] .marke{display:none}
 .ed.ziehen rect.ziel{cursor:grabbing}
+.ed.leertaste .edflaeche,.ed.leertaste .edflaeche *{cursor:grab !important}.ed.schwenkt .edflaeche,.ed.schwenkt .edflaeche *{cursor:grabbing !important}
+.ed rect.ziel.quelle{fill:rgba(255,255,255,.6)}
+.ed .einfuegelinie{stroke:var(--ov);stroke-width:.7;stroke-linecap:round;pointer-events:none}
 .ed [data-ueber]{fill:rgba(106,53,232,.24)}
 .ed g.marke[data-ueber] circle:not(.treffer){fill:#4a1fb8}
 .kontext{position:absolute;z-index:3;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:1px;padding:4px;background:var(--dunkel);color:#fff;border-radius:13px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
@@ -1074,7 +1084,8 @@ const warnDazu = (a, t) => { a.warn = a.warn ? a.warn + ' ' + t : t; };
 // Abhilfe zu einer Warnung (ab v1.58, C29): nur als Text, ohne Automatik; mehrere Warnungen – mehrere Sätze
 const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrichtung/, 'Abgang in eine FI-Gruppe ziehen oder Gerät auf FI/LS stellen.'],
   [/Belastbarkeit/, 'Nennstrom senken oder Querschnitt erhöhen.'], [/nicht selektiv/, 'kleineres Schutzorgan im Abgang wählen.'],
-  [/Einstellbereich/, 'Einstellbereich passend zum Nennstrom wählen.']];
+  [/Einstellbereich/, 'Einstellbereich passend zum Nennstrom wählen.'],
+  [/Kennzeichen .* vergeben/, 'Kennzeichen von Hand ändern oder leeren (automatische Vergabe).']];      // ab v1.59 (D06)
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
 const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, '⚠ ' + t, ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
@@ -1088,7 +1099,9 @@ function fiVorVerteiler(v, tiefe = 0) {
 const penZuleitung = k => { const u = k.speist && vById(k.speist); return !!u && u.netzform !== 'TN-S'; };
 function berechne(v) {
   const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
-  const bmk = (art, hand) => { z[art]++; return hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; };
+  // ab v1.59 (D06): alle vergebenen Kennzeichen gesammelt, damit doppelte (von Hand gleich einem anderen) auffallen
+  const vergeben = [];
+  const bmk = (art, hand) => { z[art]++; const r = hand ? { t: hand, hand: true } : { t: `-${art}${z[art]}`, hand: false }; vergeben.push(r); return r; };
   const e = { geraete: {}, abgaenge: {}, kopf: {} };
   // Einspeisung von oben nach unten
   if (v.vorsicherung.zeichen) e.kopf.vorsicherung = bmk('F', v.vorsicherung.bmk);
@@ -1220,6 +1233,12 @@ function berechne(v) {
   e.last = last;
   e.steuer = berechneSteuerung(v, e, bmk, klemme);
   e.warn = verteilerWarnungen(v, e);
+  // ab v1.59 (D06): doppelte Kennzeichen – Warnung je Kennzeichen; e.doppelt für die Feldwarnung
+  const zahl = {};
+  vergeben.forEach(r => { const t = String(r.t || '').trim(); if (t) zahl[t] = (zahl[t] || 0) + 1; });
+  e.doppelt = {};
+  Object.entries(zahl).filter(([, n]) => n > 1).forEach(([t, n]) => { e.doppelt[t] = n;
+    e.warn.push(`Kennzeichen ${t} ist ${n === 2 ? 'doppelt' : n + '-mal'} vergeben – jedes Betriebsmittel braucht ein eigenes (DIN EN IEC 81346).`); });
   return e;
 }
 // Warnungen zum Verteiler (ab v1.43, Prüfbericht E2; ändern keinen Plan)
@@ -1265,7 +1284,8 @@ function verteilerWarnungen(v, e) {
 function druckHinweise() {
   const r = [], da = new Set();
   P.verteiler.forEach(v => { const e = berechne(v);
-    const dazu = (t, sel) => { const ab = abhilfeVon(t); t = `${v.name}: ${t}`; if (!da.has(t)) { da.add(t); r.push({ t, vid: v.id, sel, abhilfe: ab }); } };
+    // ab v1.59 (D06): gleiche Texte an verschiedenen Stellen (z. B. zweimal -F3) bleiben getrennte Einträge
+    const dazu = (t, sel) => { const ab = abhilfeVon(t); t = `${v.name}: ${t}`; const s = t + '\u0000' + (sel || ''); if (!da.has(s)) { da.add(s); r.push({ t, vid: v.id, sel, abhilfe: ab }); } };
     e.warn.forEach(t => dazu(t, null));
     e.steuer.warn.forEach(t => dazu(t, 'st:'));
     Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.warn) dazu(`${(a.f || {}).t || 'Abgang'}: ${a.warn}`, 'k:' + kid.split('~')[0]); });
@@ -1585,6 +1605,16 @@ document.addEventListener('pointerdown', ev => {
 }, true);
 const ankerFrisch = () => anker && Date.now() - anker.zeit < 1500 ? anker : null;
 const fensterStapel = [];
+// Datei-Kürzel (ab v1.59, D02/D05): Strg+P druckt den Plan, Strg+S sichert das Projekt als Datei, Strg+O öffnet eine;
+// überall in der App, auch in Eingabefeldern (das Feld wird vorher übernommen); bei offenem Fenster nur abgefangen
+document.addEventListener('keydown', ev => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey) return;
+  const t = ev.key.toLowerCase(); if (t !== 'p' && t !== 's' && t !== 'o') return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  if (fensterStapel.length) return;
+  const a = document.activeElement; if (a && /INPUT|TEXTAREA/.test(a.tagName)) a.blur();
+  if (t === 'p') drucken(); else if (t === 's') exportieren(); else document.getElementById('datei').click();
+}, true);
 document.addEventListener('keydown', ev => {
   if (!fensterStapel.length) return;
   const s = fensterStapel[fensterStapel.length - 1];
@@ -1643,9 +1673,13 @@ function zahlFehler(t, z) {
 function eingabe(i, titel, setzen, opt, fehlerEl) {
   const t = i.value.trim(), f = opt.zahl ? zahlFehler(t, opt.zahl) : null;
   i.classList.toggle('fehler', !!f); i.setAttribute('aria-invalid', f ? 'true' : 'false');
-  if (fehlerEl) { fehlerEl.textContent = f || ''; fehlerEl.hidden = !f; }
+  if (fehlerEl) { fehlerEl.textContent = f || ''; fehlerEl.hidden = !f; fehlerEl.classList.remove('feldwarn'); }
   if (f) return;
   setzen(t); aenderung(titel); sichern();
+  // ab v1.59 (D06): Warnung am Feld (der Wert gilt trotzdem), z. B. ein schon vergebenes Kennzeichen
+  const w = opt.warn ? opt.warn(t) : null;
+  i.classList.toggle('warn', !!w);
+  if (fehlerEl && w) { fehlerEl.textContent = w; fehlerEl.hidden = false; fehlerEl.classList.add('feldwarn'); }
 }
 const zahlOpt = (opt, z) => Object.assign({ inputmode: z.text ? null : 'decimal', zahl: z }, opt);
 function textFeld(titel, wert, setzen, opt = {}) {
@@ -1654,7 +1688,7 @@ function textFeld(titel, wert, setzen, opt = {}) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
   const fe = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true });
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
-  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl ? fe : null];
+  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl || opt.warn ? fe : null];
   const schl = fenster(titel, kids);
   i.addEventListener('keydown', ev => { if (ev.key === 'Enter') schl(); });
   setTimeout(() => i.focus(), 50);
@@ -1663,13 +1697,15 @@ function textFeld(titel, wert, setzen, opt = {}) {
 function textInline(z, titel, wert, setzen, opt) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
   const fe = h('span', { class: 'un feldfehler', 'aria-live': 'polite', hidden: true });
-  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl ? fe : null), i);
+  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl || opt.warn ? fe : null), i);
   z.replaceWith(box);
   let fertig = false;
   const ende = zurueckNehmen => {
     if (fertig) return; fertig = true;
     if (zurueckNehmen) { setzen(wert || ''); sichern(); }
     zeichne();
+    const w = !zurueckNehmen && opt.warn ? opt.warn(i.value.trim()) : null;      // ab v1.59 (D06): Warnung bleibt nach dem Bestätigen sichtbar
+    if (w) meldung('⚠ ' + w);
   };
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
   i.addEventListener('keydown', ev => {
@@ -1708,8 +1744,12 @@ function frage(titel, text, ja, jaText = 'Löschen') {
 }
 // Kennzeichen: automatisch oder von Hand
 function bmkFeld(titel, objekt, auto) {
+  // ab v1.59 (D06): ist das Kennzeichen im Verteiler schon vergeben, warnt das Feld (der Wert wird trotzdem übernommen)
+  const b = stapel[stapel.length - 1], v = (b && b.vid && vById(b.vid)) || (ED && ED.v);
+  const warn = t => { if (!t || !v) return null; const n = (berechne(v).doppelt || {})[t];
+    return n ? `${t} ist in „${v.name}“ ${n === 2 ? 'doppelt' : n + '-mal'} vergeben.` : null; };
   textFeld(titel, objekt.bmk || '', w => { objekt.bmk = w || undefined; },
-    { platz: auto, text: `Leer lassen für die automatische Vergabe (zurzeit ${auto}).` });
+    { platz: auto, text: `Leer lassen für die automatische Vergabe (zurzeit ${auto}).`, warn });
 }
 
 // ---- Hilfe und Begriffe (ab v1.54) ---------------------------------------
@@ -1874,7 +1914,7 @@ function bStart() {
     const karte = h('button', { class: 'vkarte', on: { click: () => { if (!sortieren) geh({ s: 'editor', vid: v.id }); } } },
       h('span', { class: 'vk-name' }, v.name),
       h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${leiterText(v)}`),
-      h('span', { class: 'vk-un' }, `${n} Abgäng${n === 1 ? '' : 'e'}` + (nk ? ` · ${nk} Steuerstromkreis${nk === 1 ? '' : 'e'}` : '')),
+      h('span', { class: 'vk-un' }, `${n} ${n === 1 ? 'Abgang' : 'Abgänge'}` + (nk ? ` · ${nk} Steuerstromkreis${nk === 1 ? '' : 'e'}` : '')),
       warn ? h('span', { class: 'vk-warn' }, `⚠ ${warn} Hinweis${warn === 1 ? '' : 'e'}`) : null,
       h('span', { class: 'vk-aktion' }, sortieren ? '' : `Plan bearbeiten ${PFEIL}`));
     grid.append(sortieren ? h('div', { class: 'vkhalter' }, karte, sortKnoepfe(P.verteiler, i)) : karte);
@@ -2996,8 +3036,13 @@ document.addEventListener('keydown', ev => {
   if (strg && (t === 'z' || t === 'y')) { ev.preventDefault(); return projektRueck(t === 'y' || ev.shiftKey); }
   if (b.s !== 'editor' || !ED) return;
   const v = ED.v;
-  // Teil im Blatt mit der Tastatur fokussiert: Eingabe/Leertaste wählt es
-  if ((t === 'enter' || t === ' ') && ev.target.closest && ev.target.closest('.ed svg [data-ziel]')) { ev.preventDefault(); return ev.target.closest('[data-ziel]').dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+  // ab v1.59 (D04): Esc bricht Ziehen, Rahmen und Schwenken ab, bevor es etwas anderes tut
+  if (t === 'escape' && (zieh || rahmenZug || schwenk)) { ev.preventDefault(); return ziehAbbruch(); }
+  // Teil im Blatt mit der Tastatur fokussiert: Eingabe/Leertaste wählt es – die Leertaste nur, solange die Maus nicht über
+  // den Blättern steht; dort hält sie zum Schwenken (ab v1.59, D03; nie die Knöpfe der Palette auslösen)
+  const anTeil = ev.target.closest && ev.target.closest('.ed svg [data-ziel]');
+  if (t === ' ' && (ED.zeigerDrin || !anTeil)) { if (ED.zeigerDrin || ev.target === document.body || (ev.target.closest && ev.target.closest('.edflaeche'))) { ev.preventDefault(); if (!ev.repeat) leerTasteSetzen(true); } return; }
+  if ((t === 'enter' || t === ' ') && anTeil) { ev.preventDefault(); return anTeil.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
   // gewählter Platz im Steuerstromkreis
   const m = /^pl:([^:]+):(\d)$/.exec(b.sel || '');
   if (m) {
@@ -3217,12 +3262,21 @@ function zuschneiden(wurzel) {
 }
 // opt.dauer (ab v1.53): Doppelklick bzw. -tipp oder langes Halten ruft dauer() statt klick() (Dauerwerkzeug);
 // der einfache Klick wartet dafür kurz ab
+// ab v1.59 (D08): mit der Maus fügt der Klick sofort ein; ein zweiter Klick derselben Kachel innerhalb von 300 ms schaltet
+// zusätzlich das Dauerwerkzeug ein (der erste Einfüger bleibt). Gemerkt außerhalb der Kachel, weil das Einfügen die
+// Palette neu aufbaut. Finger und Pencil unverändert (Doppeltipp bzw. Halten).
+let kachelMaus = null;      // { name, zeit } des letzten Mausklicks (zeit = ev.timeStamp: zählt auch, wenn das Einfügen dauert)
 function kachel(name, zeichen, zusatz, klick, opt = {}) {
-  let t = null, halten = null, gehalten = false;
+  let t = null, halten = null, gehalten = false, zeiger = 'mouse';
   const on = !opt.dauer ? { click: klick } : {
     click: ev => { if (gehalten) { gehalten = false; return; }
+      if (zeiger === 'mouse' && !t) {
+        const jetzt = ev.timeStamp || performance.now(), zweit = kachelMaus && kachelMaus.name === name && jetzt - kachelMaus.zeit < 300;
+        kachelMaus = zweit ? null : { name, zeit: jetzt };
+        return zweit ? opt.dauer(ev) : klick(ev);
+      }
       if (t) { clearTimeout(t); t = null; opt.dauer(ev); } else t = setTimeout(() => { t = null; klick(ev); }, 260); },
-    pointerdown: () => { gehalten = false; clearTimeout(halten); halten = setTimeout(() => { gehalten = true; clearTimeout(t); t = null; opt.dauer(); }, 500); },
+    pointerdown: ev => { zeiger = ev.pointerType || 'mouse'; gehalten = false; clearTimeout(halten); halten = setTimeout(() => { gehalten = true; clearTimeout(t); t = null; opt.dauer(); }, 500); },
     pointerup: () => clearTimeout(halten), pointerleave: () => clearTimeout(halten), pointercancel: () => clearTimeout(halten),
     contextmenu: ev => ev.preventDefault() };
   return h('button', { class: 'werkzeug', 'aria-pressed': opt.an !== undefined ? String(!!opt.an) : null, title: opt.titel || name.replace(/\u00ad/g, ''), on },
@@ -4334,6 +4388,14 @@ function bEditor(b) {
   const band = h('div', { class: 'werkzeugband', role: 'status', 'aria-live': 'polite', hidden: true });
   flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, band, eigen, fuss); app.append(ed);
   flaeche.addEventListener('pointerdown', () => { if (palQuer) palUeberlage(false); });      // ab v1.57: Tipp aufs Blatt schließt die Überlage
+  // ab v1.59 (D03): Maus mit gedrückter Leertaste oder Mitteltaste schwenkt die Ansicht – vor allem anderen, ohne Wahl und Ziehen
+  flaeche.addEventListener('pointerdown', ev => { if (ev.pointerType !== 'mouse' || !(ev.button === 1 || (leerTaste && ev.button === 0))) return;
+    ev.preventDefault(); ev.stopPropagation(); schwenkStart(ev); }, true);
+  flaeche.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = true; });
+  flaeche.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = false; });
+  // ab v1.59 (D01): Klick bzw. Tipp auf die graue Fläche oder den Blattkopf hebt die Auswahl auf (Wischen löst keinen Klick aus)
+  flaeche.addEventListener('click', ev => { if (ev.target.closest('svg, button, .kontext, .leerkarte, input, a') || ziehKlickSperre || abbruchSperre) return;
+    if (!b.tool && (b.sel || b.blatt)) waehle(null); });
   ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, band, karten: [], liste: [], blattI: 0 };
   // Startzoom (ab v1.55): schmale Fläche (iPhone hoch) 150 % mit Ausschnitt am ersten Abgang, Steuerung auf Touch 130 %
   let startAusschnitt = false;
@@ -4417,11 +4479,15 @@ function bEditor(b) {
   ED.ro = new ResizeObserver(() => zoomAnwenden(true)); ED.ro.observe(flaeche);
 }
 function editorKlick(ev, v, b) {
-  if (ziehKlickSperre) return;
+  if (ziehKlickSperre || abbruchSperre) return;
   if (istZeichenWerkzeug(b.tool)) return zeichnenKlick(ev, v, b);
   if (b.tool === 'zauswahl') return;
-  const z = ev.target.closest('[data-ziel]');
-  if (!z) return;
+  let z = ev.target.closest('[data-ziel]');
+  // ab v1.59 (D01): mit der Maus zählt eine Spaltenfläche (Abgang, Gruppe, SPD, Einspeisung, Kreis) nur dort, wo
+  // gezeichnet oder beschriftet ist; die weiße Fläche daneben ist leer. Finger und Pencil treffen weiter die ganze Spalte,
+  // ebenso Tastatur und Programm (ausgelöste Klicks ohne Zeigerlage).
+  if (z && ev.isTrusted && dtZeiger === 'mouse' && z.matches('rect.ziel:not(.teil)') && /^(k|s|e|kr):/.test(z.dataset.ziel) && !trifftZeichnung(ev, z.ownerSVGElement)) z = null;
+  if (!z) { if (!b.tool && (b.sel || b.blatt)) waehle(null); return; }      // Klick ins Leere hebt die Auswahl auf (ab v1.59, D01)
   const id = z.dataset.ziel, stW = istSteuerWerkzeug(b.tool);
   const sammel = b.sel === 'm:' && b.sammel;
   if (/^k:/.test(id) && !b.tool && (sammel || ev.shiftKey || ev.ctrlKey || ev.metaKey)) {      // Sammelauswahl (ab v1.56)
@@ -4452,6 +4518,21 @@ function editorKlick(ev, v, b) {
   waehle(id);
 }
 
+// Trifft ein Mausklick etwas Gezeichnetes (ab v1.59, D01)? Leiter und Zeichen mit 1,5 mm Spielraum, Texte mit 0,5 mm;
+// große Umrisse (Rahmen, Kästen über 12 mm in beiden Richtungen) zählen nicht. Gerechnet in Bildschirmpunkten.
+function trifftZeichnung(ev, svg) {
+  const M = svg && svg.getScreenCTM(); if (!M) return true;
+  const k = Math.hypot(M.a, M.b), x = ev.clientX, y = ev.clientY, gross = 12 * k;
+  for (const el of svg.querySelectorAll('line, path, text, circle, ellipse, rect, polygon, polyline')) {
+    if (el.closest('[data-ziel], .marke, .nadel, .spaltenvorschau, .netzhalo, .zhinweis, .einfuegelinie')) continue;
+    const r = el.getBoundingClientRect(); if (!r.width && !r.height) continue;
+    if (r.width > gross && r.height > gross) continue;
+    const tol = (el.tagName === 'text' ? 0.5 : 1.5) * k;
+    if (x >= r.left - tol && x <= r.right + tol && y >= r.top - tol && y <= r.bottom + tol) return true;
+  }
+  return false;
+}
+
 // Platz außerhalb eines Zweigs mit einem Werkzeug angetippt (ab v1.54): Zweig verlängern oder neuen Pfad anlegen,
 // danach wird das Werkzeug dort angewandt
 function ausserhalbMenue(v, b, r, i) {
@@ -4473,6 +4554,33 @@ function ausserhalbMenue(v, b, r, i) {
 // Verbraucher auf einen anderen Platz (belegt: tauschen). Maus: Ziehen beginnt nach kurzer
 // Bewegung; Finger und Pencil: kurz halten (0,35 s), dann ziehen – Wischen blättert weiter.
 let zieh = null, ziehKlickSperre = false;
+// ab v1.59 (D04): Esc bricht ein laufendes Ziehen, einen Auswahlrahmen oder das Schwenken ab – nichts ändert sich;
+// der Klick beim späteren Loslassen zählt nicht (abbruchSperre bis kurz nach dem Loslassen)
+let abbruchSperre = false;
+function ziehAbbruch() {
+  if (zieh) { if (zieh.aktiv) ziehEnde(null); else { clearTimeout(zieh.timer); zieh = null; } }
+  if (rahmenZug) { if (rahmenZug.el) rahmenZug.el.remove(); rahmenZug = null; }
+  if (schwenk) schwenkEnde();
+  abbruchSperre = true;
+}
+window.addEventListener('pointerup', () => { if (abbruchSperre) setTimeout(() => { abbruchSperre = false; }, 80); });
+// Schwenken (ab v1.59, D03): Leertaste+Ziehen bzw. Mitteltaste+Ziehen verschiebt die Ansicht, Zeiger „grab“
+let leerTaste = false, schwenk = null;
+function schwenkStart(ev) {
+  if (!ED) return;
+  schwenk = { x: ev.clientX, y: ev.clientY, sl: ED.flaeche.scrollLeft, st: ED.flaeche.scrollTop };
+  ED.ed.classList.add('schwenkt');
+}
+function schwenkEnde() {
+  schwenk = null; if (ED) ED.ed.classList.remove('schwenkt');
+  ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
+}
+function leerTasteSetzen(an) { leerTaste = an; if (ED) ED.ed.classList.toggle('leertaste', an); }
+window.addEventListener('pointermove', ev => { if (!schwenk || !ED) return;
+  ED.flaeche.scrollLeft = schwenk.sl - (ev.clientX - schwenk.x); ED.flaeche.scrollTop = schwenk.st - (ev.clientY - schwenk.y); });
+window.addEventListener('pointerup', () => { if (schwenk) schwenkEnde(); });
+window.addEventListener('blur', () => { if (leerTaste) leerTasteSetzen(false); if (schwenk) schwenkEnde(); });
+document.addEventListener('keyup', ev => { if (ev.key === ' ' && leerTaste) { ev.preventDefault(); leerTasteSetzen(false); } }, true);
 function ziehBereit(ev, v, b) {
   if (b.tool || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
   if (ev.shiftKey) return;                  // Umschalt: Rahmenauswahl bzw. Auswahl erweitern
@@ -4503,6 +4611,8 @@ function ziehAn() {
   if (!zieh.maus && zieh.teil) zieh.lupe = h('div', { class: 'lupe' });
   if (zieh.lupe) document.body.append(zieh.lupe);
   const name = zieh.teil && zieh.teil.weg ? 'Leiter ' + zieh.teil.l.art : zieh.teil ? gruppeName(zieh.teil.gruppe) : r ? (r.k.typ === 'gruppe' ? `${(e.geraete[id] || {}).t || ''} Gruppe` : `${(a && a.f) ? a.f.t + ' ' : ''}${abgangName(r.k)}`) : 'Kontakt';
+  // ab v1.59 (D30): die gezogene Spalte bzw. der Platz verblasst (40 %), solange gezogen wird
+  if (!zieh.teil && zieh.ziel && zieh.ziel.matches && zieh.ziel.matches('rect.ziel')) zieh.ziel.classList.add('quelle');
   zieh.geist = h('div', { class: 'zieh' + (zieh.maus ? '' : ' finger') }, name);
   if (!zieh.maus && m) m.classList.add('finger');       // ab v1.55: Ziel unter dem Finger deutlich hervorheben
   document.body.append(zieh.geist); ziehGeist(zieh.x, zieh.y);
@@ -4539,6 +4649,7 @@ function ziehEnde(ev) {
   const ziel = ev ? ziehZiel(ev.clientX, ev.clientY) : null;      // braucht noch das laufende Ziehen
   zieh = null;
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
+  document.querySelectorAll('.einfuegelinie, rect.ziel.quelle').forEach(x => x.tagName === 'line' ? x.remove() : x.classList.remove('quelle'));
   spaltenVorschau(null);
   ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
   if (!ziel) {
@@ -4586,8 +4697,22 @@ window.addEventListener('pointermove', ev => {
   if (zieh.teil) return teilZiehen(ev);
   document.querySelectorAll('[data-ueber]').forEach(x => x.removeAttribute('data-ueber'));
   const z = ziehZiel(ev.clientX, ev.clientY); if (z) z.setAttribute('data-ueber', '');
+  einfuegeLinie(z);
   spaltenVorschau(!z && zieh.id.startsWith('k:') ? spalteUnter(ev.clientX, ev.clientY, zieh) : null);
 });
+// Einfügelinie (ab v1.59, D30): senkrechte Linie, wo der gezogene Abgang landet – an der Marke „+“ bzw. hinter dem Abgang
+function einfuegeLinie(z) {
+  document.querySelectorAll('.einfuegelinie').forEach(x => x.remove());
+  if (!z || !zieh || !zieh.id.startsWith('k:') || !ED) return;
+  const svg = z.ownerSVGElement; if (!svg) return;
+  let x, y0, y1;
+  if (z.matches('g.marke')) { const c = z.querySelector('circle:not(.treffer)'); if (!c) return; x = +c.getAttribute('cx'); y0 = +c.getAttribute('cy') + 3.4; y1 = ED.raster.sfTop - 2; }
+  else if (z.matches('rect')) { x = +z.getAttribute('x') + +z.getAttribute('width'); y0 = +z.getAttribute('y'); y1 = y0 + +z.getAttribute('height'); }
+  else return;
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  [['x1', x], ['y1', y0], ['x2', x], ['y2', y1], ['class', 'einfuegelinie']].forEach(([k, w]) => l.setAttribute(k, w));
+  svg.append(l);
+}
 // Abgang auf ein anderes Blatt (ab v1.30): in der Reihenfolge hinter den letzten Abgang links der Zielspalte
 // (bzw. vor den ersten des Blatts), dazu die Wunschspalte; nur für Abgänge und Gruppen an der Hauptschiene
 function abgangAufBlatt(v, b, kid, sp) {
@@ -4800,7 +4925,20 @@ function planLupe(liste, i) {
   planLupeOffen = { zu }; historie();
   zeige(idx);
 }
+// Planblätter des ganzen Projekts in #druck (ab v1.59 eigene Funktion, D02: auch für Strg+P und den Browserdruck)
+let druckBereit = false;      // #druck ist für den laufenden Druck der App gefüllt (Plan oder Türzettel); sonst füllt beforeprint
+function druckFuellen() {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang });
+  res.blaetter.forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); d.append(w); });
+  document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
+  d.style.display = 'block'; res.begrenzen(); d.style.display = '';
+}
+// ab v1.59 (D02): druckt der Browser ohne die App (Menü „Drucken“), kommen immer die Planblätter aufs Papier
+window.addEventListener('beforeprint', () => { if (!druckBereit) try { druckFuellen(); } catch (er) {} });
+window.addEventListener('afterprint', () => { druckBereit = false; });
 function drucken(trotzdem) {
+  druckFuellen();      // ab v1.59: sofort gefüllt – auch während der Hinweis offen ist, druckt der Browser den Plan
   const hw = trotzdem === true ? [] : druckHinweise();     // Klick-Ereignis zählt nicht als „trotzdem“
   if (hw.length) {         // ab v1.43: vor dem Drucken auf Unvollständiges hinweisen
     let zu = null;
@@ -4812,11 +4950,7 @@ function drucken(trotzdem) {
       h('button', { class: 'knopf', on: { click: () => { s(); setTimeout(() => drucken(true), 0); } } }, 'Trotzdem drucken')]);
     return;
   }
-  const d = document.getElementById('druck'); d.innerHTML = '';
-  const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang });
-  res.blaetter.forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); d.append(w); });
-  document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
-  d.style.display = 'block'; res.begrenzen(); d.style.display = '';
+  druckBereit = true;
   setTimeout(() => window.print(), 60);
 }
 
@@ -4889,6 +5023,7 @@ function tuerDrucken(liste) {
   const d = document.getElementById('druck'); d.innerHTML = '';
   liste.forEach(v => d.append(tuerzettel(v)));
   document.getElementById('seite').textContent = '@page{size:A4 portrait;margin:14mm 12mm}';
+  druckBereit = true;
   setTimeout(() => window.print(), 60);
 }
 

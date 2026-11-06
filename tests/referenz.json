@@ -106,7 +106,7 @@
   ],
   [
    "7 HV abgang",
-   "54558d38e85545cabea742f2bec43cba"
+   "e464d86c27037479a505a3378e7a6482"
   ],
   [
    "8 UV Werkstatt kombiniert",
@@ -148,7 +148,7 @@
   ],
   [
    "7 HV abgang",
-   "1334a361a16d314a608cb06be1ec8b5d"
+   "ae984ea934840a63cb867ece1c06d6a4"
   ],
   [
    "8 HV abgang",
@@ -198,7 +198,7 @@
   ],
   [
    "7 HV abgang",
-   "ad693c40da06581a404e68025b3b70e7"
+   "79ae264b525ece71eeebf588c3ee9c7c"
   ],
   [
    "8 HV abgang",
@@ -248,7 +248,7 @@
   ],
   [
    "7 HV abgang",
-   "d0aa4b0afde68e4d29931cb1f1b20b2d"
+   "c4ad042f8c828534d2e04a52e329ab59"
   ],
   [
    "8 HV abgang",
@@ -302,7 +302,7 @@
   ],
   [
    "7 HV abgang",
-   "f50413c053b31d9aff190e6abcb8a7bb"
+   "ad9e1967dacd36b4cf7113d33204801a"
   ],
   [
    "8 HV abgang",
@@ -356,7 +356,7 @@
   ],
   [
    "7 HV abgang",
-   "1ba9c9d39a41f2fbeee75f492a0f22da"
+   "c3493ceeaf04507d33b9f87e9e36cee3"
   ],
   [
    "8 HV abgang",
@@ -406,7 +406,7 @@
   ],
   [
    "7 HV abgang",
-   "12ef40405c3e5b22e3fc5aa3839ff4e5"
+   "9d0e20b8f63df12e471fad86e945afb4"
   ],
   [
    "8 HV abgang",
@@ -456,7 +456,7 @@
   ],
   [
    "7 HV abgang",
-   "f7da59c8da5a4063a6f380a633e5f880"
+   "5394c6eb96bf70dbaa7c9a486e1a0409"
   ],
   [
    "8 HV abgang",
@@ -510,7 +510,7 @@
   ],
   [
    "7 HV abgang",
-   "c7327ec157dbb6a97f96680daf744fb9"
+   "c470b53af85d4773fbd39e3ba1c8716e"
   ],
   [
    "8 HV abgang",
@@ -564,7 +564,7 @@
   ],
   [
    "7 HV abgang",
-   "f50413c053b31d9aff190e6abcb8a7bb"
+   "ad9e1967dacd36b4cf7113d33204801a"
   ],
   [
    "8 HV abgang",
@@ -694,7 +694,7 @@
   ],
   [
    "7 HV abgang",
-   "1334a361a16d314a608cb06be1ec8b5d"
+   "ae984ea934840a63cb867ece1c06d6a4"
   ],
   [
    "8 HV abgang",
@@ -1212,7 +1212,7 @@
   ],
   [
    "6 HV abgang",
-   "6552f391cb5abbe299d9d79b966beb46"
+   "3db385a7a925c6f1492b0a4ee16f1989"
   ],
   [
    "7 HV abgang",
@@ -1229,6 +1229,36 @@
   [
    "10 UV Werkstatt kombiniert",
    "b275b918c44a4adfc2c8b3ee18849a06"
+  ]
+ ],
+ "breitgruppe": [
+  [
+   "1 Deckblatt deckblatt",
+   "1e3b97ffc1c9ad017d1e2d24b8e2e64c"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "042fafc59aae482efeee56141625a4d7"
+  ],
+  [
+   "3 HV uebersicht",
+   "69ff23057ac0cbd5544c98c60a2d5d07"
+  ],
+  [
+   "4 HV einspeisung",
+   "d66eb1324fe0633ad745d28b2ec2453e"
+  ],
+  [
+   "5 HV abgang",
+   "5cf5ade7d3bad383aae327c47f9a724a"
+  ],
+  [
+   "6 HV abgang",
+   "7a50039daf59c019ef131a6be055cd55"
+  ],
+  [
+   "7 HV steuerung",
+   "51eab09fd2504ea5ad58b91c0931c0e7"
   ]
  ]
 }

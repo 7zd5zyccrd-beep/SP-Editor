@@ -20,7 +20,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -48,6 +48,15 @@ with sync_playwright() as p:
                 if 163.5 in werte: haupt = 163.5
                 ab = [y for y in werte if y > haupt + 0.01 and y - haupt not in (1.5,)]
                 if any(y - haupt > 2 for y in ab): fehler.append(f'{name} {t}: Pfad endet tiefer als die Steckdosen ({haupt} mm): {ab}')
+        # ab v1.64 (F01): nichts außerhalb des Rahmens – alle Elemente nach dem Rahmen selbst (A4: 61, A3: 89 Elemente) gegen
+        # die Rahmenkanten (links 20 mm, sonst 10 mm), 0,3 mm Spielraum für Strichbreiten
+        fehler += [f'{name} {t}: Element außerhalb des Rahmens ({w})' for t, w in pg.evaluate("""() => [...document.querySelectorAll('.blattkarte')].map(k => {
+            const svg = k.querySelector('svg'), W = svg.viewBox.baseVal.width, H = svg.viewBox.baseVal.height, R = svg.getBoundingClientRect(), kx = W / R.width;
+            const g = svg.querySelector(':scope > g'); let w = null;
+            [...g.children].slice(W > 300 ? 89 : 61).forEach(e => { if (w || e.tagName === 'rect') return; const r = e.getBoundingClientRect(); if (!r.width && !r.height) return;
+              const x0 = (r.left - R.left) * kx, x1 = (r.right - R.left) * kx, y0 = (r.top - R.top) * kx, y1 = (r.bottom - R.top) * kx;
+              if (x0 < 20 - 0.3 || x1 > W - 10 + 0.3 || y0 < 10 - 0.3 || y1 > H - 10 + 0.3) w = e.tagName + ' ' + (e.textContent || '').slice(0, 20) + ' ' + [x0, y0, x1, y1].map(v => v.toFixed(1)).join('/'); });
+            return [k.querySelector('.bt').innerText.replace(/\\n/g, ' '), w]; }).filter(x => x[1])""")]
         # alle Eingabebildschirme des ersten Verteilers einmal aufbauen (Skriptfehler fallen auf)
         fehler += [f'{name}: Bildschirm {x}' for x in pg.evaluate("""() => { const v = P.verteiler[0], st = v.steuerung || {}, aus = [];
             const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }, { s: 'editor', vid: v.id }];

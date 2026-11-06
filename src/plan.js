@@ -262,10 +262,25 @@ const PLAN = (() => {
   function zeilenTeilen(t, gr, max, fett = false) {
     if (!t || textBreite(t, gr, fett) * 0.85 <= max) return [t];
     // Zahl und Einheit bleiben zusammen („30 mA“ / „Typ A“, „C“ / „32 A“); Bereiche dürfen hinter dem Strich umbrechen („9–“ / „14 A“)
+    // Rangfolge (F05, D2 06.11.2026): erst zwischen Angaben (Leerzeichen), einen Bereich nur als letzte Stufe hinter dem
+    // Bis-Strich – der Strich bleibt am Zeilenende (Duden), die Einheit beim zweiten Wert. Im Übersichtsplan ist das an
+    // Motorschutzschalter und Überlastrelais unvermeidbar: links sind dort nur 4,4 bzw. 4,5 mm frei, „6,3–10 A“ braucht
+    // auf 85 % gestaucht 7,5 mm.
     const fest = t.replace(/(\d) (?=(m?A|k?V|VA|k?W|kWh|kWp)\b)/g, '$1\u00a0');
     const teile = fest.split(/(?<=[ \-–])/), r = [''];
     teile.forEach(w => { if (r[r.length - 1] && textBreite((r[r.length - 1] + w).trim(), gr, fett) > max) r.push(w.trimStart()); else r[r.length - 1] += w; });
     return r.map(z => z.trim().replace(/\u00a0/g, ' ')).filter(Boolean);
+  }
+  // Bezeichnung auf höchstens zwei Zeilen (ab v1.64, F03): passt sie auch auf 85 % gestaucht nicht, wird an der Stelle
+  // getrennt (Leerzeichen, „/“, „-“), an der die längere Zeile am kürzesten ist
+  function zweiZeilen(t, gr, max, fett = false) {
+    if (!t || textBreite(t, gr, fett) * 0.85 <= max) return [t];
+    let best = [t], bw = Infinity;
+    for (const m of t.matchAll(/[ \/\-–]/g)) {
+      const i = m.index + 1, a = t.slice(0, i).trim(), b = t.slice(i).trim(); if (!a || !b) continue;
+      const w = Math.max(textBreite(a, gr, fett), textBreite(b, gr, fett)); if (w < bw) { bw = w; best = [a, b]; }
+    }
+    return best;
   }
   function datumDE(iso) { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : (iso || ''); }
   function bmk(g, x, y, kenn, zeilen = []) {   // links neben dem Gerät, rechtsbündig
@@ -527,7 +542,29 @@ const PLAN = (() => {
   // Abgänge einer Reihe); tap: wird statt eines Verbindungspunkts aufgerufen
   // (für Untersammelschienen, die erst danach ihre Länge kennen).
   // Gibt { unten, natur } zurück: unteres Ende und die eigene, unangeglichene Endhöhe.
+  // Beginn des gerade gezeichneten Abgangs im Blatt (ab v1.64): alles davor gehört zu den Nachbarn links
+  const ABGANG = { g: null, i: 0 };
+  // rechte Kante fremder Grafik und Schrift links von x im Band ya…yb (ab v1.64, F02): Leiter, waagerechte
+  // Texte und Punkte der schon gezeichneten Nachbarn; Schienen, die über x hinweglaufen, zählen nicht
+  function freiLinks(g, x, ya, yb, x0) {
+    let r = x0;
+    const kids = g.children, bis = ABGANG.g === g ? ABGANG.i : kids.length;
+    for (let i = 0; i < bis; i++) {
+      const e = kids[i], tag = e.tagName, A = n => +e.getAttribute(n);
+      let rechts = null;
+      if (tag === 'line') { if (Math.max(A('y1'), A('y2')) >= ya && Math.min(A('y1'), A('y2')) <= yb) rechts = Math.max(A('x1'), A('x2')); }
+      else if (tag === 'circle') { if (A('cy') >= ya && A('cy') <= yb) rechts = A('cx') + A('r'); }
+      else if (tag === 'text' && !e.getAttribute('transform')) {
+        const gr = A('font-size'), y = A('y');
+        if (y >= ya && y - gr * 0.75 <= yb) { const w = textBreite(e.textContent, gr, e.getAttribute('font-weight') === 'bold'), an = e.getAttribute('text-anchor');
+          rechts = an === 'end' ? A('x') : an === 'middle' ? A('x') + w / 2 : A('x') + w; }
+      }
+      if (rechts !== null && rechts <= x + 0.01 && rechts > r) r = rechts;
+    }
+    return r;
+  }
   function zeichneAbgang(g, ctx, v, k, a, xSp, bars, yG, breite, yEnde = null, tap = null) {
+    ABGANG.g = g; ABGANG.i = g.children.length;
     if (k.trafo) return zeichneTrafo(g, ctx, v, k, a, xSp, bars, yG, breite, tap, yEnde);
     const arten = abgangArten(k, a, v);
     const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
@@ -758,7 +795,9 @@ const PLAN = (() => {
       // ab v1.63 (D61): ohne „→“ – das Zeichen erschien klein und tief (im senkrechten Text als „↑“); R7: Zeilenabstand fest 3,4 mm
       passend(text(g, mx, ty, `${u ? u.name : 'Verteiler'}${u ? ` /${u.blatt}.${u.spalte}` : ''}`, 2.5, 'middle', { 'font-weight': 'bold' }), max);
       ty += 3.4;
-    } else if (k.ziel.bez) { passend(text(g, mx, ty, k.ziel.bez, 2.5, 'middle', { 'font-weight': 'bold' }), max); ty += 3.4; }
+    } else if (k.ziel.bez) {      // ab v1.64 (F03): ohne Ort darf die Bezeichnung dessen Zeile mitbenutzen (R7: höchstens drei Zeilen)
+      (k.ziel.ort ? [k.ziel.bez] : zweiZeilen(k.ziel.bez, 2.5, max, true)).forEach(z => { passend(text(g, mx, ty, z, 2.5, 'middle', { 'font-weight': 'bold' }), max); ty += 3.4; });
+    }
     if (k.ziel.ort) { passend(text(g, mx, ty, k.ziel.ort, 2.2, 'middle'), max); ty += 3.4; }
     // Stern-Dreieck (ab v1.42): beide Leitungen in einer Zeile, damit der Abstand zum Schriftfeld bleibt
     passend(text(g, mx, ty, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${arten.length}×${k.leitung.quer || '?'}` +
@@ -844,13 +883,26 @@ const PLAN = (() => {
     const yW = top + (40 - 11.5) * E;
     if (n > 1) el('line', { x1: xs[0] - 1, y1: yW, x2: xs[n - 1] - 1, y2: yW, stroke: '#000', 'stroke-width': 0.25, 'stroke-dasharray': '1 0.5' }, g);
     let zeile2 = sg.typ === 'zeitrelais' ? (sg.zr.zeit ? `t = ${sg.zr.zeit}` : '') : sg.typ === 'stromstoss' ? 'Stromstoß' : sg.rolle || '';
-    // ab v1.63 (D51): die Zeitangabe beginnt höchstens 1 mm links der Spaltenkante (der Nachbarpfad endet ≥ 2 mm davor);
-    // passt „t = 3 min“ dort auch auf 85 % gestaucht nicht, steht nur „3 min“ (das Verzögerungszeichen sagt das Übrige)
-    const zMax = R3(kenn, xs[0]) - (xs[0] - LINKS - 1);
-    if (sg.typ === 'zeitrelais' && zeile2 && textBreite(zeile2, 2.2) * 0.85 > zMax) zeile2 = sg.zr.zeit;
+    // ab v1.64 (F02, R4): die Zeitangabe darf bis 2,5 mm vor die Grafik des linken Nachbarn auf diesem Blatt (bzw. den
+    // Rahmen) reichen; „t = 3 min“ wie an der Spule, nur wenn das ungestaucht nicht passt, „3 min“ (das Verzögerungszeichen
+    // sagt das Übrige). Vorher (v1.63) endete der Platz 1 mm links der Spaltenkante.
+    // Passt auch „3 min“ dort nicht ungestaucht (enger Nachbar, z. B. eine Leuchte in derselben Gruppe), steht die Zeitangabe
+    // unter dem Kontakt links am Leiter (1,5 mm davor, R3), wo der Verzögerungsbogen nicht mehr im Weg ist.
+    const yZ = R1(kenn, top) + 3.2;
+    const zMax = R3(kenn, xs[0]) - freiLinks(g, xs[0], yZ - 1.8, yZ + 0.6, RAND_L) - 2.5;
+    let unterhalb = null;
+    if (sg.typ === 'zeitrelais' && zeile2 && textBreite(zeile2, 2.2) > zMax) {
+      if (textBreite(sg.zr.zeit, 2.2) <= zMax) zeile2 = sg.zr.zeit; else { unterhalb = zeile2; zeile2 = ''; }
+    }
     // spuleRef: Lage der Spule im Steuerstromkreis; beim Zeitrelais dann links am Verzögerungszeichen vorbei
-    const zt = bmk(g, R3(kenn, xs[0]), R1(kenn, top), sg.bmk.t, [zeile2, spuleRef]);
-    if (sg.typ === 'zeitrelais' && zeile2 && textBreite(zeile2, 2.2) > zMax) passend(zt[0], zMax);
+    bmk(g, R3(kenn, xs[0]), R1(kenn, top), sg.bmk.t, [zeile2, spuleRef]);
+    if (unterhalb) {
+      const yU = unten + 2.6, xr = xs[0] - 1.5, m = xr - freiLinks(g, xs[0], yU - 1.8, yU + 0.6, RAND_L) - 2.5;
+      if (textBreite(unterhalb, 2.2) > m) unterhalb = sg.zr.zeit;
+      const tu = text(g, xr, yU, unterhalb, 2.2, 'end');
+      if (textBreite(unterhalb, 2.2) > m && m > 0) passend(tu, m);      // m ≤ 0 nur beim Probezeichnen am linken Rand
+      unten = yU + 1;
+    }
     teil(null);
     // nicht geschaltete Leiter (N, PE) laufen durch
     arten.forEach((art, i) => { if (i >= n && enden[i] < unten) { leiter(g, xs[i], enden[i], xs[i], unten, art); enden[i] = unten; } });
@@ -981,26 +1033,29 @@ const PLAN = (() => {
   // Passen die Abgänge einer Gruppe nicht über die feste Endhöhe (z. B. mit
   // Schaltgerät und Klemmen), werden die Abstände unter dem Gruppengerät enger.
   let gruppenNatur = 0;      // eigene Endhöhe der zuletzt gezeichneten Gruppe
-  function zeichneGruppe(g, ctx, v, e, grp, xSp, bars, yG, breiteSp, R, yEndeFest = null, eng = null) {
+  // stueck (ab v1.64, F01): Teilstück einer Gruppe, die nicht auf ein Blatt passt – { von, bis, n, weiter, kommend, gehend };
+  // nur das erste Stück (n = 0) trägt Gruppengerät und Zuführung
+  function zeichneGruppe(g, ctx, v, e, grp, xSp, bars, yG, breiteSp, R, yEndeFest = null, eng = null, stueck = null) {
     if (eng === null && yEndeFest) {
       zeichneGruppe(el('g'), ctx, v, e, grp, xSp, bars, yG, breiteSp, R, null, false);
       eng = gruppenNatur > yEndeFest;
     }
+    const erstes = !stueck || !stueck.n, gG = erstes ? g : el('g');
     const arten = gruppenArten(grp, e), zu = gruppenZufuehrung(arten);
     const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
-    arten.forEach((art, i) => { const yq = bars[quelle(art, bars)]; punkt(g, xs[i], yq, art); leiter(g, xs[i], yq, xs[i], yG, art); });
-    teil(`k:${grp.id}/f`);
-    const tp = setze(g, grp.geraet.zeichen, x0, yG, null, arten), t = unten(tp);
-    anschlussNr(g, tp, ...polNr(arten));
-    const yU0 = kennzeichen(g, grp.geraet.zeichen, x0, yG, Math.max(...t.map(p => p.y)), e.geraete[grp.id].t, bemZeilen(grp.geraet)) + (eng ? 3 : 6);
-    teil(null);
+    arten.forEach((art, i) => { const yq = bars[quelle(art, bars)]; punkt(gG, xs[i], yq, art); leiter(gG, xs[i], yq, xs[i], yG, art); });
+    if (erstes) teil(`k:${grp.id}/f`);
+    const tp = setze(gG, grp.geraet.zeichen, x0, yG, null, arten), t = unten(tp);
+    anschlussNr(gG, tp, ...polNr(arten));
+    const yU0 = kennzeichen(gG, grp.geraet.zeichen, x0, yG, Math.max(...t.map(p => p.y)), e.geraete[grp.id].t, bemZeilen(grp.geraet)) + (eng ? 3 : 6);
+    if (erstes) teil(null);
     const alle = arten.concat(zu);
     const unterBars = Object.assign({}, bars), ys = {}, bereich = {};
     alle.forEach((art, i) => { ys[art] = yU0 + ABSTAND * i; unterBars[art] = ys[art]; bereich[art] = []; });
     // Gerät -> Untersammelschiene
-    arten.forEach((art, i) => { leiter(g, t[i].x, t[i].y, t[i].x, ys[art], art); bereich[art].push({ x: t[i].x, oben: true }); });
+    if (erstes) arten.forEach((art, i) => { leiter(g, t[i].x, t[i].y, t[i].x, ys[art], art); bereich[art].push({ x: t[i].x, oben: true }); });
     // Zuführung N/PE rechts neben dem Gerät von der Hauptschiene
-    zu.forEach((art, j) => {
+    if (erstes) zu.forEach((art, j) => {
       const x = x0 + ABSTAND * (arten.length + j), yq = bars[quelle(art, bars)];
       punkt(g, x, yq, art); leiter(g, x, yq, x, ys[art], art); bereich[art].push({ x, oben: true });
     });
@@ -1010,8 +1065,22 @@ const PLAN = (() => {
     const tap = (art, x, y) => { const ua = artVonY(y); if (ua) bereich[ua].push({ x, oben: false }); else punkt(g, x, y, art); };
     const yK = yU0 + ABSTAND * (alle.length - 1) + (eng ? 5 : VOR_GERAET);
     letzteGruppeYK = yK;
-    const kinder = grp.kinder.filter(k => k.typ === 'abgang');
-    gruppenNatur = Math.max(0, ...kinder.map(k => naturEnde(ctx, v, k, e.abgaenge[k.id], unterBars, yK)));
+    const alleKinder = grp.kinder.filter(k => k.typ === 'abgang');
+    gruppenNatur = Math.max(0, ...alleKinder.map(k => naturEnde(ctx, v, k, e.abgaenge[k.id], unterBars, yK)));
+    const kinder = stueck ? alleKinder.slice(stueck.von, stueck.bis) : alleKinder;
+    if (stueck) {
+      // Untersammelschienen, die Abgänge dieses bzw. der folgenden Stücke brauchen, laufen über den Blattrand
+      const braucht = liste => new Set(liste.flatMap(k => abgangArten(k, e.abgaenge[k.id], v).map(a => artVonY(unterBars[quelle(a, unterBars)]))).filter(Boolean));
+      const xA = R.x0 + 15.25, xE = R.x1 - 12;      // wie die Sammelschienen: kommend in Spalte 1, gehend in der letzten Spalte
+      const links = stueck.n ? braucht(alleKinder.slice(stueck.von)) : new Set(), rechts = stueck.weiter ? braucht(alleKinder.slice(stueck.bis)) : new Set();
+      alle.forEach(art => {
+        if (links.has(art)) { bereich[art].push({ x: xA, durch: true }); setze(g, 'qv_kommend', xA, ys[art], q => q.richtung === 'e', art); }
+        if (rechts.has(art)) { bereich[art].push({ x: xE, durch: true }); setze(g, 'qv_gehend', xE, ys[art], q => q.richtung === 'w', art);
+          text(g, xE + 4.5, ys[art] + 0.9, stueck.gehend, 2.2); }
+      });
+      const oben = alle.find(a => links.has(a));
+      if (oben) text(g, xA, ys[oben] - 2.2, stueck.kommend, 2.2, 'end');
+    }
     const yEnde = yEndeFest || gruppenNatur;
     let x = xSp, unterst = yK;
     for (const k of kinder) {
@@ -1028,7 +1097,7 @@ const PLAN = (() => {
       if (hi > lo) linie(g, lo, y, hi, y, 0.25, farbe(art), art);   // Untersammelschiene in Leiterstärke
       const gleich = (a, b) => Math.abs(a - b) < 0.01;
       [...new Set(xsA.map(x => x.toFixed(2)))].map(Number).forEach(xp => {
-        const hier = an.filter(p => gleich(p.x, xp));
+        const hier = an.filter(p => gleich(p.x, xp) && !p.durch);
         const linien = (xp > lo + 0.01 ? 1 : 0) + (xp < hi - 0.01 ? 1 : 0)
           + (hier.some(p => p.oben) ? 1 : 0) + (hier.some(p => !p.oben) ? 1 : 0);
         if (linien >= 3) punkt(g, xp, y, art);
@@ -1157,6 +1226,29 @@ const PLAN = (() => {
         if (it.k && umb[it.k.id] && bl.items.length) neu();
         const wunsch = it.k && spW[it.k.id] ? Math.min(spW[it.k.id], letzte - it.w + 1) : 0;
         if (wunsch > col) col = wunsch;
+        // ab v1.64 (F01): eine Gruppe, die auf keinem Blatt Platz hat, wird in Teilstücke je Blatt zerlegt; die
+        // Untersammelschienen laufen mit Querverweis auf das Folgeblatt, Gruppengerät und Zuführung bleiben im ersten Stück
+        if (it.art === 'gruppe' && it.w > letzte - 1) {
+          const kinder = it.k.kinder.filter(c => c.typ === 'abgang'), ws = kinder.map(c => abgangSpalten(c, e.abgaenge[c.id], v, R));
+          const minW = spaltenFuer(gruppenLeiterzahl(it.k, e), R);
+          let i = 0, n = 0;
+          while (i < kinder.length) {
+            let j = i, s = 0;
+            while (j < kinder.length && col + s + ws[j] - 1 <= letzte) { s += ws[j]; j++; }
+            const w = Math.max(s, n ? 0 : minW), frisch = bl.art === 'abgang' && !bl.items.length;
+            const passt = j > i && col + w - 1 <= letzte && tiefe(it, bl.y0) <= sfTop - 2;
+            if (!passt && !(frisch && j > i)) {
+              if (!frisch) { neu(); continue; }
+              j = i + 1; s = ws[i];          // ein einzelner Abgang breiter als das Blatt: Hinweis „A3 wählen“
+            }
+            const zuBreit = col + Math.max(s, n ? 0 : minW) - 1 > letzte;
+            bl.items.push(Object.assign({}, it, { col, w: Math.max(s, n ? 0 : minW), zuBreit: zuBreit ? kinder[i].id : null,
+              teil: { von: i, bis: j, n, weiter: j < kinder.length, erstes: kinder[i].id } }));
+            col += Math.max(s, n ? 0 : minW); i = j; n++;
+            if (i < kinder.length) neu();
+          }
+          continue;
+        }
         for (;;) {
           const passtBreite = col + it.w - 1 <= letzte;
           const imSF = col + it.w - 1 >= cSF;
@@ -1167,7 +1259,8 @@ const PLAN = (() => {
           if (wunsch > col) col = wunsch;
           if (versucht > 2) break;
         }
-        it.col = col; bl.items.push(Object.assign({}, it)); col += it.w;
+        // ab v1.64 (F01): ein einzelner Abgang, der auch auf einem leeren Blatt nicht passt, bekommt einen Hinweis
+        it.col = col; bl.items.push(Object.assign({}, it, { zuBreit: col + it.w - 1 > letzte && it.k ? it.k.id : null })); col += it.w;
       }
       // ein kombiniertes Blatt ohne einen einzigen Pfad wäre sinnlos
       if (kombiniert && items.length && !blaetter[0].items.length) return null;
@@ -1195,7 +1288,9 @@ const PLAN = (() => {
   // 2,5 mm frei, und Zeilen, die dort auch auf 85 % gestaucht nicht passen, werden umbrochen (E1, D50); gibt die Zeilen zurück
   function ueBmk(g, x, y, kenn, zeilen, max) {
     const m = max - 2.5, zl = zeilen.filter(Boolean).flatMap(z => zeilenTeilen(z, 2.2, m));
-    if (kenn) passend(text(g, x, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), m);
+    // ab v1.64 (F06): ein Kennzeichen lässt sich nicht umbrechen – höchstens auf 85 % gestaucht (am Überlastrelais neben einem
+    // zweiten bleiben so knapp 2,5 mm)
+    if (kenn) passend(text(g, x, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), Math.max(m, textBreite(kenn, 2.5, true) * 0.851));
     zl.forEach((z, i) => passend(text(g, x, y + 3.2 + 2.8 * i, z, 2.2, 'end'), m));
     return zl;
   }
@@ -1228,11 +1323,15 @@ const PLAN = (() => {
     const senk = (dx, t, gr, fett) => passend(text(g, x + dx, yL, t, gr, 'end',
       Object.assign({ transform: `rotate(-90 ${x + dx} ${yL})` }, fett ? { 'font-weight': 'bold' } : {})), max);
     const n = abgangArten(k, a, v).length;
+    let z2 = null;
     if (k.speist) {
       const u = ctx.ue[k.speist];
       senk(-2.2, `${u ? u.name : 'Verteiler'}${u ? ` /${u.blatt}.${u.spalte}` : ''}`, 2.2, true);     // ab v1.63 ohne „→“ (D61)
+    } else if (!k.trafo && !k.ziel.ort && k.ziel.bez) {      // ab v1.64 (F03): ohne Ort zweizeilig über dessen Zeile
+      const z = zweiZeilen(k.ziel.bez, 2.5, max, true); senk(-2.2, z[0], 2.5, true); z2 = z[1];
     } else senk(-2.2, k.ziel.bez || '', 2.5, true);
-    senk(0.9, k.trafo ? `${k.trafo.prim}/${k.trafo.sek} V` : k.ziel.ort || '', 2.2);
+    if (z2) senk(0.9, z2, 2.5, true);
+    else senk(0.9, k.trafo ? `${k.trafo.prim}/${k.trafo.sek} V` : k.ziel.ort || '', 2.2);
     if (!k.steuer) senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}` + (a.sd ? ` · ${a.w2.t} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : ''), 2.2);
   }
   // ein Abgang an einer Schiene auf ySrc: Gerät auf yG, Ende auf yE.
@@ -1276,8 +1375,10 @@ const PLAN = (() => {
       const vor = ueOl.get(g), dx = x - R3('ueberlast1', x), nah = vor && x - vor.x <= P + 0.01 && x > vor.x && Math.abs(top - vor.top) < 6;
       // ab v1.58 (C40): neben einem Überlastrelais endet die Beschriftung 1,5 mm vor dessen Kasten (R3); die rechte
       // Kastenkante liegt bei vor.x + dx − 1,5, die Grenze also bei vor.x + dx
-      // ab v1.63: vor dem Nachbarkasten gilt weiter R3 (1,5 mm vor der gezeichneten Kante; ueBmk zieht 2,5 mm ab)
-      const olZl = ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, nah ? x - vor.x - 2 * dx + 2.5 : P - dx);
+      // ab v1.64 (F06, R4): auch vor dem Nachbarkasten 2,5 mm frei – die Beschriftung beginnt bei vor.x + dx + 1; ueBmk zieht
+      // von der übergebenen Grenze 2,5 mm ab (v1.63 übergab + 2,5 und ließ so nur 1,5 mm); vor dem Nachbarleiter zählt dessen
+      // halbe Strichbreite mit (0,15 mm), sonst blieben 2,4 mm
+      const olZl = ueBmk(g, R3('ueberlast1', x), R1('ueberlast1', top), a.ol.bmk.t, zl, nah ? x - vor.x - 2 * dx + 1.5 : P - dx - 0.15);
       ueOl.set(g, { x, top });
       y = Math.max(...t.filter(p => p.richtung === 's').map(p => p.y)); frei = Math.max(y, textEnde(R1('ueberlast1', top), olZl));
     }
@@ -1932,7 +2033,27 @@ const PLAN = (() => {
     return z.filter(x => x.blatt === anker || (erstes && ankerAlle && !ankerAlle.has(x.blatt)));
   }
   // Kennung eines Blatts, unabhängig von seiner Nummer: erster Abgang bzw. die Einspeisung
-  function blattAnker(v, b) { const it = b.items.find(x => x.art !== 'spd'); return it ? 'k:' + it.k.id : 'e:' + v.id; }
+  // Prüfung „nichts außerhalb des Rahmens“ (ab v1.64, F01): Leiter, Punkte und waagerechte Texte ab Kind ab (davor der
+  // Rahmen selbst) gegen die Rahmenkanten; begrenzte Texte mit ihrer Höchstbreite. Gibt höchstens einen Hinweis zurück.
+  function rahmenPruefen(g, R, ab) {
+    const max = new Map(zuBegrenzen), A = (e, n) => +e.getAttribute(n);
+    let wo = null;
+    [...g.children].slice(ab).forEach(e => {
+      let x0, x1, y;
+      if (e.tagName === 'line') { x0 = Math.min(A(e, 'x1'), A(e, 'x2')); x1 = Math.max(A(e, 'x1'), A(e, 'x2')); y = A(e, 'y1'); }
+      else if (e.tagName === 'circle') { x0 = A(e, 'cx') - A(e, 'r'); x1 = A(e, 'cx') + A(e, 'r'); y = A(e, 'cy'); }
+      else if (e.tagName === 'text' && !e.getAttribute('transform') && e.textContent) {
+        const w = Math.min(textBreite(e.textContent, A(e, 'font-size'), e.getAttribute('font-weight') === 'bold'), max.get(e) || Infinity), an = e.getAttribute('text-anchor');
+        x0 = an === 'end' ? A(e, 'x') - w : an === 'middle' ? A(e, 'x') - w / 2 : A(e, 'x'); x1 = x0 + w; y = A(e, 'y');
+      } else return;
+      if (!wo && (x1 > R.x1 + 0.2 || x0 < R.x0 - 0.2)) wo = [x1 > R.x1 ? R.x1 : R.x0, y];
+    });
+    return wo ? [{ art: 'rahmen', t: 'Zeichnung läuft über den Blattrahmen hinaus', p: wo }] : [];
+  }
+  // Teilstück einer Gruppe (ab v1.64): Anker ist sein erster Abgang, damit jedes Blatt einen eigenen Anker hat
+  function blattAnker(v, b) { const it = b.items.find(x => x.art !== 'spd'); return it ? 'k:' + (it.teil && it.teil.n ? it.teil.erstes : it.k.id) : 'e:' + v.id; }
+  // Abgänge einer Gruppe bzw. ihres Teilstücks auf diesem Blatt
+  const stueckKinder = it => { const k = it.k.kinder.filter(c => c.typ === 'abgang'); return it.teil ? k.slice(it.teil.von, it.teil.bis) : k; };
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
   function blaetter(P, BIB, hilf, opt = {}) {
     if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; SICHT = {}; SLI = {}; ZEICHEN_BIB = BIB; }
@@ -2001,7 +2122,7 @@ const PLAN = (() => {
     const lage = {};
     plaene.forEach(p => p.blaetter.forEach((b, i) => b.items.forEach(it => {
       if (it.art === 'abgang') lage[it.k.id] = { blatt: p.start + i, spalte: it.col };
-      if (it.art === 'gruppe') { let c = it.col; it.k.kinder.forEach(k => { if (k.typ !== 'abgang') return; lage[k.id] = { blatt: p.start + i, spalte: c };
+      if (it.art === 'gruppe') { let c = it.col; stueckKinder(it).forEach(k => { lage[k.id] = { blatt: p.start + i, spalte: c };
         c += abgangSpalten(k, p.e.abgaenge[k.id], p.v, R); }); }
     })));
     ctx.lage = lage; ctx.R = R; ctx.steuer = { kreise: {}, kontakte: {}, spulen: {} };
@@ -2024,8 +2145,8 @@ const PLAN = (() => {
         b.items.forEach(it => {
           if (it.art === 'spd') spd = 'Überspannungsschutz' + (p.e.kopf.spd ? ' ' + p.e.kopf.spd.t : '');
           else if (it.art === 'abgang') { const f = p.e.abgaenge[it.k.id].f; if (f) kz.push(f.t); }
-          else { if (p.e.geraete[it.k.id]) kz.push(p.e.geraete[it.k.id].t);
-            it.k.kinder.forEach(c => { const a = p.e.abgaenge[c.id]; if (a && a.f) kz.push(a.f.t); }); }
+          else { if (p.e.geraete[it.k.id] && !(it.teil && it.teil.n)) kz.push(p.e.geraete[it.k.id].t);
+            stueckKinder(it).forEach(c => { const a = p.e.abgaenge[c.id]; if (a && a.f) kz.push(a.f.t); }); }
         });
         const ber = kz.length ? ' ' + (kz.length > 1 ? `${kz[0]} … ${kz[kz.length - 1]}` : kz[0]) : '';
         const teile = [];
@@ -2075,7 +2196,7 @@ const PLAN = (() => {
       if (sp) { const l = lage[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
       p.blaetter.forEach((b, i) => {
         const blattNr = p.start + i, naechstes = i + 1 < p.blaetter.length ? `/${blattNr + 1}.1` : null;
-        const { svg, g } = neuesBlatt();
+        const { svg, g } = neuesBlatt(), nRahmen = g.children.length;
         szeneStart(g);
         const xEnde = R.x1 - 12;
         let bars;
@@ -2104,18 +2225,22 @@ const PLAN = (() => {
             const xSp = R.x0 + (it.col - 1) * R.sb;
             if (it.art === 'spd') mitOrt('s:' + v.id, () => zeichneSpd(g, v, e, xSp, bars, yG));
             else if (it.art === 'abgang') mitOrt('k:' + it.k.id, () => zeichneAbgang(g, ctx, v, it.k, e.abgaenge[it.k.id], xSp, bars, yG, it.w * R.sb, yEnde));
-            else mitOrt('k:' + it.k.id, () => zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde));
+            else mitOrt('k:' + it.k.id, () => zeichneGruppe(g, ctx, v, e, it.k, xSp, bars, yG, it.w, R, yEnde, null,
+              it.teil ? Object.assign({ kommend: `/${blattNr - 1}.${F.sp}`, gehend: `/${blattNr + 1}.1` }, it.teil) : null));
+            // ab v1.64 (F01): Abgang breiter als ein Blatt
+            if (it.zuBreit) { const a = e.abgaenge[it.zuBreit];
+              SZ.hinweise.push({ sel: 'k:' + it.zuBreit, art: 'rahmen', t: `${(a && a.f && a.f.t) || 'Abgang'} passt nicht auf ein Blatt – Format A3 wählen`, p: [xSp, yG] }); }
             if (opt.ziele && it.art !== 'spd') {          // Einfügemarken über den Schienen, links und rechts des Teils
-              const ym = b.y0 - 5;
-              if (it === b.items.find(x => x.art !== 'spd')) marke(g, xSp, ym, 'vor:' + it.k.id);
-              marke(g, xSp + it.w * R.sb, ym, 'nach:' + it.k.id);
+              const ym = b.y0 - 5;      // Teilstücke einer Gruppe (ab v1.64): „vor“ nur am ersten, „nach“ nur am letzten
+              if (it === b.items.find(x => x.art !== 'spd') && !(it.teil && it.teil.n)) marke(g, xSp, ym, 'vor:' + it.k.id);
+              if (!(it.teil && it.teil.weiter)) marke(g, xSp + it.w * R.sb, ym, 'nach:' + it.k.id);
             }
             if (opt.ziele) {
               const yo = b.y0 + ABSTAND * schienenNamen(v).length, hh = F.h - RAND - SF_H - 2 - yo;
               if (it.art === 'spd') ziel(g, xSp, yo, it.w * R.sb, hh, 's:' + v.id);
               else ziel(g, xSp, yo, it.w * R.sb, hh, 'k:' + it.k.id);
               if (it.art === 'gruppe') {     // Abgänge der Gruppe unterhalb der Untersammelschienen
-                let x = xSp; const yk = letzteGruppeYK - 2, kinder = it.k.kinder.filter(c => c.typ === 'abgang');
+                let x = xSp; const yk = letzteGruppeYK - 2, kinder = stueckKinder(it);
                 kinder.forEach(c => { const w = abgangSpalten(c, e.abgaenge[c.id], v, R) * R.sb;
                   ziel(g, x, yk, w, F.h - RAND - SF_H - 2 - yk, 'k:' + c.id); x += w; });
                 // Einfügemarken in der Gruppe, knapp über ihren Abgängen
@@ -2131,19 +2256,19 @@ const PLAN = (() => {
           marke(g, R.x0 + (b.art === 'kombiniert' ? 1.5 : 0.5) * R.sb, b.y0 - 5, 'leer:' + v.id);      // leerer Verteiler (ab v1.21)
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
         if (v.layout && v.layout.wege) wegeAnwenden(g, v.layout.wege);
-        const anker = blattAnker(v, b), pruef = SZ.hinweise.concat(zusatzZeichnen(g, zusaetze(v, anker, i === 0), opt));
+        const anker = blattAnker(v, b), pruef = SZ.hinweise.concat(SZ.hinweise.some(x => x.art === 'rahmen') ? [] : rahmenPruefen(g, R, nRahmen), zusatzZeichnen(g, zusaetze(v, anker, i === 0), opt));
         const szene = szeneEnde();
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
         aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, gesamt, art: b.art, szene, anker, pruef,
-          spalten: b.items.map(it => ({ id: it.k ? it.k.id : null, col: it.col, w: it.w })) });
+          spalten: b.items.map(it => it.teil && it.teil.n ? { id: null, fort: it.k.id, col: it.col, w: it.w } : { id: it.k ? it.k.id : null, col: it.col, w: it.w }) });
       });
       p.st.forEach((b, i) => {
-        const blattNr = p.stStart + i, { svg, g } = neuesBlatt();
+        const blattNr = p.stStart + i, { svg, g } = neuesBlatt(), nRahmen = g.children.length;
         szeneStart(g);
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
         if (v.layout && v.layout.lage) lageAnwenden(g, v.layout.lage);
-        const anker = 'kr:' + b.kreise[0].kr.id, pruef = SZ.hinweise.concat(zusatzZeichnen(g, zusaetze(v, anker, false), opt));
+        const anker = 'kr:' + b.kreise[0].kr.id, pruef = SZ.hinweise.concat(rahmenPruefen(g, R, nRahmen), zusatzZeichnen(g, zusaetze(v, anker, false), opt));
         const szene = szeneEnde();
         if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
           ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
@@ -2165,5 +2290,15 @@ const PLAN = (() => {
     });
     return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen, raster: { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H } };
   }
-  return { blaetter };
+  // Stauchung der Bezeichnung im Pfadtext des Stromlaufplans (ab v1.64, F03; für die Feldwarnung der App):
+  // null, wenn sie mindestens auf 85 % passt, sonst { faktor, zeichen } (zeichen = etwa so viele passen)
+  function pfadtext(P, v, e, k, bez) {
+    const a = e.abgaenge[k.id]; if (!bez || !a || k.speist || k.steuer || k.trafo) return null;
+    const F = FORMATE[P.projekt.format || 'A4'], sb = (F.w - RAND - RAND_L) / F.sp, max = abgangSpalten(k, a, v, { sb }) * sb - 2;
+    const z = k.ziel.ort ? [bez] : zweiZeilen(bez, 2.5, max, true);
+    const faktor = Math.min(1, ...z.map(t => max / textBreite(t, 2.5, true)));
+    if (faktor >= 0.85) return null;
+    return { faktor, zeichen: Math.floor(max / 0.85 / (textBreite(bez, 2.5, true) / bez.length)) * z.length };
+  }
+  return { blaetter, pfadtext };
 })();

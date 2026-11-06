@@ -187,6 +187,22 @@ window.BEISPIELE = {
   treppenlicht: () => { BEISPIELE.grund(); const [hv] = P.verteiler;
     let l; alleKnoten(hv, k => { if (k.typ === 'abgang' && k.ziel.bez === 'Licht' && k.ziel.ort === 'Flur') l = k; });
     const kr = kreisAnlegen(hv, l); vorlageEinsetzen(hv, kr, 'treppenlicht', { n: 3, zeit: '3 min' }); sichern(); zeichne(); },
+  // Desktop-Runde D2 (v1.64, F01–F03): Hausverteiler mit einer FI-Gruppe, die breiter als ein A4-Blatt ist (6 × 1-polig,
+  // Treppenlicht mit Zeitrelais, Herd und Durchlauferhitzer 3/N/PE) – sie läuft mit Querverweisen auf das Folgeblatt;
+  // Treppenlicht mit der Leuchtdauer „10 min“ aus der Vorauswahl, eine Bezeichnung mit 30 Zeichen ohne Ort
+  breitgruppe: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Neubau EFH', ersteller:'Jean', nummer:'SLP-0064'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sichlasttrenn3', art:'gG', nenn:'63'}; hv.zaehler = {zeichen:'zaehler3'};
+    const g = neueGruppe(); g.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    let tl;
+    [['Steckdosen','Küche'],['Steckdosen','Wohnen'],['Licht','Wohnen'],['Licht','Treppenhaus'],['Steckdosen','Bad'],['Steckdosen Küche und Esszimmer','']].forEach(([b,o])=>{
+      const a=neuerAbgang(); a.ziel.bez=b; a.ziel.ort=o; if(b==='Licht'){a.ziel.anschluss='leuchte'; a.leitung.quer='1,5'; a.geraet.nenn='10';} if(o==='Treppenhaus') tl=a; g.kinder.push(a);});
+    const herd = neuerAbgang(); herd.ziel={bez:'Herd', ort:'Küche', anschluss:'dose'}; herd.geraet={zeichen:'ls3', kennlinie:'B', nenn:'16'}; g.kinder.push(herd);
+    const dle = neuerAbgang(); dle.ziel={bez:'Durchlauferhitzer', ort:'Bad', anschluss:'dose'}; dle.geraet={zeichen:'ls3', kennlinie:'B', nenn:'32'}; dle.leitung.quer='6'; g.kinder.push(dle);
+    hv.knoten.push(g);
+    [['Steckdosen','Garage'],['Steckdosen','Außen']].forEach(([b,o])=>{const a=neuerAbgang(); a.ziel.bez=b; a.ziel.ort=o; a.geraet={zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; hv.knoten.push(a);});
+    P.verteiler.push(hv); sichern();
+    const kr = kreisAnlegen(hv, tl); vorlageEinsetzen(hv, kr, 'treppenlicht', { n: 2, zeit: '10 min' }); sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

@@ -16,6 +16,12 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.64: Desktop-Runde D2, Etappe 1 „Plan: Rahmen, Stauchung, R4, Türzettel“ (F01–F03, F06, F07): FI-Gruppe breiter als
+           ein Blatt läuft mit Querverweisen an den Untersammelschienen auf dem Folgeblatt weiter (Gerät und Zuführung im ersten
+           Stück), Prüfung „Zeichnung läuft über den Blattrahmen“ bzw. „passt nicht auf ein Blatt – A3“; Zeitangabe am
+           Zeitrelais-Kontakt „t = 3 min“ bis 2,5 mm vor den Nachbarn (sonst unter dem Kontakt); Bezeichnung ohne Ort
+           zweizeilig, sonst Feldwarnung bei Stauchung unter 85 %; Überlastrelais im Übersichtsplan mit 2,5 mm (R4);
+           Türzettel mit festen Spalten, Fuß und „Seite x/y“ auf jeder Seite; Beispiel `breitgruppe`
      v1.63: Desktop-Runde D1, Etappe 5 „Plan-Beschriftung (E4 Schritt 3) und Planfehler“ – zur Abnahme durch Jean (nur Zweig):
            umbrechen statt unter 85 % stauchen (Kreisüberschrift über freie Spalten bzw. zweizeilig, „30 mA“ / „Typ A“),
            R4 2,5 mm zum Nachbarleiter im Übersichtsplan, R7 Pfadtexte im Abstand 3,4 mm und Steuertrafo/Steuer-LS auf der
@@ -405,15 +411,16 @@ table.ueb tr.gr td{background:var(--karte2);font-weight:600}
 .tz{background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;padding:14mm 12mm;box-shadow:0 2px 8px rgba(0,0,0,.18);border-radius:4px;margin-bottom:16px}
 .tz h1{font-size:22pt;margin:0 0 2pt}
 .tz .tzu{font-size:10.5pt;color:#333;margin-bottom:10pt}
-.tz table{width:100%;border-collapse:collapse;font-size:11pt}
+.tz table{width:100%;border-collapse:collapse;font-size:11pt;table-layout:fixed}      /* ab v1.64 (F07): gleiche Spalten auf allen Seiten */
+.tz td{overflow-wrap:anywhere;hyphens:auto}.tz .nw{white-space:nowrap}
 .tz th{text-align:left;font-size:9pt;color:#333;border-bottom:1.2pt solid #000;padding:3pt 4pt}
 .tz td{border-bottom:.5pt solid #999;padding:4pt 4pt;vertical-align:top}
 .tz td.k{font-weight:700;white-space:nowrap}
-.tz td:nth-child(3),.tz td:nth-child(6){white-space:nowrap}
+.tz td:nth-child(3){white-space:nowrap}
 .tz tr.tzkopf td{background:#eee}
 .tz tr.gruppe td{background:#f3f3f3;font-weight:700;border-bottom:.8pt solid #000}
 .tz tr.ein td:nth-child(2){padding-left:14pt}
-.tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt}
+.tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt;display:flex;justify-content:space-between;gap:12pt}
 .tzwrap{overflow-x:auto}
 .tzwrap .tz{min-width:600px}
 /* Leisten in der Eigenschaften-Leiste (Platz im Steuerstromkreis) */
@@ -2506,6 +2513,11 @@ function abgangGeraetSetzen(ge, w) {
   ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG';
   if (w && GERAETE[w].bereich && !ge.bereich) ge.bereich = '6,3–10'; if (w && !ge.nenn && !GERAETE[w].ohneNenn) ge.nenn = '16';
 }
+// ab v1.64 (F03): Bezeichnung, die im Pfadtext stärker als auf 85 % gestaucht würde (ohne Ort steht sie zweizeilig)
+function bezWarnung(v, k, t) {
+  const r = PLAN.pfadtext(P, v, berechne(v), k, t);
+  return r ? `Wird im Plan auf ${Math.round(r.faktor * 100)} % gestaucht – passt bis etwa ${r.zeichen} Zeichen${k.ziel.ort ? '' : ' (zweizeilig)'}.` : null;
+}
 function bAbgang(b) {
   const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
   const k = r.k, e = berechne(v), a = e.abgaenge[k.id], ge = k.geraet;
@@ -2516,7 +2528,7 @@ function bAbgang(b) {
   const inGruppe = !!r.eltern;
   m.append(h('h2', {}, 'Verbraucher'), h('div', { class: 'liste' },
     k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
-             : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
+             : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd', warn: t => bezWarnung(v, k, t) })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
     k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => anschlussSetzen(v, k, w))),
     a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte', wallbox: 'Wallbox', motor: 'Motor' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
@@ -4126,7 +4138,7 @@ function prueflisteBerechnen() {
         aus.push({ key: tl.key, t: `${wo}: ein Leiter läuft durch das Gerät` });
     });
   });
-  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: x.teil ? 't:' + x.teil : 'z:' + x.id, t: `Blatt ${bl.nr}: ${x.t}` })));
+  ED.liste.forEach(bl => (bl.pruef || []).forEach(x => aus.push({ sel: x.sel || (x.teil ? 't:' + x.teil : x.id ? 'z:' + x.id : null), blatt: x.sel || x.teil || x.id ? undefined : ED.liste.indexOf(bl), t: `Blatt ${bl.nr}: ${x.t}` })));
   // ab v1.58 (C28): auch die fachlichen Warnungen dieses Verteilers (Abgänge, Verteiler, Steuerung) – eine Stelle für alles Offene
   const vn = ED.v.name + ': ';
   druckHinweise().filter(x => x.vid === ED.v.id).forEach(x => aus.push({ t: x.t.startsWith(vn) ? x.t.slice(vn.length) : x.t, sel: x.sel,
@@ -5545,7 +5557,7 @@ function tuerzettel(v) {
   const tb = h('tbody');
   const zeileT = (kl, kenn, schutz, leiter, kreis, ort, leitung) =>
     tb.append(h('tr', { class: kl }, h('td', { class: 'k' }, kenn || ''), h('td', {}, schutz || ''), h('td', {}, leiter || ''),
-      h('td', {}, kreis || ''), h('td', {}, ort || ''), h('td', {}, leitung || '')));
+      h('td', {}, kreis || ''), h('td', {}, ort || ''), h('td', {}, ...String(leitung || '').split(', ').flatMap((x, i) => [i ? ', ' : null, h('span', { class: 'nw' }, x)]).filter(Boolean))));
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
     if (v[feld].zeichen) zeileT('tzkopf', e.kopf[feld].t, `${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', titel, '', '');
   alleKnoten(v, (k, eltern, l, i, tiefe) => {
@@ -5567,9 +5579,13 @@ function tuerzettel(v) {
   return h('section', { class: 'tz' },
     h('h1', {}, v.name),
     h('div', { class: 'tzu' }, [P.projekt.projekt, herkunft].filter(Boolean).join(' · ')),
-    h('table', {}, h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Stromkreis', 'Ort', 'Leitung'].map(t => h('th', {}, t)))), tb),
-    h('div', { class: 'fuss' }, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
-      .filter(Boolean).join(' · ')));
+    h('table', {}, tzSpalten(), h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Stromkreis', 'Ort', 'Leitung'].map(t => h('th', {}, t)))), tb),
+    h('div', { class: 'fuss' }, h('span', {}, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
+      .filter(Boolean).join(' · ')), h('span', { class: 'seitenzahl' })));
+}
+// feste Spaltenbreiten des Türzettels (ab v1.64, F07), damit Folgeseiten dieselben Kanten haben
+function tzSpalten() {
+  return h('colgroup', {}, [9, 27, 7, 24, 13, 20].map(w => h('col', { style: `width:${w}%` })));
 }
 // Hinweise für den Druckdialog (ab v1.62, D58): Skalierung 100 %, Ränder keine, PDF über das Ziel des Dialogs
 function druckHinweisLeiste(zusatz) {
@@ -5612,7 +5628,7 @@ function tuerLupe(liste, i) {
   }), i);
 }
 // Türzettel auf A4-Seiten (ab v1.63, D57): läuft die Tabelle über, beginnt jede Folgeseite mit „HV (Fortsetzung)“ und dem
-// Tabellenkopf; gemessen in Druckbreite (210 − 2 × 12 mm), Seitenhöhe 297 − 2 × 14 mm. Die Fußzeile steht auf der letzten Seite.
+// Tabellenkopf; gemessen in Druckbreite (210 − 2 × 12 mm), Seitenhöhe 297 − 2 × 14 mm. Ab v1.64 (F07) trägt jede Seite den Fuß.
 function tuerSeiten(v) {
   const mm = 96 / 25.4, H = (297 - 28) * mm - 4, tz = tuerzettel(v), seiten = [tz];
   const mess = h('div', { class: 'tzmess', style: 'position:absolute;left:-10000px;top:0;width:' + (186 * mm) + 'px' }); document.body.append(mess);
@@ -5622,8 +5638,8 @@ function tuerSeiten(v) {
   while (cur.offsetHeight > H && cur.querySelector('tbody').children.length > 1) {
     const kopfZeile = cur.querySelector('thead').cloneNode(true), tb = h('tbody'), fuss = cur.querySelector('.fuss');
     const f = h('section', { class: 'tz' }, h('h1', {}, `${v.name} (Fortsetzung)`), h('div', { class: 'tzu' }, cur.querySelector('.tzu').textContent),
-      h('table', {}, kopfZeile, tb));
-    if (fuss) f.append(fuss);
+      h('table', {}, tzSpalten(), kopfZeile, tb));
+    if (fuss) f.append(fuss.cloneNode(true));      // ab v1.64 (F07): Fuß auf jeder Seite
     const quelle = cur.querySelector('tbody');
     while (cur.offsetHeight > H && quelle.children.length > 1) tb.prepend(quelle.lastElementChild);
     // eine Gruppenzeile bleibt bei ihren Stromkreisen
@@ -5631,6 +5647,8 @@ function tuerSeiten(v) {
     flach(f); seiten.push(f); cur = f;
   }
   seiten.forEach(x => { x.removeAttribute('style'); }); mess.remove();
+  // ab v1.64 (F07): „Seite x/y“ je Verteiler, sobald der Türzettel mehr als eine Seite hat
+  if (seiten.length > 1) seiten.forEach((x, i) => { const z = x.querySelector('.seitenzahl'); if (z) z.textContent = `Seite ${i + 1}/${seiten.length}`; });
   return seiten;
 }
 function tuerDrucken(liste) {

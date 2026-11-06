@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.60 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.61 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,17 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.61: Desktop-Runde D1, Etappe 3 „Kürzel, Zoom, Navigation, Menü“: Strg++/Strg+−/Strg+0 zoomen den Plan statt des Browsers,
+           Umschalt+2 passt die Auswahl ein, Zoom-Menü mit 50/100/150/200 %, Ganzes Blatt, Blattbreite und Auswahl einpassen;
+           Bild↑/↓ blättern blattweise, Strg+Pos1/Ende erstes/letztes Blatt, Blattwahl einzeilig („6 Stromlaufplan HV“) mit
+           Sprung in die Druckvorschau für Deckblatt, Inhalt, Übersicht und Klemmenplan, Blatttitel nur bei mehreren Blättern;
+           Suche (Strg+F, Lupe in der Kopfleiste) nach Kennzeichen, Bezeichnung und Ort im ganzen Projekt; ein Menü für Start und
+           Editor („Menü“ mit Datei · Bearbeiten · Ansicht · Verteiler · Hilfe, Kürzel rechts, „…“ nur vor Dialogen); Tooltips
+           „Name (Kürzel)“ ≤ 60 Zeichen, Plan-Ziele mit Tooltip; Hilfe mit F1, Abschnitte als Seitenleiste, „Gesten“ nur auf
+           Touch, ohne Jargon, „Schließen“; Tastenkürzel als Raster mit Tastenkappen; Fußleiste zeigt Auswahl und Speicherstand
+           statt einer Anleitung, Werkzeug mit der Maus ohne Meldung und mit Zeiger „copy“; „Blatt festhalten“ als Nadel im
+           Blattkopf (beim Überfahren); Esc auf Unterseiten = Zurück; Smartphone quer: „Menü“ wieder im Bild (Hilfe über das
+           Menü); Pläne unverändert
      v1.60: Desktop-Runde D1, Etappe 2 „Ein Interaktionsmodell“: Befehle aus einer Quelle (befehle()) – am Desktop in der
            Kopfleiste (höchstens 4 + „Mehr …“), auf Touch schwebend, als Rechtsklick-Menü mit Kürzeln und im Menü „…“; einheitliche
            Namen, keine gesperrten Knöpfe, keine Befehlsreihen im Fach; Mehrfachauswahl ohne Modus (Strg+Klick, Umschalt+Klick,
@@ -359,7 +370,7 @@ table.ueb tr.gr td{background:var(--karte2);font-weight:600}
 .fenster h3{margin:0;padding:14px 16px 6px;font-size:16px}
 .fenster .inhalt{padding:4px 16px 12px}
 .fenster .fuss{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--linie)}
-.fenster input[type=text],.fenster input[type=number],.fenster input[type=date]{width:100%;font:inherit;font-size:17px;padding:9px 10px;border:1px solid var(--linie);border-radius:9px;background:var(--karte2)}
+.fenster input[type=text],.fenster input[type=number],.fenster input[type=date],.fenster input[type=search]{width:100%;font:inherit;font-size:17px;padding:9px 10px;border:1px solid var(--linie);border-radius:9px;background:var(--karte2)}
 .wahl{display:flex;flex-direction:column;border:1px solid var(--linie);border-radius:10px;overflow:hidden;max-height:60vh;overflow-y:auto}
 .wahl button{border:0;border-top:1px solid var(--linie);background:var(--karte);text-align:left;padding:11px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .wahl button:first-child{border-top:0}
@@ -805,6 +816,28 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 .menue button.gefahr kbd{color:inherit;opacity:.75}
 /* Arbeitsfläche als ein Tabstopp (ab v1.60, D17) */
 .edflaeche:focus{outline:none}.edflaeche:focus-visible{outline:2px solid var(--akzent);outline-offset:-2px}
+/* ab v1.61 (D23): ein Menü mit Abschnitten; (D27) Nadel im Blattkopf; (D25) Tastenkappen; (D26) Zeiger beim Einfügen */
+.menue .menuekopf{font-size:12px;font-weight:650;color:var(--leise);padding:9px 10px 3px}
+.menue .menuekopf:first-child{padding-top:4px}
+.festknopf.nadelknopf{display:inline-flex;align-items:center;justify-content:center;padding:0;width:28px;height:24px;border-color:transparent;background:none;opacity:0;transition:opacity .12s}
+.festknopf.nadelknopf svg{width:16px;height:16px}
+.blatt:hover .festknopf.nadelknopf,.festknopf.nadelknopf:focus-visible,.festknopf.nadelknopf.an{opacity:1}
+.festknopf.nadelknopf.an{border-color:transparent;background:var(--akzent-hell)}
+.festknopf.nadelknopf:hover{border-color:var(--akzent)}
+kbd.kappe{display:inline-block;font:600 12px/1 system-ui,sans-serif;padding:3px 6px;border:1px solid var(--linie2);border-bottom-width:2px;border-radius:5px;background:var(--karte2);color:var(--tinte);white-space:nowrap}
+.tastenraster{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:6px 14px;align-items:baseline;font-size:14px;padding:4px 0}
+.tastenraster .tk{display:flex;flex-wrap:wrap;gap:3px;align-items:baseline;color:var(--leise);font-size:12px}
+.tastenraster h5{grid-column:1/-1;margin:10px 0 0;font-size:12px;font-weight:650;color:var(--leise)}
+.ed.einfuegen .edflaeche svg,.ed.stwerkzeug .edflaeche svg,.ed.einfuegen .edflaeche svg *,.ed.stwerkzeug .edflaeche svg *{cursor:copy}
+.fenster.suche input[type=search]{margin:8px 0 6px;font-size:15px;color:var(--tinte)}.suchliste .mz kbd{font-size:12px}
+.fenster.tasten{max-width:600px}.fenster.tasten .inhalt{max-height:min(72vh,680px);overflow-y:auto}
+@media (max-width:999px){.edkopf .suchknopf{display:none}}      /* schmal: Suche über das Menü (Platz für den Kopf) */
+/* Smartphone quer (ab v1.61): Hilfe über das Menü, damit „Menü“ nicht rechts aus dem Bild ragt */
+@media (max-width:999px) and (orientation:landscape) and (max-height:500px){.edkopf .hilfeikon{display:none}}
+.hinweiszeile .standtext{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:400}
+@media (min-width:900px){.fenster.hilfe{max-width:860px}.fenster.hilfe .inhalt{display:grid;grid-template-columns:170px 1fr;gap:0 22px;align-items:start}
+  .fenster.hilfe .hilfenav{flex-direction:column;flex-wrap:nowrap;position:sticky;top:0;grid-row:1 / span 20;gap:4px;margin-top:14px}
+  .fenster.hilfe .hilfenav button{text-align:left;white-space:nowrap}.fenster.hilfe .hilfeabschnitt{grid-column:2}}
 </style>
 </head>
 <body>
@@ -3079,7 +3112,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.60';
+const FASSUNG = 'v1.61';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3254,6 +3287,7 @@ function ablegen(text) {
     localStorage.setItem(pSchluessel(projektId), text); localStorage.setItem(PLISTE, JSON.stringify(projekte)); localStorage.setItem(PAKTIV, projektId);
     if (lsLesen(SPEICHER) !== null && projekte.every(q => lsLesen(pSchluessel(q.id)) !== null)) localStorage.removeItem(SPEICHER);
   } catch (e) { meldung(/quota/i.test(e.name + e.message) ? 'Speicher voll – ältere Projekte als Datei sichern und löschen' : 'Speichern im Gerät nicht möglich'); }
+  if (ED) standAnzeigen();      // ab v1.61 (D26): Speicherstand in der Fußleiste
 }
 // Projekt gilt als gesichert (ab v1.58, C35): nach dem Sichern als Datei, dem Öffnen aus Datei und beim Beispiel;
 // art: 'export' bzw. 'importiert' merkt den Zeitpunkt für die Statuszeile
@@ -3261,6 +3295,7 @@ function exportStand(art) {
   const x = projekte.find(q => q.id === projektId); if (!x) return;
   x.geaendertSeitExport = null; if (art) x[art] = new Date().toISOString();
   try { localStorage.setItem(PLISTE, JSON.stringify(projekte)); } catch (e) {}
+  if (ED) standAnzeigen();
 }
 // ab v1.60 (D18): im Plan-Editor nicht über das Anlegen des Verteilers hinweg (Meldung statt dessen); danach ist gewählt,
 // was sich geändert hat (wiederhergestellter oder geänderter Abgang bzw. Steuerstromkreis)
@@ -3907,9 +3942,19 @@ const ankerFrisch = () => anker && Date.now() - anker.zeit < 1500 ? anker : null
 const fensterStapel = [];
 // Datei-Kürzel (ab v1.59, D02/D05): Strg+P druckt den Plan, Strg+S sichert das Projekt als Datei, Strg+O öffnet eine;
 // überall in der App, auch in Eingabefeldern (das Feld wird vorher übernommen); bei offenem Fenster nur abgefangen
+// ab v1.61: F1 Hilfe, Strg+F Suche (D22, D25); im Editor zoomen Strg++ / Strg+− / Strg+0 den Plan statt des Browsers (D20)
 document.addEventListener('keydown', ev => {
-  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey) return;
-  const t = ev.key.toLowerCase(); if (t !== 'p' && t !== 's' && t !== 'o') return;
+  if (ev.key === 'F1' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); if (!fensterStapel.length) hilfe(); return; }
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+  if (ED && stapel[stapel.length - 1].s === 'editor') {
+    const z = ev.key === '+' || ev.key === '=' || ev.code === 'NumpadAdd' ? 1.25 : ev.key === '-' || ev.code === 'NumpadSubtract' ? 0.8
+      : ev.key === '0' || ev.code === 'Digit0' || ev.code === 'Numpad0' ? 0 : null;
+    if (z !== null) { ev.preventDefault(); ev.stopImmediatePropagation(); if (!fensterStapel.length) zoomSetzen(z ? ED.b.zoom * z : 100); return; }
+  }
+  if (ev.shiftKey) return;
+  const t = ev.key.toLowerCase();
+  if (t === 'f') { ev.preventDefault(); ev.stopImmediatePropagation(); const a = document.activeElement; if (a && /INPUT|TEXTAREA/.test(a.tagName) && !fensterStapel.length) a.blur(); suche(); return; }
+  if (t !== 'p' && t !== 's' && t !== 'o') return;
   ev.preventDefault(); ev.stopImmediatePropagation();
   if (fensterStapel.length) return;
   const a = document.activeElement; if (a && /INPUT|TEXTAREA/.test(a.tagName)) a.blur();
@@ -4062,9 +4107,11 @@ function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
 }
 // Menü: Einträge [Text, Aktion, { klein, an, rot, taste }] oder '—' als Trennlinie; ändert selbst nichts
 // ab v1.60 (M5): Kürzel rechtsbündig (taste); ohne Titel (Rechtsklick, „Mehr …“) mit opt.label für Vorleser
+// ab v1.61 (D23): { kopf: 'Datei' } setzt einen Abschnittskopf (kein Knopf)
 function menue(titel, eintraege, beimSchliessen = null, opt = {}) {
   let schl;
   const liste = h('div', { class: 'wahl menue', role: 'menu' }, eintraege.filter(Boolean).map(x => x === '—' ? h('div', { class: 'trennlinie', role: 'separator' }) :
+    x.kopf ? h('div', { class: 'menuekopf', role: 'presentation' }, x.kopf) :
     h('button', { role: 'menuitem', class: [x[2] && x[2].an ? 'an' : '', x[2] && x[2].rot ? 'gefahr' : ''].join(' ').trim() || null, disabled: (x[2] && x[2].aus) || null, on: { click: () => { schl(false); x[1](); } } },
       x[2] && x[2].taste ? h('span', { class: 'mz' }, h('span', {}, x[0]), h('kbd', {}, x[2].taste)) : h('span', {}, x[0]), x[2] && x[2].klein ? h('small', {}, x[2].klein) : null)));
   schl = fenster(titel, liste, s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Schließen')], beimSchliessen, { pop: true, still: true, label: opt.label });
@@ -4131,57 +4178,65 @@ const FI_TYP_KLEIN = { A: 'üblich: Wechsel- und pulsierende Gleichfehlerströme
   B: 'auch glatte Gleichfehlerströme (Wallbox ohne DC-Erkennung, Drehstrom-Umrichter)', 'B+': 'wie B, bis 20 kHz (vorbeugender Brandschutz)',
   AC: 'nur Wechselfehlerströme – in Deutschland nicht mehr zulässig' };
 const IDN_KLEIN = { 10: 'einzelne Geräte', 30: 'Personenschutz – Steckdosen, Bad, außen', 100: 'Anlagenschutz', 300: 'Brandschutz', 500: 'Anlagenschutz' };
-const TASTEN = [      // ab v1.60 mit Rechtsklick, Mehrfachauswahl, F2 und Tab
-  ['← / →', 'vorigen / nächsten Abgang wählen'], ['Alt+← / Alt+→', 'Abgang nach links / rechts'],
-  ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt nach oben / unten'],
-  ['Tab', 'Kopf, Palette, Arbeitsfläche, Fach der Reihe nach'], ['F2, Doppelklick', 'Bezeichnung ändern (Platz: Gerät wählen)'], ['Entf', 'löschen (Rückgängig in der Meldung)'],
-  ['Rechtsklick', 'alle Befehle für das Teil unter dem Zeiger'], ['Strg+Klick', 'Abgang zur Auswahl dazu bzw. heraus'], ['Umschalt+Klick', 'Abgänge bis hier wählen'],
-  ['Rahmen ziehen', 'im Leeren: Abgänge; mit Alt: Geräte und Zusätze'], ['Strg+A', 'alle Abgänge wählen'],
-  ['Strg+C / X / V', 'kopieren, ausschneiden, einfügen (hinter das gewählte Teil)'], ['Strg+D', 'duplizieren'], ['Strg+Z / Y', 'rückgängig, wiederholen'],
-  ['+ / − / 0', 'größer / kleiner / Blattbreite'], ['Umschalt+1', 'ganzes Blatt'], ['Strg+Mausrad', 'zoomen'], ['Leertaste+Ziehen', 'Ansicht schwenken (auch Mitteltaste)'],
-  ['Esc', 'Ziehen abbrechen, Werkzeug beenden, Auswahl aufheben, Fenster schließen'],
-  ['Ziehen', 'Abgang an seiner Zeichnung auf eine Marke „+“, Kontakt auf einen Platz; Finger/Pencil: kurz halten'], ['Strg+S / O / P', 'sichern, öffnen, drucken'], ['?', 'diese Übersicht']];
-// Hilfe (ab v1.54): Erste Schritte, Gesten, Maus und Tasten, Anordnen von Hand, Speichern, Begriffe
+// Tastenkürzel (ab v1.61, D25): in Abschnitten, Tasten als Kappen; dieselben Kürzel wie in Menüs und Tooltips
+const TASTEN = [
+  ['Auswahl und Bearbeiten', [['Klick', 'Teil wählen; ins Leere: Auswahl aufheben'], ['Strg+Klick', 'Abgang zur Auswahl dazu bzw. heraus'], ['Umschalt+Klick', 'Abgänge bis hier wählen'],
+    ['Rahmen ziehen', 'im Leeren: Abgänge; mit Alt: Geräte und Zusätze'], ['Strg+A', 'alle Abgänge wählen'], ['← / →', 'vorigen bzw. nächsten Abgang wählen'],
+    ['Alt+← / Alt+→', 'Abgang nach links bzw. rechts'], ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt nach oben bzw. unten'],
+    ['F2 / Enter / Doppelklick', 'Bezeichnung ändern, beim Platz das Gerät'], ['Entf', 'löschen – Rückgängig in der Meldung'], ['Rechtsklick', 'alle Befehle für das Teil unter dem Zeiger'],
+    ['Strg+C / Strg+X / Strg+V', 'kopieren, ausschneiden, einfügen hinter das gewählte Teil'], ['Strg+D', 'duplizieren'], ['Strg+Z / Strg+Y', 'rückgängig, wiederholen'],
+    ['Ziehen', 'Abgang an seiner Zeichnung auf eine Einfügestelle „+“, Kontakt auf einen Platz'], ['Esc', 'Ziehen abbrechen, Werkzeug beenden, Auswahl aufheben, Fenster schließen']]],
+  ['Ansicht', [['Strg++ / Strg+−', 'größer bzw. kleiner'], ['Strg+0', 'Blattbreite (100 %)'], ['Umschalt+1', 'ganzes Blatt'], ['Umschalt+2', 'Auswahl einpassen'],
+    ['Strg+Mausrad', 'zoomen'], ['Leertaste+Ziehen', 'Ansicht schwenken, ebenso mit der Mitteltaste'], ['Bild↑ / Bild↓', 'voriges bzw. nächstes Blatt'], ['Strg+Pos1 / Strg+Ende', 'erstes bzw. letztes Blatt']]],
+  ['Datei und Hilfe', [['Strg+S', 'Projekt als Datei sichern'], ['Strg+O', 'Projekt aus Datei öffnen'], ['Strg+P', 'Stromlaufplan drucken'], ['Strg+F', 'suchen'],
+    ['Tab', 'Kopf, Palette, Arbeitsfläche, Eigenschaften der Reihe nach'], ['F1', 'Hilfe'], ['?', 'diese Übersicht']]]];
+const KEINE_TASTE = new Set(['Klick', 'Rechtsklick', 'Doppelklick', 'Ziehen', 'Rahmen ziehen', 'Mausrad', 'Pfeiltasten']);
+function tastenKappen(k) {
+  const teile = [];
+  k.split(' / ').forEach((x, i) => { if (i) teile.push(' / ');
+    (x === 'Strg++' ? ['Strg', '+'] : x.split('+')).forEach((t, j) => { if (j) teile.push('+'); teile.push(KEINE_TASTE.has(t) ? t : h('kbd', { class: 'kappe' }, t)); }); });
+  return h('span', { class: 'tk' }, ...teile);
+}
+const tastenRaster = () => h('div', { class: 'tastenraster' }, ...TASTEN.flatMap(([titel, l]) => [h('h5', {}, titel), ...l.flatMap(([k, t]) => [tastenKappen(k), h('span', {}, t)])]));
+// Hilfe (ab v1.54): Erste Schritte, Gesten (nur Touch, ab v1.61), Maus und Tasten, Anordnen von Hand, Speichern, Begriffe
+// ab v1.61 (D25): Wörter der Oberfläche statt Jargon, „Schließen“, Abschnitte ab 900 px als Seitenleiste, F1
 function hilfe(ab = null) {
+  if (fensterStapel.some(s => s.el && s.el.classList.contains('hilfe'))) return;
   const abschnitt = (key, titel, ...inhalt) => h('section', { class: 'hilfeabschnitt', 'data-abschnitt': key }, h('h4', {}, titel), ...inhalt);
   const liste = punkte => h('ul', {}, ...punkte.map(p => h('li', {}, ...(Array.isArray(p) ? [h('b', {}, p[0]), ' – ', p[1]] : [p]))));
+  const touch = beruehrung();
   const teile = [
     abschnitt('start', 'Erste Schritte', h('p', {}, 'Die App erzeugt aus Ihren Angaben Stromlaufpläne, Übersichtsplan, Klemmenplan und Türzettel für Elektroverteiler – druckfertig als PDF.'),
-      h('ol', {}, h('li', {}, 'Verteiler anlegen (Startseite: „Neuer Verteiler“).'), h('li', {}, 'Stromkreise einfügen: in der Palette Steckdose, Leuchte, FI-Gruppe usw. wählen oder im Blatt eine Marke „+“ ' + tipp() + '.'),
-        h('li', {}, 'Teile im Blatt ' + tipp() + ' und rechts bzw. unten im Fach die Eigenschaften ändern.'), h('li', {}, 'Drucken – als Papier oder PDF.')),
+      h('ol', {}, h('li', {}, 'Verteiler anlegen (Startseite: „Neuer Verteiler“).'), h('li', {}, 'Stromkreise einfügen: links in der Palette Steckdose, Leuchte, FI-Gruppe usw. ' + tipp() + ' oder im Blatt ein „+“ ' + tipp() + '.'),
+        h('li', {}, 'Teile im Blatt ' + tipp() + ' und rechts bzw. unten unter „Eigenschaften“ ändern.'), h('li', {}, 'Drucken – als Papier oder PDF.')),
       h('p', {}, 'Kennzeichen, Klemmen, Phasenverteilung und Anordnung macht die App automatisch.'),
       // ab v1.58 (C34): das Beispiel auch dann erreichbar, wenn schon Verteiler angelegt sind
       h('p', {}, h('button', { class: 'knopf zweit klein', on: { click: () => { while (fensterStapel.length) fensterStapel[fensterStapel.length - 1](false); beispielOeffnen(); } } }, 'Beispiel ansehen'),
         ' – öffnet ein fertiges Projekt als weiteres Projekt; Ihr Projekt bleibt.')),
-    abschnitt('gesten', 'Gesten', liste([['Antippen', 'Teil wählen; die Eigenschaften öffnen sich im Fach unten bzw. rechts'],
-      ['Halten und ziehen', 'nach kurzem Halten (0,35 s) Abgang auf eine Marke „+“ oder Kontakt auf einen Platz ziehen; ohne Halten blättert das Wischen'],
-      ['Zwei Finger', 'zoomen (Pinch)'], ['Doppeltipp', 'im Blatt 2× vergrößern, ein zweiter zurück auf Blattbreite; in „Stromlaufplan ansehen“ und beim Türzettel ebenso'],
-      ['Zurück-Geste', 'schließt erst Fenster, Lupe und Fach, dann geht es einen Bildschirm zurück'],
-      ['Palette', 'einmal antippen fügt hinter dem gewählten Abgang ein (bei gewählter Gruppe in die Gruppe); in der Steuerung setzt es das Zeichen auf den gewählten leeren Platz; doppelt antippen oder halten macht die Kachel zum Dauerwerkzeug bis „Fertig“'],
-      ['Fach', 'Kopf antippen öffnet und schließt es, nach oben ziehen vergrößert'], ['Apple Pencil', 'beim Schweben ist hervorgehoben, was ein Tippen trifft']])),
-    abschnitt('tasten', 'Maus und Tasten', liste([['Klick', 'Teil wählen, Klick ins Leere hebt die Auswahl auf; Doppelklick auf eine Kachel: Dauerwerkzeug; Umschalt+Klick auf eine Kachel bei gewählter Gruppe: hinter die Gruppe'],
+    touch ? abschnitt('gesten', 'Gesten', liste([['Antippen', 'Teil wählen; die Eigenschaften öffnen sich unten bzw. rechts'],
+      ['Halten und ziehen', 'nach kurzem Halten (0,35 s) Abgang auf ein „+“ oder Kontakt auf einen Platz ziehen; ohne Halten blättert das Wischen'],
+      ['Zwei Finger', 'zoomen'], ['Doppeltipp', 'im Blatt 2× vergrößern, ein zweiter zurück auf Blattbreite; in der Druckvorschau und beim Türzettel ebenso'],
+      ['Zurück-Geste', 'schließt erst Fenster, Lupe und Eigenschaften, dann geht es einen Bildschirm zurück'],
+      ['Palette', 'einmal antippen fügt hinter dem gewählten Abgang ein (bei gewählter Gruppe in die Gruppe); in der Steuerung setzt es das Zeichen auf den gewählten leeren Platz; doppelt antippen oder halten fügt mehrmals ein, bis „Fertig“'],
+      ['Eigenschaften', 'Kopf antippen öffnet und schließt sie, nach oben ziehen vergrößert'], ['Apple Pencil', 'beim Schweben ist hervorgehoben, was ein Tippen trifft']])) : null,
+    abschnitt('tasten', 'Maus und Tasten', liste([['Klick in die Palette', 'fügt sofort ein (hinter dem gewählten Abgang, bei gewählter Gruppe in die Gruppe; Umschalt+Klick dahinter); Doppelklick fügt mehrmals ein, bis Esc'],
       ['Rechtsklick', 'alle Befehle für das Teil unter dem Zeiger; die wichtigsten stehen oben in der Kopfleiste'],
-      ['Strg+Klick, Umschalt+Klick, Rahmen', 'mehrere Abgänge wählen und gemeinsam ändern']]),
-      h('div', {}, ...TASTEN.map(([k, t]) => h('div', { class: 'taste' }, h('b', {}, k), ' ', t)))),
-    null,
+      ['Strg+Klick, Umschalt+Klick, Rahmen', 'mehrere Abgänge wählen und gemeinsam ändern']]), tastenRaster()),
     abschnitt('anordnen', 'Anordnen von Hand', liste([
       'Die Anordnung im Plan macht die App. Was Sie von Hand ändern – Abgang in eine andere Spalte oder auf ein neues Blatt, Gerät im 2,5-mm-Raster, Leiterstück –, bleibt als Abweichung gespeichert.',
-      'Geräte und Leiterstücke eines Abgangs werden mit dem Befehl „Anordnen“ (Leiste, „Mehr …“ bzw. Rechtsklick) einzeln wähl- und ziehbar; Esc beendet.',
+      'Geräte und Leiterstücke eines Abgangs werden mit dem Befehl „Anordnen“ (Rechtsklick bzw. „Mehr …“) einzeln wähl- und ziehbar; Esc beendet.',
       'Von Hand gesetzte Teile tragen im Editor eine violette Stecknadel (nie im Druck); „Automatik anwenden“ setzt sie zurück.',
-      '„Blatt festhalten“ hält die Spalten aller Abgänge eines Blatts fest, damit spätere Änderungen davor sie nicht verschieben.',
+      `„Blatt festhalten“ (${touch ? 'Knopf „…“ über dem Blatt' : 'Nadel über dem Blatt oder Rechtsklick ins Leere'}) hält die Spalten aller Abgänge eines Blatts fest, damit spätere Änderungen davor sie nicht verschieben.`,
       'Reiter „Zeichnen“: freie Leiter (mit Prüfung auf Kurzschluss und offene Enden), Texte und strichpunktierte Rahmen.'])),
     abschnitt('speichern', 'Speichern', liste([
       'Jede Änderung wird sofort auf diesem Gerät gespeichert (im Browser). Rückgängig und Wiederholen gelten für die laufende Sitzung.',
-      'Browserdaten können verloren gehen (Verlauf löschen, privates Fenster, knapper Speicher). Sichern Sie das Projekt deshalb regelmäßig über „Datei“ → „Projekt als Datei sichern“.',
+      'Browserdaten können verloren gehen (Verlauf löschen, privates Fenster, knapper Speicher). Sichern Sie das Projekt deshalb regelmäßig über „Menü“ → „Projekt als Datei sichern“ (Strg+S).',
       'Die Datei (….slp.json) lässt sich auf einem anderen Gerät mit „Projekt aus Datei öffnen“ weiterbearbeiten; sie kommt dort als weiteres Projekt dazu (gleicher Name: wahlweise ersetzen).',
-      'Mehrere Projekte: Startseite → „Alle Projekte“ – öffnen, duplizieren, löschen. Rückgängig gilt je Projekt.'])),
-    abschnitt('begriffe', 'Begriffe', h('dl', { class: 'begriffe' }, ...Object.entries(BEGRIFFE).flatMap(([n, t]) => [h('dt', {}, n), h('dd', {}, t)])))];
-  // ab v1.58 (C21): der Abschnitt der eigenen Eingabeart zuerst – mit Maus „Maus und Tasten“, auf Touch „Gesten“
-  teile.splice(teile.indexOf(null), 1);
-  if (!beruehrung()) { const g = teile.findIndex(t => t.dataset.abschnitt === 'gesten'), t = teile.findIndex(x => x.dataset.abschnitt === 'tasten'); teile.splice(g, 0, teile.splice(t, 1)[0]); }
+      'Mehrere Projekte: „Menü“ → „Alle Projekte“ – öffnen, duplizieren, löschen. Rückgängig gilt je Projekt.'])),
+    abschnitt('begriffe', 'Begriffe', h('dl', { class: 'begriffe' }, ...Object.entries(BEGRIFFE).flatMap(([n, t]) => [h('dt', {}, n), h('dd', {}, t)])))].filter(Boolean);
   const nav = h('nav', { class: 'hilfenav', 'aria-label': 'Abschnitte' }, ...teile.map(t => h('button', { class: 'knopf zweit klein',
     on: { click: () => t.scrollIntoView({ block: 'start', behavior: 'smooth' }) } }, t.querySelector('h4').textContent)));
-  const schl = fenster('Hilfe', [nav, ...teile], null, null, { cls: 'hilfe' });
+  const schl = fenster('Hilfe', [nav, ...teile], s => [h('button', { class: 'knopf', on: { click: () => s() } }, 'Schließen')], null, { cls: 'hilfe' });
   if (ab) { const z = schl.el.querySelector(`[data-abschnitt="${ab}"]`); if (z) setTimeout(() => z.scrollIntoView({ block: 'start' }), 40); }
 }
 // Name abfragen (ab v1.54): Vorschlag markiert und sofort überschreibbar, „Anlegen“ erst mit Namen
@@ -4216,14 +4271,10 @@ function zeichne() {
 
 // Startbildschirm (ab v1.21): Projekt, Verteiler als Karten – ein Tippen öffnet den Plan-Editor
 function bStart() {
+  // ab v1.61 (D23): dasselbe Menü wie im Editor („Menü“ statt „Datei“), Hilfe mit F1
   app.append(kopf('Stromlaufplan', h('span', { class: 'kopfknoepfe' },
-    h('button', { class: 'kopfknopf hilfeknopf gross', 'aria-label': 'Hilfe', title: 'Hilfe', on: { click: () => hilfe() } }, '?'),
-    h('button', { class: 'kopfknopf', on: { click: () => menue('Datei', [
-    ['Projekt als Datei sichern', exportieren, { klein: 'JSON-Datei zum Weitergeben oder für ein anderes Gerät' }],
-    ['Projekt aus Datei öffnen', () => document.getElementById('datei').click(), { klein: 'legt es als weiteres Projekt an' }],
-    ['Beispielprojekt öffnen', beispielOeffnen, { klein: 'Halle 3 mit Haupt- und Unterverteiler, als eigenes Projekt' }], '—',
-    ['Neues Projekt', neuesProjektAnlegen, { klein: 'das bisherige bleibt in der Projektliste' }],
-    ['Alle Projekte …', () => geh({ s: 'projekte' }), { klein: 'öffnen, duplizieren, löschen' }]]) } }, 'Datei'))));
+    h('button', { class: 'kopfknopf hilfeknopf gross', 'aria-label': 'Hilfe', title: 'Hilfe (F1)', on: { click: () => hilfe() } }, '?'),
+    h('button', { class: 'kopfknopf', 'aria-label': 'Menü', title: 'Menü', on: { click: () => hauptMenue() } }, 'Menü'))));
   const m = h('main', { class: 'start' }), pj = P.projekt;
   // Leerzustand (ab v1.54): wofür die App da ist, drei Schritte, Beispiel
   if (!P.verteiler.length) m.append(h('section', { class: 'einfuehrung' },
@@ -5378,6 +5429,8 @@ document.addEventListener('keydown', ev => {
   if (!b || fensterStapel.length || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
   const strg = ev.ctrlKey || ev.metaKey, t = ev.key.toLowerCase();
   if (strg && (t === 'z' || t === 'y')) { ev.preventDefault(); return projektRueck(t === 'y' || ev.shiftKey); }
+  // ab v1.61 (D29): Esc auf den Unterseiten (Projektliste, Stromkreisliste, Druckvorschau, Türzettel …) = Zurück
+  if (t === 'escape' && b.s !== 'editor' && stapel.length > 1 && !einbettung) { ev.preventDefault(); return zurueck(); }
   if (b.s !== 'editor' || !ED) return;
   const v = ED.v;
   // ab v1.59 (D04): Esc bricht Ziehen, Rahmen und Schwenken ab, bevor es etwas anderes tut
@@ -5390,8 +5443,12 @@ document.addEventListener('keydown', ev => {
   // ab v1.60 (M6): F2 bzw. Eingabe (Fokus auf der Fläche) bearbeitet die Bezeichnung der Auswahl im Fach
   const aufFlaeche = ev.target === document.body || ev.target === ED.flaeche;
   if (t === 'f2' || (t === 'enter' && aufFlaeche && !strg && /^(k|kr|z):/.test(b.sel || ''))) { ev.preventDefault(); return bezeichnungBearbeiten(); }
-  // Umschalt+1: ganzes Blatt (ab v1.60, für das Rechtsklick-Menü)
+  // Umschalt+1: ganzes Blatt (ab v1.60, für das Rechtsklick-Menü); Umschalt+2: Auswahl einpassen (ab v1.61, D20)
   if (ev.shiftKey && !strg && ev.code === 'Digit1') { ev.preventDefault(); return zoomGanz(); }
+  if (ev.shiftKey && !strg && ev.code === 'Digit2') { ev.preventDefault(); return b.sel ? zoomAufAuswahl() : null; }
+  // Blätter (ab v1.61, D21): Bild↑/↓ voriges/nächstes Blatt, Strg+Pos1/Ende erstes/letztes
+  if (t === 'pagedown' || t === 'pageup') { ev.preventDefault(); return blattZeigen(aktuellesBlatt() + (t === 'pagedown' ? 1 : -1), true); }
+  if (strg && (t === 'home' || t === 'end')) { ev.preventDefault(); return blattZeigen(t === 'home' ? 0 : ED.liste.length - 1, true); }
   // gewählter Platz im Steuerstromkreis
   const m = /^pl:([^:]+):(\d)$/.exec(b.sel || '');
   if (m) {
@@ -5464,7 +5521,7 @@ const ICONS = {
   zweig: 'M8 3v18M8 7h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8', geraet: 'M4 20l4-1L19 8l-3-3L5 16l-1 4zM14 7l3 3', einfuegen: 'M9 4h6v3H9zM7 5H5v15h14V5h-2M12 10v7M8.5 13.5h7',
   vorlage: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7', abgaenge: 'M4 4h16v16H4zM9.5 9.5v4M14.5 9.5v4',
   spalteR: 'M3 12h13M12 8l4 4-4 4M20 5v14', spalteL: 'M21 12H8M12 8l-4 4 4 4M4 5v14', umbruch: 'M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M12 10l3 3-3 3',
-  nadel: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8', auto: 'M5 19l9-9M14 5l1.2 2.8L18 9l-2.8 1.2L14 13l-1.2-2.8L10 9l2.8-1.2zM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6z', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
+  nadel: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8', suche: 'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8', auto: 'M5 19l9-9M14 5l1.2 2.8L18 9l-2.8 1.2L14 13l-1.2-2.8L10 9l2.8-1.2zM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6z', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
 };
 function icon(n) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
@@ -5472,7 +5529,9 @@ function icon(n) {
   return s;
 }
 const iconKl = (n, kl) => { const s = icon(n); s.setAttribute('class', kl); return s; };
-const ik = (name, label, f, opt = {}) => h('button', { class: 'ikon' + (opt.cls ? ' ' + opt.cls : ''), 'aria-label': label, title: label + (opt.taste ? ` (${opt.taste})` : ''),
+// Tooltip „Name (Kürzel)“ mit höchstens 60 Zeichen (ab v1.61, D24/M11)
+const titelKurz = (l, taste) => { const k = taste ? ` (${taste})` : ''; l = String(l).replace(/[()]/g, ''); return (l.length + k.length > 60 ? l.slice(0, 59 - k.length).trimEnd() + '…' : l) + k; };
+const ik = (name, label, f, opt = {}) => h('button', { class: 'ikon' + (opt.cls ? ' ' + opt.cls : ''), 'aria-label': label, title: titelKurz(label, opt.taste),
   disabled: opt.aus || null, 'data-w': opt.w || null, on: { click: f } }, icon(name), opt.text ? h('span', { class: 'ikontext' }, opt.text) : null);
 
 // Bildschirm in die Eigenschaften-Leiste umlenken; sein Kopf wird zur Überschrift der Leiste
@@ -5663,9 +5722,12 @@ function werkzeug(t) {
   const b = ED.b; b.tool = t; ED.zeichnen = null; zeichenVorschau(null);
   if (t) palUeberlage(false);      // ab v1.57: Überlage im Querformat schließt, damit Marken bzw. Plätze frei sind
   ED.ed.classList.toggle('einfuegen', !!t && !istSteuerWerkzeug(t) && !istZeichenWerkzeug(t));
+  ED.ed.classList.toggle('stwerkzeug', !!t && istSteuerWerkzeug(t));      // ab v1.61 (D26): Zeiger „copy“ statt einer Meldung
   ED.ed.classList.toggle('zeichnen', istZeichenWerkzeug(t) || t === 'zauswahl');
   paletteNeu(); fussNeu();
 }
+// ab v1.61 (D26): mit der Maus zeigen Kachel, Zeiger und Fußleiste das Werkzeug – die Meldung entfällt; Finger behalten sie
+function werkzeugMeldung(t) { if (!feinZeiger()) meldung(t); }
 const REITER = { ab: ['Abgänge', 'Steckdosen, Leuchten, Gruppen, Motoren …'], st: ['Steuerung', 'Steuerstromkreise: Taster, Kontakte, Spulen'], ze: ['Zeichnen', 'freie Leiter, Texte, Rahmen'] };
 const REITER_ICON = { ab: 'abgaenge', st: 'zweig', ze: 'geraet' };      // ab v1.58 (C19): Symbol des Reiterknopfs am iPhone
 function paletteWahl(w) {
@@ -5691,17 +5753,17 @@ function paletteNeu() {
       const m = /^pl:([^:]+):(\d)$/.exec(b.sel || ''), r = m && kreisMitPfad(v, m[1]), i = m ? +m[2] : -1, p = r && r.kr.pfade[r.j];
       const leer = p && (i === 6 ? !p.verbraucher : !p.plaetze[i]);
       if (p && platzAktiv(r.kr.pfade, r.j, i) && (z === 'leer' ? !leer : leer)) { if (b.tool) werkzeug(null); palUeberlage(false); return werkzeugAnwenden(v, berechne(v), p, i, z); }
-      werkzeug(z); meldung(`${WERKZEUG_NAME(z)}: Platz ${tipp()}`);
+      werkzeug(z); werkzeugMeldung(`${WERKZEUG_NAME(z)}: Platz ${tipp()}`);
     };
     // ab v1.58 (C25): ohne Kreis steht „Neuer Kreis“ vorn, davor ein kurzer Knopf statt eines langen Hinweistexts
     const neuG = () => { const gr = pal.querySelector('.palgruppe.neukreis'); if (!gr) return; gr.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       gr.classList.add('hervor'); setTimeout(() => gr.classList.remove('hervor'), 1400);
       meldung('Noch kein Steuerstromkreis – Meldeleuchte, Zeitrelais oder Treppenlicht anlegen oder einem Abgang ein Schaltgerät geben'); };
-    if (!aktiv) pal.append(h('button', { class: 'pallink palneu', title: 'Noch kein Steuerstromkreis: einen Kreis anlegen oder einem Abgang ein Schaltgerät geben', on: { click: neuG } }, '+ Steuer\u00adstromkreis …'));
+    if (!aktiv) pal.append(h('button', { class: 'pallink palneu', title: 'Steuerstromkreis anlegen', on: { click: neuG } }, '+ Steuer\u00adstromkreis …'));
     const vorn = !aktiv ? pal.lastChild : null;
     ST_PALETTE.forEach(([grp, liste]) => pal.append(gruppe(grp === 'Verbraucher und Radierer' ? 'Verbraucher' : grp,
-      liste.map(z => kachel(PAL_KURZ[z] || WERKZEUG_NAME(z), ST_BILD[z] || z, '', stEinmal(z), { an: b.tool === z, titel: `${WERKZEUG_NAME(z)} – Doppelklick oder Halten: Dauerwerkzeug`,
-        dauer: () => { werkzeug(z); meldung(`${WERKZEUG_NAME(z)}: Plätze ${tipp()} – „Fertig“ oder Esc beendet`); } })))));
+      liste.map(z => kachel(PAL_KURZ[z] || WERKZEUG_NAME(z), ST_BILD[z] || z, '', stEinmal(z), { an: b.tool === z, titel: titelKurz(`${WERKZEUG_NAME(z)} – Doppelklick: mehrere`),
+        dauer: () => { werkzeug(z); werkzeugMeldung(`${WERKZEUG_NAME(z)}: Plätze ${tipp()} – „Fertig“ oder Esc beendet`); } })))));
     // ab v1.56: der zuletzt gewählte Abgang (vor dem Reiterwechsel) wird Abgriff des neuen Kreises bzw. Lichtabgang des Treppenlichts
     const gewAbgang = () => { const kid = (b.sel || '').startsWith('k:') ? b.sel.slice(2) : b.stAbgang, r = kid && knoten(v, kid);
       return r && r.k.typ === 'abgang' && !r.k.steuer ? r.k : null; };
@@ -5711,8 +5773,8 @@ function paletteNeu() {
       if (ab) meldung(`Abgriff: ${(berechne(v).abgaenge[ab.id].f || {}).t || abgangName(ab)}`); };
     const treppe = () => { const ab = gewAbgang(); if (!ab) return meldung('Zuerst im Reiter „Abgänge“ den Lichtabgang wählen'); treppenlichtAbgang(v, ab); };
     const nk = gruppe('Neuer Kreis', [kachel('Melde\u00adleuchte', 'meldeleuchte', '+', neuKreis('meldeleuchte'), { titel: 'Kreis mit einer Meldeleuchte anlegen' }),
-      kachel('Zeit\u00adrelais', 'spule_aus', '+', neuKreis('zeitrelais'), { titel: 'Kreis mit einem eigenständigen Zeitrelais anlegen (Abgriff am gewählten Abgang)' }),
-      kachel('Treppen\u00adlicht', 'taster_s', '+', treppe, { titel: 'Treppenlicht: Zeitrelais im gewählten Lichtabgang mit Tastern' })]);
+      kachel('Zeit\u00adrelais', 'spule_aus', '+', neuKreis('zeitrelais'), { titel: 'Kreis mit eigenständigem Zeitrelais anlegen' }),
+      kachel('Treppen\u00adlicht', 'taster_s', '+', treppe, { titel: 'Treppenlicht im gewählten Lichtabgang anlegen' })]);
     nk.classList.add('neukreis');
     if (vorn) vorn.after(nk); else pal.append(nk);
     pal.append(h('button', { class: 'pallink', on: { click: () => waehle('st:') } }, 'Steuer\u00adspannung …'));
@@ -5729,9 +5791,9 @@ function paletteNeu() {
   // langes Halten macht die Kachel zum Dauerwerkzeug für die Marken „+“ (bis „Fertig“ oder Esc)
   const gruppen = {};
   const einmal = tool => ev => { if (b.tool === tool) return werkzeug(null); if (b.tool) werkzeug(null); editorEinfuegen(v, b, paletteZiel(v, b, tool, !!(ev && ev.shiftKey)), tool); };
-  const dauer = tool => () => { werkzeug(tool); meldung(`${PAL_NAME(tool)}: Marken „+“ ${tipp()} – „Fertig“ oder Esc beendet`); };
+  const dauer = tool => () => { werkzeug(tool); werkzeugMeldung(`${PAL_NAME(tool)}: Marken „+“ ${tipp()} – „Fertig“ oder Esc beendet`); };
   EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => { const k = kachel(name, zeichen, zusatz, einmal(tool),
-    { an: b.tool === tool, dauer: dauer(tool), titel: `${name.replace(/\u00ad/g, '')} einfügen (bei gewählter Gruppe in die Gruppe, Umschalt+Klick dahinter) – Doppelklick oder Halten: mehrere über die Marken „+“` });
+    { an: b.tool === tool, dauer: dauer(tool), titel: tool === 'dose' ? 'Geräteanschluss einfügen (Herd, Durchlauferhitzer …)' : `${name.replace(/\u00ad/g, '')} einfügen – Doppelklick: mehrere` });      // ab v1.61 (D24) kurz
     // ab v1.60 (D19): beim Überfahren mit der Maus ist die Stelle markiert, an der ein Klick einfügt
     k.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse' && !b.tool) zielZeigen(paletteZiel(v, b, tool, ev.shiftKey)); });
     k.addEventListener('pointerleave', () => zielZeigen(null));
@@ -5761,7 +5823,7 @@ function paletteBreite() {
 function zeichnenGruppe(gruppe) {
   const b = ED.b;
   return gruppe('Zeichnen', ZEICHNEN.map(([tool, name, bild]) => kachel(name, bild, '', () => werkzeug(b.tool === tool ? null : tool), { an: b.tool === tool,
-    titel: { zauswahl: 'Rahmen aufziehen: wählt mehrere Geräte und Zusätze (von rechts nach links auch angeschnittene)', zleiter: `Freier Leiter: Anfang und Ende ${tipp()} – rastet an Anschlüssen und Leitern`, ztext: 'Text ins Blatt setzen', zrahmen: `Strichpunktierter Rahmen: zwei Ecken ${tipp()}` }[tool] })));
+    titel: { zauswahl: 'Mehrere Geräte und Zusätze mit Rahmen wählen', zleiter: 'Freien Leiter zeichnen', ztext: 'Text ins Blatt setzen', zrahmen: 'Strichpunktierten Rahmen zeichnen' }[tool] })));
 }
 // Punkt im Blatt einrasten: Anschluss oder Leiterende (2 mm), sonst auf einen Leiter (1,5 mm), sonst Raster 2,5 mm
 function fang(bl, x, y) {
@@ -5949,6 +6011,7 @@ function waehle(sel, opt = {}) {
   if (w !== b.palette) paletteWahl(w);
   markieren(); eigenNeu(); kontextNeu();
   if (warSammel !== (sel === 'm:' && !!b.sammel && !!b.umschalten)) fussNeu();      // ab v1.58 (C23): Hinweis „Weitere Abgänge antippen“
+  else standAnzeigen();      // ab v1.61 (D26): Auswahl in der Fußleiste
   if (opt.springen) zeigeAuswahl();
 }
 function markieren() {
@@ -6367,7 +6430,7 @@ function befehle(sel, opt = {}) {
   if (!kn.length && opt.leer) {        // ins Leere (Rechtsklick): Einfügen, Alle wählen, Ansicht, Blatt festhalten
     const bl = opt.bl, festBar = bl && bl.art !== 'steuerung' && bl.art !== 'einspeisung' && (bl.spalten || []).some(x => x.id);
     dazu(einfuegen, abgangsFolge(v).length > 1 ? { id: 'alle', l: 'Alle Abgänge wählen', i: 'abgaenge', taste: 'Strg+A', f: () => alleWaehlen(v) } : null,
-      { id: 'ganz', l: 'Ganzes Blatt', i: 'eigen', taste: 'Umschalt+1', f: () => zoomGanz(bl) }, { id: 'breite', l: 'Blattbreite', i: 'breite', taste: '0', f: () => zoomSetzen(100) },
+      { id: 'ganz', l: 'Ganzes Blatt', i: 'eigen', taste: 'Umschalt+1', f: () => zoomGanz(bl) }, { id: 'breite', l: 'Blattbreite', i: 'breite', taste: 'Strg+0', f: () => zoomSetzen(100) },
       festBar ? { id: 'fest', l: blattFest(v, bl) ? 'Blatt freigeben' : 'Blatt festhalten', i: 'nadel', f: () => blattFesthalten(v, ED.liste.indexOf(bl), !blattFest(v, bl)) } : null);
   }
   return kn;
@@ -6555,7 +6618,9 @@ function blattAnzeigen() {
   ED.blattKnopf.replaceChildren(h('span', { class: 'lang' }, bl ? `${BLATT_ART[bl.art]} ${ED.v.name} · Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}` : 'keine Blätter'),
     h('span', { class: 'kurz' }, bl ? `${bl.nr}/${bl.gesamt || bl.nr}` : '–'));      // ab v1.53: schmal „4/6“; ab v1.58 (C18) Projektzählung wie im Druck
 }
-function blattZeigen(i) { const k = ED.karten[i]; if (k) ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); }
+// ab v1.61 (D21): sofort (Tasten) mit dem Blattanfang am oberen Rand; Knöpfe weich
+function blattZeigen(i, sofort = false) { const k = ED.karten[Math.max(0, Math.min(ED.karten.length - 1, i))]; if (!k) return;
+  if (sofort) { ED.flaeche.scrollTop = Math.max(0, k.offsetTop - 2); blattAnzeigen(); kontextLage(); } else ED.flaeche.scrollTo({ top: k.offsetTop - 12, behavior: 'smooth' }); }
 function fussNeu() {
   const { b, fuss } = ED; fuss.innerHTML = '';
   const stW = istSteuerWerkzeug(b.tool);
@@ -6568,28 +6633,33 @@ function fussNeu() {
   // ab v1.58 (C23): Mehrfachmodus – wie man weitere Abgänge dazunimmt; auf Touch als Band auch über 1000 px
   const sammel = b.sel === 'm:' && b.sammel && b.umschalten && !b.tool && !feinZeiger();      // ab v1.60 (M4): nur „Mehrfach wählen“ auf Touch
   const sHinweis = sammel ? `Weitere Abgänge ${beruehrung() ? 'antippen' : 'anklicken'}, um sie hinzuzunehmen` : null;
-  // ab v1.54: Name zuerst; Blätter, die nur im Druck stehen (Deckblatt, Inhalt, Übersicht, andere Verteiler, Klemmenplan), ausgegraut
+  // ab v1.61 (D21): einzeilig „6 Stromlaufplan HV“; Blätter, die nur im Druck stehen (Deckblatt, Inhalt, Übersicht, Klemmenplan,
+  // andere Verteiler), als Sprung in die Druckvorschau an das Blatt
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
-    const nurDruck = (a, z, klein) => a <= z ? [a === z ? `Blatt ${a}` : `Blatt ${a}–${z}`, () => {}, { aus: true, klein }] : null;
-    menue('Blätter', [nurDruck(1, erst - 1, 'nur im Druck – Deckblatt, Inhalt, Übersicht (Projektdaten) bzw. andere Verteiler'),
-      ...L.map((bl, i) => [`Blatt ${bl.nr} von ${ges} · ${BLATT_ART[bl.art]} ${ED.v.name}`, () => blattZeigen(i), { an: i === ED.blattI }]),      // ab v1.58 (C18)
-      nurDruck(letzt + 1, ges, 'nur im Druck – Klemmenplan bzw. andere Verteiler')]); };
-  ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', on: { click: blattMenue } });
-  ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: '100 % = Blattbreite', on: { click: () => menue('Zoom', [
-    ['Größer', () => zoomSetzen(b.zoom * 1.25), { klein: '+' }], ['Kleiner', () => zoomSetzen(b.zoom * 0.8), { klein: '−' }], '—',      // ab v1.53 (schmal ohne Knöpfe)
-    ['Blattbreite', () => zoomSetzen(100), { klein: '0' }], ['Auf Auswahl', zoomAufAuswahl, { klein: b.sel ? 'gewähltes Teil bildfüllend' : 'zuerst ein Teil wählen', aus: !b.sel }],
-    ...[50, 75, 150, 200, 300].map(z => [`${z} %`, () => zoomSetzen(z)])]) } });
+    const druck = (a, z, klein) => a <= z ? [`${a === z ? 'Blatt ' + a : 'Blätter ' + a + '–' + z} in der Druckvorschau`, () => geh({ s: 'plan', vid: ED.v.id, nr: a }), { klein }] : null;
+    menue('', [druck(1, erst - 1, 'Deckblatt, Inhalt, Übersicht bzw. andere Verteiler'), erst > 1 ? '—' : null,
+      ...L.map((bl, i) => [`${bl.nr} ${BLATT_ART[bl.art]} ${ED.v.name}`, () => blattZeigen(i, true), { an: i === ED.blattI }]),
+      letzt < ges ? '—' : null, druck(letzt + 1, ges, 'Klemmenplan bzw. andere Verteiler')], null, { label: 'Blätter' }); };
+  ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', title: 'Blatt wählen (Bild↑/Bild↓)', on: { click: blattMenue } });
+  // ab v1.61 (D20): Stufen 50/100/150/200 %, Ganzes Blatt, Blattbreite, Auswahl einpassen – mit Kürzeln, ohne gesperrte Einträge
+  ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: 'Zoom – 100 % = Blattbreite', on: { click: () => menue('', [
+    ['Größer', () => zoomSetzen(b.zoom * 1.25), { taste: 'Strg++' }], ['Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: 'Strg+−' }], '—',
+    ['Ganzes Blatt', () => zoomGanz(), { taste: 'Umschalt+1' }], ['Blattbreite', () => zoomSetzen(100), { taste: 'Strg+0' }],
+    b.sel ? ['Auswahl einpassen', zoomAufAuswahl, { taste: 'Umschalt+2' }] : null, '—',
+    ...[50, 100, 150, 200].map(z => [`${z} %`, () => zoomSetzen(z), { an: Math.round(b.zoom) === z }])], null, { label: 'Zoom' }) } });
   const pr = ED.pruef || [];
   fuss.append(...[      // ohne Prüfliste kein „null“ in der Fußleiste (ab v1.52)
     pr.length ? h('button', { class: 'pruefknopf', title: 'Prüfliste', on: { click: () => menue('Prüfliste', pr.map(x =>
       [x.t, () => x.f ? x.f() : x.sel || x.key ? waehle(x.sel || 't:' + x.key, { springen: true }) : blattZeigen(x.blatt),
         { klein: x.klein || (x.sel ? 'Springen – Leiter ändern oder löschen' : 'Springen – „Automatik anwenden“ in der Leiste behebt es') }])) } }, `⚠ ${pr.length}`) : null,
     h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
-    h('div', { class: 'hinweiszeile' + (b.tool || sammel ? ' an' : ''), 'aria-live': 'polite' }, h('span', { class: 'hinweistext' }, sHinweis || hinweis),
+    // ab v1.61 (D26): ohne Werkzeug zeigt die Zeile den Zustand (Auswahl, Speicherstand) statt einer Anleitung
+    h('div', { class: 'hinweiszeile' + (b.tool || sammel ? ' an' : ''), 'aria-live': 'polite' }, b.tool || sammel ? h('span', { class: 'hinweistext' }, sHinweis || hinweis)
+      : h('span', { class: 'standtext' }, standText()),
       b.tool ? h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig')
         : null),      // ab v1.60: im Mehrfachmodus steht „Fertig“ nur im Band (sonst zweimal)
-    h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: '−' }), ED.zoomKnopf,
-      ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' }))].filter(Boolean));
+    h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: 'Strg+−' }), ED.zoomKnopf,
+      ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: 'Strg++' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: 'Strg+0' }))].filter(Boolean));
   ED.zoomKnopf.textContent = `${Math.round(b.zoom)} %`;
   if (ED.band) {           // ab v1.53: unter 1000 px steht der Werkzeughinweis als Band über dem Blatt
     ED.band.hidden = !b.tool && !sammel;
@@ -6601,6 +6671,19 @@ function fussNeu() {
   // ab v1.55: ein allgemeiner Hinweis, der nicht ganz passt, entfällt, statt mitten im Wort abzubrechen
   requestAnimationFrame(() => { const t = fuss.querySelector('.hinweistext'); if (t && !b.tool) t.style.visibility = t.scrollWidth > t.clientWidth + 1 ? 'hidden' : ''; });
 }
+// Zustand für die Fußleiste (ab v1.61, D26): Auswahl bzw. Anzahl, „Gespeichert hh:mm · als Datei gesichert vor n Tagen“
+function standText() {
+  if (!ED) return '';
+  const { b, v } = ED, n = (b.mehr || []).length, e = berechne(v), [art, id] = (b.sel || '').split(':');
+  let aw = '';
+  if (b.sel === 'm:' && n) aw = `${n} ${b.sammel ? (n === 1 ? 'Abgang' : 'Abgänge') : (n === 1 ? 'Teil' : 'Teile')} gewählt`;
+  else if (art === 'k') { const r = knoten(v, id); if (r) aw = r.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}`.trim() : `${((e.abgaenge[id] || {}).f || {}).t || ''} ${abgangName(r.k)}`.trim(); }
+  const px = projekte.find(q => q.id === projektId) || {}, uhr = px.geaendert ? new Date(px.geaendert).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : null;
+  const dat = [px.export, px.importiert].filter(Boolean).sort().pop(), tage = dat ? Math.floor((Date.now() - new Date(dat).getTime()) / 864e5) : null;
+  const datei = tage === null ? 'noch nie als Datei gesichert' : `als Datei gesichert ${tage === 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`}`;
+  return [aw, (uhr ? `Gespeichert ${uhr}` : 'Gespeichert') + ' · ' + datei].filter(Boolean).join(' · ');
+}
+function standAnzeigen() { const t = ED && ED.fuss.querySelector('.standtext'); if (t) t.textContent = standText(); }
 // Menüs der Kopfleiste
 function verteilerMenue(v) {
   menue('Verteiler', [...P.verteiler.map(w => [w.name, () => geh({ s: 'editor', vid: w.id }), { an: w === v, klein: speisenderAbgang(w.id) ? `aus ${speisenderAbgang(w.id).v.name}` : '' }]),
@@ -6612,24 +6695,96 @@ function druckMenue(v) {
     ['Türzettel aller Verteiler', () => tuerDrucken(P.verteiler)], '—',
     ['Alle Blätter ansehen', () => geh({ s: 'plan', vid: v.id })], ['Türzettel ansehen', () => geh({ s: 'tuer', vid: v.id })]]);
 }
-function editorMenue(v) {
-  // ab v1.60 (M5c): Abschnitt „Bearbeiten“ mit den Befehlen der Auswahl (dieselben wie Leiste und Rechtsklick)
-  const nZ = verlauf.zurueck.length, nV = verlauf.vor.length, kn = ED ? befehle(ED.b.sel) : [];
-  menue('Weitere Funktionen', [
-    nZ ? [`Rückgängig: ${verlauf.zurueck[nZ - 1].n}`, () => projektRueck(false), { taste: 'Strg+Z' }] : null,
-    nV ? [`Wiederholen: ${verlauf.vor[nV - 1].n}`, () => projektRueck(true), { taste: 'Strg+Y' }] : null,
-    ...kn.map(x => [x.l, x.f, { taste: x.taste, rot: x.rot }]),
-    abgangsFolge(v).length > 1 ? ['Alle Abgänge wählen', () => alleWaehlen(v), { taste: 'Strg+A' }] : null, '—',
-    ['Projektdaten', () => waehle('p:', { springen: false }), { klein: 'Schriftfeld, Deckblatt, Übersicht, Klemmenplan' }],
-    ['Verteiler', () => waehle(null, { offen: true }), { klein: 'Name, Einspeisung, Klemmen, Abgänge als Liste' }],
-    ['Steuerstromkreise', () => waehle('st:'), { klein: 'Steuerspannung, Kreise, Befehlsgeber' }], '—',
-    ['Format', () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w), { klein: `${P.projekt.format || 'A4'} quer` }],
-    ['Übersicht als Tabelle', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }],
-    v.layout ? ['Automatik für den ganzen Verteiler', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
-      () => automatik(v, null), 'Anwenden'), { klein: 'alle Vorgaben von Hand entfernen' }] : null, '—',
-    ['Projekt als Datei sichern', exportieren, { taste: 'Strg+S' }], ['Projekt aus Datei öffnen', () => document.getElementById('datei').click(), { taste: 'Strg+O' }], '—',
-    ['Hilfe', () => hilfe(), { klein: 'Gesten, Speichern, Begriffe' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }]]);
+// Ein Menü für Start und Editor (ab v1.61, D23): Abschnitte Datei · Bearbeiten · Ansicht · Verteiler · Hilfe, Kürzel rechts,
+// „…“ nur, wenn noch ein Dialog folgt; ohne Überschrift (der Knopf heißt „Menü“). v = Verteiler des Editors, sonst null.
+function hauptMenue(v = null) {
+  const ed = !!(ED && v), b = ed ? ED.b : null, nZ = verlauf.zurueck.length, nV = verlauf.vor.length, da = P.verteiler.length > 0;
+  const kn = ed ? befehle(b.sel) : [], abschnitt = (kopf, ...x) => { x = x.filter(Boolean); return x.length ? [{ kopf }, ...x] : []; };
+  menue('', [
+    ...abschnitt('Datei',
+      ['Neues Projekt …', neuesProjektAnlegen], ['Alle Projekte', () => geh({ s: 'projekte' })],
+      ['Projekt aus Datei öffnen …', () => document.getElementById('datei').click(), { taste: 'Strg+O' }],
+      ['Projekt als Datei sichern', exportieren, { taste: 'Strg+S' }], ['Beispielprojekt öffnen', beispielOeffnen],
+      ['Projektdaten', () => ed ? waehle('p:', { springen: false }) : geh({ s: 'projekt' })],
+      ['Format …', () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w), { klein: `${P.projekt.format || 'A4'} quer` }],
+      da ? ['Stromlaufplan drucken …', drucken, { taste: 'Strg+P' }] : null,
+      da ? ['Türzettel drucken …', () => tuerDrucken(ed ? [v] : P.verteiler), { klein: ed ? 'dieser Verteiler' : 'alle Verteiler' }] : null,
+      da ? ['Druckvorschau', () => geh({ s: 'plan', vid: ed ? v.id : undefined })] : null),
+    ...abschnitt('Bearbeiten',
+      nZ ? [`Rückgängig: ${verlauf.zurueck[nZ - 1].n}`, () => projektRueck(false), { taste: 'Strg+Z' }] : null,
+      nV ? [`Wiederholen: ${verlauf.vor[nV - 1].n}`, () => projektRueck(true), { taste: 'Strg+Y' }] : null,
+      ...kn.map(x => [x.l, x.f, { taste: x.taste, rot: x.rot }]),
+      ed && abgangsFolge(v).length > 1 && !kn.some(x => x.id === 'alle') ? ['Alle Abgänge wählen', () => alleWaehlen(v), { taste: 'Strg+A' }] : null,
+      da ? ['Suchen …', suche, { taste: 'Strg+F' }] : null),
+    ...(ed ? abschnitt('Ansicht',
+      ['Größer', () => zoomSetzen(b.zoom * 1.25), { taste: 'Strg++' }], ['Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: 'Strg+−' }],
+      ['Blattbreite', () => zoomSetzen(100), { taste: 'Strg+0' }], ['Ganzes Blatt', () => zoomGanz(), { taste: 'Umschalt+1' }],
+      b.sel ? ['Auswahl einpassen', zoomAufAuswahl, { taste: 'Umschalt+2' }] : null,
+      ED.liste.length > 1 ? ['Nächstes Blatt', () => blattZeigen(aktuellesBlatt() + 1, true), { taste: 'Bild↓' }] : null,
+      ED.liste.length > 1 ? ['Voriges Blatt', () => blattZeigen(aktuellesBlatt() - 1, true), { taste: 'Bild↑' }] : null,
+      !schmal() && !fachRechts() ? [ansicht.eigenZu ? 'Eigenschaften einblenden' : 'Eigenschaften ausblenden', eigenUmschalten] : null) : []),
+    ...abschnitt('Verteiler',
+      ed ? ['Einstellungen des Verteilers', () => waehle(null, { offen: true }), { klein: 'Name, Einspeisung, Klemmen, Abgänge' }] : null,
+      ed ? ['Steuerstromkreise', () => waehle('st:'), { klein: 'Steuerspannung, Kreise, Befehlsgeber' }] : null,
+      ed ? ['Stromkreisliste', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }] : null,
+      ed && v.layout ? ['Automatik für den ganzen Verteiler …', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
+        () => automatik(v, null), 'Anwenden'), { klein: 'alle Vorgaben von Hand entfernen' }] : null,
+      ['Neuer Verteiler …', neuerVerteilerFenster]),
+    ...abschnitt('Hilfe', ['Hilfe', () => hilfe(), { taste: 'F1' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }])], null, { label: 'Menü' });
 }
+// Suche (ab v1.61, D22): Kennzeichen, Bezeichnung und Ort aller Abgänge, Gruppen, Einspeisungen und Befehlsgeber des Projekts;
+// ↑/↓ wählt, Enter springt in den Editor (auch in einen anderen Verteiler). Erst genaue Kennzeichen, dann Anfänge, dann Teile.
+function suchListe() {
+  const l = [], kz = o => Object.values(o || {}).filter(x => x && typeof x.t === 'string' && x.t.startsWith('-')).map(x => x.t);
+  P.verteiler.forEach(v => {
+    const e = berechne(v);
+    l.push({ v, sel: null, kz: [], name: v.name, art: 'Verteiler' });
+    if (kz(e.kopf).length) l.push({ v, sel: 'e:' + v.id, kz: kz(e.kopf).filter(t => t !== (e.kopf.spd || {}).t), name: 'Einspeisung', art: 'Einspeisung' });
+    if (e.kopf.spd) l.push({ v, sel: 's:' + v.id, kz: [e.kopf.spd.t], name: 'Überspannungsschutz', art: 'Einspeisung' });
+    alleKnoten(v, k => l.push(k.typ === 'gruppe' ? { v, sel: 'k:' + k.id, kz: kz({ g: e.geraete[k.id] }), name: (k.bez || 'Gruppe'), art: 'Gruppe' }
+      : { v, sel: 'k:' + k.id, kz: kz(e.abgaenge[k.id]), name: abgangName(k), art: 'Abgang' }));
+    ((v.steuerung || {}).geraete || []).forEach(g => { const t = (e.steuer.geraete[g.id] || {}).t; if (t) l.push({ v, sel: 'g:' + g.id, kz: [t],
+      name: [g.bez, g.ort].filter(Boolean).join(' ') || ((ST_ZEICHEN[g.zeichen] || [g.zeichen])[0]), art: 'Befehlsgeber' }); });
+  });
+  return l;
+}
+function suchTreffer(q) {
+  q = q.trim().toLowerCase(); if (!q) return [];
+  const ohne = x => x.replace(/^-/, ''), qo = ohne(q);
+  const wert = x => { const kz = x.kz.map(t => t.toLowerCase()), n = x.name.toLowerCase();
+    if (kz.some(t => t === q || ohne(t) === qo)) return 0;
+    if (kz.some(t => t.startsWith(q) || ohne(t).startsWith(qo))) return 1;
+    if (n.startsWith(q)) return 2;
+    return kz.some(t => t.includes(q)) || n.includes(q) ? 3 : 9; };
+  const hier = x => ED && x.v === ED.v ? 0 : 1;      // bei Gleichstand zuerst der geöffnete Verteiler
+  return suchListe().map(x => [wert(x), x]).filter(([w]) => w < 9).sort((a, b) => a[0] - b[0] || hier(a[1]) - hier(b[1])).slice(0, 30).map(([, x]) => x);
+}
+function sucheSpringen(x) {
+  const ziel = { s: 'editor', vid: x.v.id, sel: x.sel, springen: true, palette: /^g:/.test(x.sel || '') ? 'st' : undefined };
+  if (ED) return geh(ziel);
+  stapel = [{ s: 'start' }, Object.assign(ziel, { blatt: !!x.sel })]; zeichne();
+}
+function suche() {
+  if (!P.verteiler.length || fensterStapel.length) return;
+  const k = document.querySelector('.edkopf .suchknopf, .kopf .suchknopf');
+  const r = k && k.getClientRects().length ? k.getBoundingClientRect() : new DOMRect(Math.max(8, innerWidth / 2 - 200), 50, 400, 0);
+  anker = { r: new DOMRect(Math.max(8, r.right - 400), r.top, 400, r.height), zeit: Date.now() };
+  const i = h('input', { type: 'search', placeholder: 'Kennzeichen oder Bezeichnung, z. B. -F7', 'aria-label': 'Suchen', autocomplete: 'off', enterkeyhint: 'go' });
+  const liste = h('div', { class: 'wahl menue suchliste', role: 'listbox' });
+  let treffer = [];
+  const zeigen = () => {
+    treffer = suchTreffer(i.value);
+    liste.replaceChildren(...treffer.map(x => h('button', { role: 'option', on: { click: () => { schl(false); sucheSpringen(x); } } },
+      h('span', { class: 'mz' }, h('span', {}, [x.kz[0], x.name].filter(Boolean).join(' ')), h('kbd', {}, x.art + (P.verteiler.length > 1 ? ' · ' + x.v.name : ''))))));
+    if (i.value.trim() && !treffer.length) liste.append(h('p', { class: 'text' }, 'Nichts gefunden.'));
+  };
+  i.addEventListener('input', zeigen);
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter' && treffer.length) { ev.preventDefault(); schl(false); sucheSpringen(treffer[0]); } });
+  const schl = fenster('', [i, liste], s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Schließen')], null, { pop: true, still: true, label: 'Suchen', cls: 'suche' });
+  setTimeout(() => i.focus(), 0);
+}
+// Eigenschaften-Leiste ein- und ausblenden (Desktop)
+function eigenUmschalten() { ansicht.eigenZu = !ansicht.eigenZu; ansichtMerken(); if (ED) ED.ed.classList.toggle('eigenzu', !!ansicht.eigenZu); }
 // Ablage (ab v1.20.1): { k, aus, vid, kreise, geraete } – das Teil samt den Steuerstromkreisen seiner
 // Schaltgeräte; Ausschneiden verschiebt (Kennungen bleiben), Kopieren legt alles mit neuen Kennungen an
 let editorAblage = null;
@@ -6849,7 +7004,7 @@ function bEditor(b) {
   if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : istZeichenWerkzeug(b.tool) || b.tool === 'zauswahl' ? 'ze' : 'ab';
   const nZ = verlauf.zurueck.length, nV = verlauf.vor.length;
   // Reiterwechsel (ab v1.53): Auswahl folgt – Abgang ↔ sein Steuerstromkreis, sonst wird sie aufgehoben
-  const tab = (w, t, kurz) => h('button', { role: 'tab', 'data-w': w, 'aria-selected': String(b.palette === w), 'aria-label': t, on: { click: () => {
+  const tab = (w, t, kurz) => h('button', { role: 'tab', 'data-w': w, 'aria-selected': String(b.palette === w), 'aria-label': t, title: t, on: { click: () => {
     const sel = b.sel || '', stSel = /^(pl|kr|g|st):/.test(sel);
     if (w === 'ze') return paletteWahl(w);      // ab v1.54: Zeichnen behält die Auswahl
     if (w === 'st') {
@@ -6885,12 +7040,13 @@ function bEditor(b) {
     ik('rueck', nZ ? `Rückgängig: ${verlauf.zurueck[nZ - 1].n}` : 'Rückgängig', () => projektRueck(false), { aus: !nZ, taste: 'Strg+Z' }),
     ik('vor', nV ? `Wiederholen: ${verlauf.vor[nV - 1].n}` : 'Wiederholen', () => projektRueck(true), { aus: !nV, taste: 'Strg+Y' }),
     h('span', { class: 'sep' }),
-    ik('drucken', 'Drucken', () => druckMenue(v), { text: 'Drucken', cls: 'mittext' }),
-    ik('frage', 'Hilfe', () => hilfe(), { cls: 'hilfeikon' }),
-    ik('menue', 'Weitere Funktionen', () => editorMenue(v)),
-    ik('eigen', 'Eigenschaften ein- oder ausblenden', () => { ansicht.eigenZu = !ansicht.eigenZu; ansichtMerken(); ED.ed.classList.toggle('eigenzu', !!ansicht.eigenZu); }, { cls: 'nurbreit' }));
+    ik('suche', 'Suchen', suche, { taste: 'Strg+F', cls: 'suchknopf hilfeikon' }),      // ab v1.61 (D22)
+    ik('drucken', 'Drucken', () => druckMenue(v), { text: 'Drucken', cls: 'mittext', taste: 'Strg+P' }),
+    ik('frage', 'Hilfe', () => hilfe(), { cls: 'hilfeikon', taste: 'F1' }),
+    ik('menue', 'Menü', () => hauptMenue(v)),
+    ik('eigen', 'Eigenschaften ein- oder ausblenden', eigenUmschalten, { cls: 'nurbreit' }));
   if (palQuer && !fachRechts()) palQuer = false;
-  const ed = h('div', { 'data-reiter': b.palette, class: 'ed' + (palQuer ? ' palauf' : '') + (ansicht.eigenZu ? ' eigenzu' : '') + (b.tool && !istSteuerWerkzeug(b.tool) ? ' einfuegen' : '') });
+  const ed = h('div', { 'data-reiter': b.palette, class: 'ed' + (palQuer ? ' palauf' : '') + (ansicht.eigenZu ? ' eigenzu' : '') + (b.tool && !istSteuerWerkzeug(b.tool) ? ' einfuegen' : '') + (b.tool && istSteuerWerkzeug(b.tool) ? ' stwerkzeug' : '') });
   const pal = h('aside', { class: 'edpal', 'aria-label': 'Palette' });
   // ab v1.60 (D17): die Fläche ist ein Tabstopp; ←/→ wählen Abgänge, F2 bzw. Eingabe bearbeitet, Entf löscht
   const flaeche = h('section', { class: 'edflaeche', 'aria-label': 'Planblätter – Pfeiltasten wählen Abgänge', tabindex: '0' }), blaetter = h('div', { class: 'blaetter' });
@@ -6930,6 +7086,8 @@ function bEditor(b) {
       const kk = art === 'k' && knoten(v, id), a = kk && e.abgaenge[id];
       r.setAttribute('aria-label', /^(vor|nach|in|leer)$/.test(art) ? 'Hier einfügen' : art === 'e' ? 'Einspeisung' : art === 's' ? 'Überspannungsschutz' : art === 'kr' ? 'Steuerstromkreis'
         : kk ? (kk.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}` : `${a && a.f ? a.f.t + ' ' : ''}${abgangName(kk.k)}`) : z);
+      // ab v1.61 (D24): Tooltip mit Kennzeichen und Name (nur Maus; im Editor, nie im Druck)
+      if (feinZeiger()) { const tt = document.createElementNS('http://www.w3.org/2000/svg', 'title'); tt.textContent = titelKurz(r.getAttribute('aria-label').trim()); r.prepend(tt); }
     });
     svg.addEventListener('pointerdown', ev => {
       dtZeiger = ev.pointerType;
@@ -6955,8 +7113,11 @@ function bEditor(b) {
     const festK = bl.art === 'steuerung' || bl.art === 'einspeisung' ? null : matchMedia('(pointer:coarse)').matches
       ? h('button', { class: 'festknopf' + (fest ? ' an' : ''), 'aria-label': `Blatt ${bl.nr}: weitere Funktionen`, on: { click: () => menue(`Blatt ${bl.nr}`, [
           [fest ? 'Blatt freigeben' : 'Blatt festhalten', festen, { klein: fest ? 'Spalten wieder automatisch' : festT }]]) } }, fest ? '📌 …' : '…')
-      : h('button', { class: 'festknopf' + (fest ? ' an' : ''), title: fest ? 'Festgehalten – erneut klicken gibt das Blatt frei' : festT, on: { click: festen } }, fest ? '📌 festgehalten' : 'Blatt festhalten');
-    const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, `${BLATT_ART[bl.art]} ${v.name} · Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}`), h('span', { class: 'btr' }, festK)), svg);
+      // ab v1.61 (D27): Maus – Nadel im Blattkopf, sichtbar beim Überfahren bzw. dauerhaft, solange das Blatt festgehalten ist
+      : h('button', { class: 'festknopf nadelknopf' + (fest ? ' an' : ''), 'aria-pressed': String(fest), 'aria-label': fest ? `Blatt ${bl.nr} freigeben` : `Blatt ${bl.nr} festhalten`,
+          title: fest ? 'Blatt freigeben – Spalten wieder automatisch' : 'Blatt festhalten – Spalten bleiben stehen', on: { click: festen } }, icon('nadel'));
+    // ab v1.61 (D21): der Blatttitel nur bei mehreren Blättern (sonst steht dasselbe in der Fußleiste)
+    const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, ED.liste.length > 1 ? `${BLATT_ART[bl.art]} ${v.name} · Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}` : ''), h('span', { class: 'btr' }, festK)), svg);
     ED.karten.push(karte); blaetter.append(karte);
   });
   paletteNeu(); eigenNeu(); fussNeu();
@@ -7289,8 +7450,8 @@ window.addEventListener('pointerup', ev => { if (zieh) ziehEnde(ev); });
 window.addEventListener('pointercancel', () => { if (zieh) ziehEnde(null); });
 document.addEventListener('touchmove', ev => { if (zieh && zieh.aktiv) ev.preventDefault(); }, { passive: false });
 // Übersicht der Tastenkürzel im Plan-Editor
-function tastenHilfe() {
-  fenster('Tastenkürzel im Plan', h('div', { class: 'text' }, ...TASTEN.map(([k, t]) => h('div', { class: 'taste' }, h('b', {}, k), ' ', t))));
+function tastenHilfe() {      // ab v1.61 (D25): Raster mit Tastenkappen, „Schließen“
+  fenster('Tastenkürzel', tastenRaster(), s => [h('button', { class: 'knopf', on: { click: () => s() } }, 'Schließen')], null, { cls: 'tasten' });
 }
 
 function bListe(b) {
@@ -7377,7 +7538,7 @@ function bPlan(b) {
     const i = res.blaetter.indexOf(bl);
     bl.svg.setAttribute('role', 'button'); bl.svg.setAttribute('aria-label', `Blatt ${bl.nr} vergrößern`);
     bl.svg.addEventListener('click', () => planLupe(res.blaetter, i));
-    if (b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = k;
+    if (b.nr ? bl.nr === b.nr : b.vid && !ziel && bl.verteiler === (vById(b.vid) || {}).name) ziel = ziel || k;      // ab v1.61 (D21): b.nr = Blatt
   });
   if (!res.blaetter.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
   app.append(m);

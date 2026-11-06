@@ -384,6 +384,17 @@ Treppenlicht-Kontakt im Abgang 1–2 (Hauptkontakt nach EN 50005), nicht 17–18
 Drehstromzähler mit N und Wandlermessung, E4 Schritt 3, Prüfung am echten iPad/iPhone (Tastatur, Safe Areas,
 Pencil), Stückliste/TE-Plan, Fachetappe Bemessung, Revisionen/Kennzeichen festschreiben, Spulenspannung am Spiegel.
 
+## Etappe D – Desktop-Perfektion (Jean 05.11.2026: vollautomatisch bis „perfekt“, Fortsetzung bei Limit 20:30)
+
+Recherche Vorbilder (EPLAN, WSCAD, KiCad, Figma, Office), Runden D1/D2 am Desktop (Profi, Gelegentlich, Interaktion,
+Design/Texte, Plan-Beschriftung). Interaktionsmodell M1–M11: Klick ins Leere hebt die Auswahl auf (Maus trifft nur
+Gezeichnetes), Esc stufenweise, Rechtsklickmenü und Kopfleisten-Befehle aus einer Quelle `befehle(sel)` (Touch: schwebende
+Kontextleiste), Strg/Umschalt+Klick und Rahmen, Löschen ohne Rückfrage mit Rückgängig, Doppelklick/F2 bearbeitet, Leertaste/
+Mitteltaste schwenkt, Strg+S/O/P/F, Strg+±/0, Umschalt+1/2, Hauptmenü `hauptMenue()`. v1.59–v1.62 Bedienung/Texte,
+v1.63 Plan-Beschriftung E4 Schritt 3 (R4/R6/R7, keine Stauchung unter 85 %, Umbruch statt Stauchung, Trafo 1.1/1.2/2.1/2.2,
+„+“/„−“ an DC) – von Jean am 06.11.2026 abgenommen („Mit den Umbrüchen bin ich fein“: zweizeilige Bemessungen im
+Übersichtsplan bleiben).
+
 ## Technische Eckwerte
 
 - Zeichen im Maßstab 1 Einheit = 0,25 mm; Polabstand 20 Einheiten (= 5 mm Leiterabstand);

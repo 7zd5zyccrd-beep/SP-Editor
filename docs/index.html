@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.59 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.60 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,13 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.60: Desktop-Runde D1, Etappe 2 „Ein Interaktionsmodell“: Befehle aus einer Quelle (befehle()) – am Desktop in der
+           Kopfleiste (höchstens 4 + „Mehr …“), auf Touch schwebend, als Rechtsklick-Menü mit Kürzeln und im Menü „…“; einheitliche
+           Namen, keine gesperrten Knöpfe, keine Befehlsreihen im Fach; Mehrfachauswahl ohne Modus (Strg+Klick, Umschalt+Klick,
+           Rahmen im Leeren wählt Abgänge, Strg+A alle; Touch „Mehrfach wählen“), Doppelklick/F2/Eingabe bearbeitet die
+           Bezeichnung, Geräte erst nach „Anordnen“, Löschen ohne Rückfrage mit Rückgängig, ein Rückgängig-Schritt je Feld,
+           Auswahl nach Rückgängig, Fokusfalle und Fokusrückgabe, Fläche als ein Tabstopp, Tab in der Zeile, UV/PV/Speicher/
+           Wallbox/Motor/Steuer-LS/-trafo auf die Hauptebene mit Zielmarke, X im Fachkopf nur als Schublade; Pläne unverändert
      v1.59: Desktop-Runde D1, Etappe 1 „Fehler beheben“: Klick ins Leere hebt die Auswahl auf (Maus: weiße Spaltenfläche ohne
            Zeichnung, Rand, graue Fläche; Finger: Rand und graue Fläche), Strg+P druckt den Plan und der Browserdruck füllt ihn
            selbst (beforeprint), Strg+S sichert als Datei, Strg+O öffnet, Leertaste/Mitteltaste+Ziehen schwenkt die Ansicht, Esc
@@ -786,6 +793,18 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
   #druck svg{display:block}
 }
 .fehlerband{position:fixed;left:0;right:0;bottom:0;background:var(--rot);color:#fff;font-size:13px;padding:6px 12px;z-index:40;display:none}
+/* ab v1.60 (D10): Befehle der Auswahl am Desktop in der Kopfleiste, nichts schwebt über dem Blatt */
+.kopfaktionen{display:flex;align-items:center;gap:2px;min-width:0;margin-left:6px;padding-left:8px;border-left:1px solid var(--linie)}
+.kopfaktionen:empty{display:none}
+.kopfaktionen .ikon{height:36px;min-width:36px;padding:0 9px 0 7px;gap:5px;font-size:13px}
+.kopfaktionen .ikon svg{width:19px;height:19px}
+@media (max-width:1379px){.kopfaktionen .ikon:not(.mehr) .ikontext{display:none}.kopfaktionen .ikon{padding:0 7px}}
+/* Menüs mit Kürzelspalte (ab v1.60, M5) */
+.menue .mz{display:flex;align-items:baseline;justify-content:space-between;gap:18px;width:100%}
+.menue kbd{font:inherit;font-size:12.5px;color:var(--leise);white-space:nowrap;font-variant-numeric:tabular-nums}
+.menue button.gefahr kbd{color:inherit;opacity:.75}
+/* Arbeitsfläche als ein Tabstopp (ab v1.60, D17) */
+.edflaeche:focus{outline:none}.edflaeche:focus-visible{outline:2px solid var(--akzent);outline-offset:-2px}
 </style>
 </head>
 <body>
@@ -3060,7 +3079,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.59';
+const FASSUNG = 'v1.60';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3200,7 +3219,9 @@ P = migriere(P);
 // Rückgängig/Wiederholen über das ganze Projekt (ab v1.18): jeder gespeicherte Stand; Änderungen
 // kurz hintereinander (z. B. Tippen in einem Feld) zählen als ein Schritt; nur für die laufende Sitzung.
 // Ab v1.21 trägt jeder Schritt einen Namen (aenderung() vor sichern()), z. B. „Nennstrom“, „Einfügen: Leuchte“.
-const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0, name: null };
+// Ab v1.60 (D18): Tippen in einem Feld ist ein Schritt, gleich wie langsam – eingabe() setzt verlauf.sitzung (eine Kennung je
+// Feld), alles mit derselben Sitzung fließt in den Schritt, den das Feld begonnen hat; bis Eingabe, Verlassen oder Esc.
+const verlauf = { zurueck: [], vor: [], stand: null, zeit: 0, name: null, sitzung: null };
 function aenderung(n) {
   verlauf.name = n;
   // ab v1.58 (C13): eine ältere Meldung ohne Knopf verschwindet bei der nächsten Änderung (nicht die eben gesetzte)
@@ -3212,8 +3233,10 @@ function sichern() {
   const neu = JSON.stringify(P), jetzt = Date.now();
   if (verlauf.stand !== null && neu !== verlauf.stand) {
     const name = verlauf.name || 'Änderung', letzt = verlauf.zurueck[verlauf.zurueck.length - 1];
-    // zusammenfassen nur, was kurz hintereinander am selben Feld geschieht (Tippen)
-    if (jetzt - verlauf.zeit > 800 || !letzt || letzt.n !== name) { verlauf.zurueck.push({ s: verlauf.stand, n: name }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    // zusammenfassen nur, was im selben Feld (ab v1.60) bzw. kurz hintereinander am selben Feld geschieht (Tippen)
+    const sz = verlauf.sitzung, eins = sz ? !!letzt && letzt.sitz === sz : !!letzt && !letzt.sitz && letzt.n === name && jetzt - verlauf.zeit <= 800;
+    if (!eins) { verlauf.zurueck.push({ s: verlauf.stand, n: name, sitz: sz }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    else if (letzt.s === neu) verlauf.zurueck.pop();      // zurückgetippt bzw. Esc: der Schritt entfällt
     verlauf.zeit = jetzt; verlauf.vor = [];
     verlauf.name = null;
   }
@@ -3239,14 +3262,33 @@ function exportStand(art) {
   x.geaendertSeitExport = null; if (art) x[art] = new Date().toISOString();
   try { localStorage.setItem(PLISTE, JSON.stringify(projekte)); } catch (e) {}
 }
+// ab v1.60 (D18): im Plan-Editor nicht über das Anlegen des Verteilers hinweg (Meldung statt dessen); danach ist gewählt,
+// was sich geändert hat (wiederhergestellter oder geänderter Abgang bzw. Steuerstromkreis)
 function projektRueck(vor) {
-  const von = vor ? verlauf.vor : verlauf.zurueck, s = von.pop();
+  const von = vor ? verlauf.vor : verlauf.zurueck, s = von[von.length - 1];
   if (s === undefined) { meldung(vor ? 'Nichts zu wiederholen' : 'Nichts rückgängig zu machen'); return; }
+  const eb = stapel[stapel.length - 1], d = JSON.parse(s.s), imEd = !!ED && eb && eb.s === 'editor';
+  if (imEd && !d.verteiler.some(x => x.id === eb.vid)) { meldung(`${vor ? 'Wiederholen' : 'Rückgängig'}: ${s.n} – auf der Startseite`); return; }
+  von.pop(); verlauf.sitzung = null;
   (vor ? verlauf.zurueck : verlauf.vor).push({ s: verlauf.stand, n: s.n });
-  P = JSON.parse(s.s); verlauf.stand = s.s; verlauf.zeit = 0;
+  const alt = P; P = d; verlauf.stand = s.s; verlauf.zeit = 0;
   ablegen(s.s);
+  if (imEd) { const sel = auswahlNachRueck(alt, P, eb.vid); if (sel !== undefined) { eb.sel = sel; eb.pz = []; eb.anordnen = null; if (sel) { eb.blatt = true; eb.springen = true; } } }
   zeichne();
   meldung((vor ? 'Wiederholt: ' : 'Rückgängig: ') + s.n);
+}
+function auswahlNachRueck(a, n, vid) {
+  const va = a.verteiler.find(x => x.id === vid), vn = n.verteiler.find(x => x.id === vid); if (!va || !vn) return undefined;
+  const sig = v => { const m = new Map(); const lauf = (liste, el) => liste.forEach((k, i) => { const { kinder, ...rest } = k;
+    m.set(k.id, { eigen: JSON.stringify(rest), lage: el + ':' + i }); if (kinder) lauf(kinder, k.id); }); lauf(v.knoten, ''); return m; };
+  const A = sig(va), N = sig(vn);
+  let neu = null, eigen = null, lage = null;
+  for (const [id, x] of N) { const y = A.get(id); if (!y) neu = neu || id; else if (y.eigen !== x.eigen) eigen = eigen || id; else if (y.lage !== x.lage) lage = lage || id; }
+  if (neu || eigen) return 'k:' + (neu || eigen);
+  const ka = ((va.steuerung || {}).kreise || []), kr = ((vn.steuerung || {}).kreise || []).find(q => { const o = ka.find(x => x.id === q.id); return !o || JSON.stringify(o) !== JSON.stringify(q); });
+  if (kr) return 'kr:' + kr.id;
+  if (lage) return 'k:' + lage;
+  return N.size < A.size ? null : undefined;      // gelöscht: nichts gewählt; sonst bleibt die Auswahl
 }
 verlauf.stand = JSON.stringify(P);
 // Projekt wechseln (ab v1.56): Rückgängig gilt je Projekt (für die laufende Sitzung gemerkt); d = Daten, schon geprüft
@@ -3855,7 +3897,9 @@ function zeile(ob, wert, klick, opt = {}) {
 // Desktop; schmal: in der Mitte), Textfelder werden direkt in der Zeile bearbeitet; Esc schließt.
 let anker = null;            // zuletzt angetippt: { r: Rechteck, zeile, zeit }
 function ankerZeile(z) { anker = { r: z.getBoundingClientRect(), zeile: z, zeit: Date.now() }; }
+let letzterZeiger = 'mouse';      // ab v1.60: Zeigerart des letzten Aufsetzens (Rechtsklick, Doppelklick)
 document.addEventListener('pointerdown', ev => {
+  letzterZeiger = ev.pointerType || 'mouse';
   const el = ev.target.closest && ev.target.closest('button, [data-ziel], .zeile');
   anker = { r: el ? el.getBoundingClientRect() : new DOMRect(ev.clientX, ev.clientY, 1, 1), zeit: Date.now() };
 }, true);
@@ -3877,16 +3921,24 @@ document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') { ev.preventDefault(); ev.stopImmediatePropagation(); s(!s.still); return; }
   // ab v1.54: Eingabe auf einem Knopf hinter dem Fenster (z. B. der eben angetippten Karte) öffnet nichts ein zweites Mal
   if (ev.key === 'Enter' && !s.el.contains(ev.target)) { ev.preventDefault(); ev.stopImmediatePropagation(); return; }
+  // ab v1.60 (D17): Tab bleibt im Fenster (Fokusfalle)
+  if (ev.key === 'Tab') {
+    const f = [...s.el.querySelectorAll('button:not(:disabled), input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(x => x.getClientRects().length);
+    if (!f.length) return;
+    ev.preventDefault(); const i = f.indexOf(document.activeElement);
+    f[ev.shiftKey ? (i <= 0 ? f.length - 1 : i - 1) : (i < 0 || i === f.length - 1 ? 0 : i + 1)].focus();
+    return;
+  }
   if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {          // in Listen mit den Pfeiltasten wandern
     const kn = [...s.el.querySelectorAll('.wahl button:not(:disabled), .kacheln button')]; if (!kn.length) return;
     ev.preventDefault(); const i = kn.indexOf(document.activeElement);
     kn[(i + (ev.key === 'ArrowDown' ? 1 : -1) + kn.length) % kn.length].focus();
   }
 }, true);
-function popLage(f, r) {
-  const W = innerWidth, H = innerHeight, w = Math.min(Math.max(r.width > 220 ? Math.min(r.width, 400) : 320, f.dataset.breit ? 400 : 0), W - 16);
+function popLage(f, r, punkt = false) {      // punkt (ab v1.60): Rechtsklick-Menü, linke Kante am Zeiger
+  const W = innerWidth, H = innerHeight, w = Math.min(Math.max(r.width > 220 ? Math.min(r.width, 400) : punkt ? 280 : 320, f.dataset.breit ? 400 : 0), W - 16);
   f.style.width = w + 'px';
-  const x = Math.max(8, Math.min(W - w - 8, r.width > 220 ? r.right - w : r.left + r.width / 2 - w / 2));
+  const x = Math.max(8, Math.min(W - w - 8, punkt ? r.left : r.width > 220 ? r.right - w : r.left + r.width / 2 - w / 2));
   f.style.left = x + 'px';
   const unten = H - r.bottom - 10, oben = r.top - 10, fh = Math.min(f.scrollHeight, 560);
   // ab v1.58 (C31): nie höher als der sichtbare Bereich (Bildschirmtastatur, kleine Fenster) – der Rest scrollt
@@ -3894,8 +3946,22 @@ function popLage(f, r) {
   if (unten >= fh || unten >= oben) { f.style.top = (r.bottom + 4) + 'px'; f.style.maxHeight = Math.min(vh, Math.max(160, unten)) + 'px'; }
   else { f.style.bottom = (H - r.top + 4) + 'px'; f.style.maxHeight = Math.min(vh, Math.max(160, oben)) + 'px'; }
 }
+// Fokus merken und nach dem Neuzeichnen zurückgeben (ab v1.60, D17): dasselbe Element, sonst eines mit gleichem Namen im
+// selben Bereich (Fach, Kopf, Palette, Fußleiste, Fläche), sonst die Arbeitsfläche
+function fokusMerken(el) {
+  if (!el || el === document.body || !el.closest) return () => {};
+  const bereich = ['.edeigen', '.edkopf', '.edpal', '.edfuss', '.edflaeche', '#app'].find(s => el.closest(s));
+  const sig = x => x.getAttribute('aria-label') || (x.querySelector && x.querySelector('.ob') ? x.querySelector('.ob').textContent : '') || (x.textContent || '').trim().slice(0, 40), s = sig(el);
+  return () => {
+    if (el.isConnected && el.getClientRects().length) return el.focus({ preventScroll: true });
+    const W = bereich && document.querySelector(bereich); if (!W) return;
+    const x = W.matches(bereich) && sig(W) === s && W.tabIndex >= 0 ? W : [...W.querySelectorAll('button, input, [tabindex]')].find(y => y.getClientRects().length && sig(y) === s);
+    if (x) x.focus({ preventScroll: true }); else if (ED && ED.flaeche.isConnected) ED.flaeche.focus({ preventScroll: true });
+  };
+}
 function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {}) {
   const merk = window.scrollY, a = opt.pop ? ankerFrisch() : null, pop = !!a && innerWidth >= 700;
+  const fokus = fokusMerken(document.activeElement);      // ab v1.60 (D17): Auslöser bekommt den Fokus zurück
   let zu = false;
   const schl = (neu = true) => {
     if (zu) return; zu = true; s.remove();
@@ -3903,14 +3969,16 @@ function fenster(titel, inhalt, knoepfe = null, beimSchliessen = null, opt = {})
     historie();
     if (beimSchliessen) beimSchliessen();
     if (neu) { zeichne(); if (!ED) window.scrollTo(0, merk); }
+    // erst nach dem laufenden Tastenereignis: eine Eingabe, die das Fenster schließt, löst sonst den Auslöser noch einmal aus
+    setTimeout(() => { if (!fensterStapel.length && (!document.activeElement || document.activeElement === document.body)) fokus(); }, 0);
   };
   schl.still = !!opt.still;
   const fuss = pop && opt.still ? null : h('div', { class: 'fuss' }, ...(knoepfe ? knoepfe(schl) : [h('button', { class: 'knopf', on: { click: () => schl() } }, 'Fertig')]));
-  const f = h('div', { class: 'fenster' + (pop ? ' pop' : '') + (opt.still ? ' still' : '') + (opt.cls ? ' ' + opt.cls : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titel, 'data-breit': opt.breit ? '1' : null },
+  const f = h('div', { class: 'fenster' + (pop ? ' pop' : '') + (opt.still ? ' still' : '') + (opt.cls ? ' ' + opt.cls : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': opt.label || titel, 'data-breit': opt.breit ? '1' : null },
     titel ? h('h3', {}, titel) : null, h('div', { class: 'inhalt' }, inhalt), fuss);
   const s = h('div', { class: 'schleier' + (pop ? ' pop' : ''), on: { click: ev => { if (ev.target === s || ev.target.classList.contains('mitte')) schl(!opt.still); } } }, pop ? f : h('div', { class: 'mitte' }, f));
   document.body.appendChild(s); fensterStapel.push(schl); schl.el = f; historie();
-  if (pop) popLage(f, a.r);
+  if (pop) popLage(f, a.r, !!a.punkt);
   setTimeout(() => { if (zu || f.contains(document.activeElement)) return;
     const x = f.querySelector('[aria-checked="true"], .an') || f.querySelector('input, .wahl button, .kacheln button, .fuss .knopf'); if (x) x.focus({ preventScroll: true }); }, 30);
   return schl;
@@ -3931,7 +3999,8 @@ function eingabe(i, titel, setzen, opt, fehlerEl) {
   i.classList.toggle('fehler', !!f); i.setAttribute('aria-invalid', f ? 'true' : 'false');
   if (fehlerEl) { fehlerEl.textContent = f || ''; fehlerEl.hidden = !f; fehlerEl.classList.remove('feldwarn'); }
   if (f) return;
-  setzen(t); aenderung(titel); sichern();
+  i._sitz = i._sitz || id();      // ab v1.60 (D18): ein Rückgängig-Schritt je Feld
+  setzen(t); aenderung(titel); verlauf.sitzung = i._sitz; sichern(); verlauf.sitzung = null;
   // ab v1.59 (D06): Warnung am Feld (der Wert gilt trotzdem), z. B. ein schon vergebenes Kennzeichen
   const w = opt.warn ? opt.warn(t) : null;
   i.classList.toggle('warn', !!w);
@@ -3946,7 +4015,7 @@ function textFeld(titel, wert, setzen, opt = {}) {
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
   const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl || opt.warn ? fe : null];
   const schl = fenster(titel, kids);
-  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') schl(); });
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); schl(); } });
   setTimeout(() => i.focus(), 50);
 }
 // Text direkt in der Zeile ändern: Eingabe oder Verlassen übernimmt, Esc nimmt zurück
@@ -3954,19 +4023,25 @@ function textInline(z, titel, wert, setzen, opt) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
   const fe = h('span', { class: 'un feldfehler', 'aria-live': 'polite', hidden: true });
   const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl || opt.warn ? fe : null), i);
+  // ab v1.60 (D17): nach Eingabe bzw. Esc liegt der Fokus wieder auf der Zeile, Tab/Umschalt+Tab geht zur nächsten bzw. vorigen
+  const wurzel = z.closest('.edeigen') ? '.edeigen' : '#app', zeilen = () => [...document.querySelectorAll(wurzel + ' .zeile')];
   z.replaceWith(box);
+  const nr = zeilen().indexOf(box);
   let fertig = false;
-  const ende = zurueckNehmen => {
+  const ende = (zurueckNehmen, weiter = null) => {
     if (fertig) return; fertig = true;
-    if (zurueckNehmen) { setzen(wert || ''); sichern(); }
+    if (zurueckNehmen) { verlauf.sitzung = i._sitz || null; setzen(wert || ''); sichern(); verlauf.sitzung = null; }
     zeichne();
+    if (weiter !== null && nr >= 0) { const zz = zeilen().filter(x => x.matches('button')), x = zz[Math.max(0, Math.min(zz.length - 1, nr + weiter))];
+      if (x) { x.focus({ preventScroll: true }); x.scrollIntoView({ block: 'nearest' }); } }
     const w = !zurueckNehmen && opt.warn ? opt.warn(i.value.trim()) : null;      // ab v1.59 (D06): Warnung bleibt nach dem Bestätigen sichtbar
     if (w) meldung('⚠ ' + w);
   };
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
   i.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false); }
-    else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ende(true); }
+    if (ev.key === 'Enter') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false, 0); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ende(true, 0); }
+    else if (ev.key === 'Tab') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false, ev.shiftKey ? -1 : 1); }
   });
   i.addEventListener('blur', () => setTimeout(() => ende(false), 0));
   i.focus(); i.select();
@@ -3985,13 +4060,14 @@ function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
   schl = fenster(titel, [opt.text ? h('p', { class: 'text' }, opt.text) : null, liste], s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen')], null,
     { pop: true, still: true, breit: mitKlein, cls: mitKlein ? 'mitklein' : null });
 }
-// Menü: Einträge [Text, Aktion, { klein, an, rot }] oder '—' als Trennlinie; ändert selbst nichts
-function menue(titel, eintraege, beimSchliessen = null) {
+// Menü: Einträge [Text, Aktion, { klein, an, rot, taste }] oder '—' als Trennlinie; ändert selbst nichts
+// ab v1.60 (M5): Kürzel rechtsbündig (taste); ohne Titel (Rechtsklick, „Mehr …“) mit opt.label für Vorleser
+function menue(titel, eintraege, beimSchliessen = null, opt = {}) {
   let schl;
   const liste = h('div', { class: 'wahl menue', role: 'menu' }, eintraege.filter(Boolean).map(x => x === '—' ? h('div', { class: 'trennlinie', role: 'separator' }) :
     h('button', { role: 'menuitem', class: [x[2] && x[2].an ? 'an' : '', x[2] && x[2].rot ? 'gefahr' : ''].join(' ').trim() || null, disabled: (x[2] && x[2].aus) || null, on: { click: () => { schl(false); x[1](); } } },
-      h('span', {}, x[0]), x[2] && x[2].klein ? h('small', {}, x[2].klein) : null)));
-  schl = fenster(titel, liste, s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Schließen')], beimSchliessen, { pop: true, still: true });
+      x[2] && x[2].taste ? h('span', { class: 'mz' }, h('span', {}, x[0]), h('kbd', {}, x[2].taste)) : h('span', {}, x[0]), x[2] && x[2].klein ? h('small', {}, x[2].klein) : null)));
+  schl = fenster(titel, liste, s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Schließen')], beimSchliessen, { pop: true, still: true, label: opt.label });
 }
 function frage(titel, text, ja, jaText = 'Löschen') {
   fenster(titel, h('p', { class: 'text' }, text), s => [
@@ -4055,13 +4131,16 @@ const FI_TYP_KLEIN = { A: 'üblich: Wechsel- und pulsierende Gleichfehlerströme
   B: 'auch glatte Gleichfehlerströme (Wallbox ohne DC-Erkennung, Drehstrom-Umrichter)', 'B+': 'wie B, bis 20 kHz (vorbeugender Brandschutz)',
   AC: 'nur Wechselfehlerströme – in Deutschland nicht mehr zulässig' };
 const IDN_KLEIN = { 10: 'einzelne Geräte', 30: 'Personenschutz – Steckdosen, Bad, außen', 100: 'Anlagenschutz', 300: 'Brandschutz', 500: 'Anlagenschutz' };
-const TASTEN = [
-  ['← / →', 'vorigen / nächsten Abgang wählen'], ['Alt+← / Alt+→', 'Abgang verschieben'],
-  ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt verschieben'],
-  ['Tab, Eingabe', 'Teile im Blatt der Reihe nach, wählen'], ['Eingabe', 'Gerät des Platzes ändern'], ['Entf', 'löschen bzw. Platz leeren'],
+const TASTEN = [      // ab v1.60 mit Rechtsklick, Mehrfachauswahl, F2 und Tab
+  ['← / →', 'vorigen / nächsten Abgang wählen'], ['Alt+← / Alt+→', 'Abgang nach links / rechts'],
+  ['Pfeiltasten', 'im Steuerstromkreis: Platz wählen'], ['Alt+↑ / Alt+↓', 'Kontakt nach oben / unten'],
+  ['Tab', 'Kopf, Palette, Arbeitsfläche, Fach der Reihe nach'], ['F2, Doppelklick', 'Bezeichnung ändern (Platz: Gerät wählen)'], ['Entf', 'löschen (Rückgängig in der Meldung)'],
+  ['Rechtsklick', 'alle Befehle für das Teil unter dem Zeiger'], ['Strg+Klick', 'Abgang zur Auswahl dazu bzw. heraus'], ['Umschalt+Klick', 'Abgänge bis hier wählen'],
+  ['Rahmen ziehen', 'im Leeren: Abgänge; mit Alt: Geräte und Zusätze'], ['Strg+A', 'alle Abgänge wählen'],
   ['Strg+C / X / V', 'kopieren, ausschneiden, einfügen (hinter das gewählte Teil)'], ['Strg+D', 'duplizieren'], ['Strg+Z / Y', 'rückgängig, wiederholen'],
-  ['+ / − / 0', 'größer / kleiner / Blattbreite'], ['Strg+Mausrad', 'zoomen'], ['Esc', 'Werkzeug beenden, Auswahl aufheben, Fenster schließen'],
-  ['Ziehen', 'Abgang auf eine Marke „+“, Kontakt auf einen Platz; Finger/Pencil: kurz halten'], ['?', 'diese Übersicht']];
+  ['+ / − / 0', 'größer / kleiner / Blattbreite'], ['Umschalt+1', 'ganzes Blatt'], ['Strg+Mausrad', 'zoomen'], ['Leertaste+Ziehen', 'Ansicht schwenken (auch Mitteltaste)'],
+  ['Esc', 'Ziehen abbrechen, Werkzeug beenden, Auswahl aufheben, Fenster schließen'],
+  ['Ziehen', 'Abgang an seiner Zeichnung auf eine Marke „+“, Kontakt auf einen Platz; Finger/Pencil: kurz halten'], ['Strg+S / O / P', 'sichern, öffnen, drucken'], ['?', 'diese Übersicht']];
 // Hilfe (ab v1.54): Erste Schritte, Gesten, Maus und Tasten, Anordnen von Hand, Speichern, Begriffe
 function hilfe(ab = null) {
   const abschnitt = (key, titel, ...inhalt) => h('section', { class: 'hilfeabschnitt', 'data-abschnitt': key }, h('h4', {}, titel), ...inhalt);
@@ -4080,11 +4159,14 @@ function hilfe(ab = null) {
       ['Zurück-Geste', 'schließt erst Fenster, Lupe und Fach, dann geht es einen Bildschirm zurück'],
       ['Palette', 'einmal antippen fügt hinter dem gewählten Abgang ein (bei gewählter Gruppe in die Gruppe); in der Steuerung setzt es das Zeichen auf den gewählten leeren Platz; doppelt antippen oder halten macht die Kachel zum Dauerwerkzeug bis „Fertig“'],
       ['Fach', 'Kopf antippen öffnet und schließt es, nach oben ziehen vergrößert'], ['Apple Pencil', 'beim Schweben ist hervorgehoben, was ein Tippen trifft']])),
-    abschnitt('tasten', 'Maus und Tasten', liste([['Klick', 'Teil wählen; Doppelklick auf eine Kachel: Dauerwerkzeug; Umschalt+Klick auf eine Kachel bei gewählter Gruppe: hinter die Gruppe'], ['Umschalt+Klick, Rahmen ziehen', 'mehrere Teile wählen']]),
+    abschnitt('tasten', 'Maus und Tasten', liste([['Klick', 'Teil wählen, Klick ins Leere hebt die Auswahl auf; Doppelklick auf eine Kachel: Dauerwerkzeug; Umschalt+Klick auf eine Kachel bei gewählter Gruppe: hinter die Gruppe'],
+      ['Rechtsklick', 'alle Befehle für das Teil unter dem Zeiger; die wichtigsten stehen oben in der Kopfleiste'],
+      ['Strg+Klick, Umschalt+Klick, Rahmen', 'mehrere Abgänge wählen und gemeinsam ändern']]),
       h('div', {}, ...TASTEN.map(([k, t]) => h('div', { class: 'taste' }, h('b', {}, k), ' ', t)))),
     null,
     abschnitt('anordnen', 'Anordnen von Hand', liste([
       'Die Anordnung im Plan macht die App. Was Sie von Hand ändern – Abgang in eine andere Spalte oder auf ein neues Blatt, Gerät im 2,5-mm-Raster, Leiterstück –, bleibt als Abweichung gespeichert.',
+      'Geräte und Leiterstücke eines Abgangs werden mit dem Befehl „Anordnen“ (Leiste, „Mehr …“ bzw. Rechtsklick) einzeln wähl- und ziehbar; Esc beendet.',
       'Von Hand gesetzte Teile tragen im Editor eine violette Stecknadel (nie im Druck); „Automatik anwenden“ setzt sie zurück.',
       '„Blatt festhalten“ hält die Spalten aller Abgänge eines Blatts fest, damit spätere Änderungen davor sie nicht verschieben.',
       'Reiter „Zeichnen“: freie Leiter (mit Prüfung auf Kurzschluss und offene Enden), Texte und strichpunktierte Rahmen.'])),
@@ -4375,12 +4457,13 @@ function bVerteiler(b) {
   m.append(h('h2', {}, 'Abgänge'));
   const l = h('div', { class: 'liste' });
   baumZeilen(v, e, v.knoten, l, 0);
-  l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = editorNeu(v, 'steckdose'); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
+  // ab v1.60 (D12): im Plan-Editor stehen die Knöpfe „+ …“ nur im leeren Verteiler (sonst Palette und Marken „+“)
+  if (!(einbettung && ED) || !v.knoten.length) l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = editorNeu(v, 'steckdose'); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
            h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'),
            h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS (gemeinsame Steuerspannung)'),
            h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo (z. B. 230/24 V)'));
   m.append(l);
-  if (einbettung && ED) m.append(h('div', { class: 'liste' }, zeile('Mehrere Abgänge gemeinsam ändern', null, () => sammelWaehlen([]),
+  if (einbettung && ED) m.append(h('div', { class: 'liste' }, zeile('Mehrere Abgänge gemeinsam ändern', null, () => sammelWaehlen([], true),
     { un: 'z. B. alle LS auf Kennlinie C oder alle Leitungen auf 2,5 mm² (Sammeländerung)' })));      // ab v1.56
   if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Einphasige Abgänge je Außenleiter: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));
   const nKreise = Object.keys(e.steuer.aktiv).length;
@@ -4487,7 +4570,8 @@ function bGruppe(b) {
   m.append(l);
   m.append(h('h2', {}, ''), h('div', { class: 'liste' },
     zeile('Gruppe auflösen', null, () => frage('Gruppe auflösen', 'Das Schutzorgan der Gruppe entfällt; die Abgänge bleiben und rücken an seine Stelle.', () => { r.liste.splice(r.i, 1, ...g.kinder); fertig(); }, 'Auflösen'), { ohnePfeil: true }),
-    zeile('Gruppe löschen', null, () => frage('Gruppe löschen', 'Gruppe mit allen ihren Abgängen löschen?', () => { r.liste.splice(r.i, 1); fertig(); }), { rot: true, ohnePfeil: true })));
+    // ab v1.60 (D15): ohne Rückfrage, mit Rückgängig in der Meldung; im Plan-Editor über Entf, Leiste und Rechtsklick (D12)
+    einbettung && ED ? null : zeile('Gruppe löschen', null, () => knotenLoeschen(v, r), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 function geraetZeilen(ge) {
@@ -4589,8 +4673,8 @@ function bAbgang(b) {
           uvAnlegen(v, k, n); aenderung('Neuer Unterverteiler'); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
         k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
       { un: 'Der Unterverteiler zeigt diesen Abgang dann als seine Einspeisung.' })));
-  m.append(h('h2', {}, ''), h('div', { class: 'liste' },
-    zeile('Abgang löschen', null, () => frage('Abgang löschen', 'Diesen Abgang löschen?', () => { r.liste.splice(r.i, 1); fertig(); }), { rot: true, ohnePfeil: true })));
+  if (!(einbettung && ED)) m.append(h('h2', {}, ''), h('div', { class: 'liste' },      // ab v1.60 (D12/D15) wie bei der Gruppe
+    zeile('Abgang löschen', null, () => knotenLoeschen(v, r), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
 
@@ -5265,33 +5349,24 @@ function platzAktion(v, e, kr, b, was) {
     case 'ende': if (zw) aendern(() => { zw.bis = s.i; if (zw.von > s.i) zw.von = s.i; }); return;
     case 'spalteLoeschen':
       if (!s) return;
-      return frage(zw ? 'Zweig löschen' : 'Pfad löschen', zw ? 'Diesen Zweig löschen?' : 'Diesen Pfad mit seinen Zweigen löschen?', () => {
-        let n = 1; if (!zw) while (pf[s.j + n] && pf[s.j + n].zweig) n++;
-        pf.splice(s.j, n); b.sel = null; });
+      // ab v1.60 (M7): ohne Rückfrage, Meldung mit Rückgängig
+      aenderung(zw ? 'Zweig löschen' : 'Pfad löschen');
+      { let n = 1; if (!zw) while (pf[s.j + n] && pf[s.j + n].zweig) n++; pf.splice(s.j, n); b.sel = null; }
+      sichern(); zeichne(); return meldung(zw ? 'Zweig gelöscht' : 'Pfad gelöscht', ['Rückgängig', () => projektRueck(false)]);
     case 'pfad': return aendern(() => { pf.push(neuerPfad()); b.sel = { j: pf.length - 1, i: 0 }; });
   }
 }
 // Eigenschaften-Leiste für einen Platz: Inhalt, Aktionen, Weg zu den Einstellungen des Kreises
 function editorPlatz(v, b, pid, i) {
-  const r = kreisMitPfad(v, pid), kr = r.kr, j = r.j, p = kr.pfade[j], e = berechne(v), ps = platzSel(b, kr);
+  const r = kreisMitPfad(v, pid), kr = r.kr, j = r.j, p = kr.pfade[j], e = berechne(v);
   const zw = j > 0 && p.zweig, ak = platzAktiv(kr.pfade, j, i), kk = kreisKopf(v, e, kr);
   let nr = 0; kr.pfade.slice(0, j + 1).forEach((q, n) => { if (!(n > 0 && q.zweig)) nr++; });
-  const k = (t, was, opt = {}) => h('button', { class: opt.rot ? 'rot' : null, disabled: opt.aus ? true : null, title: opt.taste || null,
-    on: { click: () => platzAktion(v, e, kr, ps, was) } }, t);
+  // ab v1.60 (D12): die Befehle (Gerät wählen, Löschen, Nach oben/unten, Zweig, Pfad, Vorlage …) stehen in der Leiste bzw.
+  // Kopfleiste und im Rechtsklick-Menü (befehle()), das Fach zeigt nur Werte
   return { titel: `${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)} · ${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr}${kk ? ' · ' + kk.bmk.t : ''}`, inhalt: h('div', {},
     h('h2', {}, i === 6 ? 'Verbraucher' : 'Kontakt'),
     ak ? h('div', { class: 'liste' }, i === 6 ? verbraucherZeile(v, e, p) : platzZeile(v, e, p, i))
-       : h('div', {}, h('p', { class: 'hinweis' }, 'Dieser Platz liegt außerhalb des Zweigs.'), h('div', { class: 'leiste' }, k('Zweig bis hier verlängern', i < p.zweig.von ? 'anfang' : 'ende'))),
-    h('div', { class: 'leiste' },
-      k('Gerät ändern', 'geraet', { aus: !ak, taste: 'Eingabe' }), k('Leeren', 'loeschen', { aus: !ak, rot: true, taste: 'Entf' }),
-      k('↑', 'hoch', { aus: !ak || i === 0 || i > 5, taste: 'Alt+↑' }), k('↓', 'runter', { aus: !ak || i >= 5, taste: 'Alt+↓' }),
-      k('Kopieren', 'kopieren', { taste: 'Strg+C' }), k('Einfügen', 'einfuegen', { aus: !ak || !platzAblage, taste: 'Strg+V' })),
-    h('h2', {}, zw ? 'Zweig' : 'Pfad'),
-    h('div', { class: 'leiste' },
-      k('Zweig ab hier', 'zweig'),
-      zw ? k('Zweig: Anfang hier', 'anfang') : null, zw ? k('Zweig: Ende hier', 'ende') : null,
-      k('+ Pfad', 'pfad'), k(zw ? 'Zweig löschen' : 'Pfad löschen', 'spalteLoeschen', { rot: true }),
-      h('button', { on: { click: () => vorlageWahl(v, kr) } }, 'Vorlage …')),
+       : h('p', { class: 'hinweis' }, 'Dieser Platz liegt außerhalb des Zweigs – „Zweig bis hier verlängern“ nimmt ihn auf.'),
     h('h2', {}, 'Steuerstromkreis'),
     h('div', { class: 'liste' }, zeile('Einstellungen des Kreises', kk ? kk.bmk.t : null, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
       { un: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade als Liste' })),
@@ -5312,6 +5387,11 @@ document.addEventListener('keydown', ev => {
   const anTeil = ev.target.closest && ev.target.closest('.ed svg [data-ziel]');
   if (t === ' ' && (ED.zeigerDrin || !anTeil)) { if (ED.zeigerDrin || ev.target === document.body || (ev.target.closest && ev.target.closest('.edflaeche'))) { ev.preventDefault(); if (!ev.repeat) leerTasteSetzen(true); } return; }
   if ((t === 'enter' || t === ' ') && anTeil) { ev.preventDefault(); return anTeil.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+  // ab v1.60 (M6): F2 bzw. Eingabe (Fokus auf der Fläche) bearbeitet die Bezeichnung der Auswahl im Fach
+  const aufFlaeche = ev.target === document.body || ev.target === ED.flaeche;
+  if (t === 'f2' || (t === 'enter' && aufFlaeche && !strg && /^(k|kr|z):/.test(b.sel || ''))) { ev.preventDefault(); return bezeichnungBearbeiten(); }
+  // Umschalt+1: ganzes Blatt (ab v1.60, für das Rechtsklick-Menü)
+  if (ev.shiftKey && !strg && ev.code === 'Digit1') { ev.preventDefault(); return zoomGanz(); }
   // gewählter Platz im Steuerstromkreis
   const m = /^pl:([^:]+):(\d)$/.exec(b.sel || '');
   if (m) {
@@ -5326,7 +5406,7 @@ document.addEventListener('keydown', ev => {
     if (d) { ev.preventDefault(); const s = ps.sel; ps.sel = { j: Math.max(0, Math.min(r.kr.pfade.length - 1, s.j + d[0])), i: Math.max(0, Math.min(6, s.i + d[1])) }; return waehle(b.sel, { springen: true }); }
   }
   const tun = was => { ev.preventDefault(); editorAktion(v, b, was); };
-  if (strg && t === 'a') { ev.preventDefault(); return sammelReihe(v, b); }      // ab v1.56: Sammelauswahl der Reihe
+  if (strg && t === 'a') { ev.preventDefault(); return alleWaehlen(v); }      // ab v1.60 (D14): alle Abgänge des Verteilers
   if (b.sel === 'm:' && !b.sammel && !strg) {
     const mm2 = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[t];
     if (mm2) { ev.preventDefault(); const f = ev.shiftKey ? 4 : 1; return gruppeSchieben(v, b.mehr, mm2[0] * f, mm2[1] * f); }
@@ -5359,7 +5439,9 @@ document.addEventListener('keydown', ev => {
   if (strg && t === 'd') return tun('duplizieren');
   if (t === 'delete' || t === 'backspace') return tun('loeschen');
   if (t === 'escape' && ED.zeichnen) { ev.preventDefault(); ED.zeichnen = null; return zeichenVorschau(null); }
-  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerTeilOderLeiter(b.sel)); else if (b.sel) waehle(null); }
+  // Esc stufenweise (M3): Werkzeug → Gerät/Leiter → Anordnen → Auswahl
+  if (t === 'escape') { ev.preventDefault(); if (b.tool) werkzeug(null); else if (b.sel && /^[tw]:/.test(b.sel)) waehle(besitzerTeilOderLeiter(b.sel));
+    else if (b.anordnen) anordnen(null); else if (b.sel) waehle(null); }
 });
 
 // ---- Plan-Editor (ab v1.17; ab v1.21 als Arbeitsfläche über den ganzen Bildschirm) ------------
@@ -5554,13 +5636,26 @@ function kachel(name, zeichen, zusatz, klick, opt = {}) {
 // Wohin ein Palettenklick einfügt (ab v1.53): hinter den gewählten Abgang bzw. die Gruppe, sonst ans Ende des Verteilers.
 // Ab v1.57: Ist eine Gruppe gewählt, kommt ein Abgang ans Ende der Gruppe (in:); hinter die Gruppe nur mit hinter = true
 // (Umschalt+Klick) oder über die Marke „+“. Gruppe auf Gruppe bleibt nach:.
+// Ab v1.60 (D19): Unterverteiler, PV, Speicher, Wallbox, Motor, Steuer-LS und Steuertrafo kommen nie in eine Gruppe, sondern
+// auf die Hauptebene hinter die Gruppe bzw. hinter den gewählten Abgang.
+const HAUPTEBENE = new Set(['uv', 'pv', 'speicher', 'wallbox', 'motor', 'steuerls', 'trafo']);
 function paletteZiel(v, b, tool, hinter = false) {
   const bes = b.sel && /^[ktw]:/.test(b.sel) ? (b.sel.startsWith('k:') ? b.sel : besitzerVon(b.sel.slice(2))) : null;
   const r = bes && bes.startsWith('k:') ? knoten(v, bes.slice(2)) : null;
   if (!r) return 'leer:' + v.id;
+  if (HAUPTEBENE.has(tool)) return 'nach:' + (r.eltern ? r.eltern.id : r.k.id);
   const gruppe = tool === 'gruppe' || (tool === 'ablage' && editorAblage && editorAblage.k.typ === 'gruppe');
   if (!gruppe && !hinter && r.k.typ === 'gruppe') return 'in:' + r.k.id;
   return 'nach:' + (gruppe && r.eltern ? r.eltern.id : r.k.id);
+}
+// Zielmarke eines Palettenklicks hervorheben (ab v1.60, D19: beim Überfahren der Kachel mit der Maus); null hebt auf
+function zielZeigen(ziel) {
+  if (!ED) return;
+  ED.blaetter.querySelectorAll('g.marke[data-ziel-hin]').forEach(m => { m.removeAttribute('data-ziel-hin'); m.removeAttribute('data-ueber'); });
+  if (!ziel) return;
+  const v = ED.v, [art, id] = ziel.split(':'), g = art === 'in' && knoten(v, id);
+  const m = art === 'in' && g && g.k.kinder.length ? 'nach:' + g.k.kinder.at(-1).id : art === 'leer' && v.knoten.length ? 'nach:' + v.knoten.at(-1).id : ziel;
+  const mk = ED.blaetter.querySelector(`g.marke[data-ziel="${m}"]`); if (mk) { mk.setAttribute('data-ziel-hin', ''); mk.setAttribute('data-ueber', ''); }
 }
 // Werkzeug wählen bzw. beenden (ohne das Blatt neu zu erzeugen)
 function werkzeug(t) {
@@ -5635,8 +5730,12 @@ function paletteNeu() {
   const gruppen = {};
   const einmal = tool => ev => { if (b.tool === tool) return werkzeug(null); if (b.tool) werkzeug(null); editorEinfuegen(v, b, paletteZiel(v, b, tool, !!(ev && ev.shiftKey)), tool); };
   const dauer = tool => () => { werkzeug(tool); meldung(`${PAL_NAME(tool)}: Marken „+“ ${tipp()} – „Fertig“ oder Esc beendet`); };
-  EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => (gruppen[grp] = gruppen[grp] || []).push(kachel(name, zeichen, zusatz, einmal(tool),
-    { an: b.tool === tool, dauer: dauer(tool), titel: `${name.replace(/\u00ad/g, '')} einfügen (bei gewählter Gruppe in die Gruppe, Umschalt+Klick dahinter) – Doppelklick oder Halten: mehrere über die Marken „+“` })));
+  EDITOR_PALETTE.forEach(([tool, name, zeichen, zusatz, grp]) => { const k = kachel(name, zeichen, zusatz, einmal(tool),
+    { an: b.tool === tool, dauer: dauer(tool), titel: `${name.replace(/\u00ad/g, '')} einfügen (bei gewählter Gruppe in die Gruppe, Umschalt+Klick dahinter) – Doppelklick oder Halten: mehrere über die Marken „+“` });
+    // ab v1.60 (D19): beim Überfahren mit der Maus ist die Stelle markiert, an der ein Klick einfügt
+    k.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse' && !b.tool) zielZeigen(paletteZiel(v, b, tool, ev.shiftKey)); });
+    k.addEventListener('pointerleave', () => zielZeigen(null));
+    (gruppen[grp] = gruppen[grp] || []).push(k); });
   const abl = editorAblage ? kachel(PAL_NAME('ablage'), 'klemme', '', einmal('ablage'), { an: b.tool === 'ablage', dauer: dauer('ablage') }) : null;
   if (abl) gruppen.Ablage = [abl];
   Object.entries(gruppen).forEach(([t, k]) => pal.append(gruppe(t === 'Steuerspannung' ? 'Steuer\u00adspannung' : t, k)));
@@ -5760,16 +5859,22 @@ function editorMehr(v, b) {
         L.zusatz = (L.zusatz || []).filter(z => !weg.has(z.id)); b.mehr = teile; b.sel = teile.length > 1 ? 'm:' : teile[0] || null; aenderung('Zusätze löschen'); sichern(); zeichne(); }, { rot: true, ohnePfeil: true }) : null)) };
 }
 // ---- Sammeländerung (ab v1.56): mehrere Abgänge gemeinsam ändern ------------------------------------
-// b.sel = 'm:', b.mehr = ['k:…'], b.sammel = true. Wählen: Umschalt- bzw. Strg+Klick im Blatt, Strg+A (Reihe), Kontrollkästchen
-// in der Liste; solange die Sammelauswahl offen ist, nimmt ein einfaches Tippen auf einen Abgang ihn dazu oder heraus.
-// Geändert wird je Feld nur, wo es gilt (z. B. Kennlinie nur an LS); jede Änderung ist ein Rückgängig-Schritt.
+// b.sel = 'm:', b.mehr = ['k:…'], b.sammel = true. Ab v1.60 (M4) ohne Modus: Strg/Cmd+Klick nimmt einen Abgang dazu oder heraus,
+// Umschalt+Klick wählt den Bereich in Abgangsreihenfolge, ein Rahmen im Leeren die Abgänge darin, Strg+A alle; ein einfacher Klick
+// wählt neu. Nur der Befehl „Mehrfach wählen“ (Touch) und die Kontrollkästchen im Fach schalten b.umschalten ein: dann nimmt ein
+// einfaches Tippen dazu oder heraus, bis zum Aufheben. Geändert wird je Feld nur, wo es gilt; jede Änderung ist ein Rückgängig-Schritt.
 const sammelFaehig = k => !!k && k.typ === 'abgang';
-function sammelWaehlen(ids) { if (!ED) return; ED.b.mehr = [...new Set(ids)]; ED.b.sammel = true; waehle('m:'); }
-function sammelReihe(v, b) {            // Strg+A: Abgänge der Reihe des gewählten Abgangs, sonst alle des Verteilers
+function sammelWaehlen(ids, umschalten = !!(ED && ED.b.umschalten && ED.b.sel === 'm:')) {
+  if (!ED) return; ids = [...new Set(ids)];
+  if (!umschalten && ids.length < 2) return waehle(ids[0] || null);      // ein Abgang: gewöhnliche Auswahl
+  ED.b.mehr = ids; ED.b.sammel = true; ED.b.umschalten = !!umschalten; waehle('m:');
+}
+const abgangsFolge = v => { const ids = []; alleKnoten(v, k => { if (sammelFaehig(k)) ids.push('k:' + k.id); }); return ids; };
+function alleWaehlen(v) { sammelWaehlen(abgangsFolge(v)); }
+function sammelReihe(v, b) {            // Befehl „Reihe wählen“: Abgänge der Reihe des gewählten Abgangs
   const s = b.sel === 'm:' && b.sammel ? (b.mehr || [])[0] : b.sel, r = /^k:/.test(s || '') && knoten(v, s.slice(2));
-  const ids = []; if (r) r.liste.forEach(k => { if (sammelFaehig(k)) ids.push('k:' + k.id); });
-  else alleKnoten(v, k => { if (sammelFaehig(k)) ids.push('k:' + k.id); });
-  sammelWaehlen(ids);
+  if (!r) return alleWaehlen(v);
+  sammelWaehlen(r.liste.filter(sammelFaehig).map(k => 'k:' + k.id));
 }
 function editorSammel(v, b) {
   const e = berechne(v), ks = (b.mehr || []).map(x => knoten(v, x.slice(2))).filter(r => r && sammelFaehig(r.k)).map(r => r.k), n = ks.length;
@@ -5804,24 +5909,24 @@ function editorSammel(v, b) {
     if (!sammelFaehig(k)) return;
     const a = e.abgaenge[k.id], kid = 'k:' + k.id;
     // ab v1.58 (C24): Ankreuzen markiert den Abgang im Blatt und holt ihn in den Blick
-    const cb = h('input', { type: 'checkbox', checked: gew.has(kid), on: { change: () => { const an = cb.checked; sammelWaehlen(an ? [...gew, kid] : [...gew].filter(x => x !== kid));
+    const cb = h('input', { type: 'checkbox', checked: gew.has(kid), on: { change: () => { const an = cb.checked; sammelWaehlen(an ? [...gew, kid] : [...gew].filter(x => x !== kid), true);
       if (an) zeigeAuswahl(false, ED && ED.blaetter.querySelector(`[data-ziel="${kid}"]`)); } } });
     auswahl.append(h('label', { class: 'sammelzeile' + (eltern ? ' einr' : '') }, cb,
       h('span', { class: 'bmk' }, a && a.f ? a.f.t : '—'),
       h('span', { class: 't' }, abgangName(k), h('span', { class: 'un' }, [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
         k.steuer ? '' : `${k.leitung.typ || 'NYM-J'} ${k.leitung.quer || '?'} mm²`].filter(Boolean).join(' · ')))));
   });
-  const fein = matchMedia('(pointer:fine)').matches;
+  // ab v1.60 (M4): ohne „Fertig“ – Esc, Klick ins Leere bzw. auf Touch „Fertig“ in der Fußleiste beenden die Auswahl
+  const fein = feinZeiger();
   return { titel: n === 1 ? '1 Abgang gewählt' : `${n} Abgänge gewählt`, inhalt: h('div', {},
     h('p', { class: 'hinweis' }, n ? 'Eine Änderung gilt für alle gewählten Abgänge – Rückgängig nimmt sie für alle zurück.' : 'Abgänge unten ankreuzen oder im Blatt ' + tipp() + '.'),
     zz.length ? h('h2', {}, 'Gemeinsam ändern') : null, zz.length ? h('div', { class: 'liste' }, ...zz) : null,
     h('h2', {}, 'Auswahl'),
     h('div', { class: 'leiste' },
-      h('button', { on: { click: () => { const ids = []; alleKnoten(v, k => { if (sammelFaehig(k)) ids.push('k:' + k.id); }); sammelWaehlen(ids); } } }, 'Alle'),
-      h('button', { on: { click: () => sammelWaehlen([]) } }, 'Keine'),
-      h('button', { on: { click: () => waehle(null) } }, 'Fertig')),
+      h('button', { on: { click: () => sammelWaehlen(abgangsFolge(v), true) } }, 'Alle'),
+      h('button', { on: { click: () => sammelWaehlen([], true) } }, 'Keine')),
     auswahl,
-    h('p', { class: 'hinweis' }, fein ? 'Im Blatt: Klick nimmt einen Abgang dazu oder heraus, Strg+A wählt die ganze Reihe, Esc beendet.'
+    h('p', { class: 'hinweis' }, fein ? 'Im Blatt: Strg+Klick nimmt einen Abgang dazu oder heraus, Umschalt+Klick wählt bis dorthin, Strg+A alle.'
       : 'Im Blatt: Antippen nimmt einen Abgang dazu oder heraus.')) };
 }
 function editorEigenschaftenTitel(v, bes) {
@@ -5834,22 +5939,24 @@ function waehle(sel, opt = {}) {
   if (!ED) return;
   const b = ED.b;
   if (!opt.zurueck) b.pz = [];
-  const warSammel = b.sel === 'm:' && b.sammel;
-  if (sel !== 'm:') { b.mehr = null; b.sammel = false; }
+  const warSammel = b.sel === 'm:' && b.sammel && b.umschalten;
+  if (sel !== 'm:') { b.mehr = null; b.sammel = false; b.umschalten = false; }
   if (sel) b.stAbgang = null;
+  // ab v1.60 (M6): „Anordnen“ gilt, solange das Teil selbst oder eines seiner Geräte bzw. Leiter gewählt ist
+  if (b.anordnen && (!sel || besitzerTeilOderLeiter(sel) !== b.anordnen)) b.anordnen = null;
   b.sel = sel; b.blatt = !!sel || !!opt.offen;
   const w = /^(pl|kr):/.test(sel || '') ? 'st' : /^k:/.test(sel || '') ? 'ab' : b.palette;
   if (w !== b.palette) paletteWahl(w);
   markieren(); eigenNeu(); kontextNeu();
-  if (warSammel !== (sel === 'm:' && !!b.sammel)) fussNeu();      // ab v1.58 (C23): Hinweis „Weitere Abgänge antippen“
+  if (warSammel !== (sel === 'm:' && !!b.sammel && !!b.umschalten)) fussNeu();      // ab v1.58 (C23): Hinweis „Weitere Abgänge antippen“
   if (opt.springen) zeigeAuswahl();
 }
 function markieren() {
   ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
   const gew = ED.b.sel === 'm:' ? new Set(ED.b.mehr || []) : new Set([ED.b.sel]);
   if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (gew.has(r.dataset.ziel)) r.setAttribute('data-sel', ''); });
-  // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar
-  const bes = ED.b.sel && besitzerTeilOderLeiter(ED.b.sel);
+  // Geräte eines gewählten Abgangs (bzw. der Einspeisung) sind einzeln antippbar – ab v1.60 (M6) erst nach „Anordnen“
+  const bes = ED.b.anordnen && ED.b.sel && besitzerTeilOderLeiter(ED.b.sel) === ED.b.anordnen ? ED.b.anordnen : null;
   ED.blaetter.querySelectorAll('rect.teil, line.leiterziel').forEach(r => { const an = !!bes && r.dataset.besitzer === bes; r.toggleAttribute('data-aktiv', an);
     if (r.tagName === 'rect') { if (an) r.setAttribute('role', 'button'); else r.removeAttribute('role'); } });      // ab v1.55: nur antippbare Geräte sind Knöpfe
   netzHalo();
@@ -5989,9 +6096,11 @@ function mehrWaehlen(ids) {
   ED.b.mehr = ids; ED.b.sammel = false; waehle('m:');
 }
 let rahmenZug = null;
+// ab v1.60 (M4): ein Rahmen im Leeren (mit der Maus auch auf weißer Spaltenfläche) wählt Abgänge; Alt+Rahmen bzw. das Werkzeug
+// „Auswahl“ wählt Geräte und Zusätze; Umschalt bzw. Strg nimmt zur bisherigen Auswahl dazu
 function rahmenStart(ev, bl) {
   const q = svgPunkt(bl.svg, ev); if (!q) return;
-  rahmenZug = { bl, a: q, b: q, mehr: ev.shiftKey, el: null };
+  rahmenZug = { bl, a: q, b: q, mehr: ev.shiftKey || ev.ctrlKey || ev.metaKey, teile: ev.altKey || (ED && ED.b.tool === 'zauswahl'), el: null };
 }
 function rahmenBewegen(ev) {
   const R = rahmenZug, q = svgPunkt(R.bl.svg, ev); if (!q) return;
@@ -6006,6 +6115,16 @@ function rahmenEnde() {
   const R = rahmenZug; rahmenZug = null; if (!R || !R.el) return;
   R.el.remove(); ziehKlickSperre = true; setTimeout(() => { ziehKlickSperre = false; }, 80);
   const x0 = Math.min(R.a[0], R.b[0]), x1 = Math.max(R.a[0], R.b[0]), y0 = Math.min(R.a[1], R.b[1]), y1 = Math.max(R.a[1], R.b[1]), schneiden = R.b[0] < R.a[0];
+  if (!R.teile) {        // Abgänge: der Rahmen deckt mindestens die halbe Breite ihrer Spalte (senkrecht genügt eine Überschneidung)
+    const ks = [];
+    R.bl.svg.querySelectorAll('rect.ziel[data-ziel^="k:"]:not(.teil)').forEach(r => { const rx = +r.getAttribute('x'), rw = +r.getAttribute('width'), ry = +r.getAttribute('y'), rh = +r.getAttribute('height');
+      const kx = Math.min(x1, rx + rw) - Math.max(x0, rx), kr = knoten(ED.v, r.dataset.ziel.slice(2));
+      if (kx >= rw / 2 - 0.01 && Math.min(y1, ry + rh) > Math.max(y0, ry) && kr && sammelFaehig(kr.k)) ks.push(r.dataset.ziel); });
+    if (ks.length) {
+      const vorher = R.mehr ? (ED.b.sel === 'm:' && ED.b.sammel ? ED.b.mehr : /^k:/.test(ED.b.sel || '') ? [ED.b.sel] : []) : [];
+      return sammelWaehlen(abgangsFolge(ED.v).filter(x => vorher.includes(x) || ks.includes(x)));
+    }
+  }
   const trifft = b => schneiden ? b.x0 < x1 && b.x1 > x0 && b.y0 < y1 && b.y1 > y0 : b.x0 >= x0 && b.x1 <= x1 && b.y0 >= y0 && b.y1 <= y1;
   const ids = [];
   if (R.bl.szene) Object.values(R.bl.szene.teile).forEach(tl => { if (tl.box && trifft(tl.box)) ids.push('t:' + tl.key); });
@@ -6158,81 +6277,174 @@ function eigenNeu() {
       const stufen = ['zu', 'halb', 'voll'], i = stufen.indexOf(fachStufe()); fachSetzen(stufen[Math.max(0, Math.min(2, i + (dy < 0 ? 1 : -1)))]); } } },
     b.pz && b.pz.length ? ik('links', 'Zurück', () => waehle(b.pz.pop(), { zurueck: true })) : null,
     h('h2', { class: 'eigentitel' }, r.titel || (b.sel ? 'Eigenschaften' : v.name)),
-    b.sel === 'm:' && b.sammel ? h('button', { class: 'knopf klein', on: { click: () => waehle(null) } }, 'Fertig')      // ab v1.58 (C24)
-      : b.sel ? ik('zu', 'Auswahl aufheben', () => waehle(null), { taste: 'Esc' }) : null,
+    // ab v1.60 (D28): das X nur am Fach als Schublade (schließt es); am Desktop genügen Esc und Klick ins Leere
+    b.sel ? ik('zu', 'Schließen', () => waehle(null), { cls: 'nurschmal' }) : null,
     st === 'zu' ? ik('auf', 'Ausklappen', () => fachSetzen('halb'), { cls: 'nurschmal' })
       : ik(st === 'voll' ? 'ab' : 'auf', st === 'voll' ? 'Fach verkleinern' : 'Fach vergrößern', () => fachSetzen(st === 'voll' ? 'halb' : 'voll'), { cls: 'nurschmal' }),
     st !== 'zu' ? ik('runter', 'Einklappen', () => fachSetzen('zu'), { cls: 'nurschmal' }) : null);
   eigen.append(kopf, h('div', { class: 'eigeninhalt' }, r.inhalt));
   fachKlassen();
 }
-// Kontextleiste am gewählten Teil: Aktionen, die die Lage im Plan betreffen. Ab v1.54 trägt jeder Knopf eine kurze
-// Beschriftung unter dem Symbol; reicht der Platz nicht, bleiben die Kernaktionen und „Mehr“ (Menü mit Text).
-// Einträge: { i: Symbol, l: Name (Tooltip, Menü), t: Beschriftung, f, aus, taste, rot, kern } oder '|' als Trenner
-function kontextNeu() {
-  const { b, v, blaetter } = ED; const alt = blaetter.querySelector('.kontext'); if (alt) alt.remove();
-  if (!b.sel || zieh || istZeichenWerkzeug(b.tool)) return;      // beim Zeichnen keine Leiste im Weg
-  const [art, id] = b.sel.split(':'), kn = [];
-  const pfeile = s => [{ i: 'links', l: '2,5 mm nach links', t: 'links', f: s(-1, 0), taste: '←' }, { i: 'hoch', l: '2,5 mm nach oben', t: 'hoch', f: s(0, -1), taste: '↑' },
-    { i: 'runter', l: '2,5 mm nach unten', t: 'runter', f: s(0, 1), taste: '↓' }, { i: 'rechts', l: '2,5 mm nach rechts', t: 'rechts', f: s(1, 0), taste: '→' }];
+// ---- Befehle der Auswahl (ab v1.60, Modell M5) --------------------------------------------------------------
+// Eine Quelle für alle Darstellungen: Kopfleiste (Maus), schwebende Kontextleiste (Touch), Rechtsklick-Menü und Menü
+// „Mehr …“. Eintrag { id, l: Name, i: Symbol, taste, f, kern, rot }; was gerade nicht geht, fehlt (keine gesperrten Knöpfe).
+// Kernbefehle (höchstens 4) stehen in der Leiste, alle zusammen im Menü.
+const feinZeiger = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
+function befehle(sel, opt = {}) {
+  if (!ED) return [];
+  const { b, v } = ED, kn = [], [art, id] = (sel || '').split(':'), dazu = (...x) => kn.push(...x.filter(Boolean));
+  const pfeile = (s, kern) => [{ id: 'xl', l: 'Nach links', i: 'links', taste: '←', f: s(-1, 0), kern }, { id: 'yo', l: 'Nach oben', i: 'hoch', taste: '↑', f: s(0, -1), kern },
+    { id: 'yu', l: 'Nach unten', i: 'runter', taste: '↓', f: s(0, 1), kern }, { id: 'xr', l: 'Nach rechts', i: 'rechts', taste: '→', f: s(1, 0), kern }];
+  const einfuegen = editorAblage ? { id: 'einfuegen', l: 'Einfügen', i: 'einfuegen', taste: 'Strg+V', f: () => editorAktion(v, b, 'einfuegen') } : null;
+  const anordnenB = bes => !ED.liste.some(bl => bl.szene && Object.values(bl.szene.teile).some(t => t.box && teilAnzeige(t.key) === bes)) ? null
+    : b.anordnen === bes ? { id: 'anordnen', l: 'Anordnen beenden', i: 'breite', taste: 'Esc', f: () => anordnen(null) } : { id: 'anordnen', l: 'Anordnen', i: 'breite', f: () => anordnen(bes) };
+  const automatikB = key => vonHand(v, key) ? { id: 'automatik', l: 'Automatik anwenden', i: 'auto', f: () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); } } : null;
   if (art === 'k') {
-    const r = knoten(v, id); if (!r) return;
-    const a = was => () => editorAktion(v, b, was);
-    const lage = !r.eltern && abgangLage(id), um = v.layout && v.layout.umbruch && v.layout.umbruch[id];
-    kn.push({ i: 'links', l: 'In der Reihe nach links', t: 'Reihe ‹', f: a('links'), aus: r.i === 0, taste: 'Alt+←' },
-      { i: 'rechts', l: 'In der Reihe nach rechts', t: 'Reihe ›', f: a('rechts'), aus: r.i === r.liste.length - 1, taste: 'Alt+→' }, '|');
-    if (lage) kn.push({ i: 'spalteL', l: 'Eine Spalte nach links (Lücke kleiner)', t: 'Spalte ‹', f: a('spalteL'), aus: !(v.layout && v.layout.spalten && v.layout.spalten[id]) },
-      { i: 'spalteR', l: 'Eine Spalte nach rechts (Lücke davor)', t: 'Spalte ›', f: a('spalteR'), aus: lage.col + lage.w - 1 >= ED.raster.sp - 1 },
-      { i: 'umbruch', l: um ? 'Kein neues Blatt ab hier' : 'Neues Blatt ab hier', t: um ? 'Kein Blatt' : 'Neues Blatt', f: a('umbruch') }, '|');
-    if (vonHand(v, 'k:' + id)) kn.push({ i: 'auto', l: 'Automatik anwenden', t: 'Automatik', f: a('automatik') }, '|');
-    if (sammelFaehig(r.k)) kn.push({ i: 'auf', l: 'Mehrere Abgänge gemeinsam ändern', t: 'Mehrere', f: () => sammelWaehlen([b.sel]), taste: 'Umschalt+Klick' }, '|');
-    kn.push({ i: 'duplizieren', l: 'Duplizieren: gleicher Abgang dahinter', t: '+ dahinter', f: a('duplizieren'), taste: 'Strg+D', kern: true },
-      { i: 'kopieren', l: 'Kopieren', t: 'Kopieren', f: a('kopieren'), taste: 'Strg+C' }, { i: 'schere', l: 'Ausschneiden', t: 'Ausschn.', f: a('ausschneiden'), taste: 'Strg+X' }, '|',
-      { i: 'loeschen', l: 'Löschen', t: 'Löschen', f: a('loeschen'), rot: true, taste: 'Entf', kern: true });
+    const r = knoten(v, id); if (!r) return kn;
+    const a = was => () => editorAktion(v, b, was), lage = !r.eltern && abgangLage(id), um = v.layout && v.layout.umbruch && v.layout.umbruch[id];
+    dazu(sammelFaehig(r.k) && !feinZeiger() ? { id: 'mehrfach', l: 'Mehrfach wählen', i: 'auf', f: () => sammelWaehlen([b.sel], true) } : null,      // Touch: oben im Menü
+      r.k.typ === 'abgang' && !r.k.speist ? { id: 'bezeichnung', l: 'Bezeichnung ändern', i: 'geraet', taste: 'F2', f: bezeichnungBearbeiten } : null,
+      r.i > 0 ? { id: 'links', l: 'Nach links', i: 'links', taste: 'Alt+←', f: a('links'), kern: true } : null,
+      r.i < r.liste.length - 1 ? { id: 'rechts', l: 'Nach rechts', i: 'rechts', taste: 'Alt+→', f: a('rechts'), kern: true } : null,
+      lage && v.layout && v.layout.spalten && v.layout.spalten[id] ? { id: 'spalteL', l: 'Spalte nach links', i: 'spalteL', f: a('spalteL') } : null,
+      lage && lage.col + lage.w - 1 < ED.raster.sp - 1 ? { id: 'spalteR', l: 'Spalte nach rechts', i: 'spalteR', f: a('spalteR') } : null,
+      lage ? { id: 'umbruch', l: um ? 'Kein neues Blatt ab hier' : 'Neues Blatt ab hier', i: 'umbruch', f: a('umbruch') } : null,
+      vonHand(v, 'k:' + id) ? { id: 'automatik', l: 'Automatik anwenden', i: 'auto', f: a('automatik') } : null,
+      anordnenB('k:' + id),
+      sammelFaehig(r.k) && r.liste.filter(sammelFaehig).length > 1 ? { id: 'reihe', l: 'Reihe wählen', i: 'abgaenge', f: () => sammelReihe(v, b) } : null,
+      { id: 'duplizieren', l: 'Duplizieren', i: 'duplizieren', taste: 'Strg+D', f: a('duplizieren'), kern: true },
+      { id: 'kopieren', l: 'Kopieren', i: 'kopieren', taste: 'Strg+C', f: a('kopieren') }, { id: 'ausschneiden', l: 'Ausschneiden', i: 'schere', taste: 'Strg+X', f: a('ausschneiden') },
+      einfuegen, { id: 'loeschen', l: 'Löschen', i: 'loeschen', taste: 'Entf', f: a('loeschen'), rot: true, kern: true });
   } else if (art === 'pl') {
-    const r = kreisMitPfad(v, id); if (!r) return;
-    const e = berechne(v), ps = platzSel(b, r.kr), s = ps.sel, ak = platzAktiv(r.kr.pfade, s.j, s.i), a = was => () => platzAktion(v, e, r.kr, ps, was);
-    kn.push({ i: 'geraet', l: 'Gerät wählen', t: 'Gerät', f: a('geraet'), aus: !ak, taste: 'Eingabe', kern: true }, '|',
-      { i: 'hoch', l: 'Nach oben', t: 'hoch', f: a('hoch'), aus: !ak || s.i === 0 || s.i > 5, taste: 'Alt+↑' }, { i: 'runter', l: 'Nach unten', t: 'runter', f: a('runter'), aus: !ak || s.i >= 5, taste: 'Alt+↓' },
-      { i: 'zweig', l: 'Zweig ab hier', t: 'Zweig', f: a('zweig') }, '|',
-      { i: 'kopieren', l: 'Kopieren', t: 'Kopieren', f: a('kopieren'), taste: 'Strg+C' }, { i: 'einfuegen', l: 'Einfügen', t: 'Einfügen', f: a('einfuegen'), aus: !ak || !platzAblage, taste: 'Strg+V' },
-      { i: 'loeschen', l: 'Leeren', t: 'Leeren', f: a('loeschen'), rot: true, aus: !ak, taste: 'Entf', kern: true });
-    const tk = `kr:${r.kr.id}/pl:${id}:${s.i}`;          // frei im Raster verschieben (ab v1.31)
-    if (teilVon(tk)) kn.push('|', { i: 'breite', l: 'Frei im Raster verschieben', t: 'Frei', f: () => waehle('t:' + tk), kern: true });
-  } else if (art === 'm' && b.sammel) {
-    return;      // ab v1.58 (C24): „Fertig“ steht im Fachkopf und im Werkzeugband bzw. in der Fußleiste, nicht schwebend
-  } else if (art === 'm') {
-    kn.push(...pfeile((x, y) => () => gruppeSchieben(v, b.mehr, x, y)), '|', { i: 'zu', l: 'Auswahl aufheben', t: 'Aufheben', f: () => waehle(null), taste: 'Esc' });
-  } else if (art === 'z') {
-    kn.push(...pfeile((x, y) => () => zusatzSchieben(v, id, x, y)), '|', { i: 'loeschen', l: 'Löschen', t: 'Löschen', f: () => zusatzLoeschen(v, id), rot: true, taste: 'Entf' });
-  } else if (art === 'w') {
-    const key = b.sel.slice(2), f = leiterVon(key), senk = f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true, s = n => () => wegSchieben(v, key, n);
-    kn.push({ i: senk ? 'links' : 'hoch', l: `2,5 mm nach ${senk ? 'links' : 'oben'}`, t: senk ? 'links' : 'hoch', f: s(-1), taste: senk ? '←' : '↑' },
-      { i: senk ? 'rechts' : 'runter', l: `2,5 mm nach ${senk ? 'rechts' : 'unten'}`, t: senk ? 'rechts' : 'runter', f: s(1), taste: senk ? '→' : '↓' }, '|');
-    if (vonHand(v, key)) kn.push({ i: 'auto', l: 'Automatik anwenden', t: 'Automatik', f: () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); } }, '|');
-    kn.push({ i: 'auf', l: 'Ganzen Abgang wählen', t: 'Abgang', f: () => waehle(besitzerVon(key)) });
-  } else if (art === 't') {
-    const key = b.sel.slice(2);
-    kn.push(...pfeile((x, y) => () => teilSchieben(v, key, x, y)), '|');
-    if (vonHand(v, key)) kn.push({ i: 'auto', l: 'Automatik anwenden', t: 'Automatik', f: () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); } }, '|');
-    kn.push({ i: 'auf', l: /\/pl:/.test(key) ? 'Platz wählen' : 'Ganzen Abgang wählen', t: /\/pl:/.test(key) ? 'Platz' : 'Abgang', f: () => waehle(teilAnzeige(key)) });
+    const r = kreisMitPfad(v, id); if (!r) return kn;
+    const e = berechne(v), ps = platzSel(b, r.kr), s = ps.sel, p = r.kr.pfade[s.j], zw = s.j > 0 && p.zweig, ak = platzAktiv(r.kr.pfade, s.j, s.i);
+    const voll = ak && !!(s.i === 6 ? p.verbraucher : p.plaetze[s.i]), a = was => () => platzAktion(v, e, r.kr, platzSel(b, r.kr), was);
+    const tk = `kr:${r.kr.id}/pl:${id}:${s.i}`;
+    dazu(!ak ? { id: 'zweigbis', l: 'Zweig bis hier verlängern', i: 'zweig', f: a(s.i < p.zweig.von ? 'anfang' : 'ende'), kern: true } : null,
+      ak ? { id: 'geraet', l: 'Gerät wählen', i: 'geraet', taste: 'Enter', f: a('geraet'), kern: true } : null,
+      ak && s.i > 0 && s.i <= 5 ? { id: 'hoch', l: 'Nach oben', i: 'hoch', taste: 'Alt+↑', f: a('hoch'), kern: true } : null,
+      ak && s.i < 5 ? { id: 'runter', l: 'Nach unten', i: 'runter', taste: 'Alt+↓', f: a('runter'), kern: true } : null,
+      { id: 'zweig', l: 'Zweig ab hier', i: 'zweig', f: a('zweig') },
+      zw && s.i !== zw.von ? { id: 'anfang', l: 'Zweig beginnt hier', i: 'zweig', f: a('anfang') } : null,
+      zw && s.i !== zw.bis ? { id: 'ende', l: 'Zweig endet hier', i: 'zweig', f: a('ende') } : null,
+      { id: 'pfad', l: 'Pfad anfügen', i: 'plus', f: a('pfad') },
+      { id: 'vorlage', l: 'Vorlage einsetzen …', i: 'vorlage', f: () => vorlageWahl(v, r.kr) },
+      voll && teilVon(tk) ? { id: 'anordnen', l: 'Anordnen', i: 'breite', f: () => { b.anordnen = sel; waehle('t:' + tk); } } : null,
+      voll ? { id: 'kopieren', l: 'Kopieren', i: 'kopieren', taste: 'Strg+C', f: a('kopieren') } : null,
+      ak && platzAblage ? { id: 'einfuegen', l: 'Einfügen', i: 'einfuegen', taste: 'Strg+V', f: a('einfuegen') } : null,
+      { id: 'spalteLoeschen', l: zw ? 'Zweig löschen' : 'Pfad löschen', i: 'loeschen', f: a('spalteLoeschen'), rot: true },
+      voll ? { id: 'loeschen', l: 'Löschen', i: 'loeschen', taste: 'Entf', f: a('loeschen'), rot: true, kern: true } : null);
   } else if (art === 'kr') {
-    const kr = v.steuerung.kreise.find(x => x.id === id);
-    kn.push({ i: 'vorlage', l: 'Vorlage einsetzen', t: 'Vorlage', f: () => vorlageWahl(v, kr) },
-      { i: 'plus', l: 'Pfad anfügen', t: 'Pfad', f: () => { kr.pfade.push(neuerPfad()); aenderung('Pfad anfügen'); sichern(); b.sel = `pl:${kr.pfade.at(-1).id}:0`; zeichne(); } });
-  } else return;
-  const knopf = x => ik(x.i, x.l, x.f, { aus: x.aus, taste: x.taste, cls: x.rot ? 'rot' : null, text: x.t });
-  const bauen = liste => h('div', { class: 'kontext', role: 'toolbar', 'aria-label': 'Aktionen für die Auswahl' },
-    liste.map(x => x === '|' ? h('span', { class: 'sep' }) : x.nodeType ? x : knopf(x)));
-  // ab v1.58: erst messen, dann legen (kontextLage verbirgt die Leiste, wenn die Auswahl nicht im Bild ist)
-  let L = bauen(kn); L.style.maxWidth = Math.max(120, ED.flaeche.clientWidth - 16) + 'px'; blaetter.append(L);
-  // Platzmangel (zweite Zeile): Kernaktionen und „Mehr“
-  const rest = kn.filter(x => x !== '|' && !x.kern);
-  if (rest.length && L.offsetHeight > 76) {
-    const mehr = ik('menue', 'Weitere Aktionen', () => menue('Aktionen', rest.filter(x => !x.aus).map(x => [x.l, x.f, { klein: x.taste || null, rot: x.rot }])), { text: 'Mehr …' });
-    const kern = kn.filter(x => x !== '|' && x.kern);
-    L.remove(); L = bauen([...kern.slice(0, -1), mehr, kern[kern.length - 1]].filter(Boolean)); L.classList.add('knapp'); blaetter.append(L);
+    const kr = ((v.steuerung || {}).kreise || []).find(x => x.id === id); if (!kr) return kn;
+    dazu({ id: 'bezeichnung', l: 'Bezeichnung ändern', i: 'geraet', taste: 'F2', f: bezeichnungBearbeiten },
+      { id: 'vorlage', l: 'Vorlage einsetzen …', i: 'vorlage', f: () => vorlageWahl(v, kr), kern: true },
+      { id: 'pfad', l: 'Pfad anfügen', i: 'plus', f: () => { kr.pfade.push(neuerPfad()); aenderung('Pfad anfügen'); sichern(); b.sel = `pl:${kr.pfade.at(-1).id}:0`; zeichne(); }, kern: true });
+  } else if (art === 'm' && b.sammel) {
+    dazu({ id: 'loeschen', l: (b.mehr || []).length === 1 ? 'Löschen' : `${(b.mehr || []).length} Abgänge löschen`, i: 'loeschen', taste: 'Entf', f: () => editorAktion(v, b, 'loeschen'), rot: true, kern: (b.mehr || []).length > 0 },
+      { id: 'aufheben', l: 'Auswahl aufheben', i: 'zu', taste: 'Esc', f: () => waehle(null), kern: true });
+    if (!(b.mehr || []).length) kn.shift();
+  } else if (art === 'm') {
+    const ids = b.mehr || [], teile = ids.filter(x => x.startsWith('t:')), zus = ids.filter(x => x.startsWith('z:'));
+    dazu(...pfeile((x, y) => () => gruppeSchieben(v, ids, x, y), true),
+      teile.some(x => vonHand(v, x.slice(2))) ? { id: 'automatik', l: 'Automatik anwenden', i: 'auto', f: () => { teile.forEach(x => automatik(v, x.slice(2))); aenderung('Automatik anwenden'); sichern(); zeichne(); } } : null,
+      { id: 'aufheben', l: 'Auswahl aufheben', i: 'zu', taste: 'Esc', f: () => waehle(null) },
+      zus.length ? { id: 'loeschen', l: zus.length === 1 ? 'Zusatz löschen' : `${zus.length} Zusätze löschen`, i: 'loeschen', rot: true, f: () => { const L = lay(v), weg = new Set(zus.map(x => x.slice(2)));
+        L.zusatz = (L.zusatz || []).filter(z => !weg.has(z.id)); b.mehr = teile; b.sel = teile.length > 1 ? 'm:' : teile[0] || null; aenderung('Zusätze löschen'); sichern(); zeichne(); } } : null);
+  } else if (art === 'z') {
+    const z = zusatzVon(v, id); if (!z) return kn;
+    dazu(z.art !== 'leiter' ? { id: 'bezeichnung', l: z.art === 'text' ? 'Text ändern' : 'Titel ändern', i: 'geraet', taste: 'F2', f: bezeichnungBearbeiten } : null,
+      ...pfeile((x, y) => () => zusatzSchieben(v, id, x, y), false), { id: 'loeschen', l: 'Löschen', i: 'loeschen', taste: 'Entf', f: () => zusatzLoeschen(v, id), rot: true, kern: true });
+  } else if (art === 'w') {
+    const key = sel.slice(2), f = leiterVon(key), senk = f ? Math.abs(f.l.x1 - f.l.x2) < 0.01 : true, s = n => () => wegSchieben(v, key, n);
+    dazu(senk ? { id: 'xl', l: 'Nach links', i: 'links', taste: '←', f: s(-1), kern: true } : { id: 'yo', l: 'Nach oben', i: 'hoch', taste: '↑', f: s(-1), kern: true },
+      senk ? { id: 'xr', l: 'Nach rechts', i: 'rechts', taste: '→', f: s(1), kern: true } : { id: 'yu', l: 'Nach unten', i: 'runter', taste: '↓', f: s(1), kern: true },
+      automatikB(key), { id: 'besitzer', l: 'Abgang wählen', i: 'auf', taste: 'Esc', f: () => waehle(besitzerVon(key)) });
+  } else if (art === 't') {
+    const key = sel.slice(2), pl = /\/pl:/.test(key);
+    dazu(...pfeile((x, y) => () => teilSchieben(v, key, x, y), true), automatikB(key),
+      { id: 'besitzer', l: pl ? 'Platz wählen' : 'Abgang wählen', i: 'auf', taste: 'Esc', f: () => waehle(teilAnzeige(key)) });
+  } else if (art === 'e' || art === 's') dazu(anordnenB(sel));
+  if (!kn.length && opt.leer) {        // ins Leere (Rechtsklick): Einfügen, Alle wählen, Ansicht, Blatt festhalten
+    const bl = opt.bl, festBar = bl && bl.art !== 'steuerung' && bl.art !== 'einspeisung' && (bl.spalten || []).some(x => x.id);
+    dazu(einfuegen, abgangsFolge(v).length > 1 ? { id: 'alle', l: 'Alle Abgänge wählen', i: 'abgaenge', taste: 'Strg+A', f: () => alleWaehlen(v) } : null,
+      { id: 'ganz', l: 'Ganzes Blatt', i: 'eigen', taste: 'Umschalt+1', f: () => zoomGanz(bl) }, { id: 'breite', l: 'Blattbreite', i: 'breite', taste: '0', f: () => zoomSetzen(100) },
+      festBar ? { id: 'fest', l: blattFest(v, bl) ? 'Blatt freigeben' : 'Blatt festhalten', i: 'nadel', f: () => blattFesthalten(v, ED.liste.indexOf(bl), !blattFest(v, bl)) } : null);
   }
+  return kn;
+}
+// Befehle als Menü (Rechtsklick, „Mehr …“): mit Kürzelspalte; vor „Löschen“ eine Trennlinie
+function befehlMenue(kn) {
+  const e = [];
+  kn.forEach((x, i) => { if (x.rot && i > 0 && !kn[i - 1].rot) e.push('—'); e.push([x.l, x.f, { taste: x.taste, rot: x.rot }]); });
+  menue('', e, null, { label: 'Befehle' });
+}
+// Rechtsklick in der Arbeitsfläche (ab v1.60, D09): wählt das Teil unter dem Zeiger (wie ein Klick) und zeigt seine Befehle;
+// ins Leere die Befehle für das Blatt. Finger: kein Menü (Halten zieht).
+function kontextMenue(ev) {
+  if (!ED) return;
+  ev.preventDefault();
+  if ((ev.pointerType || letzterZeiger) === 'touch' || fensterStapel.length || zieh || rahmenZug || schwenk) return;
+  const { b, v } = ED;
+  if (b.tool) werkzeug(null);
+  let z = ev.target.closest && ev.target.closest('.blatt svg [data-ziel]');
+  if (z && z.matches('rect.ziel:not(.teil)') && /^(k|s|e|kr):/.test(z.dataset.ziel) && !trifftZeichnung(ev, z.ownerSVGElement)) z = null;
+  const id = z && z.dataset.ziel;
+  anker = { r: new DOMRect(ev.clientX, ev.clientY, 0, 0), zeit: Date.now(), punkt: true };
+  if (id && /^(vor|nach|in|leer):/.test(id)) return einfuegeMenue(v, b, id);
+  if (id && !(b.sel === 'm:' && (b.mehr || []).includes(id))) waehle(id); else if (!id && b.sel) waehle(null);
+  const svg = ev.target.closest && ev.target.closest('.blatt svg'), bl = svg && ED.liste.find(x => x.svg === svg);
+  const kn = befehle(ED.b.sel, { leer: true, bl });
+  if (kn.length) befehlMenue(kn);
+}
+// Anordnen (ab v1.60, M6): Geräte und Leiter eines Abgangs (der Einspeisung, des Überspannungsschutzes) werden einzeln
+// wähl- und ziehbar; vorher trifft jeder Klick den ganzen Abgang (Doppelklick bearbeitet dann die Bezeichnung)
+function anordnen(bes) {
+  if (!ED) return;
+  ED.b.anordnen = bes || null;
+  if (bes && ED.b.sel !== bes) return waehle(bes);
+  markieren(); kontextNeu();
+  if (bes) meldung(`Anordnen: Gerät oder Leiter ${tipp()} und ziehen – Esc beendet`);
+}
+// Bezeichnung der Auswahl im Fach bearbeiten (ab v1.60, M6: Doppelklick, F2, Eingabe); Platz: Gerät wählen
+function bezeichnungBearbeiten() {
+  if (!ED || !ED.b.sel) return;
+  const { b, v } = ED;
+  const m = /^pl:([^:]+):(\d)$/.exec(b.sel);
+  if (m) { const r = kreisMitPfad(v, m[1]); if (r) platzAktion(v, berechne(v), r.kr, platzSel(b, r.kr), 'geraet'); return; }
+  if (ansicht.eigenZu && !schmal() && !fachRechts()) { ansicht.eigenZu = false; ansichtMerken(); ED.ed.classList.remove('eigenzu'); }
+  if (schmal() && fachStufe() === 'zu') fachSetzen('halb');
+  const zz = [...ED.eigen.querySelectorAll('button.zeile')], name = x => (x.querySelector('.ob') || {}).textContent;
+  const z = ['Bezeichnung', 'Text', 'Titel', 'Kennzeichen'].map(n => zz.find(x => name(x) === n)).find(Boolean);
+  if (!z) return;
+  z.scrollIntoView({ block: 'nearest' }); z.click();
+}
+// ganzes Blatt in der Fläche (ab v1.60 für das Rechtsklick-Menü; Umschalt+1): Blatt unter dem Zeiger bzw. das aktuelle
+function zoomGanz(bl) {
+  if (!ED || !ED.liste.length) return;
+  const i = bl ? Math.max(0, ED.liste.indexOf(bl)) : aktuellesBlatt(), k = ED.karten[i], f = ED.flaeche;
+  const vb = ED.liste[i].svg.getAttribute('viewBox').split(' ').map(Number), bt = (k.querySelector('.bt') || { offsetHeight: 0 }).offsetHeight;
+  const breite = Math.max(280, f.clientWidth - 40), hoch = f.clientHeight - bt - 28;
+  ED.b.zoom = Math.max(40, Math.min(100, 100 * Math.min(1, (hoch * vb[2] / vb[3]) / breite)));
+  zoomAnwenden(false);
+  f.scrollTop = Math.max(0, k.offsetTop - 12); f.scrollLeft = Math.max(0, k.offsetLeft - (f.clientWidth - k.offsetWidth) / 2);
+  kontextLage();
+}
+// Kontextleiste (ab v1.60 aus befehle()): am Desktop als Gruppe in der Kopfleiste, auf Touch schwebend am gewählten Teil –
+// je höchstens 4 Kernbefehle und „Mehr …“ mit allen
+function kontextNeu() {
+  const { b, blaetter } = ED; const alt = blaetter.querySelector('.kontext'); if (alt) alt.remove();
+  if (ED.aktionen) ED.aktionen.replaceChildren();
+  if (!b.sel || zieh || istZeichenWerkzeug(b.tool)) return;      // beim Zeichnen keine Leiste im Weg
+  const fein = feinZeiger();
+  if (b.sel === 'm:' && b.sammel && b.umschalten && !fein) return;      // Mehrfach wählen (Touch): „Fertig“ steht im Band bzw. in der Fußleiste
+  const kn = befehle(b.sel); if (!kn.length) return;
+  const kern = kn.filter(x => x.kern).slice(0, 4), rest = kn.filter(x => !kern.includes(x));
+  const knopf = x => ik(x.i, x.l, x.f, { taste: x.taste, cls: x.rot ? 'rot' : null, text: x.t || x.l });
+  const liste = kern.map(knopf);
+  if (rest.length) liste.push(ik('menue', 'Weitere Befehle', () => befehlMenue(kn), { text: 'Mehr …', cls: 'mehr' }));
+  if (fein && ED.aktionen) return ED.aktionen.append(...liste);
+  const L = h('div', { class: 'kontext', role: 'toolbar', 'aria-label': 'Befehle für die Auswahl' }, liste);
+  L.style.maxWidth = Math.max(120, ED.flaeche.clientWidth - 16) + 'px'; blaetter.append(L);
   kontextLage();
 }
 // Lage der Kontextleiste (ab v1.53): ganz im sichtbaren Bereich der Fläche, ohne Marken „+“ und das gewählte Teil
@@ -6354,7 +6566,7 @@ function fussNeu() {
     : b.palette === 'st' ? `Platz ${tipp()} zum Bearbeiten · Werkzeug wählen und Plätze ${tipp()}` : b.palette === 'ze' ? 'Werkzeug wählen: Auswahl, Leiter, Text oder Rahmen'
     : `Teil ${tipp()} zum Bearbeiten · „+“ im Blatt fügt ein`;
   // ab v1.58 (C23): Mehrfachmodus – wie man weitere Abgänge dazunimmt; auf Touch als Band auch über 1000 px
-  const sammel = b.sel === 'm:' && b.sammel && !b.tool;
+  const sammel = b.sel === 'm:' && b.sammel && b.umschalten && !b.tool && !feinZeiger();      // ab v1.60 (M4): nur „Mehrfach wählen“ auf Touch
   const sHinweis = sammel ? `Weitere Abgänge ${beruehrung() ? 'antippen' : 'anklicken'}, um sie hinzuzunehmen` : null;
   // ab v1.54: Name zuerst; Blätter, die nur im Druck stehen (Deckblatt, Inhalt, Übersicht, andere Verteiler, Klemmenplan), ausgegraut
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
@@ -6375,7 +6587,7 @@ function fussNeu() {
     h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
     h('div', { class: 'hinweiszeile' + (b.tool || sammel ? ' an' : ''), 'aria-live': 'polite' }, h('span', { class: 'hinweistext' }, sHinweis || hinweis),
       b.tool ? h('button', { class: 'knopf klein', on: { click: () => werkzeug(null) } }, 'Fertig')
-        : sammel ? h('button', { class: 'knopf klein', on: { click: () => waehle(null) } }, 'Fertig') : null),
+        : null),      // ab v1.60: im Mehrfachmodus steht „Fertig“ nur im Band (sonst zweimal)
     h('div', { class: 'zoomnav' }, ik('minus', 'Kleiner', () => zoomSetzen(b.zoom * 0.8), { taste: '−' }), ED.zoomKnopf,
       ik('plus', 'Größer', () => zoomSetzen(b.zoom * 1.25), { taste: '+' }), ik('breite', 'Blattbreite', () => zoomSetzen(100), { taste: '0' }))].filter(Boolean));
   ED.zoomKnopf.textContent = `${Math.round(b.zoom)} %`;
@@ -6401,7 +6613,13 @@ function druckMenue(v) {
     ['Alle Blätter ansehen', () => geh({ s: 'plan', vid: v.id })], ['Türzettel ansehen', () => geh({ s: 'tuer', vid: v.id })]]);
 }
 function editorMenue(v) {
+  // ab v1.60 (M5c): Abschnitt „Bearbeiten“ mit den Befehlen der Auswahl (dieselben wie Leiste und Rechtsklick)
+  const nZ = verlauf.zurueck.length, nV = verlauf.vor.length, kn = ED ? befehle(ED.b.sel) : [];
   menue('Weitere Funktionen', [
+    nZ ? [`Rückgängig: ${verlauf.zurueck[nZ - 1].n}`, () => projektRueck(false), { taste: 'Strg+Z' }] : null,
+    nV ? [`Wiederholen: ${verlauf.vor[nV - 1].n}`, () => projektRueck(true), { taste: 'Strg+Y' }] : null,
+    ...kn.map(x => [x.l, x.f, { taste: x.taste, rot: x.rot }]),
+    abgangsFolge(v).length > 1 ? ['Alle Abgänge wählen', () => alleWaehlen(v), { taste: 'Strg+A' }] : null, '—',
     ['Projektdaten', () => waehle('p:', { springen: false }), { klein: 'Schriftfeld, Deckblatt, Übersicht, Klemmenplan' }],
     ['Verteiler', () => waehle(null, { offen: true }), { klein: 'Name, Einspeisung, Klemmen, Abgänge als Liste' }],
     ['Steuerstromkreise', () => waehle('st:'), { klein: 'Steuerspannung, Kreise, Befehlsgeber' }], '—',
@@ -6409,8 +6627,8 @@ function editorMenue(v) {
     ['Übersicht als Tabelle', () => geh({ s: 'liste', vid: v.id }), { klein: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' }],
     v.layout ? ['Automatik für den ganzen Verteiler', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
       () => automatik(v, null), 'Anwenden'), { klein: 'alle Vorgaben von Hand entfernen' }] : null, '—',
-    ['Projekt als Datei sichern', exportieren], ['Projekt aus Datei öffnen', () => document.getElementById('datei').click()], '—',
-    ['Hilfe', () => hilfe(), { klein: 'Gesten, Speichern, Begriffe' }], ['Tastenkürzel', tastenHilfe, { klein: '?' }]]);
+    ['Projekt als Datei sichern', exportieren, { taste: 'Strg+S' }], ['Projekt aus Datei öffnen', () => document.getElementById('datei').click(), { taste: 'Strg+O' }], '—',
+    ['Hilfe', () => hilfe(), { klein: 'Gesten, Speichern, Begriffe' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }]]);
 }
 // Ablage (ab v1.20.1): { k, aus, vid, kreise, geraete } – das Teil samt den Steuerstromkreisen seiner
 // Schaltgeräte; Ausschneiden verschiebt (Kennungen bleiben), Kopieren legt alles mit neuen Kennungen an
@@ -6531,7 +6749,10 @@ function editorEinfuegen(v, b, marke, tool = b.tool, n = 1, uvName = null) {
   b.sel = 'k:' + neu[neu.length - 1].id; b.pz = []; b.blatt = true; b.springen = true;
   zeichne();
   const gr = art === 'in' ? knoten(v, mid).k : null, grT = gr ? `${GERAETE[gr.geraet.zeichen] && GERAETE[gr.geraet.zeichen].fi ? 'FI-Gruppe' : 'Gruppe'} ${(berechne(v).geraete[gr.id] || {}).t || ''}`.trim() : '';
-  const text = uvs.length ? `${uvs.join(', ')} angelegt – im Verteilermenü oben wechseln` : (neu.length > 1 ? `${neu.length}× ${name}` : name) + (grT ? ` in ${grT}` : '') + ' eingefügt';
+  // ab v1.60 (D19): die Meldung nennt das Ziel (in die Gruppe, hinter bzw. vor einen Abgang)
+  const nb = (art === 'nach' || art === 'vor') && knoten(v, mid) ? knotenName(v, knoten(v, mid).k) : '';
+  const ort = grT ? ` in ${grT}` : nb ? ` ${art === 'nach' ? 'hinter' : 'vor'} ${nb}` : '';
+  const text = uvs.length ? `${uvs.join(', ')} angelegt – im Verteilermenü oben wechseln` : (neu.length > 1 ? `${neu.length}× ${name}` : name) + ort + ' eingefügt';
   if (kennzeichenMelden(v, kzVor, (uvs.length ? `${uvs.join(', ')} angelegt` : text) + ' · ')) return;
   meldung(text,
     neu.length > 1 && !uvs.length ? ['Alle wählen', () => sammelWaehlen(neu.map(a => 'k:' + a.id))] : null);
@@ -6555,6 +6776,23 @@ function kennzeichenMelden(v, vorher, vor = '') {      // vor (ab v1.57): z. B. 
   meldung(`${vor}${paare.length} Kennzeichen geändert (${paare.slice(0, 3).join(', ')}${paare.length > 3 ? ' …' : ''})`, ['Rückgängig', () => projektRueck(false)]);
   return true;
 }
+// Name eines Abgangs bzw. einer Gruppe für Meldungen (ab v1.60): „-F4 Steckdosen Büro“, „FI-Gruppe -F3“
+function knotenName(v, k) {
+  const e = berechne(v);
+  if (k.typ === 'gruppe') return `${GERAETE[k.geraet.zeichen] && GERAETE[k.geraet.zeichen].fi ? 'FI-Gruppe' : 'Gruppe'} ${(e.geraete[k.id] || {}).t || ''}`.trim();
+  const a = e.abgaenge[k.id]; return `${a && a.f ? a.f.t + ' ' : ''}${abgangName(k)}`;
+}
+// Abgänge bzw. Gruppen löschen (ab v1.60, M7/D15): ohne Rückfrage; die Meldung nennt sie und bietet Rückgängig (6 s)
+function knotenLoeschen(v, rs) {
+  rs = [].concat(rs).filter(Boolean); if (!rs.length) return;
+  const kzVor = kennzeichenStand(v), namen = rs.map(r => knotenName(v, r.k));
+  rs.forEach(r => { const i = r.liste.indexOf(r.k); if (i >= 0) r.liste.splice(i, 1); });
+  const t = namen.length === 1 ? `${namen[0]} gelöscht` : `${namen.length} Abgänge gelöscht`;
+  const eb = stapel[stapel.length - 1];
+  if (eb.s === 'editor') { eb.sel = null; eb.pz = []; eb.mehr = null; eb.sammel = false; eb.umschalten = false; } else fertig();
+  aenderung(namen.length === 1 ? `Löschen: ${namen[0]}` : `Löschen: ${t.replace(' gelöscht', '')}`); sichern(); zeichne();
+  if (!kennzeichenMelden(v, kzVor, t + ' · ')) meldung(t, ['Rückgängig', () => projektRueck(false)]);
+}
 // Aktionen für das gewählte Teil (Kontextleiste und Tasten)
 function editorAktion(v, b, was) {
   const [art, id] = (b.sel || '').split(':'), r = art === 'k' ? knoten(v, id) : null;
@@ -6564,6 +6802,7 @@ function editorAktion(v, b, was) {
     if (r) return editorEinfuegen(v, b, 'nach:' + r.k.id, 'ablage');      // hinter das gewählte Teil
     if (b.tool) werkzeug(null);
     return editorEinfuegen(v, b, paletteZiel(v, b, 'ablage'), 'ablage'); }      // ab v1.57 ohne Auswahl: ans Ende (C04)
+  if (was === 'loeschen' && b.sel === 'm:' && b.sammel) return knotenLoeschen(v, (b.mehr || []).map(x => knoten(v, x.slice(2))));      // ab v1.60
   if (!r) return;
   const kzVor = ['links', 'rechts', 'ausschneiden', 'loeschen'].includes(was) ? kennzeichenStand(v) : null;
   switch (was) {
@@ -6587,8 +6826,7 @@ function editorAktion(v, b, was) {
       if (!kennzeichenMelden(v, kzVor)) meldung('Ausgeschnitten – Marke „+“ → Ausgeschnittenes'); return;
     case 'duplizieren': { const alt = editorAblage; ablageSetzen(v, r.k, false); const c = ablageHolen(v); editorAblage = alt;
       r.liste.splice(r.i + 1, 0, c); b.sel = 'k:' + c.id; b.springen = true; aenderung('Duplizieren'); sichern(); return zeichne(); }
-    case 'loeschen': return frage(r.k.typ === 'gruppe' ? 'Gruppe löschen' : 'Abgang löschen', r.k.typ === 'gruppe' ? 'Gruppe mit allen ihren Abgängen löschen?' : 'Diesen Abgang löschen?',
-      () => { r.liste.splice(r.i, 1); b.sel = null; setTimeout(() => kennzeichenMelden(v, kzVor), 0); });
+    case 'loeschen': return knotenLoeschen(v, r);      // ab v1.60 (M7) ohne Rückfrage
   }
 }
 // Steuerstromkreis eines Abgangs (gezeichnet) und Abgang eines Kreises bzw. Platzes (ab v1.53)
@@ -6627,6 +6865,7 @@ function bEditor(b) {
       if (kid) return waehle('k:' + kid, { springen: true });
       if (stSel) waehle(null);
     } } } }, h('span', { class: 'lang' }, t), h('span', { class: 'kurz', 'aria-hidden': 'true' }, kurz));      // kurz: Smartphone (ab v1.54)
+  const aktionen = h('div', { class: 'kopfaktionen', role: 'toolbar', 'aria-label': 'Befehle für die Auswahl' });
   const kopfL = h('header', { class: 'edkopf' },
     // ab v1.55 wie „Zurück“ der übrigen Bildschirme: breit „‹ Projekt“, schmal das Haus; ab v1.58 (C22) auch schmal mit „‹“,
     // ab 600 px „‹ Projekt“
@@ -6641,6 +6880,7 @@ function bEditor(b) {
       h('span', { class: 'rw-i' }, icon(REITER_ICON[b.palette])), h('span', { class: 'rw-t' }, REITER[b.palette][0]), h('span', { class: 'leise' }, ' ▾')),
     // ab v1.57: Smartphone quer – Palette als Überlage
     h('button', { class: 'nurquer palknopf', 'aria-pressed': String(palQuer), 'aria-label': 'Palette ein- oder ausblenden', on: { click: () => palUeberlage(!palQuer) } }, 'Palette'),
+    aktionen,      // ab v1.60 (D10): Befehle der Auswahl am Desktop (kontextNeu)
     h('span', { class: 'luecke' }),
     ik('rueck', nZ ? `Rückgängig: ${verlauf.zurueck[nZ - 1].n}` : 'Rückgängig', () => projektRueck(false), { aus: !nZ, taste: 'Strg+Z' }),
     ik('vor', nV ? `Wiederholen: ${verlauf.vor[nV - 1].n}` : 'Wiederholen', () => projektRueck(true), { aus: !nV, taste: 'Strg+Y' }),
@@ -6652,7 +6892,8 @@ function bEditor(b) {
   if (palQuer && !fachRechts()) palQuer = false;
   const ed = h('div', { 'data-reiter': b.palette, class: 'ed' + (palQuer ? ' palauf' : '') + (ansicht.eigenZu ? ' eigenzu' : '') + (b.tool && !istSteuerWerkzeug(b.tool) ? ' einfuegen' : '') });
   const pal = h('aside', { class: 'edpal', 'aria-label': 'Palette' });
-  const flaeche = h('section', { class: 'edflaeche', 'aria-label': 'Planblätter' }), blaetter = h('div', { class: 'blaetter' });
+  // ab v1.60 (D17): die Fläche ist ein Tabstopp; ←/→ wählen Abgänge, F2 bzw. Eingabe bearbeitet, Entf löscht
+  const flaeche = h('section', { class: 'edflaeche', 'aria-label': 'Planblätter – Pfeiltasten wählen Abgänge', tabindex: '0' }), blaetter = h('div', { class: 'blaetter' });
   const eigen = h('aside', { class: 'edeigen eigen', 'aria-label': 'Eigenschaften' }), fuss = h('footer', { class: 'edfuss' });
   const band = h('div', { class: 'werkzeugband', role: 'status', 'aria-live': 'polite', hidden: true });
   flaeche.append(blaetter); ed.append(kopfL, pal, flaeche, band, eigen, fuss); app.append(ed);
@@ -6660,12 +6901,13 @@ function bEditor(b) {
   // ab v1.59 (D03): Maus mit gedrückter Leertaste oder Mitteltaste schwenkt die Ansicht – vor allem anderen, ohne Wahl und Ziehen
   flaeche.addEventListener('pointerdown', ev => { if (ev.pointerType !== 'mouse' || !(ev.button === 1 || (leerTaste && ev.button === 0))) return;
     ev.preventDefault(); ev.stopPropagation(); schwenkStart(ev); }, true);
+  flaeche.addEventListener('contextmenu', kontextMenue);      // ab v1.60 (D09): Rechtsklick-Menü
   flaeche.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = true; });
   flaeche.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = false; });
   // ab v1.59 (D01): Klick bzw. Tipp auf die graue Fläche oder den Blattkopf hebt die Auswahl auf (Wischen löst keinen Klick aus)
   flaeche.addEventListener('click', ev => { if (ev.target.closest('svg, button, .kontext, .leerkarte, input, a') || ziehKlickSperre || abbruchSperre) return;
     if (!b.tool && (b.sel || b.blatt)) waehle(null); });
-  ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, band, karten: [], liste: [], blattI: 0 };
+  ED = { b, v, ed, pal, flaeche, blaetter, eigen, fuss, band, aktionen, karten: [], liste: [], blattI: 0 };
   // Startzoom (ab v1.55): schmale Fläche (iPhone hoch) 150 % mit Ausschnitt am ersten Abgang, Steuerung auf Touch 130 %
   let startAusschnitt = false;
   if (!b.zoom) { const w = flaeche.clientWidth; b.zoom = fachRechts() ? 100 : w < 600 ? 150 : beruehrung() && b.palette === 'st' ? 130 : 100; startAusschnitt = w < 600 && !fachRechts() && !b.sel && !b.sx && !b.sy;
@@ -6684,16 +6926,22 @@ function bEditor(b) {
       const z = r.dataset.ziel, [art, id] = z.split(':');
       if (z === b.sel) r.setAttribute('data-sel', '');
       if (art === 'pl' || art === 'p') return;
-      r.setAttribute('tabindex', '0'); r.setAttribute('role', 'button');
+      r.setAttribute('tabindex', '-1'); r.setAttribute('role', 'button');      // ab v1.60 (D17): ein Tabstopp für die ganze Fläche
       const kk = art === 'k' && knoten(v, id), a = kk && e.abgaenge[id];
       r.setAttribute('aria-label', /^(vor|nach|in|leer)$/.test(art) ? 'Hier einfügen' : art === 'e' ? 'Einspeisung' : art === 's' ? 'Überspannungsschutz' : art === 'kr' ? 'Steuerstromkreis'
         : kk ? (kk.k.typ === 'gruppe' ? `Gruppe ${(e.geraete[id] || {}).t || ''}` : `${a && a.f ? a.f.t + ' ' : ''}${abgangName(kk.k)}`) : z);
     });
     svg.addEventListener('pointerdown', ev => {
       dtZeiger = ev.pointerType;
-      const frei = !ev.target.closest('[data-ziel]') || ev.shiftKey;
-      if (b.tool === 'zauswahl' || (frei && !b.tool && ev.pointerType !== 'touch' && (ev.pointerType !== 'mouse' || ev.button === 0))) return rahmenStart(ev, bl);
+      // ab v1.60 (M4): mit der Maus beginnt auf weißer Spaltenfläche (ohne Zeichnung) ein Auswahlrahmen statt des Ziehens
+      const zl = ev.target.closest('[data-ziel]'), maus = ev.pointerType === 'mouse';
+      const leerSpalte = maus && !!zl && zl.matches('rect.ziel:not(.teil)') && /^(k|s|e|kr):/.test(zl.dataset.ziel) && !trifftZeichnung(ev, svg);
+      const frei = !zl || ev.shiftKey || leerSpalte;
+      if (b.tool === 'zauswahl' || (frei && !b.tool && ev.pointerType !== 'touch' && (!maus || ev.button === 0))) return rahmenStart(ev, bl);
       ziehBereit(ev, v, b); });
+    // ab v1.60 (M6): Doppelklick (Maus) bearbeitet die Bezeichnung des gewählten Teils; Finger: Doppeltipp zoomt weiter
+    svg.addEventListener('dblclick', ev => { if (letzterZeiger !== 'mouse' || b.tool || !b.sel || ev.shiftKey || ev.ctrlKey || ev.metaKey) return;
+      if (ev.target.closest('[data-ziel]')) bezeichnungBearbeiten(); });
     // Pencil-Hover (ab v1.29): was ein Tippen treffen würde, ist schon vor dem Aufsetzen hervorgehoben
     svg.addEventListener('pointermove', ev => { if (ev.pointerType !== 'pen' || ev.buttons) return;
       const z = ev.target.closest('[data-ziel]'); svg.querySelectorAll('[data-hover]').forEach(x => { if (x !== z) x.removeAttribute('data-hover'); });
@@ -6756,20 +7004,29 @@ function editorKlick(ev, v, b) {
   // gezeichnet oder beschriftet ist; die weiße Fläche daneben ist leer. Finger und Pencil treffen weiter die ganze Spalte,
   // ebenso Tastatur und Programm (ausgelöste Klicks ohne Zeigerlage).
   if (z && ev.isTrusted && dtZeiger === 'mouse' && z.matches('rect.ziel:not(.teil)') && /^(k|s|e|kr):/.test(z.dataset.ziel) && !trifftZeichnung(ev, z.ownerSVGElement)) z = null;
+  if (ev.isTrusted && dtZeiger === 'mouse' && ED.flaeche !== document.activeElement && !ED.flaeche.contains(document.activeElement)) ED.flaeche.focus({ preventScroll: true });      // ab v1.60 (D17)
   if (!z) { if (!b.tool && (b.sel || b.blatt)) waehle(null); return; }      // Klick ins Leere hebt die Auswahl auf (ab v1.59, D01)
   const id = z.dataset.ziel, stW = istSteuerWerkzeug(b.tool);
-  const sammel = b.sel === 'm:' && b.sammel;
-  if (/^k:/.test(id) && !b.tool && (sammel || ev.shiftKey || ev.ctrlKey || ev.metaKey)) {      // Sammelauswahl (ab v1.56)
+  const sammel = b.sel === 'm:' && b.sammel, strg = ev.ctrlKey || ev.metaKey, umsch = sammel && b.umschalten;
+  // Mehrfachauswahl ohne Modus (ab v1.60, M4): Strg+Klick schaltet um, Umschalt+Klick wählt den Bereich in Abgangsreihenfolge,
+  // ein einfacher Klick wählt neu – nur nach „Mehrfach wählen“ (Touch) bzw. den Kontrollkästchen schaltet auch er um
+  if (/^k:/.test(id) && !b.tool && (umsch || ev.shiftKey || strg)) {
     const r = knoten(v, id.slice(2));
     if (r && sammelFaehig(r.k)) {
       const r0 = /^k:/.test(b.sel || '') && knoten(v, b.sel.slice(2));
       const da = sammel ? b.mehr.slice() : r0 && sammelFaehig(r0.k) ? [b.sel] : [];
+      if (ev.shiftKey && !strg && da.length) {
+        const folge = abgangsFolge(v), bis = folge.indexOf(id); let von = folge.indexOf(sammel && da.includes(b.anker) ? b.anker : da[da.length - 1]);
+        if (von < 0) von = bis;
+        const bereich = folge.slice(Math.min(von, bis), Math.max(von, bis) + 1), anker0 = folge[von];
+        sammelWaehlen(bereich, umsch); if (ED.b.sel === 'm:') ED.b.anker = anker0; return;
+      }
       const neu = da.includes(id) ? da.filter(x => x !== id) : da.concat([id]);
-      return sammel || neu.length > 1 ? sammelWaehlen(neu) : waehle(neu[0] || null);
+      sammelWaehlen(neu, umsch); if (ED.b.sel === 'm:') ED.b.anker = id; return;
     }
     if (sammel) return meldung('Gemeinsam ändern lassen sich nur Abgänge');
   }
-  if (ev.shiftKey && /^[tz]:/.test(id)) {
+  if ((ev.shiftKey || strg) && /^[tz]:/.test(id)) {
     const da = b.sel === 'm:' ? b.mehr.slice() : /^[tz]:/.test(b.sel || '') ? [b.sel] : [];
     return mehrWaehlen(da.includes(id) ? da.filter(x => x !== id) : da.concat([id]));
   }

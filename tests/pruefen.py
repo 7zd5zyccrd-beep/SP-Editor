@@ -10,6 +10,11 @@ from playwright.sync_api import sync_playwright
 W = pathlib.Path(__file__).resolve().parent.parent
 APP = W / 'docs' / 'index.html'; AUS = W / 'build' / 'pruefung'; REF = W / 'tests' / 'referenz.json'
 AUS.mkdir(parents=True, exist_ok=True)
+# Punkt auf der Zeichnung eines Abgangs (Bezeichnung bzw. Gerät) im sichtbaren Bereich, für Mausziehen (ab v1.60)
+GREIFEN = """kid => { const r = document.querySelector(`rect.ziel[data-ziel="k:${kid}"]`), R = r.getBoundingClientRect(), F = ED.flaeche.getBoundingClientRect();
+  for (let j = 1; j < 60; j++) for (let i = 1; i < 12; i++) { const x = R.left + R.width * i / 12, y = R.top + R.height * j / 60;
+    if (y < F.top + 4 || y > F.bottom - 4 || document.elementFromPoint(x, y) !== r) continue;
+    if (trifftZeichnung({ clientX: x, clientY: y }, r.ownerSVGElement)) return [x, y]; } return [R.left + R.width / 2, R.top + 20]; }"""
 BSP = (W / 'tests' / 'beispiele.js').read_text()
 modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
@@ -84,9 +89,10 @@ with sync_playwright() as p:
             # Ziehen mit der Maus: ersten Abgang (Gruppe -F3) hinter den letzten Abgang ziehen
             pg.evaluate("stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
             erst = pg.evaluate("P.verteiler[0].knoten[0].id"); letzt = pg.evaluate("P.verteiler[0].knoten.at(-1).id")
-            q = pg.locator(f'rect.ziel[data-ziel="k:{erst}"]').first; q.scroll_into_view_if_needed(); bx = q.bounding_box()
-            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + 20); pg.mouse.down()        # oben im Teil (die Mitte trägt eine Marke)
-            pg.mouse.move(bx['x'] + bx['width'] / 2 + 12, bx['y'] + 24); pg.wait_for_timeout(100)
+            # ab v1.60 (M4): mit der Maus an der Zeichnung greifen – auf weißer Spaltenfläche beginnt ein Auswahlrahmen
+            q = pg.locator(f'rect.ziel[data-ziel="k:{erst}"]').first; q.scroll_into_view_if_needed(); gp = pg.evaluate(GREIFEN, erst)
+            pg.mouse.move(gp[0], gp[1]); pg.mouse.down()
+            pg.mouse.move(gp[0] + 12, gp[1] + 4); pg.wait_for_timeout(100)
             mk = pg.locator(f'g.marke[data-ziel="nach:{letzt}"]').first; mk.scroll_into_view_if_needed(); mb = mk.bounding_box()
             pg.mouse.move(mb['x'] + mb['width'] / 2, mb['y'] + mb['height'] / 2, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
             if pg.evaluate("P.verteiler[0].knoten.at(-1).id") != erst: fehler.append('grund: Plan-Editor – Ziehen hat den Abgang nicht verschoben')
@@ -110,10 +116,10 @@ with sync_playwright() as p:
             kid = pg.evaluate("P.verteiler[1].knoten.at(-1).id")
             q = pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first; q.scroll_into_view_if_needed(); bx = q.bounding_box()
             lg = pg.evaluate(f"abgangLage('{kid}')")
-            sb = bx['width'] / lg['w']
-            pg.mouse.move(bx['x'] + bx['width'] / 2, bx['y'] + 20); pg.mouse.down()
-            pg.mouse.move(bx['x'] + bx['width'] / 2 + 10, bx['y'] + 24); pg.wait_for_timeout(100)
-            pg.mouse.move(bx['x'] + bx['width'] / 2 + sb * 1.0, bx['y'] + 60, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
+            sb = bx['width'] / lg['w']; gp = pg.evaluate(GREIFEN, kid)
+            pg.mouse.move(gp[0], gp[1]); pg.mouse.down()
+            pg.mouse.move(gp[0] + 10, gp[1] + 4); pg.wait_for_timeout(100)
+            pg.mouse.move(gp[0] + sb * 1.0, gp[1] + 40, steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
             if pg.evaluate(f"((P.verteiler[1].layout || {{}}).spalten || {{}})['{kid}']") != lg['col'] + 1:
                 fehler.append(f"grund: Abgang in freie Spalte ziehen ergab {pg.evaluate(f'JSON.stringify(P.verteiler[1].layout)')} statt Spalte {lg['col'] + 1}")
             pg.keyboard.press('Control+z'); pg.wait_for_timeout(300)
@@ -122,6 +128,7 @@ with sync_playwright() as p:
             pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
             kid = pg.evaluate("P.verteiler[0].knoten[1].id")
             pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.evaluate("anordnen(stapel.at(-1).sel)"); pg.wait_for_timeout(200)      # ab v1.60 (M6): Geräte erst nach „Anordnen“
             pg.locator(f'rect.teil[data-ziel="t:k:{kid}/xd"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
             pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
             if pg.evaluate(f"JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.lage['k:{kid}/xd'])") != '[1,0]': fehler.append('grund: Gerät mit Pfeiltaste verschieben hat nicht geklappt')
@@ -131,6 +138,7 @@ with sync_playwright() as p:
             pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(300)
             kid = pg.evaluate("P.verteiler[0].knoten[0].id")
             pg.locator(f'rect.ziel[data-ziel="k:{kid}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
+            pg.evaluate("anordnen(stapel.at(-1).sel)"); pg.wait_for_timeout(200)      # ab v1.60 (M6): Leiter erst nach „Anordnen“
             wz = pg.evaluate("[...document.querySelectorAll('line.leiterziel[data-aktiv]')].map(x => x.dataset.ziel).find(z => { const f = leiterVon(z.slice(2)); return f.l.art === 'PE' && Math.abs(f.l.x1 - f.l.x2) < .01; })")
             pg.locator(f'line.leiterziel[data-ziel="{wz}"]').first.dispatch_event('click'); pg.wait_for_timeout(200)
             if not pg.evaluate("document.querySelector('.netzhalo') !== null"): fehler.append('grund: Netz des gewählten Leiters nicht hinterlegt')
@@ -196,7 +204,7 @@ with sync_playwright() as p:
             if pg.evaluate(platz) != 'Blatt': fehler.append('eingabe: Plan-Editor – Strg+Z hat nicht wiederhergestellt')
             # Vorlage per Klick aus der Platz-Leiste: Taster parallel, 2 Taster, Ersetzen bestätigen
             zel().dispatch_event('click'); pg.wait_for_timeout(200)
-            pg.locator('.eigen .leiste button', has_text='Vorlage').click(); pg.wait_for_timeout(150)
+            pg.evaluate("befehle(stapel.at(-1).sel).find(x => x.id === 'vorlage').f()"); pg.wait_for_timeout(150)      # ab v1.60 (D12) Befehl statt Knopf im Fach
             pg.locator('.wahl button', has_text='Taster parallel').click(); pg.wait_for_timeout(150)
             pg.locator('.wahl button', has_text='2 Taster').click(); pg.wait_for_timeout(150)
             pg.locator('.fenster .knopf.rot').click(); pg.wait_for_timeout(200)
@@ -221,7 +229,7 @@ with sync_playwright() as p:
             # ab v1.31: Kontakt im Steuerstromkreis über „Frei“ wählen und mit der Pfeiltaste verschieben
             pg.evaluate("BEISPIELE.steuerung(); const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1); window.KR = kr; stapel = [{ s: 'start' }, { s: 'editor', vid: v.id }]; zeichne(); waehle('pl:' + kr.pfade[0].id + ':0', { springen: true })")
             pg.wait_for_timeout(300)
-            pg.locator('.kontext button[aria-label="Frei im Raster verschieben"]').click(); pg.wait_for_timeout(200)
+            pg.evaluate("befehle(stapel.at(-1).sel).find(x => x.id === 'anordnen').f()"); pg.wait_for_timeout(200)      # ab v1.60: „Anordnen“ (vorher „Frei“)
             pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
             if pg.evaluate("JSON.stringify(P.verteiler[0].layout && P.verteiler[0].layout.lage['kr:' + KR.id + '/pl:' + KR.pfade[0].id + ':0'])") != '[1,0]':
                 fehler.append('steuerung: Kontakt frei verschieben hat nicht geklappt')

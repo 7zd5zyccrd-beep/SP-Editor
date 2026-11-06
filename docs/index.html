@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.61 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.62 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,16 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.62: Desktop-Runde D1, Etappe 4 „Texte und Design“: ein Wortschatz (Stromkreisliste, Beispielprojekt öffnen, Druckvorschau,
+           Hinweise, „Firma (rechtlicher Eigentümer)“, „Unbenanntes Projekt“, Zurück „Start“), Drucken-Menü mit „Plan drucken …“ und
+           „Türzettel drucken …“ (Vorschau mit Auswahl Verteiler/alle, Knopf „Drucken“, Hinweis Skalierung 100 % und Ränder keine);
+           Typo-Skala 11/12/13/15/18 px und Gewichte 400/600/700 als Tokens, Symbole statt Textzeichen (?, ▾, ›, ⚠, ↑ ↓), Steuerungs-
+           Palette mit 1,5-px-Strich und ausgeschriebenen Namen; dichtes Eigenschaften-Fach mit Maus (13 px, Zeilen um 30 px, ohne
+           „›“, Hinweise oben), Schalter für Ja/Nein, kurze Zweitzeilen, Erklärungen als Tooltip, „kein …“ öffnet gleich die
+           Geräteauswahl, leere Plätze als eine Zeile, Fachtitel „Art Kennzeichen – Name“ bzw. „-Q2 › Pfad 1 › Platz 1“; Text-Werkzeug
+           mit Feld an der Klickstelle (ein Rückgängig-Schritt, Esc/leer ändert nichts); Treppenlicht „anderer Wert …“; neues Projekt
+           übernimmt Firma, Anschrift und Ersteller; Stromkreis- und Projektliste in voller Breite, Datum TT.MM.JJJJ, „Version 1.62“;
+           Pläne unverändert
      v1.61: Desktop-Runde D1, Etappe 3 „Kürzel, Zoom, Navigation, Menü“: Strg++/Strg+−/Strg+0 zoomen den Plan statt des Browsers,
            Umschalt+2 passt die Auswahl ein, Zoom-Menü mit 50/100/150/200 %, Ganzes Blatt, Blattbreite und Auswahl einpassen;
            Bild↑/↓ blättern blattweise, Strg+Pos1/Ende erstes/letztes Blatt, Blattwahl einzeilig („6 Stromlaufplan HV“) mit
@@ -412,7 +422,7 @@ main.start{max-width:1040px}
 .abschnitt .kopfknopf{margin:0 4px 6px}
 .projektkarte{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:16px 20px;cursor:pointer;margin-top:10px}
 .projektkarte:hover,.vkarte:hover{border-color:var(--linie2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.pk-klein{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--leise)}
+.pk-klein{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--leise)}
 .pk-titel{font-size:24px;font-weight:700;line-height:1.2}
 .pk-un{color:var(--leise);font-size:14px}
 .pk-aktion,.vk-aktion{color:var(--akzent);font-size:14.5px;font-weight:600;margin-top:8px}
@@ -430,7 +440,7 @@ main.start{max-width:1040px}
 .pzeile:first-child{border-top:0}
 .pzeile .zeile{border-top:0;flex:1 1 auto;min-width:0}
 .pzeile.aktiv{box-shadow:inset 3px 0 0 var(--akzent)}
-.pzeile.aktiv .zeile .w{color:var(--leise);font-weight:500;font-size:12.5px;background:var(--grund);border:1px solid var(--linie);border-radius:7px;padding:2px 8px;flex:0 0 auto}      /* ab v1.58 (C36): Etikett, kein Link */
+.pzeile.aktiv .zeile .w{color:var(--leise);font-weight:400;font-size:12.5px;background:var(--grund);border:1px solid var(--linie);border-radius:7px;padding:2px 8px;flex:0 0 auto}      /* ab v1.58 (C36): Etikett, kein Link */
 .projektknoepfe{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
 .pmehr{flex:0 0 48px;border:0;border-left:1px solid var(--linie);background:none;font-size:20px;line-height:1;color:var(--akzent);cursor:pointer}
 .pmehr:hover,.pmehr:active{background:var(--hover)}
@@ -447,7 +457,7 @@ main.start{max-width:1040px}
 /* Fenster am angetippten Feld (ab v1.21) */
 .schleier.pop{background:transparent;overflow:hidden}
 .fenster.pop{position:fixed;max-width:none;border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.07);display:flex;flex-direction:column}
-.fenster.pop h3{font-size:12px;font-weight:650;color:var(--leise);text-transform:uppercase;letter-spacing:.06em;padding:11px 14px 4px}
+.fenster.pop h3{font-size:12px;font-weight:600;color:var(--leise);text-transform:uppercase;letter-spacing:.06em;padding:11px 14px 4px}
 .fenster.pop .inhalt{overflow-y:auto;padding:2px 6px 6px;min-height:0;-webkit-overflow-scrolling:touch}
 .fenster.pop .text{padding:0 8px;font-size:13.5px}
 .fenster.pop .wahl{max-height:none;border:0;border-radius:0;gap:1px}
@@ -457,9 +467,9 @@ main.start{max-width:1040px}
 .wahl.raster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;border:0;max-height:none}
 .wahl.raster button{border:1px solid var(--linie);border-radius:9px;justify-content:center;padding:11px 4px;font-variant-numeric:tabular-nums}
 .fenster.pop .wahl.raster button{border:1px solid var(--linie)}
-.wahl.raster button[aria-checked="true"]{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:650}
+.wahl.raster button[aria-checked="true"]{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:600}
 .wahl .trennlinie{height:1px;background:var(--linie);margin:5px 8px}
-.wahl button.an{color:var(--akzent);font-weight:650}
+.wahl button.an{color:var(--akzent);font-weight:600}
 .wahl button.gefahr{color:var(--rot)}
 .menue button{flex-direction:column;justify-content:center;gap:0}
 .menue button small{font-size:12.5px}
@@ -501,8 +511,8 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
   cursor:pointer;font-size:11.5px;line-height:1.15;text-align:center;color:var(--tinte);hyphens:auto;-webkit-hyphens:auto;overflow-wrap:anywhere;position:relative}
 .werkzeug:hover{background:var(--hover)}
 .werkzeug svg{width:32px;height:32px;flex:0 0 auto}
-.werkzeug[aria-pressed="true"]{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent);font-weight:650}
-.wzusatz{position:absolute;top:5px;right:6px;font:700 10px/1 system-ui,sans-serif;background:var(--tinte);color:var(--karte);border-radius:5px;padding:3px 4px}
+.werkzeug[aria-pressed="true"]{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent);font-weight:600}
+.wzusatz{position:absolute;top:5px;right:6px;font:700 11px/1 system-ui,sans-serif;background:var(--tinte);color:var(--karte);border-radius:5px;padding:3px 4px}
 .edflaeche{grid-area:flaeche;overflow:auto;position:relative;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .blaetter{position:relative;padding:18px 20px 48px;width:max-content;min-width:100%}
 .blatt{margin:0 auto 26px}
@@ -528,7 +538,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 /* ab v1.53: Blatt in der Ansicht „Stromlaufplan“ vergrößern (Pinch, Doppeltipp, Wischen zum Nachbarblatt) */
 .lupe.planlupe{inset:0;width:auto;height:auto;border-radius:0;border:0;box-shadow:none;pointer-events:auto;display:flex;flex-direction:column;background:var(--flaeche);z-index:35}
 .planlupe .lupekopf{display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px 14px;background:var(--karte);border-bottom:1px solid var(--linie);min-height:52px}
-.planlupe .lupetitel{flex:1;min-width:0;font-weight:650;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planlupe .lupetitel{flex:1;min-width:0;font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .planlupe .lupezoom{font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--leise);padding:0 6px}
 .planlupe .lupeflaeche{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .planlupe .lupeinnen{padding:12px;width:max-content;margin:0 auto}
@@ -595,7 +605,7 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .zoomwert{min-width:64px;font-variant-numeric:tabular-nums}
 .blattwahl:hover,.zoomwert:hover{background:var(--hover)}
 .hinweiszeile{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--leise);white-space:nowrap;overflow:hidden}
-.hinweiszeile.an{color:var(--akzent);font-weight:650}
+.hinweiszeile.an{color:var(--akzent);font-weight:600}
 .hinweistext{min-width:0;overflow:hidden;text-overflow:ellipsis}
 /* ab v1.53: Werkzeughinweis als Band über dem Blatt, wenn die Hinweiszeile fehlt (unter 1000 px) */
 .werkzeugband{display:none}
@@ -631,7 +641,7 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   .ed.fachvoll{padding-bottom:min(62vh,600px)}
   .eigenkopf{touch-action:none}
   .werkzeugband:not([hidden]){display:flex;grid-area:flaeche;align-self:start;justify-self:center;align-items:center;gap:10px;margin:8px 8px 0;max-width:calc(100% - 16px);
-    z-index:4;padding:6px 6px 6px 14px;border-radius:14px;background:var(--akzent);color:var(--auf-akzent);font-size:13.5px;font-weight:650;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+    z-index:4;padding:6px 6px 6px 14px;border-radius:14px;background:var(--akzent);color:var(--auf-akzent);font-size:13.5px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22)}
   .werkzeugband span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .werkzeugband .knopf{flex:0 0 auto;background:var(--auf-akzent);color:var(--akzent)}
   .ed.eigenzu .edeigen{display:flex}
@@ -671,7 +681,7 @@ dl.begriffe{margin:4px 0;font-size:14.5px}dl.begriffe dt{font-weight:700;margin-
 .wahl button:disabled{opacity:.5;cursor:default}
 .kontext .ikon{flex-direction:column;gap:1px;height:auto;min-height:48px;min-width:46px;padding:4px 6px}
 .kontext .ikon svg{width:20px;height:20px}
-.kontext .ikontext{font-size:10.5px;line-height:1.1;white-space:nowrap;font-weight:500}
+.kontext .ikontext{font-size:10.5px;line-height:1.1;white-space:nowrap;font-weight:400}
 .werkzeug,.paltitel{hyphens:manual;-webkit-hyphens:manual;overflow-wrap:normal}
 @media (min-width:1000px){.edpal.zweispaltig{width:calc(184px + env(safe-area-inset-left, 0px))}.edpal.zweispaltig .palkacheln{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .leerkarte{position:absolute;z-index:3;background:var(--karte);border:1.5px dashed var(--akzent);color:var(--tinte);border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.35;
@@ -705,7 +715,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 .tz{cursor:zoom-in}
 /* iPhone hoch: Reiter als ein Knopf mit Menü, damit der Verteilername lesbar bleibt */
 .reiterwahl{display:none;align-items:center;gap:5px;border:1px solid var(--linie);background:var(--grund);border-radius:10px;padding:0 10px;min-height:40px;margin-left:4px;
-  font-size:14px;font-weight:650;cursor:pointer;flex:0 0 auto;white-space:nowrap}
+  font-size:14px;font-weight:600;cursor:pointer;flex:0 0 auto;white-space:nowrap}
 @media (max-width:429px){.edkopf .segment{display:none}.reiterwahl{display:inline-flex}.edkopf .sep{display:none}.vwahl{max-width:150px}}
 /* ab v1.58 (C19): iPhone – Reiterknopf als Symbol (44 px), der Verteilername bekommt den Platz; Lupentitel zweizeilig,
    Blatttitel bleibt beim Zoomen links im Bild */
@@ -714,7 +724,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
   .vwahl{flex:1 1 auto;min-width:72px;max-width:none}.edkopf .luecke{flex:0 1 0}}
 @media (max-width:560px){.vwahl{flex:1 1 auto;min-width:72px;max-width:none}.edkopf .luecke{flex:0 1 0}}
 .planlupe .lupetitel{display:flex;flex-direction:column;line-height:1.2}
-.planlupe .lupetitel .lt2{font-size:12px;font-weight:500;color:var(--leise);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planlupe .lupetitel .lt2{font-size:12px;font-weight:400;color:var(--leise);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .planlupe .lupetitel .lt1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .blatt .bt>span:first-child{position:sticky;left:8px}
 @media (pointer:coarse){.reiterwahl{min-height:44px}}
@@ -725,7 +735,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 }
 /* ab v1.57 (C07): Smartphone quer – Fach als Spalte rechts, Palette als Überlage links über den Kopfknopf „Palette“ */
 .nurquer{display:none}
-.palknopf{align-items:center;border:1px solid var(--linie);background:var(--grund);color:var(--tinte);border-radius:10px;padding:0 12px;min-height:44px;margin-left:6px;font-size:14px;font-weight:650;cursor:pointer;flex:0 0 auto}
+.palknopf{align-items:center;border:1px solid var(--linie);background:var(--grund);color:var(--tinte);border-radius:10px;padding:0 12px;min-height:44px;margin-left:6px;font-size:14px;font-weight:600;cursor:pointer;flex:0 0 auto}
 .palknopf[aria-pressed="true"]{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent)}
 @media (max-width:999px) and (orientation:landscape) and (max-height:500px){
   .ed{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"kopf kopf" "flaeche eigen" "fuss eigen";padding-bottom:0}
@@ -753,12 +763,12 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 }
 /* ab v1.58 (C25): Steuerungspalette ohne Kreis – kurzer Knopf, nichts abgeschnitten */
 .pallink,.palleer{overflow-wrap:break-word;white-space:normal !important;hyphens:manual;-webkit-hyphens:manual}
-.pallink.palneu{font-weight:650}
+.pallink.palneu{font-weight:600}
 @media (max-width:999px){.pallink{max-width:104px}.pallink.palneu{max-width:96px;align-self:center}}
 .palgruppe.hervor .palkacheln{outline:2px solid var(--akzent);outline-offset:2px;border-radius:10px}
 /* ab v1.58 (C23): Hinweisband im Mehrfachmodus auf Touch auch über 1000 px */
 .werkzeugband.sammelband:not([hidden]){display:flex;grid-area:flaeche;align-self:start;justify-self:center;align-items:center;gap:10px;margin:8px 8px 0;max-width:calc(100% - 16px);
-  z-index:4;padding:6px 6px 6px 14px;border-radius:14px;background:var(--akzent);color:var(--auf-akzent);font-size:13.5px;font-weight:650;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+  z-index:4;padding:6px 6px 6px 14px;border-radius:14px;background:var(--akzent);color:var(--auf-akzent);font-size:13.5px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22)}
 .werkzeugband.sammelband span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .werkzeugband.sammelband .knopf{flex:0 0 auto;background:var(--auf-akzent);color:var(--akzent)}
 /* ab v1.58 (C22): Zurück zum Projekt – breit und ab 600 px „‹ Projekt“, darunter „‹“ vor dem Haus */
@@ -817,7 +827,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 /* Arbeitsfläche als ein Tabstopp (ab v1.60, D17) */
 .edflaeche:focus{outline:none}.edflaeche:focus-visible{outline:2px solid var(--akzent);outline-offset:-2px}
 /* ab v1.61 (D23): ein Menü mit Abschnitten; (D27) Nadel im Blattkopf; (D25) Tastenkappen; (D26) Zeiger beim Einfügen */
-.menue .menuekopf{font-size:12px;font-weight:650;color:var(--leise);padding:9px 10px 3px}
+.menue .menuekopf{font-size:12px;font-weight:600;color:var(--leise);padding:9px 10px 3px}
 .menue .menuekopf:first-child{padding-top:4px}
 .festknopf.nadelknopf{display:inline-flex;align-items:center;justify-content:center;padding:0;width:28px;height:24px;border-color:transparent;background:none;opacity:0;transition:opacity .12s}
 .festknopf.nadelknopf svg{width:16px;height:16px}
@@ -827,7 +837,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 kbd.kappe{display:inline-block;font:600 12px/1 system-ui,sans-serif;padding:3px 6px;border:1px solid var(--linie2);border-bottom-width:2px;border-radius:5px;background:var(--karte2);color:var(--tinte);white-space:nowrap}
 .tastenraster{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:6px 14px;align-items:baseline;font-size:14px;padding:4px 0}
 .tastenraster .tk{display:flex;flex-wrap:wrap;gap:3px;align-items:baseline;color:var(--leise);font-size:12px}
-.tastenraster h5{grid-column:1/-1;margin:10px 0 0;font-size:12px;font-weight:650;color:var(--leise)}
+.tastenraster h5{grid-column:1/-1;margin:10px 0 0;font-size:12px;font-weight:600;color:var(--leise)}
 .ed.einfuegen .edflaeche svg,.ed.stwerkzeug .edflaeche svg,.ed.einfuegen .edflaeche svg *,.ed.stwerkzeug .edflaeche svg *{cursor:copy}
 .fenster.suche input[type=search]{margin:8px 0 6px;font-size:15px;color:var(--tinte)}.suchliste .mz kbd{font-size:12px}
 .fenster.tasten{max-width:600px}.fenster.tasten .inhalt{max-height:min(72vh,680px);overflow-y:auto}
@@ -838,6 +848,76 @@ kbd.kappe{display:inline-block;font:600 12px/1 system-ui,sans-serif;padding:3px 
 @media (min-width:900px){.fenster.hilfe{max-width:860px}.fenster.hilfe .inhalt{display:grid;grid-template-columns:170px 1fr;gap:0 22px;align-items:start}
   .fenster.hilfe .hilfenav{flex-direction:column;flex-wrap:nowrap;position:sticky;top:0;grid-row:1 / span 20;gap:4px;margin-top:14px}
   .fenster.hilfe .hilfenav button{text-align:left;white-space:nowrap}.fenster.hilfe .hilfeabschnitt{grid-column:2}}
+/* ---- ab v1.62 (D37): eine Typo-Skala 11/12/13/15/18 px und drei Gewichte als Tokens; im Editor gelten nur diese Stufen ---- */
+:root{--fs-11:11px;--fs-12:12px;--fs-13:13px;--fs-15:15px;--fs-18:18px;--fw-400:400;--fw-600:600;--fw-700:700}
+.werkzeug,.wzusatz,.vw-pj,.kontext .ikontext{font-size:var(--fs-11)}
+@media (min-width:1000px){.paltitel{font-size:var(--fs-11)}}      /* schmal bleibt der senkrechte Titel der Streifen-Palette klein */
+.blatt .bt,.palleer,.eigeninhalt h2,.menue small,.menue kbd,.menue .menuekopf,.fenster.pop h3,.abhilfe,.feldfehler{font-size:var(--fs-12)}
+.ikon,.segment button,.edfuss,.blattwahl,.zoomwert,.pallink,.leerkarte,.reiterwahl,.palknopf,.pruefknopf,.meldung,.werkzeugband:not([hidden]),.werkzeugband.sammelband:not([hidden]),
+  .warnung,.hinweis,.bmk,.zieh,.kopfaktionen .ikon,.fenster.pop .text{font-size:var(--fs-13)}
+.vw-name,.eigenkopf h2.eigentitel,.fenster h3{font-size:var(--fs-15)}
+.pruefknopf{font-weight:var(--fw-600);display:inline-flex;align-items:center;gap:4px}
+/* Symbole statt Textzeichen (?, ▾, ›, ⚠, ↑ ↓): dieselbe Strichstärke wie die übrigen Icons */
+.warnik{width:1.15em;height:1.15em;vertical-align:-.2em;margin-right:4px;flex:0 0 auto}
+.zeile .pfeil svg{width:16px;height:16px;display:block}
+.vw-name .vwab,.reiterwahl .vwab{width:14px;height:14px;margin-left:3px;flex:0 0 auto;color:var(--leise);align-self:center}
+.sort button{display:inline-flex;align-items:center;justify-content:center}.sort button svg{width:18px;height:18px}
+.pk-aktion svg,.vk-aktion svg{width:16px;height:16px;vertical-align:-3px}
+.hilfeknopf{border-color:var(--linie2);color:var(--leise)}.hilfeknopf:hover{color:var(--akzent);border-color:var(--akzent)}.hilfeknopf svg{width:15px;height:15px}
+.hilfeknopf.gross svg{width:20px;height:20px}
+@media (pointer:coarse){.hilfeknopf::before{border-color:var(--linie2)}}
+/* Steuerungs-Palette: Schaltzeichen mit einheitlichem Strich (1,5 px), unabhängig von der Zeichengröße */
+.werkzeug svg.planzeichen [stroke]:not([stroke="none"]),.werkzeug svg.planzeichen path,.werkzeug svg.planzeichen line,.werkzeug svg.planzeichen circle,
+  .werkzeug svg.planzeichen rect,.werkzeug svg.planzeichen polyline,.werkzeug svg.planzeichen polygon,.werkzeug svg.planzeichen ellipse{vector-effect:non-scaling-stroke;stroke-width:1.5px}
+.werkzeug svg.planzeichen{display:block;margin:0 auto}
+/* Schalter für Ja/Nein in der Zeile (ab v1.62, D35) – auch auf Touch, die ganze Zeile ist Trefferfläche */
+.schalter{flex:0 0 auto;position:relative;width:34px;height:20px;border-radius:10px;background:var(--linie2);transition:background .15s}
+.schalter::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
+.zeile[aria-checked="true"] .schalter{background:var(--akzent)}
+.zeile[aria-checked="true"] .schalter::after{transform:translateX(14px)}
+@media (pointer:coarse){.schalter{width:44px;height:26px;border-radius:13px}.schalter::after{width:22px;height:22px}.zeile[aria-checked="true"] .schalter::after{transform:translateX(18px)}}
+.fachwarn{margin:10px 0 0}.fachwarn .warnung{margin:4px 4px 6px}
+/* Dichtes Eigenschaften-Fach mit Maus (ab v1.62, D35): 13 px, Zeilen um 29 px, ohne „›“ – Touch bleibt bei 16 px / 44 px */
+@media (hover:hover) and (pointer:fine){
+  .edeigen .zeile{font-size:var(--fs-13);min-height:29px;padding-top:4px;padding-bottom:4px;padding-left:10px;padding-right:10px;gap:8px}
+  .edeigen .zeile.einr{padding-left:28px}.edeigen .zeile.einr::before{left:16px}
+  .edeigen .zeile .tw{gap:0 8px}
+  .edeigen .zeile .un{font-size:var(--fs-12)}
+  .edeigen .zeile .pfeil{display:none}
+  .edeigen button.zeile:hover{background:var(--hover)}
+  .edeigen .bmk{min-width:36px;padding:1px 5px;font-size:var(--fs-12)}
+  .edeigen .liste{border-radius:9px}
+  .eigeninhalt{padding:2px 12px 12px}
+  .eigeninhalt h2{margin:10px 4px 3px}
+  .eigenkopf{min-height:46px}
+  .edeigen .neu{font-size:var(--fs-13);padding:6px 10px}
+  .edeigen .zeile.bearbeiten{padding-top:3px;padding-bottom:3px}.edeigen .zeile.bearbeiten input{padding:3px 8px}
+  .edeigen .hinweis,.edeigen .warnung{margin:5px 4px}
+  .fenster.pop .wahl button{font-size:var(--fs-13);padding:6px 10px}
+  .fenster.pop .wahl.raster button{padding:7px 4px}
+}
+/* Seiten neben dem Editor (ab v1.62, D39): Stromkreisliste und Projektliste in voller Breite, Vorschauköpfe mit Knopf */
+main.breit{max-width:1200px}
+table.ueb td.nw,table.ueb th{white-space:nowrap}
+.legende{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:var(--fs-13);color:var(--leise);margin:8px 4px}
+.legende .bmk{min-width:0}
+.kopfknopf.knopfvoll{background:var(--akzent);color:var(--auf-akzent);border-radius:9px;padding:6px 14px;font-weight:var(--fw-600);font-size:var(--fs-13)}
+.blattkarte{scroll-margin-top:64px}
+.druckhinweis{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px 12px;margin:8px 0 12px;font-size:var(--fs-13);color:var(--leise)}
+.druckhinweis b{color:var(--tinte);font-weight:var(--fw-600)}
+.tzwahl{display:inline-flex;margin:4px 0 8px}
+.planlupe .lupezoom{border:0;background:none;border-radius:9px;padding:8px 10px;min-height:40px;cursor:pointer;font-weight:var(--fw-600);color:var(--tinte)}.planlupe .lupezoom:hover{background:var(--hover)}
+.planlupe .lupekopf .ikon svg{width:22px;height:22px}
+.pkopf{display:none}
+@media (min-width:1024px){
+  .projtab .pzeile .zeile .un{display:none}
+  .projtab .pkopf{display:flex;gap:10px;padding:8px 89px 6px 14px;font-size:var(--fs-12);font-weight:var(--fw-600);color:var(--leise);border-bottom:1px solid var(--linie);background:var(--karte2)}
+  .projtab .pkopf span,.projtab .psp{flex:0 0 150px;text-align:left}.projtab .pkopf span:first-child{flex:1 1 auto}
+  .projtab .psp{display:block;color:var(--leise);font-size:var(--fs-13);white-space:nowrap}
+}
+@media (max-width:1023px){.projtab .psp{display:none}}
+.textinline{position:fixed;z-index:30;min-width:180px;font:inherit;font-size:var(--fs-13);padding:5px 8px;border:1.5px solid var(--ov);border-radius:7px;background:var(--karte);color:var(--tinte);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+@media (pointer:coarse){.textinline{font-size:16px;padding:9px 10px}}
 </style>
 </head>
 <body>
@@ -3112,7 +3192,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.61';
+const FASSUNG = 'v1.62';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3128,7 +3208,7 @@ const GERAETE = {
   fi2:            { name: 'FI 2-polig',            pole: 1, fi: true, ohneKennlinie: true },
   fi4:            { name: 'FI 4-polig',            pole: 3, fi: true, ohneKennlinie: true },
   sichtrenn3:     { name: 'Sicherungstrennschalter 3-polig', pole: 3, sicherung: true },
-  sichlasttrenn3: { name: 'Sicherungslasttrennschalter 3-polig (NH)', pole: 3, sicherung: true },
+  sichlasttrenn3: { name: 'NH-Sicherungslasttrennschalter 3-polig', pole: 3, sicherung: true },
   lasttrenn3:     { name: 'Lasttrennschalter 3-polig', pole: 3 },
   trenn3:         { name: 'Trennschalter 3-polig', pole: 3 },
   leistung3:      { name: 'Leistungsschalter 3-polig', pole: 3 },
@@ -3168,7 +3248,7 @@ const MSS_BEREICH = ['0,1–0,16', '0,16–0,25', '0,25–0,4', '0,4–0,63', '0
 const NENNFEHLER = ['10', '30', '100', '300', '500'];
 const FI_TYP = ['A', 'F', 'B', 'B+', 'AC'];
 const SICH_ART = ['gG', 'gL', 'aM'];
-const ANSCHLUSS = { steckdose3: 'Steckdose 1/N/PE (Schuko, CEE 3-pol.)', steckdose5: 'Steckdose 3/N/PE (CEE 5-pol.)',
+const ANSCHLUSS = { steckdose3: 'Steckdose 1/N/PE (Schuko, CEE 3-polig)', steckdose5: 'Steckdose 3/N/PE (CEE 5-polig)',
   dose: 'Geräteanschlussdose (Klemmen)', leuchte: 'Leuchte', wallbox: 'Wallbox (Ladestation 3/N/PE)', motor: 'Motor (Drehstrom ohne N oder Wechselstrom)', pv: 'PV-Anlage (Wechselrichter, PV-Generator)', speicher: 'Batteriespeicher (AC-gekoppelt)', fest: 'Fester Anschluss (offenes Ende)' };
 // PV-Anlage am Abgang (ab v1.34, Etappe G1): k.pv = { phasen: '1' | '3', kwp, dc (DC-Freischalter), zaehler (Erzeugungszähler),
 //   wr: { bmk }, gen: { bmk }, dcq: { bmk }, p: { bmk } }; Wechselrichter -T, PV-Generator -G, DC-Freischalter -Q, Zähler -P
@@ -3226,7 +3306,8 @@ function neueGruppe() {
 const PLISTE = 'slp.projekte.v1', PAKTIV = 'slp.projekt.aktiv', pSchluessel = pid => 'slp.projekt.' + pid;
 const lsLesen = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const jsonVon = t => { try { return JSON.parse(t); } catch (e) { return null; } };
-const projektName = d => (d && d.projekt && d.projekt.projekt) || (d && d.verteiler && d.verteiler[0] && d.verteiler[0].name) || 'Neues Projekt';
+// ab v1.62 (D33): ohne Namen überall „Unbenanntes Projekt“ (der Name ist das Feld „Projekt“ des Schriftfelds)
+const projektName = d => (d && d.projekt && d.projekt.projekt) || 'Unbenanntes Projekt';
 let projekte = jsonVon(lsLesen(PLISTE));
 if (!Array.isArray(projekte)) projekte = [];
 projekte = projekte.filter(x => x && typeof x.id === 'string');
@@ -3420,7 +3501,7 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Einstellbereich/, 'Einstellbereich passend zum Nennstrom wählen.'],
   [/Kennzeichen .* vergeben/, 'Kennzeichen von Hand ändern oder leeren (automatische Vergabe).']];      // ab v1.59 (D06)
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
-const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, '⚠ ' + t, ab ? h('span', { class: 'abhilfe' }, ab) : null); };
+const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), t, ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
 const fiAm = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi && zahlVon(g.idn || '30') <= 30);
 function fiVorVerteiler(v, tiefe = 0) {
@@ -3768,7 +3849,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
   const spulen = {};
   kreise.forEach(kr => kr.pfade.forEach(p => { if (p.verbraucher) spulen[p.verbraucher.g] = (spulen[p.verbraucher.g] || 0) + 1; }));
   Object.entries(spulen).forEach(([g, n]) => { if (n > 1) r.warn.push(`${name(g)}: Spule bzw. Verbraucher ${n}-mal gesetzt.`); });
-  Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) r.warn.push(`${a.schalt.bmk.t}: Schaltgerät ohne Steuerstromkreis (Spule nicht gesetzt).`); });
+  Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) { const kn = knoten(v, kid.split('~')[0]); r.warn.push(`${[a.schalt.bmk.t, kn ? abgangName(kn.k) : ''].filter(Boolean).join(' ')}: Steuerstromkreis fehlt – Spule nicht gesetzt`); } });      // ab v1.62 (D35)
   Object.values(e.abgaenge).forEach(a => { if (a.ol && !(a.olKont && a.olKont.o.length)) r.warn.push(`${a.ol.bmk.t}: Öffner 95–96 des Überlastrelais fehlt im Steuerstromkreis.`); });
   // Motorschutzschalter mit Schütz (ab v1.52): ohne Hilfskontakt im Steuerkreis zieht das Schütz nach dem Auslösen wieder an
   Object.values(e.abgaenge).forEach(a => { if (a.mssHk && a.schalt && a.schalt.typ === 'schuetz' && !(a.mssKont && (a.mssKont.s.length || a.mssKont.o.length)))
@@ -3918,15 +3999,24 @@ function svgZurueck() {
   s.innerHTML = '<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
   return s;
 }
+// opt.titel (ab v1.62, D35): Erklärung als Tooltip statt als zweite Zeile
 function zeile(ob, wert, klick, opt = {}) {
-  return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), on: { click: ev => { ankerZeile(ev.currentTarget); klick(ev); } } },
+  return h('button', { class: 'zeile' + (opt.einr ? ' einr' : ''), title: opt.titel || null, on: { click: ev => { ankerZeile(ev.currentTarget); klick(ev); } } },
     opt.bmk ? h('span', { class: 'bmk' + (opt.bmk.hand ? ' hand' : '') }, opt.bmk.t) : null,
     h('span', { class: 'tw' },      // ab v1.55: Bezeichnung und Wert umbrechen gemeinsam, der Pfeil bleibt rechts
       h('span', { class: 't' }, h('span', { class: 'ob' + (opt.rot ? ' gefahr' : '') }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null),
       wert !== null && wert !== undefined ? h('span', { class: 'w' }, wert) : null),
-    opt.ohnePfeil ? null : h('span', { class: 'pfeil' }, PFEIL));
+    opt.ohnePfeil ? null : h('span', { class: 'pfeil' }, icon('rechts')));      // ab v1.62 (D37): Symbol statt „›“
 }
 
+// Ja/Nein als Schalter in der Zeile (ab v1.62, D35): ein Klick bzw. Tipp schaltet um, ein Rückgängig-Schritt
+function schalterZeile(ob, an, setzen, opt = {}) {
+  return h('button', { class: 'zeile schalterzeile', role: 'switch', 'aria-checked': String(!!an), title: opt.titel || null,
+    on: { click: ev => { const fok = document.activeElement === ev.currentTarget; ankerZeile(ev.currentTarget); setzen(!an); aenderung(ob); sichern(); zeichne();
+      if (fok) { const z = [...document.querySelectorAll('.zeile.schalterzeile')].find(x => x.querySelector('.ob').textContent === ob); if (z) z.focus({ preventScroll: true }); } } } },
+    h('span', { class: 'tw' }, h('span', { class: 't' }, h('span', { class: 'ob' }, ob), opt.un ? h('span', { class: 'un' }, opt.un) : null)),
+    h('span', { class: 'schalter', 'aria-hidden': 'true' }));
+}
 // ---- Fenster: genau ein Feld, sofort gespeichert --------------------------
 // Ab v1.21: Auswahllisten und Menüs öffnen sich als kleines Fenster am angetippten Feld (iPad und
 // Desktop; schmal: in der Mitte), Textfelder werden direkt in der Zeile bearbeitet; Esc schließt.
@@ -4162,11 +4252,11 @@ const BEGRIFFE = {
 };
 // Erklärungen als Fenster (Abschnittsköpfe mit „?“)
 function begriffFenster(titel, namen) {
-  fenster(titel, h('dl', { class: 'begriffe' }, ...namen.flatMap(n => [h('dt', {}, n), h('dd', {}, BEGRIFFE[n])])), null, null, { cls: 'hilfe' });
+  fenster(titel, h('dl', { class: 'begriffe' }, ...namen.flatMap(n => [h('dt', {}, n), h('dd', {}, BEGRIFFE[n])])), s => [h('button', { class: 'knopf', on: { click: () => s() } }, 'Schließen')], null, { cls: 'hilfe' });
 }
 // Abschnittskopf mit „?“ (ab v1.54)
 const kopfMitHilfe = (titel, namen) => h('h2', { class: 'mithilfe' }, titel,
-  h('button', { class: 'hilfeknopf', 'aria-label': `${titel}: Begriffe erklärt`, title: 'Begriffe erklärt', on: { click: () => begriffFenster(titel, namen) } }, '?'));
+  h('button', { class: 'hilfeknopf', 'aria-label': `${titel}: Begriffe erklärt`, title: 'Begriffe erklärt', on: { click: () => begriffFenster(titel, namen) } }, icon('frage')));
 // Erklärzeilen in den Auswahllisten
 const GERAET_KLEIN = { ls1: 'Leitungsschutzschalter für einen Außenleiter – Steckdosen, Licht', ls3: 'Leitungsschutzschalter für L1 L2 L3 – Drehstromgeräte',
   fils1n: 'FI und LS in einem – schützt Personen und Leitung (L + N)', fils3n: 'FI und LS in einem – schützt Personen und Leitung (L1 L2 L3 + N)',
@@ -4188,7 +4278,7 @@ const TASTEN = [
     ['Ziehen', 'Abgang an seiner Zeichnung auf eine Einfügestelle „+“, Kontakt auf einen Platz'], ['Esc', 'Ziehen abbrechen, Werkzeug beenden, Auswahl aufheben, Fenster schließen']]],
   ['Ansicht', [['Strg++ / Strg+−', 'größer bzw. kleiner'], ['Strg+0', 'Blattbreite (100 %)'], ['Umschalt+1', 'ganzes Blatt'], ['Umschalt+2', 'Auswahl einpassen'],
     ['Strg+Mausrad', 'zoomen'], ['Leertaste+Ziehen', 'Ansicht schwenken, ebenso mit der Mitteltaste'], ['Bild↑ / Bild↓', 'voriges bzw. nächstes Blatt'], ['Strg+Pos1 / Strg+Ende', 'erstes bzw. letztes Blatt']]],
-  ['Datei und Hilfe', [['Strg+S', 'Projekt als Datei sichern'], ['Strg+O', 'Projekt aus Datei öffnen'], ['Strg+P', 'Stromlaufplan drucken'], ['Strg+F', 'suchen'],
+  ['Datei und Hilfe', [['Strg+S', 'als Datei sichern'], ['Strg+O', 'Datei öffnen'], ['Strg+P', 'Plan drucken'], ['Strg+F', 'suchen'],
     ['Tab', 'Kopf, Palette, Arbeitsfläche, Eigenschaften der Reihe nach'], ['F1', 'Hilfe'], ['?', 'diese Übersicht']]]];
 const KEINE_TASTE = new Set(['Klick', 'Rechtsklick', 'Doppelklick', 'Ziehen', 'Rahmen ziehen', 'Mausrad', 'Pfeiltasten']);
 function tastenKappen(k) {
@@ -4208,10 +4298,10 @@ function hilfe(ab = null) {
   const teile = [
     abschnitt('start', 'Erste Schritte', h('p', {}, 'Die App erzeugt aus Ihren Angaben Stromlaufpläne, Übersichtsplan, Klemmenplan und Türzettel für Elektroverteiler – druckfertig als PDF.'),
       h('ol', {}, h('li', {}, 'Verteiler anlegen (Startseite: „Neuer Verteiler“).'), h('li', {}, 'Stromkreise einfügen: links in der Palette Steckdose, Leuchte, FI-Gruppe usw. ' + tipp() + ' oder im Blatt ein „+“ ' + tipp() + '.'),
-        h('li', {}, 'Teile im Blatt ' + tipp() + ' und rechts bzw. unten unter „Eigenschaften“ ändern.'), h('li', {}, 'Drucken – als Papier oder PDF.')),
+        h('li', {}, 'Teile im Blatt ' + tipp() + (touch ? ' und rechts bzw. unten unter „Eigenschaften“ ändern.' : ' und rechts die Eigenschaften ändern.')), h('li', {}, 'Drucken – als Papier oder PDF.')),
       h('p', {}, 'Kennzeichen, Klemmen, Phasenverteilung und Anordnung macht die App automatisch.'),
       // ab v1.58 (C34): das Beispiel auch dann erreichbar, wenn schon Verteiler angelegt sind
-      h('p', {}, h('button', { class: 'knopf zweit klein', on: { click: () => { while (fensterStapel.length) fensterStapel[fensterStapel.length - 1](false); beispielOeffnen(); } } }, 'Beispiel ansehen'),
+      h('p', {}, h('button', { class: 'knopf zweit klein', on: { click: () => { while (fensterStapel.length) fensterStapel[fensterStapel.length - 1](false); beispielOeffnen(); } } }, 'Beispielprojekt öffnen'),
         ' – öffnet ein fertiges Projekt als weiteres Projekt; Ihr Projekt bleibt.')),
     touch ? abschnitt('gesten', 'Gesten', liste([['Antippen', 'Teil wählen; die Eigenschaften öffnen sich unten bzw. rechts'],
       ['Halten und ziehen', 'nach kurzem Halten (0,35 s) Abgang auf ein „+“ oder Kontakt auf einen Platz ziehen; ohne Halten blättert das Wischen'],
@@ -4228,10 +4318,15 @@ function hilfe(ab = null) {
       'Von Hand gesetzte Teile tragen im Editor eine violette Stecknadel (nie im Druck); „Automatik anwenden“ setzt sie zurück.',
       `„Blatt festhalten“ (${touch ? 'Knopf „…“ über dem Blatt' : 'Nadel über dem Blatt oder Rechtsklick ins Leere'}) hält die Spalten aller Abgänge eines Blatts fest, damit spätere Änderungen davor sie nicht verschieben.`,
       'Reiter „Zeichnen“: freie Leiter (mit Prüfung auf Kurzschluss und offene Enden), Texte und strichpunktierte Rahmen.'])),
+    // ab v1.62 (D35): der Erklärtext aus dem Fach des Steuerstromkreises steht hier
+    abschnitt('steuerung', 'Steuerstromkreise', liste([
+      'Je Pfad gibt es sechs Plätze von oben (L) nach unten, darunter den Verbraucher (Spule, Meldeleuchte) an N.',
+      'Ein Zweig liegt parallel links neben dem Pfad, von einem Platz bis zu einem anderen oder bis N.',
+      'Vorlagen (Selbsthaltung, Treppenlicht, Hand-0-Automatik …) setzen alle Pfade eines Kreises auf einmal; Rückgängig stellt den alten Stand her.'])),
     abschnitt('speichern', 'Speichern', liste([
       'Jede Änderung wird sofort auf diesem Gerät gespeichert (im Browser). Rückgängig und Wiederholen gelten für die laufende Sitzung.',
-      'Browserdaten können verloren gehen (Verlauf löschen, privates Fenster, knapper Speicher). Sichern Sie das Projekt deshalb regelmäßig über „Menü“ → „Projekt als Datei sichern“ (Strg+S).',
-      'Die Datei (….slp.json) lässt sich auf einem anderen Gerät mit „Projekt aus Datei öffnen“ weiterbearbeiten; sie kommt dort als weiteres Projekt dazu (gleicher Name: wahlweise ersetzen).',
+      'Browserdaten können verloren gehen (Verlauf löschen, privates Fenster, knapper Speicher). Sichern Sie das Projekt deshalb regelmäßig über „Menü“ → „Als Datei sichern …“ (Strg+S).',
+      'Die Datei (….slp.json) lässt sich auf einem anderen Gerät mit „Öffnen …“ (Strg+O) weiterbearbeiten; sie kommt dort als weiteres Projekt dazu (gleicher Name: wahlweise ersetzen).',
       'Mehrere Projekte: „Menü“ → „Alle Projekte“ – öffnen, duplizieren, löschen. Rückgängig gilt je Projekt.'])),
     abschnitt('begriffe', 'Begriffe', h('dl', { class: 'begriffe' }, ...Object.entries(BEGRIFFE).flatMap(([n, t]) => [h('dt', {}, n), h('dd', {}, t)])))].filter(Boolean);
   const nav = h('nav', { class: 'hilfenav', 'aria-label': 'Abschnitte' }, ...teile.map(t => h('button', { class: 'knopf zweit klein',
@@ -4273,18 +4368,18 @@ function zeichne() {
 function bStart() {
   // ab v1.61 (D23): dasselbe Menü wie im Editor („Menü“ statt „Datei“), Hilfe mit F1
   app.append(kopf('Stromlaufplan', h('span', { class: 'kopfknoepfe' },
-    h('button', { class: 'kopfknopf hilfeknopf gross', 'aria-label': 'Hilfe', title: 'Hilfe (F1)', on: { click: () => hilfe() } }, '?'),
+    h('button', { class: 'kopfknopf hilfeknopf gross', 'aria-label': 'Hilfe', title: 'Hilfe (F1)', on: { click: () => hilfe() } }, icon('frage')),
     h('button', { class: 'kopfknopf', 'aria-label': 'Menü', title: 'Menü', on: { click: () => hauptMenue() } }, 'Menü'))));
   const m = h('main', { class: 'start' }), pj = P.projekt;
   // Leerzustand (ab v1.54): wofür die App da ist, drei Schritte, Beispiel
   if (!P.verteiler.length) m.append(h('section', { class: 'einfuehrung' },
     h('p', { class: 'ef-satz' }, 'Erzeugt aus Ihren Angaben Stromlaufpläne, Übersichtsplan, Klemmenplan und Türzettel für Elektroverteiler – druckfertig als PDF.'),
     h('ol', { class: 'ef-schritte' },
-      h('li', {}, h('b', {}, 'Verteiler anlegen'), h('span', {}, 'unten „Neuer Verteiler“, z. B. Hauptverteiler')),
+      h('li', {}, h('b', {}, 'Verteiler anlegen'), h('span', {}, `z. B. Hauptverteiler – unten „Neuer Verteiler“ ${tipp()}`)),
       h('li', {}, h('b', {}, 'Stromkreise einfügen'), h('span', {}, 'Steckdosen, Licht, FI-Gruppen … direkt im Plan')),
       h('li', {}, h('b', {}, 'Drucken'), h('span', {}, 'Stromlaufplan und Türzettel, auch als PDF'))),
     h('div', { class: 'ef-knoepfe' },
-      h('button', { class: 'knopf', on: { click: beispielOeffnen } }, 'Beispiel ansehen'),
+      h('button', { class: 'knopf', on: { click: beispielOeffnen } }, 'Beispielprojekt öffnen'),
       h('button', { class: 'knopf zweit', on: { click: () => hilfe() } }, 'Hilfe und Begriffe'))));
   // Projektliste (ab v1.56): Kopf über der Karte des geöffneten Projekts
   m.append(h('div', { class: 'abschnitt' }, h('h2', {}, 'Projekt'),
@@ -4292,7 +4387,7 @@ function bStart() {
   m.append(h('button', { class: 'projektkarte', on: { click: () => geh({ s: 'projekt' }) } },
     h('span', { class: 'pk-titel' }, projektName(P)),      // ab v1.58 (C33/C35): Name wie in der Projektliste, ohne zweiten Kopf „Projekt“
     h('span', { class: 'pk-un' }, [pj.firma, pj.nummer, pj.rev ? 'Rev. ' + pj.rev : '', datumDE(pj.datum)].filter(Boolean).join(' · ') || 'Projektdaten für das Schriftfeld eingeben'),
-    h('span', { class: 'pk-aktion' }, `Projektdaten ${PFEIL}`)));
+    h('span', { class: 'pk-aktion' }, 'Projektdaten ', icon('rechts'))));
   m.append(h('div', { class: 'abschnitt' }, h('h2', {}, 'Verteiler'),
     P.verteiler.length > 1 ? h('button', { class: 'kopfknopf', on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Reihenfolge') : null));
   const grid = h('div', { class: 'vkarten' });
@@ -4304,25 +4399,27 @@ function bStart() {
       h('span', { class: 'vk-name' }, v.name),
       h('span', { class: 'vk-un' }, sp ? `aus ${sp.v.name}` : `${v.netzform} · ${leiterText(v)}`),
       h('span', { class: 'vk-un' }, `${n} ${n === 1 ? 'Abgang' : 'Abgänge'}` + (nk ? ` · ${nk} Steuerstromkreis${nk === 1 ? '' : 'e'}` : '')),
-      warn ? h('span', { class: 'vk-warn' }, `⚠ ${warn} Hinweis${warn === 1 ? '' : 'e'}`) : null,
-      h('span', { class: 'vk-aktion' }, sortieren ? '' : `Plan bearbeiten ${PFEIL}`));
+      warn ? h('span', { class: 'vk-warn' }, warnIk(), `${warn} Hinweis${warn === 1 ? '' : 'e'}`) : null,
+      h('span', { class: 'vk-aktion' }, sortieren ? '' : ['Plan bearbeiten ', icon('rechts')]));
     grid.append(sortieren ? h('div', { class: 'vkhalter' }, karte, sortKnoepfe(P.verteiler, i)) : karte);
   });
   grid.append(h('button', { class: 'vkarte neu', on: { click: neuerVerteilerFenster } }, h('span', { class: 'vk-plus' }, '+'), h('span', {}, 'Neuer Verteiler')));
   m.append(grid);
   if (P.verteiler.length) m.append(h('h2', {}, 'Ausgabe'), h('div', { class: 'liste' },
-    zeile('Stromlaufplan ansehen und drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${pj.format || 'A4'} quer, auch als PDF` }),
+    zeile('Druckvorschau und Drucken', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${pj.format || 'A4'} quer, auch als PDF` }),
     zeile('Türzettel aller Verteiler', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' })));
   // Speicherstatus (ab v1.54): wann zuletzt als Datei gesichert; nach 7 Tagen (oder nie) ein Hinweis
   // ab v1.58 (C35) je Projekt: die Mahnung erst 7 Tage nach der ersten Änderung seit dem letzten Sichern bzw. Öffnen aus Datei
-  const px = projekte.find(q => q.id === projektId) || {}, dat = t => t ? new Date(t).toLocaleDateString('de-DE') : null;
+  const px = projekte.find(q => q.id === projektId) || {}, dat = t => t ? datumKurz(t) : null;
   const seit = px.geaendertSeitExport ? new Date(px.geaendertSeitExport) : null, alt = !!seit && Date.now() - seit.getTime() > 7 * 864e5;
   const ausDatei = px.importiert && (!px.export || px.importiert > px.export);
-  m.append(h('p', { class: 'hinweis status' }, 'Gespeichert auf diesem Gerät · ' + (ausDatei ? `aus Datei geöffnet am ${dat(px.importiert)}`
-    : `zuletzt als Datei gesichert: ${dat(px.export) || dat(ansicht.export) || 'nie'}`)));
-  if (P.verteiler.length && alt) m.append(h('p', { class: 'hinweis sichern' }, '⚠ Regelmäßig als Datei sichern – Browserdaten können verloren gehen. ',
+  // ab v1.62 (D39): „Automatisch in diesem Browser gespeichert · noch nie als Datei gesichert“
+  const gesichert = dat(px.export) || dat(ansicht.export);
+  m.append(h('p', { class: 'hinweis status' }, 'Automatisch in diesem Browser gespeichert · ' + (ausDatei ? `aus Datei geöffnet am ${dat(px.importiert)}`
+    : gesichert ? `zuletzt als Datei gesichert am ${gesichert}` : 'noch nie als Datei gesichert')));
+  if (P.verteiler.length && alt) m.append(h('p', { class: 'hinweis sichern' }, warnIk(), 'Regelmäßig als Datei sichern – Browserdaten können verloren gehen. ',
     h('button', { class: 'linkknopf', on: { click: exportieren } }, 'Jetzt sichern')));
-  m.append(h('p', { class: 'hinweis' }, `Fassung ${FASSUNG}.`));
+  m.append(h('p', { class: 'hinweis' }, `Version ${FASSUNG.replace(/^v/, '')}`));
   // Namensnennung nach CC BY 3.0 für die Schaltzeichen
   m.append(h('p', { class: 'hinweis lizenz' }, 'Schaltzeichen: ',
     h('a', { href: 'https://github.com/qelectrotech/qelectrotech-elements', target: '_blank', rel: 'noopener' }, 'Elementsammlung von QElectroTech'),
@@ -4348,7 +4445,9 @@ function uvAnlegen(v, k, name) {
 // Neues Projekt, Beispiel und Import legen ein weiteres Projekt an; das bisherige bleibt in der Liste (statt „Sichern und neu“).
 // Ein noch leeres Projekt (ohne Namen und Verteiler) wird weiterverwendet, damit keine leeren Einträge entstehen.
 const projektLeer = d => !d.verteiler.length && !d.projekt.projekt;
-const zeitDE = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.toLocaleDateString('de-DE')}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; };
+// ab v1.62 (D39): Datum überall TT.MM.JJJJ
+const datumKurz = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+const zeitDE = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${datumKurz(iso)}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; };
 function projektListeAnzeige() {         // zuletzt geändert zuerst; das geöffnete auch dann, wenn es noch nie gespeichert wurde
   const l = projekte.slice().sort((a, b) => String(b.geaendert || '').localeCompare(String(a.geaendert || '')));
   if (!l.some(x => x.id === projektId)) l.unshift({ id: projektId, name: projektName(P), geaendert: null });
@@ -4373,11 +4472,22 @@ function projektAnlegen(d, name) {
   projektAktiv(id(), d); sichern();
 }
 // ab v1.58 (C33): zuerst nach dem Namen fragen – Liste, Startkarte und Deckblatt zeigen denselben Namen
+const FIRMA_FELDER = ['firma', 'anschrift', 'ersteller'];
+// Schriftfelddaten des zuletzt bearbeiteten Projekts mit Firmenangaben (das geöffnete zuerst, sonst das jüngste in der Liste)
+function firmaQuelle() {
+  const hat = p => p && FIRMA_FELDER.some(f => p[f]) && !/^Beispiel( |$)/.test(p.projekt || '');      // nicht die Musterfirma des Beispiels
+  if (hat(P.projekt)) return P.projekt;
+  for (const x of projektListeAnzeige()) { if (x.id === projektId) continue; const d = jsonVon(lsLesen(pSchluessel(x.id))); if (d && hat(d.projekt)) return d.projekt; }
+  return null;
+}
 function neuesProjektAnlegen() {
   nameFenster('Neues Projekt', 'Name des Projekts', 'Neues Projekt', 'z. B. EFH Meier, Neubau', 'Anlegen', name => {
     const leer = projektLeer(P), d = neuesProjekt(); d.projekt.projekt = name;
+    // ab v1.62 (D34): Firma, Anschrift und „Erstellt durch“ aus dem zuletzt bearbeiteten Projekt übernehmen
+    const q = firmaQuelle(), mit = FIRMA_FELDER.filter(f => q && q[f]);
+    mit.forEach(f => { d.projekt[f] = q[f]; });
     projektAnlegen(d, 'Neues Projekt'); stapel = [{ s: 'start' }]; zeichne(); window.scrollTo(0, 0);
-    meldung(leer ? `„${name}“ angelegt – hier beginnen` : `„${name}“ angelegt – das bisherige steht unter „Alle Projekte“`); });
+    meldung(`„${name}“ angelegt` + (mit.length ? ' – Firma, Anschrift und Ersteller übernommen' : leer ? ' – hier beginnen' : ' – das bisherige steht unter „Alle Projekte“')); });
 }
 function projektDuplizieren(pid) {
   let d; try { d = projektLesen(pid); } catch (e) { meldung('Projekt lässt sich nicht lesen: ' + e.message); return; }
@@ -4408,23 +4518,28 @@ function projektLoeschen(pid, name) {
 }
 function bProjekte() {
   app.append(kopf('Projekte'));
-  const m = h('main'), l = h('div', { class: 'liste' });
+  // ab v1.62 (D39): ab 1024 px als Tabelle mit Spalten Verteiler, Geändert, Als Datei gesichert; Datum TT.MM.JJJJ
+  const m = h('main', { class: 'breit' }), l = h('div', { class: 'liste projtab' },
+    h('div', { class: 'pkopf', 'aria-hidden': 'true' }, h('span', {}, 'Projekt'), h('span', {}, 'Verteiler'), h('span', {}, 'Geändert'), h('span', {}, 'Als Datei gesichert')));
   projektListeAnzeige().forEach(x => {
     const akt = x.id === projektId, d = akt ? P : jsonVon(lsLesen(pSchluessel(x.id))), n = d && Array.isArray(d.verteiler) ? d.verteiler.length : null;
-    const name = akt ? projektName(P) : x.name || 'Projekt';
+    const name = akt ? projektName(P) : x.name || 'Unbenanntes Projekt';
+    const nv = n === null ? 'Daten fehlen' : `${n} Verteiler`, ge = x.geaendert ? zeitDE(x.geaendert) : '—', da = x.export ? datumKurz(x.export) : 'nie';
+    const z = zeile(name, akt ? 'geöffnet' : null, () => projektOeffnen(x.id),
+      { un: [nv, x.geaendert ? 'geändert ' + ge : null, x.export ? 'als Datei gesichert ' + da : 'nie als Datei gesichert'].filter(Boolean).join(' · ') });
+    [nv, ge, da].forEach(t => z.insertBefore(h('span', { class: 'psp' }, t), z.querySelector('.pfeil')));
     l.append(h('div', { class: 'pzeile' + (akt ? ' aktiv' : '') },
-      zeile(name, akt ? 'geöffnet' : null, () => projektOeffnen(x.id),
-        { un: [n === null ? 'Daten fehlen' : `${n} Verteiler`, x.geaendert ? 'geändert ' + zeitDE(x.geaendert) : 'noch nicht gespeichert'].join(' · ') }),
+      z,
       h('button', { class: 'pmehr', 'aria-label': `Aktionen für ${name}`, title: 'Aktionen', on: { click: () => menue(name, [
         akt ? null : ['Öffnen', () => projektOeffnen(x.id)],
-        akt ? ['Als Datei sichern', exportieren] : null,
+        akt ? ['Als Datei sichern …', exportieren] : null,
         ['Duplizieren', () => projektDuplizieren(x.id), { klein: 'Kopie als weiteres Projekt' }], '—',
         ['Löschen', () => projektLoeschen(x.id, name), { rot: true }]]) } }, '…')));
   });
-  // ab v1.58 (C36/C34): „+ Neues Projekt“ als Knopf im Akzent; „Beispiel ansehen“ auch hier
+  // ab v1.58 (C36/C34): „+ Neues Projekt“ als Knopf im Akzent; „Beispielprojekt öffnen“ auch hier
   m.append(l, h('div', { class: 'projektknoepfe' }, h('button', { class: 'knopf', on: { click: neuesProjektAnlegen } }, '+ Neues Projekt'),
-    h('button', { class: 'knopf zweit', on: { click: () => document.getElementById('datei').click() } }, 'Projekt aus Datei öffnen …'),
-    h('button', { class: 'knopf zweit', on: { click: beispielOeffnen } }, 'Beispiel ansehen')), h('p', { class: 'hinweis' }, 'Die Projekte liegen nur in diesem Browser. Sichern Sie sie regelmäßig als Datei – Browserdaten können verloren gehen.'));
+    h('button', { class: 'knopf zweit', title: 'Öffnen (Strg+O)', on: { click: () => document.getElementById('datei').click() } }, 'Öffnen …'),
+    h('button', { class: 'knopf zweit', on: { click: beispielOeffnen } }, 'Beispielprojekt öffnen')), h('p', { class: 'hinweis' }, 'Projekte liegen nur in diesem Browser. Sichern Sie sie regelmäßig als Datei.'));
   app.append(m);
 }
 // Beispielprojekt (ab v1.54, „grund“ aus tests/beispiele.js, beim Bau eingebettet); ab v1.56 als eigenes Projekt
@@ -4435,7 +4550,7 @@ function beispielOeffnen() {
   BEISPIEL();                            // baut P neu auf und speichert es im aktiven Projekt
   P.projekt.projekt = 'Beispiel ' + (P.projekt.projekt || ''); P.projekt.datum = new Date().toISOString().slice(0, 10);
   verlauf.stand = null; sichern(); exportStand(null);      // ab v1.58: das Beispiel gilt als gesichert (keine Mahnung)
-  stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne(); meldung('Beispiel geöffnet – Teile im Plan ' + tipp());
+  stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne(); meldung('Beispielprojekt geöffnet');
 }
 const BEISPIEL = () => {  P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Halle 3', ersteller:'Jean', nummer:'SLP-0001'});
  const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sichlasttrenn3', art:'gG', nenn:'63'}; hv.zaehler = {zeichen:'zaehler3'}; hv.spd = {zeichen:'spd4'};
@@ -4454,8 +4569,8 @@ const BEISPIEL = () => {  P = neuesProjekt(); Object.assign(P.projekt, {firma:'M
 function sortKnoepfe(liste, i, nachZeichnen = zeichne) {
   const tausch = d => ev => { ev.stopPropagation(); const j = i + d; [liste[i], liste[j]] = [liste[j], liste[i]]; sichern(); nachZeichnen(); };
   return h('span', { class: 'sort' },
-    h('button', { 'aria-label': 'nach oben', disabled: i === 0, on: { click: tausch(-1) } }, '↑'),
-    h('button', { 'aria-label': 'nach unten', disabled: i === liste.length - 1, on: { click: tausch(1) } }, '↓'));
+    h('button', { 'aria-label': 'nach oben', disabled: i === 0, on: { click: tausch(-1) } }, icon('hoch')),
+    h('button', { 'aria-label': 'nach unten', disabled: i === liste.length - 1, on: { click: tausch(1) } }, icon('runter')));
 }
 
 function bProjekt() {
@@ -4463,19 +4578,14 @@ function bProjekt() {
   const p = P.projekt, m = h('main');
   const f = (titel, feld, opt = {}) => zeile(titel, (feld === 'datum' ? datumDE(p[feld]) : p[feld]) || '—', () => textFeld(titel, p[feld], w => p[feld] = w, opt), { ohnePfeil: false });
   m.append(h('h2', {}, 'Schriftfeld'), h('div', { class: 'liste' },
-    f('Firma', 'firma'), f('Anschrift', 'anschrift'), f('Projekt', 'projekt'), f('Dokumenttitel', 'titel'),
+    f('Firma (rechtlicher Eigentümer)', 'firma'), f('Anschrift', 'anschrift'), f('Projekt', 'projekt'), f('Dokumenttitel', 'titel'),
     f('Erstellt durch', 'ersteller'), f('Zeichnungsnummer', 'nummer'), f('Revision', 'rev'), f('Ausgabedatum', 'datum', { typ: 'date' })));
-  m.append(h('p', { class: 'hinweis' }, 'Der Verteiler im Schriftfeld kommt aus dem jeweiligen Verteiler, die Blattnummern setzt der Generator.'));
+  m.append(h('p', { class: 'hinweis' }, 'Verteiler und Blattnummern trägt die App automatisch ein.'));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
-    zeile('Deckblatt und Inhaltsverzeichnis', p.deckblatt === false ? 'ohne' : 'mit',
-      () => wahlFeld('Deckblatt und Inhaltsverzeichnis', [['mit', 'mit', 'Blatt 1 Deckblatt, Blatt 2 Inhaltsverzeichnis'], ['ohne', 'ohne', 'der Plan beginnt mit dem ersten Verteiler']],
-        p.deckblatt === false ? 'ohne' : 'mit', w => p.deckblatt = w !== 'ohne')),
-    zeile('Übersichtsschaltplan', p.uebersicht === false ? 'ohne' : 'mit',
-      () => wahlFeld('Übersichtsschaltplan', [['mit', 'mit', 'einpolig, je Verteiler vor dem Stromlaufplan'], ['ohne', 'ohne', 'nur der allpolige Stromlaufplan']],
-        p.uebersicht === false ? 'ohne' : 'mit', w => p.uebersicht = w !== 'ohne')),
-    zeile('Klemmenplan', p.klemmenplan === false ? 'ohne' : 'mit',
-      () => wahlFeld('Klemmenplan', [['mit', 'mit', 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan'], ['ohne', 'ohne', 'kein Klemmenplan']],
-        p.klemmenplan === false ? 'ohne' : 'mit', w => p.klemmenplan = w !== 'ohne'))));
+    // ab v1.62 (D35): Schalter statt „mit/ohne“
+    schalterZeile('Deckblatt und Inhaltsverzeichnis', p.deckblatt !== false, an => p.deckblatt = an, { titel: 'Blatt 1 Deckblatt, Blatt 2 Inhaltsverzeichnis' }),
+    schalterZeile('Übersichtsschaltplan', p.uebersicht !== false, an => p.uebersicht = an, { titel: 'einpolig, je Verteiler vor dem Stromlaufplan' }),
+    schalterZeile('Klemmenplan', p.klemmenplan !== false, an => p.klemmenplan = an, { titel: 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan' })));
   app.append(m);
 }
 function datumDE(iso) { const x = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return x ? `${x[3]}.${x[2]}.${x[1]}` : (iso || ''); }
@@ -4483,7 +4593,7 @@ function datumDE(iso) { const x = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); ret
 function bVerteiler(b) {
   const v = vById(b.vid); if (!v) { zurueck(); return; }
   const e = berechne(v);
-  app.append(kopf(v.name, h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
+  app.append(kopf(`Verteiler ${v.name}`, h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
   const m = h('main');
   if (!einbettung) m.append(h('div', { class: 'liste' }, zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: `im Planblatt ${tipp()} und ändern` })));
   // Einspeisung
@@ -4510,22 +4620,22 @@ function bVerteiler(b) {
   baumZeilen(v, e, v.knoten, l, 0);
   // ab v1.60 (D12): im Plan-Editor stehen die Knöpfe „+ …“ nur im leeren Verteiler (sonst Palette und Marken „+“)
   if (!(einbettung && ED) || !v.knoten.length) l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = editorNeu(v, 'steckdose'); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
-           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ Gruppe (z. B. FI mit mehreren Abgängen)'),
-           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS (gemeinsame Steuerspannung)'),
-           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo (z. B. 230/24 V)'));
+           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ FI-Gruppe'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo'));
   m.append(l);
-  if (einbettung && ED) m.append(h('div', { class: 'liste' }, zeile('Mehrere Abgänge gemeinsam ändern', null, () => sammelWaehlen([], true),
-    { un: 'z. B. alle LS auf Kennlinie C oder alle Leitungen auf 2,5 mm² (Sammeländerung)' })));      // ab v1.56
-  if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Einphasige Abgänge je Außenleiter: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));
+  if (einbettung && ED) m.append(h('div', { class: 'liste' }, zeile('Mehrere Abgänge ändern …', null, () => sammelWaehlen([], true),
+    { titel: 'z. B. alle LS auf Kennlinie C' })));      // ab v1.56
+  if (v.leiter === '3NPE') m.append(h('p', { class: 'hinweis' }, `Phasenbelastung: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3} Abgänge`));
   const nKreise = Object.keys(e.steuer.aktiv).length;
   m.append(h('h2', {}, 'Steuerung'), h('div', { class: 'liste' },
     zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
-      { rot: e.steuer.warn.length > 0, un: (e.steuer.warn.length ? '⚠ ' : '') + 'Steuerspannung · ' + ST_ART[(v.steuerung && v.steuerung.spannung && v.steuerung.spannung.art) || 'abgang'] })));
+      { rot: e.steuer.warn.length > 0, un: [e.steuer.warn.length ? warnIk() : null, 'Steuerspannung · ' + ST_ART[(v.steuerung && v.steuerung.spannung && v.steuerung.spannung.art) || 'abgang']] })));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
     einbettung ? null : zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: `im Planblatt ${tipp()} und ändern` }),
-    zeile('Stromlaufplan', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts, dieser Verteiler zuerst sichtbar' }),
-    zeile('Türzettel', null, () => geh({ s: 'tuer', vid: v.id }), { un: 'Sicherungsübersicht für die Verteilertür' }),
-    zeile('Übersicht als Liste', null, () => geh({ s: 'liste', vid: v.id }), { un: 'Kennzeichen, Klemmen, Außenleiter, Leitungen' })));
+    zeile('Druckvorschau', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts' }),      // ab v1.62 (D32): ein Wortschatz
+    zeile('Türzettel-Vorschau', null, () => geh({ s: 'tuer', vid: v.id })),
+    zeile('Stromkreisliste', null, () => geh({ s: 'liste', vid: v.id }))));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen', null, () => frage('Verteiler löschen', `„${v.name}“ mit allen Abgängen löschen?`, () => {
     P.verteiler = P.verteiler.filter(x => x !== v);
     for (const w of P.verteiler) alleKnoten(w, k => { if (k.speist === v.id) k.speist = null; });
@@ -4534,22 +4644,28 @@ function bVerteiler(b) {
   app.append(m);
 }
 const KOPF_TITEL = { vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter', spd: 'Überspannungsschutz' };
+// ab v1.62 (D35): Zweitzeile ohne Wiederholung („Zähler / 3-phasig“), „kein“; ohne Gerät öffnet sich gleich die Geräteauswahl
+const ohneTitel = (titel, t) => String(t || '').startsWith(titel + ' ') ? t.slice(titel.length + 1) : t;
 function kopfZeile(v, feld, titel, bmk) {
   const g = v[feld];
-  const wert = g.zeichen ? [gName(g.zeichen), bemessung(g)].filter(Boolean).join(', ') : 'keine';
-  return zeile(titel, null, () => geh({ s: 'kopf', vid: v.id, feld }), { bmk: g.zeichen ? bmk : null, un: wert });
+  const wert = g.zeichen ? [ohneTitel(titel, gName(g.zeichen)), bemessung(g)].filter(Boolean).join(', ') : null;
+  return zeile(titel, g.zeichen ? null : 'kein', () => g.zeichen ? geh({ s: 'kopf', vid: v.id, feld }) : kopfGeraetWahl(v, feld), { bmk: g.zeichen ? bmk : null, un: wert });
+}
+function kopfGeraetWahl(v, feld) {
+  const g = v[feld];
+  wahlFeld(KOPF_TITEL[feld], WAHL[feld].map(k => [k, k ? gName(k) : 'kein']), g.zeichen, w => {
+    g.zeichen = w;
+    if (w && GERAETE[w].sicherung && !g.art) g.art = 'gG';
+    if (w && GERAETE[w].kennlinie && !g.kennlinie) g.kennlinie = 'C';
+    if (w && !GERAETE[w].ohneNenn && !g.nenn) g.nenn = '63';
+  });
 }
 function bKopf(b) {
   const v = vById(b.vid), g = v[b.feld], titel = KOPF_TITEL[b.feld], e = berechne(v), bmk = e.kopf[b.feld];
-  app.append(kopf(titel));
+  app.append(kopf(g.zeichen && bmk ? `${titel} ${bmk.t}` : titel));
   const m = h('main');
   m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
-    zeile('Gerät', g.zeichen ? gName(g.zeichen) : 'keines', () => wahlFeld(titel, WAHL[b.feld].map(k => [k, k ? gName(k) : 'keines']), g.zeichen, w => {
-      g.zeichen = w;
-      if (w && GERAETE[w].sicherung && !g.art) g.art = 'gG';
-      if (w && GERAETE[w].kennlinie && !g.kennlinie) g.kennlinie = 'C';
-      if (w && !GERAETE[w].ohneNenn && !g.nenn) g.nenn = '63';
-    })),
+    zeile('Gerät', g.zeichen ? gName(g.zeichen) : 'kein', () => kopfGeraetWahl(v, b.feld)),
     ...geraetZeilen(g),
     bmk ? zeile('Kennzeichen', bmk.t, () => bmkFeld('Kennzeichen', g, bmk.hand ? '' : bmk.t)) : null));
   if (b.feld === 'zaehler' && g.zeichen === 'zaehler3' && v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Der Verteiler ist als 1/N/PE angelegt.'));
@@ -4565,7 +4681,7 @@ function baumZeilen(v, e, liste, ziel, tiefe) {
       const a = e.abgaenge[k.id];
       const zielText = k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : [k.ziel.bez, k.ziel.ort].filter(Boolean).join(', ') || 'ohne Bezeichnung';
       z = zeile(zielText, a.phase.t, () => geh({ s: 'abgang', vid: v.id, kid: k.id }),
-        { bmk: a.f || { t: '—', hand: false }, einr: tiefe > 0, rot: !!a.warn, un: (a.warn ? '⚠ ' : '') + [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan', leitungText(k, a)].filter(Boolean).join(' · ') });
+        { bmk: a.f || { t: '—', hand: false }, einr: tiefe > 0, rot: !!a.warn, un: [a.warn ? warnIk() : null, [k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan', leitungText(k, a)].filter(Boolean).join(' · ')] });
     }
     if (sortieren) z.querySelector('.pfeil').replaceWith(sortKnoepfe(liste, i));
     ziel.append(z);
@@ -4577,7 +4693,7 @@ function baumZeilen(v, e, liste, ziel, tiefe) {
 
 function bEinspeisung(b) {
   const v = vById(b.vid);
-  app.append(kopf('Einspeisung'));
+  app.append(kopf(`Einspeisung ${v.name}`));
   const m = h('main');
   const sp = speisenderAbgang(v.id);
   // mögliche speisende Abgänge aus anderen Verteilern
@@ -4588,7 +4704,7 @@ function bEinspeisung(b) {
       quellen.push([w.id + ':' + k.id, `${w.name} ${(e.abgaenge[k.id].f || {}).t || ''}`.trim(), [k.ziel.bez, bemessung(k.geraet)].filter(Boolean).join(', ')]); });
   }
   m.append(h('h2', {}, 'Herkunft'), h('div', { class: 'liste' },
-    zeile('Gespeist aus', sp ? `${sp.v.name}` : 'Netz / Hausanschluss', () => wahlFeld('Gespeist aus', [['', 'Netz / Hausanschluss']].concat(quellen),
+    zeile('Gespeist aus', sp ? `${sp.v.name}` : 'Hausanschluss', () => wahlFeld('Gespeist aus', [['', 'Hausanschluss']].concat(quellen),
       sp ? sp.v.id + ':' + sp.k.id : '', w => {
         for (const x of P.verteiler) alleKnoten(x, k => { if (k.speist === v.id) k.speist = null; });
         if (w) { const [vid, kid] = w.split(':'); const q = knoten(vById(vid), kid); q.k.speist = v.id; q.k.ziel.anschluss = 'fest'; v.netzform = vById(vid).netzform === 'TN-C' ? 'TN-C' : 'TN-S'; }
@@ -4603,16 +4719,16 @@ function bEinspeisung(b) {
 function bGruppe(b) {
   const v = vById(b.vid), r = knoten(v, b.kid); if (!r) { zurueck(); return; }
   const g = r.k, e = berechne(v);
-  app.append(kopf('Gruppe', h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
+  app.append(kopf(`Gruppe ${(e.geraete[g.id] || {}).t || ''}`.trim(), h('button', { class: 'kopfknopf', 'aria-pressed': sortieren, on: { click: () => { sortieren = !sortieren; zeichne(); } } }, sortieren ? 'Fertig' : 'Sortieren')));
   const m = h('main');
   const ge = g.geraet;
   m.append(h('h2', {}, 'Schutzorgan der Gruppe'), h('div', { class: 'liste' },
     zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan der Gruppe', WAHL.gruppe.map(k => [k, gName(k), GERAET_KLEIN[k] || '']), ge.zeichen, w => {
       ge.zeichen = w; if (GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'C'; if (GERAETE[w].sicherung && !ge.art) ge.art = 'gG'; })),
     ...geraetZeilen(ge),
-    e.gruppenPhase[g.id] ? zeile('Außenleiter', g.phase && g.phase !== 'auto' ? g.phase : `${e.gruppenPhase[g.id].t} (automatisch)`,
+    e.gruppenPhase[g.id] ? zeile('Außenleiter', g.phase && g.phase !== 'auto' ? g.phase : `${e.gruppenPhase[g.id].t} · automatisch`,
       () => wahlFeld('Außenleiter der Gruppe', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${e.gruppenPhase[g.id].t}` : '']), g.phase || 'auto', w => g.phase = w),
-      { un: 'gilt für alle Abgänge der Gruppe' }) : null,
+      { titel: 'gilt für alle Abgänge der Gruppe' }) : null,
     zeile('Kennzeichen', e.geraete[g.id].t, () => bmkFeld('Kennzeichen', ge, e.geraete[g.id].hand ? '' : e.geraete[g.id].t), { bmk: null })));
   m.append(h('h2', {}, 'Abgänge der Gruppe'));
   const l = h('div', { class: 'liste' });
@@ -4658,10 +4774,10 @@ function bAbgang(b) {
   const k = r.k, e = berechne(v), a = e.abgaenge[k.id], ge = k.geraet;
   if (k.trafo) return bSteuerTrafo(v, r, e, a);
   if (k.steuer) return bSteuerLs(v, r, e, a);
-  app.append(kopf(a.f ? `Abgang ${a.f.t}` : 'Abgang'));
+  app.append(kopf([a.f ? `Abgang ${a.f.t}` : 'Abgang', abgangName(k)].filter(Boolean).join(' – ')));      // ab v1.62 (D36): „Art Kennzeichen – Name“
   const m = h('main');
   const inGruppe = !!r.eltern;
-  m.append(h('h2', {}, 'Ziel'), h('div', { class: 'liste' },
+  m.append(h('h2', {}, 'Verbraucher'), h('div', { class: 'liste' },
     k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd' })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
@@ -4674,7 +4790,7 @@ function bAbgang(b) {
       v.leiter === '1NPE' ? null : zeile('Art', mo.art === '1' ? 'Wechselstrom (L N PE)' : 'Drehstrom (L1 L2 L3 PE)', () => wahlFeld('Art',
         [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
       zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => { mo.kw = w.replace(/\s*kW$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 4' }, Z_KW))),
-      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => { mo.strom = w.replace(/\s*A$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 8,2' }, Z_A)), { un: 'erscheint im Plan neben dem Motor' })));
+      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => { mo.strom = w.replace(/\s*A$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 8,2' }, Z_A)), { titel: 'erscheint im Plan neben dem Motor' })));
     if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
       zeile('Schaltung', SCHALTUNG[mo.schaltung || 'direkt'], () => wahlFeld('Schaltung', [['direkt', 'Direktstart', 'ein Schütz oder ohne'],
         ['wende', 'Wendeschaltung', 'Schütze Rechts und Links mit gegenseitiger Verriegelung'], ['sd', 'Stern-Dreieck', 'Schütze Netz, Stern, Dreieck und Zeitrelais; Motor mit 6 Anschlüssen']],
@@ -4683,8 +4799,8 @@ function bAbgang(b) {
         .concat(a.zusatz.map((z, i) => zeile(`Kennzeichen Schütz ${z.schalt.rolle}`, z.schalt.bmk.t, () => bmkFeld('Kennzeichen', mo['q' + (i + 2)] || (mo['q' + (i + 2)] = {}), z.schalt.bmk.hand ? '' : z.schalt.bmk.t)))) : []),
       a.sd ? zeile('Kennzeichen zweite Leitung', `${a.w2.t} (U2 V2 W2)`, () => bmkFeld('Kennzeichen', mo.w2 || (mo.w2 = {}), a.w2.hand ? '' : a.w2.t)) : null].filter(Boolean));
     if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
-      zeile('Frequenzumrichter', mo.fu ? 'ja' : 'nein', () => wahlFeld('Frequenzumrichter', [['ja', 'ja', 'im Verteiler zwischen Schutzorgan und Klemmen; Motorleitung geschirmt'], ['nein', 'nein']],
-        mo.fu ? 'ja' : 'nein', w => { mo.fu = w === 'ja' ? (mo.fu || {}) : null; if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) k.leitung.typ = '2YSLCY-J'; })),
+      schalterZeile('Frequenzumrichter', !!mo.fu, an => { mo.fu = an ? (mo.fu || {}) : null; if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) k.leitung.typ = '2YSLCY-J'; },
+        { titel: 'zwischen Schutzorgan und Klemmen, Motorleitung geschirmt' }),
       a.fu ? zeile('Kennzeichen Frequenzumrichter', a.fu.t, () => bmkFeld('Kennzeichen', mo.fu, a.fu.hand ? '' : a.fu.t)) : null].filter(Boolean));
     if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) m.append(h('p', { class: 'warnung' }, 'Hinter dem Frequenzumrichter ist eine geschirmte Motorleitung üblich (z. B. 2YSLCY-J, NYCWY).'));
     if (mo.art === '1' && a.drei) m.append(h('p', { class: 'warnung' }, 'Wechselstrommotor an einem 3-poligen Schutzorgan: der Abgang wird dreiphasig gezeichnet.'));
@@ -4704,26 +4820,27 @@ function bAbgang(b) {
   m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(v, k, a)));
   if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi)
     m.append(h('p', { class: 'warnung' }, 'Hinweis: FI/LS hinter einem FI – zwei Fehlerstromschutzeinrichtungen hintereinander.'));
-  const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { un: 'wird an der Gruppe eingestellt' })
-    : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+  const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} · von der Gruppe`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { titel: 'wird an der Gruppe eingestellt' })
+    : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} · automatisch` : k.phase),
     () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w), { ohnePfeil: v.leiter === '1NPE' });
   m.append(kopfMitHilfe('Leitung', ['Außenleiter', 'N', 'PE', 'NYM-J', 'Querschnitt', 'Kennzeichen', 'Klemmleiste -X1']), h('div', { class: 'liste' },
     phasenwahl,
-    zeile('Leiter', a.leiter.join(' '), () => {}, { ohnePfeil: true, un: a.drei ? 'dreiphasig, weil Gerät oder Anschluss 3-polig ist' : null }),
+    zeile('Leiter', a.leiter.join(' '), () => {}, { ohnePfeil: true, titel: 'aus Gerät und Anschluss' }),
     zeile('Leitungstyp', k.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', LEITUNGSTYPEN, k.leitung.typ, w => k.leitung.typ = w)),
     zeile('Querschnitt', (k.leitung.quer || '—') + ' mm²', () => wahlFeld('Querschnitt', QUERSCHNITTE.map(x => [x, x + ' mm²']), k.leitung.quer, w => k.leitung.quer = w)),
-    zeile('Kennzeichen Leitung', `${a.w.t}  ${leitungText(k, a)}`, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
-    zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : 'wie Verteiler') + (a.klemmen ? ` · ${klemmenText(a)}` : ''),
+    zeile('Kennzeichen Leitung', a.w.t, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
+    zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : `wie im Verteiler (${KLEMMEN_V[v.klemmen || 'ohne']})`) + (a.klemmen ? ` · ${klemmenText(a)}` : ''),
       () => wahlFeld('Klemmen', KLEMMEN_WAHL(v), k.klemmen || 'verteiler', w => k.klemmen = w))));
   // Unterverteiler anschließen
   const freie = P.verteiler.filter(w => w !== v && (!speisenderAbgang(w.id) || k.speist === w.id));
-  m.append(h('h2', {}, 'Unterverteiler'), h('div', { class: 'liste' },
+  // ab v1.62 (D35): ohne eigenen Abschnitt in der Liste „Verbraucher“ (dichter, alle Felder ohne Scrollen)
+  m.querySelector('.liste').append(
     zeile('Speist Unterverteiler', k.speist ? (vById(k.speist) || {}).name : 'nein', () => wahlFeld('Speist Unterverteiler',
       [['', 'nein']].concat(freie.map(w => [w.id, w.name]), [['+neu', '+ Neuer Unterverteiler …', 'legt einen Verteiler an, der aus diesem Abgang gespeist wird']]), k.speist || '', w => {
         if (w === '+neu') return setTimeout(() => nameFenster('Neuer Unterverteiler', 'Name des Unterverteilers', freierName('UV'), 'z. B. UV Obergeschoss', 'Anlegen', n => {
           uvAnlegen(v, k, n); aenderung('Neuer Unterverteiler'); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
         k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
-      { un: 'Der Unterverteiler zeigt diesen Abgang dann als seine Einspeisung.' })));
+      { titel: 'Der Unterverteiler zeigt diesen Abgang als Einspeisung' }));
   if (!(einbettung && ED)) m.append(h('h2', {}, ''), h('div', { class: 'liste' },      // ab v1.60 (D12/D15) wie bei der Gruppe
     zeile('Abgang löschen', null, () => knotenLoeschen(v, r), { rot: true, ohnePfeil: true })));
   app.append(m);
@@ -4835,7 +4952,7 @@ function schaltZeilen(v, k, a) {
       if (w) kreisAnlegen(v, k); })));   // Steuerstromkreis mit der Spule gleich anlegen (ab v1.11)
   // ab v1.56: Treppenlicht als Vorlage am Lichtabgang
   const tl = k.ziel.anschluss === 'leuchte' && !k.speist ? zeile('Treppenlicht …', null, () => treppenlichtAbgang(v, k),
-    { un: 'Zeitrelais ausschaltverzögert mit Tastern – Vorlage für den Steuerstromkreis' }) : null;
+    { titel: 'Zeitrelais ausschaltverzögert mit Tastern' }) : null;
   if (!sg) return tl ? z.concat(tl) : z;
   z.push(zeile('Pole', a.schalt.pole.join(' + '), () => wahlFeld('N mitschalten', [
     ['nein', 'nur Außenleiter', a.drei ? 'L1, L2, L3' : 'L'], ['ja', 'N mitschalten', a.drei ? 'L1, L2, L3, N' : 'L, N']],
@@ -4851,8 +4968,8 @@ function schaltZeilen(v, k, a) {
     { text: 'Ausstattung des Geräts. Gezeichnet werden nur die Hilfskontakte, die ein Steuerstromkreis nutzt.' })));
   z.push(zeile('Kennzeichen', a.schalt.bmk.t, () => bmkFeld('Kennzeichen', sg, a.schalt.bmk.hand ? '' : a.schalt.bmk.t)));
   if (sg.typ === 'schuetz') {      // Überlastrelais unter dem Schütz (ab v1.38)
-    z.push(zeile('Überlastrelais', sg.ol ? `ja · ${sg.ol.bereich || '?'} A` : 'nein', () => wahlFeld('Überlastrelais', [['ja', 'ja', 'unter dem Schütz; Öffner 95–96 kommt in den Spulenpfad'], ['nein', 'nein']],
-      sg.ol ? 'ja' : 'nein', w => { if (w === 'ja') { sg.ol = sg.ol || { bereich: olBereich(k) }; olEinsetzen(v, k); } else { sg.ol = null; olEntfernen(v, k); } })));
+    z.push(schalterZeile('Überlastrelais', !!sg.ol, an => { if (an) { sg.ol = sg.ol || { bereich: olBereich(k) }; olEinsetzen(v, k); } else { sg.ol = null; olEntfernen(v, k); } },
+      { titel: 'unter dem Schütz, Öffner 95–96 im Spulenpfad' }));
     if (sg.ol) {
       // Stern-Dreieck (ab v1.52): Hinweis auf die Einstellung im Strang
       const iS = k.motor && k.motor.schaltung === 'sd' && motorStrom(k) ? (motorStrom(k) / Math.sqrt(3)).toFixed(1).replace('.', ',') : null;
@@ -4863,7 +4980,7 @@ function schaltZeilen(v, k, a) {
     }
   }
   z.push(zeile('Steuerstromkreis bearbeiten', null, () => { const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); },
-    { un: 'Kontakte, Taster, Meldeleuchten; Steuerspannung' }));
+    { titel: 'Kontakte, Taster, Meldeleuchten, Steuerspannung' }));
   if (tl) z.push(tl);
   return z;
 }
@@ -4910,19 +5027,21 @@ function bSteuerung(b) {
   schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id)).forEach(k => l.append(h('button', { class: 'neu inliste', on: { click: () => {
     const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
   l.append(h('button', { class: 'neu inliste', on: { click: () => { const kr = kreisOhneSchaltgeraet(v); sichern(); imPlan(v, kr); } } },
-    '+ Kreis ohne Schaltgerät (z. B. Meldeleuchte, eigenständiges Zeitrelais)'));
+    '+ Kreis ohne Schaltgerät'));
   m.append(h('h2', {}, 'Kreise'), l);
-  e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, '⚠ ' + w)));
+  e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, warnIk(), w)));
   // Befehlsgeber und Meldeleuchten
   const gl = h('div', { class: 'liste' });
   st.geraete.forEach(g => gl.append(zeile([g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], null,
-    () => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), { bmk: e.steuer.geraete[g.id], un: ST_ZEICHEN[g.zeichen][0] + ` · ${stVerwendet(v, g.id)}× verwendet` })));
+    () => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), { bmk: e.steuer.geraete[g.id], un: ST_ZEICHEN[g.zeichen][0] + verwendetText(v, g.id) })));
   gl.append(h('button', { class: 'neu inliste', on: { click: () => wahlFeld('Neues Gerät',
     Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml' || art === 'zg').map(([z, [n]]) => [z, n]), '',
     w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) } }, '+ Befehlsgeber, Meldeleuchte oder Zeitrelais'));
   m.append(h('h2', {}, 'Befehlsgeber, Meldeleuchten, Zeitrelais'), gl);
   app.append(m);
 }
+// ab v1.62 (D35): „2× verwendet“ erst bei mehrfacher Nutzung
+const verwendetText = (v, gid) => { const n = stVerwendet(v, gid); return n === 1 ? '' : n ? ` · ${n}× verwendet` : ' · nicht verwendet'; };
 // wie oft ein Gerät auf Plätzen oder als Verbraucher vorkommt
 function stVerwendet(v, gid) {
   let n = 0;
@@ -4936,7 +5055,7 @@ function bKreis(b) {
   const e = berechne(v), sp = st.spannung || { art: 'abgang' };
   const spP = kr.pfade.find(p => p.verbraucher && e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt);
   const sa = spP && e.abgaenge[spP.verbraucher.g], sk = spP && knoten(v, spP.verbraucher.g).k, kk = kreisKopf(v, e, kr);
-  app.append(kopf(kk ? `Steuerstromkreis ${kk.bmk.t}` : 'Steuerstromkreis'));
+  app.append(kopf(kk ? `Steuerstromkreis ${kk.bmk.t} – ${kr.name || kk.name}` : 'Steuerstromkreis'));
   const m = h('main');
   // Kreis und Steuerspannung
   const gem = sp.art !== 'abgang' && sp.quelle && knoten(v, sp.quelle);
@@ -4952,8 +5071,8 @@ function bKreis(b) {
       abg.map(k => [k.id, `${(e.abgaenge[k.id].f || {}).t || '—'} ${abgangName(k)}`, k === sk ? 'Abgang des Schaltgeräts' : '']),
       kr.quelle ? kr.quelle.kid : '', w => kr.quelle = { art: 'abgang', kid: w }), { rot: !qk }));
   }
-  if (b.s !== 'editor') kz.push(zeile('Im Plan bearbeiten', null, () => imPlan(v, kr), { un: `Plätze direkt im Blatt ${tipp()}` }));
-  kz.push(zeile('Vorlage einsetzen', null, () => vorlageWahl(v, kr), { un: VORLAGEN.map(x => x[1]).join(', ') }));
+  if (b.s !== 'editor') kz.push(zeile('Im Plan bearbeiten', null, () => imPlan(v, kr), { titel: `Plätze direkt im Blatt ${tipp()}` }));
+  kz.push(zeile('Vorlage einsetzen …', null, () => vorlageWahl(v, kr), { un: `${VORLAGEN.length} Vorlagen, z. B. Selbsthaltung, Treppenlicht` }));
   m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
   if (!kk) m.append(h('p', { class: 'warnung' }, 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.'));
   // Pfade und Zweige
@@ -4963,12 +5082,17 @@ function bKreis(b) {
     const z = [];
     if (zw) {
       const plaetze = [0, 1, 2, 3, 4, 5].map(i => [String(i), `Platz ${i + 1}`]);
-      z.push(zeile('von Platz', String(zw.von + 1), () => wahlFeld('Zweig beginnt an', plaetze, String(zw.von), w => { zw.von = +w; if (zw.bis < zw.von) zw.bis = zw.von; })));
-      z.push(zeile('bis', zw.bis >= 6 ? 'Verbraucher (bis N)' : `Platz ${zw.bis + 1}`, () => wahlFeld('Zweig endet an',
+      z.push(zeile('Von', `Platz ${zw.von + 1}`, () => wahlFeld('Zweig beginnt an', plaetze, String(zw.von), w => { zw.von = +w; if (zw.bis < zw.von) zw.bis = zw.von; })));
+      z.push(zeile('Bis', zw.bis >= 6 ? 'Verbraucher (bis N)' : `Platz ${zw.bis + 1}`, () => wahlFeld('Zweig endet an',
         plaetze.filter(([w]) => +w >= zw.von).concat([['6', 'Verbraucher', 'eigener Verbraucher, endet an N']]), String(zw.bis), w => zw.bis = +w)));
     }
     const von = zw ? zw.von : 0, bis = zw ? zw.bis : 6;
-    for (let i = von; i <= Math.min(bis, 5); i++) z.push(platzZeile(v, e, p, i));
+    // ab v1.62 (D35): leere Plätze nebeneinander als eine Zeile „Platz 2–6 · leer“
+    for (let i = von; i <= Math.min(bis, 5); i++) {
+      if (p.plaetze[i]) { z.push(platzZeile(v, e, p, i)); continue; }
+      let j2 = i; while (j2 + 1 <= Math.min(bis, 5) && !p.plaetze[j2 + 1]) j2++;
+      const i0 = i; z.push(zeile(i0 === j2 ? `Platz ${i0 + 1}` : `Platz ${i0 + 1}–${j2 + 1}`, 'leer', () => platzWahl(v, e, p, i0))); i = j2;
+    }
     if (bis >= 6) z.push(verbraucherZeile(v, e, p));
     if (!zw) z.push(h('button', { class: 'neu inliste', on: { click: () => {
       let i = j + 1; while (kr.pfade[i] && kr.pfade[i].zweig) i++;
@@ -4980,7 +5104,6 @@ function bKreis(b) {
     m.append(h('h2', {}, zw ? `Zweig neben Pfad ${nr}` : `Pfad ${nr}`), h('div', { class: 'liste' }, ...z));
   });
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, h('button', { class: 'neu inliste', on: { click: () => { kr.pfade.push(neuerPfad()); sichern(); zeichne(); } } }, '+ Pfad')));
-  m.append(h('p', { class: 'hinweis' }, 'Plätze 1–6 von oben (L) nach unten, darunter der Verbraucher (Spule, Meldeleuchte) an N. Ein Zweig liegt parallel zum Pfad links daneben.'));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Kreis löschen', null, () => frage('Kreis löschen',
     'Den Steuerstromkreis löschen? Ein Schaltgerät im Abgang bleibt.', () => { st.kreise = st.kreise.filter(x => x !== kr); fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
@@ -4988,7 +5111,7 @@ function bKreis(b) {
 // Beschriftung eines Platzes: Zeichen, Gerät und Anschlüsse
 function platzZeile(v, e, p, i) {
   const pl = p.plaetze[i];
-  if (!pl) return zeile(`Platz ${i + 1}`, '—', () => platzWahl(v, e, p, i), { un: 'leer: durchgehende Leitung' });
+  if (!pl) return zeile(`Platz ${i + 1}`, 'leer', () => platzWahl(v, e, p, i), { titel: 'durchgehende Leitung' });
   const sa = e.abgaenge[pl.g], g = !sa && ((v.steuerung.geraete || []).find(x => x.id === pl.g));
   const z = pl.z || (g && g.zeichen), kn = e.steuer.kontakte[p.id + ':' + i];
   const name = (ST_ZEICHEN[z] || [z || '?'])[0];
@@ -5131,7 +5254,7 @@ function bSteuerTrafo(v, r, e, a) {
     ...geraetZeilen(ge),
     a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null,
     T.prim === '400' ? zeile('Außenleiter', 'L1–L2', () => {}, { ohnePfeil: true }) : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => {}, { ohnePfeil: true })
-      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} · automatisch` : k.phase),
         () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w),
         { ohnePfeil: v.leiter === '1NPE' })));
   if (T.prim === '400' && ge.zeichen !== 'ls1') m.append(h('p', { class: 'warnung' }, 'Bei 400 V wird der Primär-LS als zwei 1-polige Schaltglieder gezeichnet; bitte LS 1-polig wählen.'));
@@ -5159,7 +5282,7 @@ function bSteuerLs(v, r, e, a) {
     ...geraetZeilen(ge),
     a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null,
     a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} (von der Gruppe)`, () => {}, { ohnePfeil: true })
-      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} (automatisch)` : k.phase),
+      : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} · automatisch` : k.phase),
         () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w),
         { ohnePfeil: v.leiter === '1NPE' })));
   m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Steuer-LS löschen', null, () => frage('Steuer-LS löschen', 'Den Steuer-LS löschen?', () => {
@@ -5214,10 +5337,26 @@ function vorlageWahl(v, kr) {
 }
 // Treppenlicht (ab v1.56): Zahl der Taster und Leuchtdauer erfragen
 const TL_ZEITEN = ['1 min', '2 min', '3 min', '5 min', '10 min'];
+// ab v1.62 (D40): „anderer Wert …“ mit Zahlenfeld (s, min oder h; ohne Einheit Minuten)
 function treppenlichtFragen(fertigF) {
   wahlFeld('Treppenlicht: wie viele Taster?', [1, 2, 3, 4, 5].map(n => [String(n), `${n} Taster`]), '', n => setTimeout(() =>
-    wahlFeld('Treppenlicht: Leuchtdauer', TL_ZEITEN.map(z => [z, z]), '3 min', z => setTimeout(() => fertigF({ n: +n, zeit: z }), 0),
+    wahlFeld('Treppenlicht: Leuchtdauer', TL_ZEITEN.map(z => [z, z]).concat([['+', 'anderer Wert …']]), '3 min', z => setTimeout(() =>
+      z === '+' ? leuchtdauerFragen(t => fertigF({ n: +n, zeit: t })) : fertigF({ n: +n, zeit: z }), 0),
       { text: 'Ausschaltverzögerung des Zeitrelais; später im Abgang unter „Schaltgerät“ änderbar.' }), 0));
+}
+function leuchtdauerFragen(fertigF) {
+  const i = h('input', { type: 'text', inputmode: 'decimal', placeholder: 'z. B. 90 s oder 4 min', 'aria-label': 'Leuchtdauer', enterkeyhint: 'done' });
+  const fe = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true });
+  let ok = null;
+  const wert = () => { const t = i.value.trim(); return /^\d+(?:[.,]\d+)?$/.test(t) ? t + ' min' : t.replace(/^(\d+(?:[.,]\d+)?)\s*/, '$1 '); };
+  const pruef = () => { const t = i.value.trim(), f = t ? zahlFehler(t, Z_ZEIT) : null; fe.textContent = f || ''; fe.hidden = !f; ok.disabled = !t || !!f; return !ok.disabled; };
+  const los = s => { if (!pruef()) { i.focus(); return; } const w = wert(); s(false); fertigF(w); };
+  const schl = fenster('Treppenlicht: Leuchtdauer', [h('p', { class: 'text' }, 'Zahl mit s, min oder h; ohne Einheit Minuten.'), i, fe], s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    ok = h('button', { class: 'knopf', on: { click: () => los(s) } }, 'Übernehmen')]);
+  i.addEventListener('input', pruef);
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); los(schl); } });
+  pruef(); setTimeout(() => i.focus(), 50);
 }
 // Treppenlicht direkt an einem Abgang (Eigenschaften „Schaltgerät“ bzw. Palette „Steuerung“): Kreis anlegen, Vorlage einsetzen
 function treppenlichtAbgang(v, k) {
@@ -5317,12 +5456,12 @@ const ST_PALETTE = [
   ['Verbraucher und Radierer', ['spule', 'meldeleuchte', 'leer']]];
 const istSteuerWerkzeug = t => !!t && (t === 'spule' || t === 'leer' || !!ST_ZEICHEN[t]);
 const istZeichenWerkzeug = t => /^z(leiter|text|rahmen)$/.test(t || '');
-const WERKZEUG_NAME = z => z === 'spule' ? 'Spule' : z === 'leer' ? 'Radierer' : ST_ZEICHEN[z][0];
+const WERKZEUG_NAME = z => z === 'spule' ? 'Spule' : z === 'leer' ? 'Platz leeren' : ST_ZEICHEN[z][0];      // ab v1.62 (D38): statt „Radierer“
 // Kurznamen der Steuerungs-Palette (ab v1.54) mit weichen Trennstellen nur an sinnvollen Stellen; der volle Name steht im Tooltip
 const PAL_KURZ = { schalter_hand: 'Schalter hand\u00adbetätigt', daemmerung: 'Dämmerungs\u00adschalter', bewegung: 'Bewegungs\u00admelder', praesenz: 'Präsenz\u00admelder',
-  endschalter_s: 'End\u00adschalter Schließer', endschalter_oe: 'End\u00adschalter Öffner', s_schwimmer: 'Schwimmer S', oe_schwimmer: 'Schwimmer Ö', w_schwimmer: 'Schwimmer W',
+  endschalter_s: 'End\u00adschalter Schließer', endschalter_oe: 'End\u00adschalter Öffner', s_schwimmer: 'Schwimmer Schließer', oe_schwimmer: 'Schwimmer Öffner', w_schwimmer: 'Schwimmer Wechsler',
   hilfs_s: 'Hilfs\u00adschließer', hilfs_oe: 'Hilfs\u00adöffner', oe_thermisch: 'Überlast\u00adrelais 95–96', s_thermisch: 'Überlast\u00adrelais 97–98',
-  mss_s: 'Motor\u00adschutz S', mss_oe: 'Motor\u00adschutz Ö', k_s_ein: 'Schließer ein\u00adverzögert', k_s_aus: 'Schließer aus\u00adverzögert',
+  mss_s: 'Motor\u00adschutz Schließer', mss_oe: 'Motor\u00adschutz Öffner', k_s_ein: 'Schließer ein\u00adverzögert', k_s_aus: 'Schließer aus\u00adverzögert',
   k_s_einaus: 'Schließer ein/aus\u00adverzögert', k_oe_ein: 'Öffner ein\u00adverzögert', k_oe_aus: 'Öffner aus\u00adverzögert', meldeleuchte: 'Melde\u00adleuchte' };
 function zeichenIcon(kennung) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -5414,14 +5553,15 @@ function editorPlatz(v, b, pid, i) {
   let nr = 0; kr.pfade.slice(0, j + 1).forEach((q, n) => { if (!(n > 0 && q.zweig)) nr++; });
   // ab v1.60 (D12): die Befehle (Gerät wählen, Löschen, Nach oben/unten, Zweig, Pfad, Vorlage …) stehen in der Leiste bzw.
   // Kopfleiste und im Rechtsklick-Menü (befehle()), das Fach zeigt nur Werte
-  return { titel: `${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)} · ${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr}${kk ? ' · ' + kk.bmk.t : ''}`, inhalt: h('div', {},
+  // ab v1.62 (D36): Titel von groß nach klein „-Q2 › Pfad 1 › Platz 1“
+  return { titel: `${kk ? kk.bmk.t + ' › ' : ''}${zw ? 'Zweig neben Pfad ' + nr : 'Pfad ' + nr} › ${i === 6 ? 'Verbraucher' : 'Platz ' + (i + 1)}`, inhalt: h('div', {},
     h('h2', {}, i === 6 ? 'Verbraucher' : 'Kontakt'),
     ak ? h('div', { class: 'liste' }, i === 6 ? verbraucherZeile(v, e, p) : platzZeile(v, e, p, i))
        : h('p', { class: 'hinweis' }, 'Dieser Platz liegt außerhalb des Zweigs – „Zweig bis hier verlängern“ nimmt ihn auf.'),
     h('h2', {}, 'Steuerstromkreis'),
-    h('div', { class: 'liste' }, zeile('Einstellungen des Kreises', kk ? kk.bmk.t : null, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
-      { un: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade als Liste' })),
-    ...e.steuer.warn.map(w => h('p', { class: 'warnung' }, '⚠ ' + w))) };
+    h('div', { class: 'liste' }, zeile(kk ? `Steuerstromkreis ${kk.bmk.t} öffnen` : 'Steuerstromkreis öffnen', null, () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
+      { titel: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade' })),
+    ...e.steuer.warn.map(w => h('p', { class: 'warnung' }, warnIk(), w))) };
 }
 // Tastenkürzel: Rückgängig/Wiederholen überall, alles andere im Plan-Editor (Desktop)
 document.addEventListener('keydown', ev => {
@@ -5522,6 +5662,7 @@ const ICONS = {
   vorlage: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7', abgaenge: 'M4 4h16v16H4zM9.5 9.5v4M14.5 9.5v4',
   spalteR: 'M3 12h13M12 8l4 4-4 4M20 5v14', spalteL: 'M21 12H8M12 8l-4 4 4 4M4 5v14', umbruch: 'M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M12 10l3 3-3 3',
   nadel: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8', suche: 'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8', auto: 'M5 19l9-9M14 5l1.2 2.8L18 9l-2.8 1.2L14 13l-1.2-2.8L10 9l2.8-1.2zM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6z', frage: 'M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.1.9-1.1 1.7V14M12 17.6h.01',
+  warn: 'M12 4.2L21.4 20H2.6zM12 10v4.6M12 17.3h.01',      // ab v1.62 (D37): statt des Textzeichens „⚠“
 };
 function icon(n) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
@@ -5529,6 +5670,7 @@ function icon(n) {
   return s;
 }
 const iconKl = (n, kl) => { const s = icon(n); s.setAttribute('class', kl); return s; };
+const warnIk = () => iconKl('warn', 'warnik');      // ab v1.62 (D37): Warnsymbol vor Hinweisen
 // Tooltip „Name (Kürzel)“ mit höchstens 60 Zeichen (ab v1.61, D24/M11)
 const titelKurz = (l, taste) => { const k = taste ? ` (${taste})` : ''; l = String(l).replace(/[()]/g, ''); return (l.length + k.length > 60 ? l.slice(0, 59 - k.length).trimEnd() + '…' : l) + k; };
 const ik = (name, label, f, opt = {}) => h('button', { class: 'ikon' + (opt.cls ? ' ' + opt.cls : ''), 'aria-label': label, title: titelKurz(label, opt.taste),
@@ -5604,14 +5746,13 @@ function lageZeilen(v, r, b) {
   const z = [];
   if (lg && !r.eltern) {
     const sp = ED.raster.sp, fest = (L.spalten || {})[id];
-    z.push(zeile('Spalte', `${lg.col}${fest ? ' (von Hand)' : ' (automatisch)'}`, () => wahlFeld('Spalte', [['', 'automatisch', 'direkt hinter dem vorigen Abgang']]
+    z.push(zeile('Spalte', `${lg.col} · ${fest ? 'von Hand' : 'automatisch'}`, () => wahlFeld('Spalte', [['', 'automatisch', 'direkt hinter dem vorigen Abgang']]
       .concat(Array.from({ length: sp - 2 }, (_, i) => [String(i + 2), `Spalte ${i + 2}`])), fest ? String(fest) : '',
       w => { const L2 = lay(v); if (w) L2.spalten[id] = +w; else delete L2.spalten[id]; }, { text: 'Liegt die Spalte vor dem Platz der Automatik, bleibt es bei dieser.' })));
-    z.push(zeile('Neues Blatt ab hier', (L.umbruch || {})[id] ? 'ja' : 'nein', () => wahlFeld('Neues Blatt ab hier', [['ja', 'ja'], ['nein', 'nein']],
-      (L.umbruch || {})[id] ? 'ja' : 'nein', w => { const L2 = lay(v); if (w === 'ja') L2.umbruch[id] = true; else delete L2.umbruch[id]; })));
+    z.push(schalterZeile('Neues Blatt ab hier', !!(L.umbruch || {})[id], an => { const L2 = lay(v); if (an) L2.umbruch[id] = true; else delete L2.umbruch[id]; }));
   }
   if (hand) z.push(zeile('Automatik anwenden', null, () => { automatik(v, 'k:' + id); aenderung('Automatik anwenden'); sichern(); zeichne(); },
-    { un: 'Spalte, Blatt und verschobene Geräte wieder automatisch', ohnePfeil: true }));
+    { titel: 'Spalte, Blatt und verschobene Geräte wieder automatisch', ohnePfeil: true }));
   return z.length ? h('div', {}, h('h2', {}, 'Lage im Plan'), h('div', { class: 'liste' }, ...z)) : h('div');
 }
 // Eigenschaften eines Geräts im Blatt: Lage, darunter die Eigenschaften seines Abgangs
@@ -5621,8 +5762,8 @@ function editorTeil(v, key, b) {
   const d = (v.layout && v.layout.lage && v.layout.lage[key]) || null;
   const kopf = h('div', {}, h('h2', {}, 'Gerät im Plan'), h('div', { class: 'liste' },
     zeile('Lage', d ? `x ${mm(d[0] * RASTER)} · y ${mm(d[1] * RASTER)} mm` : 'automatisch', () => {}, { ohnePfeil: true,
-      un: 'Ziehen oder Pfeiltasten (Umschalt: 10 mm); Raster 2,5 mm' }),
-    d ? zeile('Automatik anwenden', null, () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }, { ohnePfeil: true, un: 'Gerät wieder an seinen automatischen Platz' }) : null));
+      titel: 'Ziehen oder Pfeiltasten, Raster 2,5 mm' }),
+    d ? zeile('Automatik anwenden', null, () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); }, { ohnePfeil: true, titel: 'Gerät wieder an seinen automatischen Platz' }) : null));
   r.inhalt.prepend(kopf);
   return { titel: `${teilName(key)} · ${r.titel}`, inhalt: r.inhalt };
 }
@@ -5631,7 +5772,7 @@ const EDITOR_PALETTE = [      // [Werkzeug, Name, Zeichen, Zusatz, Gruppe]
   ['steckdose', 'Steckdose', 'steckdose3', '1~', 'Abgänge'], ['cee', 'CEE-Steckdose', 'steckdose5', '3~', 'Abgänge'], ['leuchte', 'Leuchte', 'leuchte', '', 'Abgänge'],
   ['dose', 'Geräte\u00adanschluss', 'endklemme', '', 'Abgänge'], ['uv', 'Unter\u00adverteiler', 'uv', '', 'Abgänge'], ['gruppe', 'FI-Gruppe', 'fi4', '', 'Gruppen'],
   ['wallbox', 'Wallbox', 'wallbox', '3~', 'Abgänge'], ['motor', 'Motor', 'motor', '3~', 'Abgänge'], ['pv', 'PV-Anlage', 'pv', '', 'Erzeugung'], ['speicher', 'Speicher', 'batterie', '', 'Erzeugung'],
-  ['steuerls', 'Steuer-LS', 'ls1', 'S', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
+  ['steuerls', 'Steuer-LS', 'ls1', '', 'Steuerspannung'], ['trafo', 'Steuer\u00adtrafo', 'trafo', '', 'Steuerspannung']];
 const ZEICHNEN = [['zauswahl', 'Auswahl', 'zauswahl'], ['zleiter', 'Leiter', 'zleiter'], ['ztext', 'Text', 'ztext'], ['zrahmen', 'Rahmen', 'zrahmen']];
 const PAL_NAME = t => istZeichenWerkzeug(t) || t === 'zauswahl' ? ZEICHNEN.find(x => x[0] === t)[1] : t === 'ablage' ? (editorAblage && editorAblage.aus ? 'Ausgeschnittenes' : 'Kopie') : (EDITOR_PALETTE.find(p => p[0] === t) || [, t])[1].replace(/\u00ad/g, '');
 // Bildzeichen der Abgangs-Palette (ab v1.21): eigene, gut unterscheidbare Bilder statt der Planzeichen
@@ -5772,9 +5913,9 @@ function paletteNeu() {
       aenderung(z === 'zeitrelais' ? 'Neues Zeitrelais' : 'Neue Meldeleuchte'); sichern(); b.sel = `pl:${kr.pfade[0].id}:6`; b.blatt = true; b.springen = true; zeichne();
       if (ab) meldung(`Abgriff: ${(berechne(v).abgaenge[ab.id].f || {}).t || abgangName(ab)}`); };
     const treppe = () => { const ab = gewAbgang(); if (!ab) return meldung('Zuerst im Reiter „Abgänge“ den Lichtabgang wählen'); treppenlichtAbgang(v, ab); };
-    const nk = gruppe('Neuer Kreis', [kachel('Melde\u00adleuchte', 'meldeleuchte', '+', neuKreis('meldeleuchte'), { titel: 'Kreis mit einer Meldeleuchte anlegen' }),
-      kachel('Zeit\u00adrelais', 'spule_aus', '+', neuKreis('zeitrelais'), { titel: 'Kreis mit eigenständigem Zeitrelais anlegen' }),
-      kachel('Treppen\u00adlicht', 'taster_s', '+', treppe, { titel: 'Treppenlicht im gewählten Lichtabgang anlegen' })]);
+    const nk = gruppe('Neuer Kreis', [kachel('Melde\u00adleuchte', 'meldeleuchte', '', neuKreis('meldeleuchte'), { titel: 'Kreis mit einer Meldeleuchte anlegen' }),
+      kachel('Zeit\u00adrelais', 'spule_aus', '', neuKreis('zeitrelais'), { titel: 'Kreis mit eigenständigem Zeitrelais anlegen' }),
+      kachel('Treppen\u00adlicht', 'taster_s', '', treppe, { titel: 'Treppenlicht im gewählten Lichtabgang anlegen' })]);
     nk.classList.add('neukreis');
     if (vorn) vorn.after(nk); else pal.append(nk);
     pal.append(h('button', { class: 'pallink', on: { click: () => waehle('st:') } }, 'Steuer\u00adspannung …'));
@@ -5783,7 +5924,7 @@ function paletteNeu() {
   }
   // ab v1.54 eigener Reiter „Zeichnen“: Auswahl, Leiter, Text, Rahmen
   if (b.palette === 'ze') {
-    pal.append(zeichnenGruppe(gruppe), h('div', { class: 'palleer' }, 'Freie Leiter, Texte und Rahmen gehören zum Blatt; die Schaltung ändern sie nicht.'));
+    pal.append(zeichnenGruppe(gruppe), h('div', { class: 'palleer' }, 'Freie Leiter, Texte und Rahmen ändern die Schaltung nicht.'));
     zuschneiden(pal); paletteBreite();
     return;
   }
@@ -5849,13 +5990,9 @@ const rasterFang = q => ({ p: [Math.round(q[0] / RASTER) * RASTER, Math.round(q[
 function svgPunkt(svg, ev) { const M = svg.getScreenCTM(); if (!M) return null; const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(M.inverse()); return [p.x, p.y]; }
 function zeichnenKlick(ev, v, b) {
   const svg = ev.currentTarget, bl = ED.liste.find(x => x.svg === svg), q = svgPunkt(svg, ev); if (!bl || !q) return;
-  const f = b.tool === 'zleiter' ? fang(bl, q[0], q[1]) : rasterFang(q), L = lay(v); L.zusatz = L.zusatz || [];
-  if (b.tool === 'ztext') {
-    const z = { id: id(), art: 'text', blatt: bl.anker, a: f.p, t: 'Text', g: 2.5 };
-    L.zusatz.push(z); aenderung('Text setzen'); sichern(); b.sel = 'z:' + z.id; b.blatt = true; werkzeug(null); zeichne();
-    setTimeout(() => textFeld('Text', '', w => { z.t = w || 'Text'; }, { platz: 'z. B. Reserve, plombiert, Leerrohr' }), 0);
-    return;
-  }
+  const f = b.tool === 'zleiter' ? fang(bl, q[0], q[1]) : rasterFang(q);
+  if (b.tool === 'ztext') return textAnStelle(ev, v, b, bl, f.p);      // vor lay(): Esc bzw. leer ändert nichts
+  const L = lay(v); L.zusatz = L.zusatz || [];
   if (!ED.zeichnen || ED.zeichnen.bl !== bl) { ED.zeichnen = { bl, a: f.p, art: f.art }; zeichenVorschau(f.p); return; }
   const a = ED.zeichnen.a, artA = ED.zeichnen.art; ED.zeichnen = null;
   if (Math.hypot(a[0] - f.p[0], a[1] - f.p[1]) < 0.5) { zeichenVorschau(null); return; }
@@ -5863,6 +6000,26 @@ function zeichnenKlick(ev, v, b) {
     ? { id: id(), art: 'leiter', blatt: bl.anker, a, b: f.p, leiter: [artA, f.art].find(x => x && x !== 'L') || ED.zeichnenArt || 'L', knick: Math.abs(f.p[1] - a[1]) > Math.abs(f.p[0] - a[0]) ? 'vh' : 'hv' }
     : { id: id(), art: 'rahmen', blatt: bl.anker, a, b: f.p, t: '' };
   L.zusatz.push(z); aenderung(z.art === 'leiter' ? 'Leiter zeichnen' : 'Rahmen zeichnen'); sichern(); b.sel = 'z:' + z.id; b.blatt = true; zeichne();
+}
+// Text-Werkzeug (ab v1.62, D31): Feld an der Klickstelle; Enter bzw. Verlassen setzt den Text in einem Rückgängig-Schritt,
+// leer oder Esc ändert nichts (das Werkzeug bleibt, ein zweites Esc beendet es)
+function textAnStelle(ev, v, b, bl, p) {
+  document.querySelectorAll('.textinline').forEach(x => x.remove());
+  const i = h('input', { class: 'textinline', type: 'text', placeholder: 'z. B. Reserve, plombiert', 'aria-label': 'Text im Blatt', autocapitalize: 'sentences', enterkeyhint: 'done' });
+  i.style.left = Math.max(4, Math.min(ev.clientX - 8, innerWidth - 204)) + 'px'; i.style.top = Math.max(4, Math.min(ev.clientY - 18, innerHeight - 44)) + 'px';
+  document.body.append(i);
+  let fertig = false;
+  const ende = ok => {
+    if (fertig) return; fertig = true;
+    const t = i.value.trim(); i.remove();
+    if (!ok || !t || !ED || ED.v !== v) return;
+    const L = lay(v); L.zusatz = L.zusatz || [];
+    const z = { id: id(), art: 'text', blatt: bl.anker, a: p, t, g: 2.5 };
+    L.zusatz.push(z); aenderung('Text setzen'); sichern(); b.sel = 'z:' + z.id; b.blatt = true; werkzeug(null); zeichne();
+  };
+  i.addEventListener('keydown', e2 => { if (e2.key === 'Enter') { e2.preventDefault(); ende(true); } else if (e2.key === 'Escape') { e2.preventDefault(); e2.stopPropagation(); ende(false); } });
+  i.addEventListener('blur', () => setTimeout(() => ende(true), 0));
+  setTimeout(() => i.focus(), 0);
 }
 // Vorschau beim Zeichnen: Fangpunkt, Gummiband vom ersten Punkt
 function zeichenVorschau(p, bl) {
@@ -5898,12 +6055,12 @@ function editorZusatz(v, zid) {
   if (z.art === 'text') {
     zl.push(zeile('Text', z.t || '—', () => textFeld('Text', z.t, w => z.t = w || 'Text')));
     zl.push(zeile('Größe', `${String(z.g || 2.5).replace('.', ',')} mm`, () => wahlFeld('Schriftgröße', [['2.2', '2,2 mm'], ['2.5', '2,5 mm'], ['3.5', '3,5 mm'], ['5', '5 mm']], String(z.g || 2.5), w => z.g = +w)));
-    zl.push(zeile('Fett', z.fett ? 'ja' : 'nein', () => wahlFeld('Fett', [['ja', 'ja'], ['nein', 'nein']], z.fett ? 'ja' : 'nein', w => z.fett = w === 'ja')));
+    zl.push(schalterZeile('Fett', !!z.fett, an => z.fett = an));
   }
   if (z.art === 'rahmen') zl.push(zeile('Titel', z.t || '—', () => textFeld('Titel des Rahmens', z.t, w => z.t = w), { un: 'z. B. Vorzählerbereich, plombiert' }));
   zl.push(zeile('Lage', 'verschieben mit den Pfeiltasten oder der Leiste', () => {}, { ohnePfeil: true, un: 'Raster 2,5 mm; Umschalt: 10 mm' }));
   return { titel: art, inhalt: h('div', {}, h('h2', {}, art), h('div', { class: 'liste' }, ...zl),
-    ...hw.map(x => h('p', { class: x.art === 'kurzschluss' ? 'warnung gefahr' : 'warnung' }, '⚠ ' + x.t)),
+    ...hw.map(x => h('p', { class: x.art === 'kurzschluss' ? 'warnung gefahr' : 'warnung' }, warnIk(), x.t)),
     h('h2', {}, ''), h('div', { class: 'liste' }, zeile(art + ' löschen', null, () => zusatzLoeschen(v, zid), { rot: true, ohnePfeil: true }))) };
 }
 // Eigenschaften der Mehrfachauswahl
@@ -6330,6 +6487,9 @@ function eigenNeu() {
   const { b, v, eigen } = ED; eigen.innerHTML = '';
   let r;
   try { r = editorEigenschaften(v, b.sel, b); } catch (er) { r = { titel: 'Eigenschaften', inhalt: h('p', { class: 'warnung' }, er.message) }; fehler(er.message); }
+  // ab v1.62 (D35): Hinweise oben im Fach, vor der ersten Zeile
+  const ws = r.inhalt.matches && r.inhalt.matches('p.warnung') ? [] : [...r.inhalt.querySelectorAll('p.warnung')];
+  if (ws.length) r.inhalt.prepend(h('div', { class: 'fachwarn', role: 'status' }, ...ws));
   const st = fachStufe();
   // Kopf antippen: zu ↔ halb; ziehen (ab v1.53): nach oben eine Stufe größer, nach unten kleiner
   let zug = null;
@@ -6649,9 +6809,9 @@ function fussNeu() {
     ...[50, 100, 150, 200].map(z => [`${z} %`, () => zoomSetzen(z), { an: Math.round(b.zoom) === z }])], null, { label: 'Zoom' }) } });
   const pr = ED.pruef || [];
   fuss.append(...[      // ohne Prüfliste kein „null“ in der Fußleiste (ab v1.52)
-    pr.length ? h('button', { class: 'pruefknopf', title: 'Prüfliste', on: { click: () => menue('Prüfliste', pr.map(x =>
+    pr.length ? h('button', { class: 'pruefknopf', title: 'Hinweise', 'aria-label': `${pr.length} Hinweis${pr.length === 1 ? '' : 'e'}`, on: { click: () => menue('Hinweise', pr.map(x =>
       [x.t, () => x.f ? x.f() : x.sel || x.key ? waehle(x.sel || 't:' + x.key, { springen: true }) : blattZeigen(x.blatt),
-        { klein: x.klein || (x.sel ? 'Springen – Leiter ändern oder löschen' : 'Springen – „Automatik anwenden“ in der Leiste behebt es') }])) } }, `⚠ ${pr.length}`) : null,
+        { klein: x.klein || (x.sel ? 'Zeigen – Leiter ändern oder löschen' : 'Zeigen – „Automatik anwenden“ behebt es') }])) } }, warnIk(), String(pr.length)) : null,      // ab v1.62 (D32): „Hinweise“
     h('div', { class: 'blattnav' }, ik('links', 'Voriges Blatt', () => blattZeigen(ED.blattI - 1)), ED.blattKnopf, ik('rechts', 'Nächstes Blatt', () => blattZeigen(ED.blattI + 1))),
     // ab v1.61 (D26): ohne Werkzeug zeigt die Zeile den Zustand (Auswahl, Speicherstand) statt einer Anleitung
     h('div', { class: 'hinweiszeile' + (b.tool || sammel ? ' an' : ''), 'aria-live': 'polite' }, b.tool || sammel ? h('span', { class: 'hinweistext' }, sHinweis || hinweis)
@@ -6689,11 +6849,10 @@ function verteilerMenue(v) {
   menue('Verteiler', [...P.verteiler.map(w => [w.name, () => geh({ s: 'editor', vid: w.id }), { an: w === v, klein: speisenderAbgang(w.id) ? `aus ${speisenderAbgang(w.id).v.name}` : '' }]),
     '—', ['+ Neuer Verteiler', neuerVerteilerFenster], ['Einstellungen dieses Verteilers', () => waehle(null, { offen: true })]]);
 }
+// ab v1.62 (D32): zwei Einträge – der Plan wie Strg+P, der Türzettel über seine Vorschau (dort: dieser Verteiler oder alle)
 function druckMenue(v) {
-  menue('Drucken', [['Stromlaufplan drucken', drucken, { klein: `alle Blätter des Projekts, ${P.projekt.format || 'A4'} quer – auch als PDF` }],
-    ['Türzettel dieses Verteilers', () => tuerDrucken([v]), { klein: 'Sicherungsübersicht, A4 hoch' }],
-    ['Türzettel aller Verteiler', () => tuerDrucken(P.verteiler)], '—',
-    ['Alle Blätter ansehen', () => geh({ s: 'plan', vid: v.id })], ['Türzettel ansehen', () => geh({ s: 'tuer', vid: v.id })]]);
+  menue('', [['Plan drucken …', drucken, { taste: 'Strg+P', klein: `alle Blätter des Projekts, ${P.projekt.format || 'A4'} quer – auch als PDF` }],
+    ['Türzettel drucken …', () => geh({ s: 'tuer', vid: v.id }), { klein: 'Sicherungsübersicht, A4 hoch' }]], null, { label: 'Drucken' });
 }
 // Ein Menü für Start und Editor (ab v1.61, D23): Abschnitte Datei · Bearbeiten · Ansicht · Verteiler · Hilfe, Kürzel rechts,
 // „…“ nur, wenn noch ein Dialog folgt; ohne Überschrift (der Knopf heißt „Menü“). v = Verteiler des Editors, sonst null.
@@ -6703,12 +6862,12 @@ function hauptMenue(v = null) {
   menue('', [
     ...abschnitt('Datei',
       ['Neues Projekt …', neuesProjektAnlegen], ['Alle Projekte', () => geh({ s: 'projekte' })],
-      ['Projekt aus Datei öffnen …', () => document.getElementById('datei').click(), { taste: 'Strg+O' }],
-      ['Projekt als Datei sichern', exportieren, { taste: 'Strg+S' }], ['Beispielprojekt öffnen', beispielOeffnen],
+      ['Öffnen …', () => document.getElementById('datei').click(), { taste: 'Strg+O' }],
+      ['Als Datei sichern …', exportieren, { taste: 'Strg+S' }], ['Beispielprojekt öffnen', beispielOeffnen],
       ['Projektdaten', () => ed ? waehle('p:', { springen: false }) : geh({ s: 'projekt' })],
       ['Format …', () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w), { klein: `${P.projekt.format || 'A4'} quer` }],
-      da ? ['Stromlaufplan drucken …', drucken, { taste: 'Strg+P' }] : null,
-      da ? ['Türzettel drucken …', () => tuerDrucken(ed ? [v] : P.verteiler), { klein: ed ? 'dieser Verteiler' : 'alle Verteiler' }] : null,
+      da ? ['Plan drucken …', drucken, { taste: 'Strg+P' }] : null,
+      da ? ['Türzettel drucken …', () => geh({ s: 'tuer', vid: ed ? v.id : undefined })] : null,
       da ? ['Druckvorschau', () => geh({ s: 'plan', vid: ed ? v.id : undefined })] : null),
     ...abschnitt('Bearbeiten',
       nZ ? [`Rückgängig: ${verlauf.zurueck[nZ - 1].n}`, () => projektRueck(false), { taste: 'Strg+Z' }] : null,
@@ -7024,15 +7183,15 @@ function bEditor(b) {
   const kopfL = h('header', { class: 'edkopf' },
     // ab v1.55 wie „Zurück“ der übrigen Bildschirme: breit „‹ Projekt“, schmal das Haus; ab v1.58 (C22) auch schmal mit „‹“,
     // ab 600 px „‹ Projekt“
-    h('button', { class: 'ikon mittext zurueckprojekt', 'aria-label': 'Zurück zum Projekt', title: 'Zur Projektübersicht', on: { click: () => { stapel = [{ s: 'start' }]; zeichne(); } } },
-      iconKl('links', 'zp-pfeil'), iconKl('haus', 'nurschmal zp-haus'), h('span', { class: 'ikontext' }, 'Projekt')),
+    h('button', { class: 'ikon mittext zurueckprojekt', 'aria-label': 'Zurück zum Start', title: 'Zur Startseite', on: { click: () => { stapel = [{ s: 'start' }]; zeichne(); } } },
+      iconKl('links', 'zp-pfeil'), iconKl('haus', 'nurschmal zp-haus'), h('span', { class: 'ikontext' }, 'Start')),      // ab v1.62 (D33)
     h('button', { class: 'vwahl', 'aria-label': `Verteiler wählen (${v.name})`, on: { click: () => verteilerMenue(v) } },      // ab v1.55: Name und ▾ getrennt, ▾ bleibt sichtbar
-      h('span', { class: 'vw-pj' }, P.projekt.projekt || 'Projekt'), h('span', { class: 'vw-name' }, h('span', { class: 'vw-n' }, v.name), h('span', { class: 'leise' }, ' ▾'))),
-    h('div', { class: 'segment', role: 'tablist', 'aria-label': 'Palette' }, tab('ab', 'Abgänge', 'Abgänge'), tab('st', 'Steuerung', 'Steuer.'), tab('ze', 'Zeichnen', '✎')),
+      h('span', { class: 'vw-pj' }, projektName(P)), h('span', { class: 'vw-name' }, h('span', { class: 'vw-n' }, v.name), iconKl('ab', 'vwab'))),
+    h('div', { class: 'segment', role: 'tablist', 'aria-label': 'Palette' }, tab('ab', 'Abgänge', 'Abgänge'), tab('st', 'Steuerung', 'Steuerung'), tab('ze', 'Zeichnen', 'Zeichnen')),      // ab v1.62 (D38) ausgeschrieben
     // ab v1.55 unter 430 px statt des Segments ein Knopf mit Menü – so bleibt Platz für den Verteilernamen
     h('button', { class: 'reiterwahl', 'aria-label': `Palette wechseln (${REITER[b.palette][0]})`, title: 'Palette wechseln', on: { click: () => menue('Palette', Object.entries(REITER).map(([w, [t, klein]]) =>
       [t, () => { const k = ED && ED.ed.querySelector(`.segment [data-w="${w}"]`); if (k) k.click(); }, { an: ED.b.palette === w, klein }])) } },
-      h('span', { class: 'rw-i' }, icon(REITER_ICON[b.palette])), h('span', { class: 'rw-t' }, REITER[b.palette][0]), h('span', { class: 'leise' }, ' ▾')),
+      h('span', { class: 'rw-i' }, icon(REITER_ICON[b.palette])), h('span', { class: 'rw-t' }, REITER[b.palette][0]), iconKl('ab', 'vwab leise')),
     // ab v1.57: Smartphone quer – Palette als Überlage
     h('button', { class: 'nurquer palknopf', 'aria-pressed': String(palQuer), 'aria-label': 'Palette ein- oder ausblenden', on: { click: () => palUeberlage(!palQuer) } }, 'Palette'),
     aktionen,      // ab v1.60 (D10): Befehle der Auswahl am Desktop (kontextNeu)
@@ -7456,14 +7615,15 @@ function tastenHilfe() {      // ab v1.61 (D25): Raster mit Tastenkappen, „Sch
 
 function bListe(b) {
   const v = vById(b.vid), e = berechne(v);
-  app.append(kopf(`${v.name} · Liste`, h('button', { class: 'kopfknopf', title: 'Stromkreise als Tabelle für das Prüfprotokoll (CSV)', on: { click: () => listeCsv(v) } }, 'Als CSV sichern')));
-  const m = h('main');
+  // ab v1.62 (D39): „Stromkreisliste HV“, am Desktop breit, CSV nur im Kopf
+  app.append(kopf(`Stromkreisliste ${v.name}`, h('button', { class: 'kopfknopf', title: 'Stromkreise für das Prüfprotokoll als CSV', on: { click: () => listeCsv(v) } }, 'Als CSV sichern')));
+  const m = h('main', { class: 'breit' });
   const sp = speisenderAbgang(v.id);
   const kopfZ = [];
   if (sp) kopfZ.push(['', `Einspeisung aus ${sp.v.name}`, '', '', '', '']);
   else kopfZ.push(['', `Einspeisung ${v.netzform}, ${leiterText(v)}`, '', '', '', '']);
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['zaehler', 'Zähler'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
-    if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel}: ${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
+    if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel} – ${ohneTitel(titel, gName(v[feld].zeichen))} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
   const tb = h('tbody');
   kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)))));
   alleKnoten(v, (k, eltern, l, i, tiefe) => {
@@ -7476,22 +7636,20 @@ function bListe(b) {
     // ab v1.58 (C38): Kennzeichen am Ziel nicht umbrechen
     const zielText = k.speist ? [`→ ${(vById(k.speist) || {}).name}`] : [[k.ziel.bez, k.ziel.ort].filter(Boolean).join(', '), a.xd ? h('span', { style: 'white-space:nowrap' }, ` (${a.xd.t})`) : null];
     tb.append(h('tr', {},
-      h('td', { class: 'm' }, a.f ? a.f.t : '—'),
+      h('td', { class: 'm' }, a.f ? (a.f.hand ? h('span', { class: 'bmk hand' }, a.f.t) : a.f.t) : '—'),
       h('td', {}, ein + (k.geraet.zeichen ? `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan')),
-      h('td', {}, h('span', { class: 'ph' + (a.phase.auto ? ' auto' : '') }, a.phase.t)),
+      h('td', { class: 'nw' }, h('span', { class: 'ph' + (a.phase.auto ? ' auto' : '') }, a.phase.t)),
       h('td', { class: 'm' }, klemmenText(a)),
-      h('td', {}, `${a.w.t} ${leitungText(k, a)}`),
-      h('td', {}, ...zielText, a.warn ? ' ⚠' : null)));
+      h('td', { class: 'nw' }, `${a.w.t} ${leitungText(k, a)}`),
+      h('td', {}, ...zielText, a.warn ? [' ', warnIk()] : null)));
     // ab v1.52: Überlastrelais und Sekundär-LS des Steuertrafos als eigene Zeilen
     const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel)));
     if (a.ol) unter(a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), `unter ${a.schalt.bmk.t}`);
     if (k.trafo) unter(a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, `Steuerspannung ${k.trafo.sek}\u00a0V`);
   });
   m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
-    h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Ziel'].map(t => h('th', {}, t)))), tb)));
-  m.append(h('p', { class: 'hinweis' }, 'Violett hinterlegte Außenleiter sind automatisch verteilt. Kennzeichen mit orangem Grund sind von Hand gesetzt.'));
-  m.append(h('div', { class: 'liste' }, zeile('Als CSV sichern', null, () => listeCsv(v),
-    { un: 'je Stromkreis eine Zeile, z. B. für das Prüfprotokoll nach DIN VDE 0100-600 (Excel, Numbers)' })));
+    h('thead', {}, h('tr', {}, ['Kennzeichen', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Ziel'].map(t => h('th', {}, t)))), tb)));
+  m.append(h('div', { class: 'legende' }, h('span', {}, h('span', { class: 'ph auto' }, 'L1'), ' automatisch verteilt'), h('span', {}, h('span', { class: 'bmk hand' }, '-F4'), ' von Hand gesetzt')));
   app.append(m);
 }
 // Stromkreisliste als CSV (ab v1.56): Semikolon, UTF-8 mit BOM (Excel), je Abgang eine Zeile
@@ -7522,11 +7680,12 @@ function listeCsv(v) {
 // ---- Plan -------------------------------------------------------------------
 const BIB = JSON.parse(document.getElementById('slp-bibliothek').textContent);
 function bPlan(b) {
-  app.append(kopf('Stromlaufplan', h('button', { class: 'kopfknopf', on: { click: drucken } }, 'Drucken')));
+  // ab v1.62 (D32/D39/D58): „Druckvorschau“ mit Knopf „Drucken“ und Hinweisleiste für den Druckdialog
+  app.append(kopf('Druckvorschau', h('button', { class: 'kopfknopf knopfvoll', title: 'Plan drucken (Strg+P)', on: { click: drucken } }, 'Drucken')));
   const m = h('main');
   m.append(h('div', { class: 'liste' },
     zeile('Format', `${P.projekt.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w))));
-  m.append(h('p', { class: 'hinweis' }, `Blatt ${tipp()} zum Vergrößern. Beim Drucken auf Skalierung 100 % achten. Über das Teilen- bzw. Druckmenü lässt sich der Plan auch als PDF sichern.`));
+  m.append(druckHinweisLeiste(`Blatt ${tipp()} zum Vergrößern`));
   let res;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); }
   catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
@@ -7550,7 +7709,8 @@ let planLupeOffen = null;
 function planLupe(liste, i) {
   if (planLupeOffen) planLupeOffen.zu();
   let z = 1, idx = i, pinch = null, wisch = null, tipp = 0;
-  const titel = h('div', { class: 'lupetitel' }), wert = h('span', { class: 'lupezoom' });
+  // ab v1.62 (D39): Zoomwert als Knopf wie im Editor – setzt auf das ganze Blatt zurück
+  const titel = h('div', { class: 'lupetitel' }), wert = h('button', { class: 'lupezoom', title: 'Ganzes Blatt', 'aria-label': 'Ganzes Blatt', on: { click: () => setze(1) } });
   const innen = h('div', { class: 'lupeinnen' }), fl = h('div', { class: 'lupeflaeche' }, innen);
   const L = h('div', { class: 'lupe planlupe', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Blatt vergrößert' },
     h('div', { class: 'lupekopf' }, ik('links', 'Voriges Blatt', () => zeige(idx - 1)), titel, wert, ik('rechts', 'Nächstes Blatt', () => zeige(idx + 1)),
@@ -7632,7 +7792,7 @@ function drucken(trotzdem) {
     zu = fenster('Vor dem Drucken', h('div', { class: 'text' }, h('p', {}, 'Der Plan enthält noch Hinweise:'),
       h('ul', { class: 'sprungliste' }, ...hw.slice(0, 12).map(x => h('li', {}, h('button', { class: 'linkknopf', title: 'Zur Stelle im Plan',
         on: { click: () => { zu(false); geh({ s: 'editor', vid: x.vid, sel: x.sel, springen: true }); } } }, x.t), x.abhilfe ? h('span', { class: 'abhilfe' }, x.abhilfe) : null))),
-      hw.length > 12 ? h('p', {}, `… und ${hw.length - 12} weitere`) : null, h('p', { class: 'leise' }, `Eintrag ${tipp()}: zur Stelle im Plan.`)), s => [
+      hw.length > 12 ? h('p', {}, `… und ${hw.length - 12} weitere`) : null, h('p', { class: 'leise' }, `Einen Hinweis ${tipp()}, um ihn im Plan zu zeigen.`)), s => [
       h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
       h('button', { class: 'knopf', on: { click: () => { s(); setTimeout(() => drucken(true), 0); } } }, 'Trotzdem drucken')]);
     return;
@@ -7674,11 +7834,19 @@ function tuerzettel(v) {
     h('div', { class: 'fuss' }, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
       .filter(Boolean).join(' · ')));
 }
+// Hinweise für den Druckdialog (ab v1.62, D58): Skalierung 100 %, Ränder keine, PDF über das Ziel des Dialogs
+function druckHinweisLeiste(zusatz) {
+  return h('p', { class: 'druckhinweis' }, h('span', {}, 'Im Druckdialog: ', h('b', {}, 'Skalierung 100 %'), ' · ', h('b', {}, 'Ränder: keine')),
+    h('span', {}, 'Als PDF: Ziel „Als PDF speichern“'), zusatz ? h('span', {}, zusatz) : null);
+}
+// ab v1.62 (D32): „Türzettel-Vorschau“ – dieser Verteiler oder alle, Knopf „Drucken“
 function bTuer(b) {
-  const liste = b.vid ? [vById(b.vid)] : P.verteiler;
-  app.append(kopf('Türzettel', h('button', { class: 'kopfknopf', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
+  const ein = b.vid && vById(b.vid) && !b.alle, liste = ein ? [vById(b.vid)] : P.verteiler;
+  app.append(kopf('Türzettel-Vorschau', h('button', { class: 'kopfknopf knopfvoll', title: 'Türzettel drucken', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
   const m = h('main');
-  m.append(h('p', { class: 'hinweis' }, `Sicherungsübersicht für die Verteilertür, A4 hoch. Zettel ${tipp()} zum Vergrößern. Beim Drucken auf Skalierung 100 % achten.`));
+  if (b.vid && vById(b.vid) && P.verteiler.length > 1) m.append(h('div', { class: 'segment tzwahl', role: 'tablist', 'aria-label': 'Türzettel' },
+    ...[[true, vById(b.vid).name], [false, 'Alle Verteiler']].map(([e1, t]) => h('button', { role: 'tab', 'aria-selected': String(!!ein === e1), on: { click: () => { b.alle = !e1; zeichne(); } } }, t))));
+  m.append(druckHinweisLeiste(`A4 hoch · Zettel ${tipp()} zum Vergrößern`));
   liste.forEach((v, i) => { const tz = tuerzettel(v); tz.setAttribute('role', 'button'); tz.setAttribute('aria-label', `Türzettel ${v.name} vergrößern`);
     tz.addEventListener('click', () => tuerLupe(liste, i)); m.append(h('div', { class: 'tzwrap' }, tz)); });
   app.append(m); tzEinpassen();

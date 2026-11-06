@@ -16,6 +16,12 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.63: Desktop-Runde D1, Etappe 5 „Plan-Beschriftung (E4 Schritt 3) und Planfehler“ – zur Abnahme durch Jean (nur Zweig):
+           umbrechen statt unter 85 % stauchen (Kreisüberschrift über freie Spalten bzw. zweizeilig, „30 mA“ / „Typ A“),
+           R4 2,5 mm zum Nachbarleiter im Übersichtsplan, R7 Pfadtexte im Abstand 3,4 mm und Steuertrafo/Steuer-LS auf der
+           gemeinsamen Grundlinie, Bögen zählen für R3 (Not-Aus, verzögerter Kontakt), Zeitangabe im Abgang kürzer,
+           Umrichter ohne Leiter im Kasten, Überlastrelais-Ziffern 1 mm höher, „24 V /9.1“ und „0 V /9.1“, Trafo 1.1/1.2/2.1/2.2,
+           DC +/−, eigener Klemmenbereich für U2 V2 W2, Unterverteiler ohne „→“, Türzettel-Folgeseite „HV (Fortsetzung)“
      v1.62: Desktop-Runde D1, Etappe 4 „Texte und Design“: ein Wortschatz (Stromkreisliste, Beispielprojekt öffnen, Druckvorschau,
            Hinweise, „Firma (rechtlicher Eigentümer)“, „Unbenanntes Projekt“, Zurück „Start“), Drucken-Menü mit „Plan drucken …“ und
            „Türzettel drucken …“ (Vorschau mit Auswahl Verteiler/alle, Knopf „Drucken“, Hinweis Skalierung 100 % und Ränder keine);
@@ -5535,7 +5541,7 @@ function drucken(trotzdem) {
 // ---- Türzettel (Sicherungsübersicht) ---------------------------------------
 function tuerzettel(v) {
   const e = berechne(v), sp = speisenderAbgang(v.id);
-  const zielText = (k, a) => k.speist ? `→ ${(vById(k.speist) || {}).name || 'Verteiler'}` : (k.ziel.bez || '');
+  const zielText = (k, a) => k.speist ? `${(vById(k.speist) || {}).name || 'Verteiler'}` : (k.ziel.bez || '');     // ab v1.63 ohne „→“ (D61)
   const tb = h('tbody');
   const zeileT = (kl, kenn, schutz, leiter, kreis, ort, leitung) =>
     tb.append(h('tr', { class: kl }, h('td', { class: 'k' }, kenn || ''), h('td', {}, schutz || ''), h('td', {}, leiter || ''),
@@ -5605,9 +5611,31 @@ function tuerLupe(liste, i) {
     return { svg, nr: j + 1, titel: v.name, kopf: 'Türzettel', unter: v.name };
   }), i);
 }
+// Türzettel auf A4-Seiten (ab v1.63, D57): läuft die Tabelle über, beginnt jede Folgeseite mit „HV (Fortsetzung)“ und dem
+// Tabellenkopf; gemessen in Druckbreite (210 − 2 × 12 mm), Seitenhöhe 297 − 2 × 14 mm. Die Fußzeile steht auf der letzten Seite.
+function tuerSeiten(v) {
+  const mm = 96 / 25.4, H = (297 - 28) * mm - 4, tz = tuerzettel(v), seiten = [tz];
+  const mess = h('div', { class: 'tzmess', style: 'position:absolute;left:-10000px;top:0;width:' + (186 * mm) + 'px' }); document.body.append(mess);
+  const flach = x => { x.style.padding = '0'; x.style.margin = '0'; x.style.boxShadow = 'none'; x.style.borderRadius = '0'; mess.append(x); };
+  flach(tz);
+  let cur = tz;
+  while (cur.offsetHeight > H && cur.querySelector('tbody').children.length > 1) {
+    const kopfZeile = cur.querySelector('thead').cloneNode(true), tb = h('tbody'), fuss = cur.querySelector('.fuss');
+    const f = h('section', { class: 'tz' }, h('h1', {}, `${v.name} (Fortsetzung)`), h('div', { class: 'tzu' }, cur.querySelector('.tzu').textContent),
+      h('table', {}, kopfZeile, tb));
+    if (fuss) f.append(fuss);
+    const quelle = cur.querySelector('tbody');
+    while (cur.offsetHeight > H && quelle.children.length > 1) tb.prepend(quelle.lastElementChild);
+    // eine Gruppenzeile bleibt bei ihren Stromkreisen
+    while (quelle.children.length > 1 && quelle.lastElementChild.classList.contains('gruppe')) tb.prepend(quelle.lastElementChild);
+    flach(f); seiten.push(f); cur = f;
+  }
+  seiten.forEach(x => { x.removeAttribute('style'); }); mess.remove();
+  return seiten;
+}
 function tuerDrucken(liste) {
   const d = document.getElementById('druck'); d.innerHTML = '';
-  liste.forEach(v => d.append(tuerzettel(v)));
+  liste.forEach(v => tuerSeiten(v).forEach(x => d.append(x)));
   document.getElementById('seite').textContent = '@page{size:A4 portrait;margin:14mm 12mm}';
   druckBereit = true;
   setTimeout(() => window.print(), 60);

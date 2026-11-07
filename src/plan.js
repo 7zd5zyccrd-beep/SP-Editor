@@ -1079,7 +1079,8 @@ const PLAN = (() => {
           text(g, xE + 4.5, ys[art] + 0.9, stueck.gehend, 2.2); }
       });
       const oben = alle.find(a => links.has(a));
-      if (oben) text(g, xA, ys[oben] - 2.2, stueck.kommend, 2.2, 'end');
+      // ab v1.67 (P3-03): am kommenden Verweis steht die Quelle – das Gruppengerät („-F2 /5.10“), wie beim Steuerspannungsabgriff
+      if (oben) text(g, xA, ys[oben] - 2.2, [(e.geraete[grp.id] || {}).t, stueck.kommend].filter(Boolean).join(' '), 2.2, 'end');
     }
     const yEnde = yEndeFest || gruppenNatur;
     let x = xSp, unterst = yK;
@@ -1266,6 +1267,9 @@ const PLAN = (() => {
       if (kombiniert && items.length && !blaetter[0].items.length) return null;
       return blaetter;
     };
+    // Eine sehr kurze Einspeisung steht auf dem ersten Abgangsblatt, wenn der erste Abgang (bzw. die erste Gruppe) darunter
+    // Platz hat; ein Abgang mit Schaltgerät, Zeitrelais oder Motorschutz ist dafür oft zu hoch – dann bleibt das eigene
+    // Einspeisungsblatt (geprüft in v1.67, R04: so gewollt, alle Abgänge enden auf einer Höhe)
     return (kurz && versuche(true)) || versuche(false);
   }
 
@@ -1373,6 +1377,8 @@ const PLAN = (() => {
       linie(g, x, y, x, top, 0.25);
       const t = setze(g, 'ueberlast1', x, top), zl = [a.ol.bereich ? `${a.ol.bereich} A` : ''];
       const vor = ueOl.get(g), dx = x - R3('ueberlast1', x), nah = vor && x - vor.x <= P + 0.01 && x > vor.x && Math.abs(top - vor.top) < 6;
+      // geprüft in v1.67 (P3-01): ein Versetzen unter den Nachbarkasten verlängert den Abgang und verdichtet dann den ganzen
+      // Übersichtsplan (andere Texte stärker gestaucht) – das Kennzeichen bleibt daher höchstens auf 85 % gestaucht
       // ab v1.58 (C40): neben einem Überlastrelais endet die Beschriftung 1,5 mm vor dessen Kasten (R3); die rechte
       // Kastenkante liegt bei vor.x + dx − 1,5, die Grenze also bei vor.x + dx
       // ab v1.64 (F06, R4): auch vor dem Nachbarkasten 2,5 mm frei – die Beschriftung beginnt bei vor.x + dx + 1; ueBmk zieht
@@ -1810,7 +1816,8 @@ const PLAN = (() => {
     if (kenn) passend(text(g, xr, y, kenn, 2.5, 'end', { 'font-weight': 'bold' }), max);
     // ab v1.58 (C39): in der ersten Spalte ist der Platz 2,5 mm schmaler; was in den übrigen Spalten einzeilig passt,
     // bleibt auch hier einzeilig (etwas stärker gestaucht) – „Taster 1“ wie „Taster 2“
-    zeilen.filter(Boolean).flatMap(t => umbrechenSt(t, max, erste ? 2.5 : 0)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
+    // ab v1.67 (P3-02): passt die Zeitangabe „t = 10 min“ nicht ungestaucht, steht nur „10 min“ (wie am Kontakt im Abgang)
+    zeilen.filter(Boolean).map(t => /^t\u00a0=\u00a0/.test(t) && textBreite(t, 2.2) > max ? t.slice(4) : t).flatMap(t => umbrechenSt(t, max, erste ? 2.5 : 0)).forEach((z, i) => passend(text(g, xr, y + 3.2 + 2.8 * i, z, 2.2, 'end'), max));
   }
   function stKreis(g, ctx, v, e, kr, col, R, lt, gem, anG, xTitel) {
     const pf = kr.pfade, xs = pf.map((_, j) => R.x0 + (col - 1 + j) * R.sb + ST_LINKS);

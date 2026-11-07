@@ -16,6 +16,16 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.67: Desktop-Runde D3, Schluss-Etappe „Schliff“: „Blatt festhalten“ ändert den Plan nicht (kein Umbruch vor einem Abgang
+           hinter dem Überspannungsschutz bzw. einem Gruppen-Folgestück); Entf/Rücktaste und Strg+C/X/V/D mit Fokus im Fach wirken
+           nicht auf die Auswahl; jeder Befehl ein eigener Rückgängig-Schritt (Zusammenfassen nur beim Tippen in einem Feld),
+           Rückgängig stellt die Auswahl davor her; Suche findet Schütz, Stromstoßschalter, Zeitrelais und Steuerstromkreise,
+           Art „Meldeleuchte“/„Melder“; Kopfleiste ohne Überlappung (Symbole statt Texte nach gemessener Breite, „Löschen“),
+           „Mehr“ nur mit verborgenen Befehlen; Fokus nie auf einem Teil im Blatt bzw. body (Rahmen, Rechtsklick, Anordnen,
+           Palette, Vorschau), Fokusring der Fläche nur nach Tab; Meldung schließt beim Seitenwechsel; Vorschauen mit Fokus auf
+           „Drucken“; Texte (Rückgängig „-F4 … löschen“, „Phasenbelastung (Abgänge)“, „Vorsicherung keine“, Druckhinweise ohne
+           Versalien, Befehlsgeber-Titel, Blattwahl mit echten Blattnamen, Gerätewahl in Gruppen); Befehle des Fachs
+           „Steuerstromkreise“ in befehle('st:'); Plan: Quelle am Folgestück („-F2 /5.10“), Spule „10 min“ statt Stauchung
      v1.66: Desktop-Runde D2, Etappe 3 „Eine Quelle, Texte und Ruhe“ (F14, F15 ohne Pos1/Ende, F16–F18, F32–F42): Hauptmenü
            höchstens 20 Einträge ohne Überschriften („Bearbeiten“ nur Rückgängig, Wiederholen, Alle Abgänge wählen, Suchen; Format
            in den Projektdaten; Verteiler anlegen und löschen im Verteilermenü); keine Befehlszeilen mehr in Fächern (Kreis, Gruppe,
@@ -417,6 +427,7 @@ table.ueb tr.gr td{background:var(--karte2);font-weight:600}
 .wahl button:first-child{border-top:0}
 .wahl button[aria-checked="true"]{background:var(--akzent-hell);color:var(--akzent);font-weight:600}
 .wahl button small{color:var(--leise);font-weight:400}
+.wahl .wahlkopf{font-size:var(--fs-12);font-weight:600;color:var(--leise);padding:10px 10px 3px}.wahl button:focus-visible{outline-offset:-2px}      /* ab v1.67 (DS3-10) */
 .knopf{border:0;background:var(--akzent);color:var(--auf-akzent);border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer}
 .knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
 .knopf.rot{background:var(--rot)}
@@ -861,7 +872,7 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
 .menue kbd{font:inherit;font-size:12.5px;color:var(--leise);white-space:nowrap;font-variant-numeric:tabular-nums}
 .menue button.gefahr kbd{color:inherit;opacity:.75}
 /* Arbeitsfläche als ein Tabstopp (ab v1.60, D17) */
-.edflaeche:focus{outline:none}.edflaeche:focus-visible{outline:2px solid var(--akzent);outline-offset:-2px}
+.edflaeche:focus{outline:none}.edflaeche.pertab:focus-visible{outline:2px solid var(--akzent);outline-offset:-2px}      /* ab v1.67 (DS3-11) nur nach Tab */
 /* ab v1.61 (D23): ein Menü mit Abschnitten; (D27) Nadel im Blattkopf; (D25) Tastenkappen; (D26) Zeiger beim Einfügen */
 .menue .menuekopf{font-size:12px;font-weight:600;color:var(--leise);padding:9px 10px 3px}
 .menue .menuekopf:first-child{padding-top:4px}
@@ -942,7 +953,7 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
 .druckhinweis{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px 12px;margin:8px 0 12px;font-size:var(--fs-13);color:var(--leise)}
 .druckhinweis b{color:var(--tinte);font-weight:var(--fw-600)}
 /* ab v1.65 (F13): Hinweisleiste der Druckvorschau statt des Fensters „Vor dem Drucken“ */
-.druckhinweise{margin:8px 0 12px}.druckhinweise h2{display:flex;align-items:center;margin:0 0 6px}
+.druckhinweise{margin:8px 0 12px}.druckhinweise h2{display:flex;align-items:center;margin:0 0 6px;text-transform:none;letter-spacing:0;font-size:var(--fs-13);color:var(--tinte)}      /* ab v1.67 (DS3-03) ohne Versalien */
 .druckhinweise .liste{max-height:40vh;overflow:auto}
 .tzwahl{display:inline-flex;margin:4px 0 8px}
 .planlupe .lupezoom{border:0;background:none;border-radius:9px;padding:8px 10px;min-height:40px;cursor:pointer;font-weight:var(--fw-600);color:var(--tinte)}.planlupe .lupezoom:hover{background:var(--hover)}
@@ -968,6 +979,7 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
 .meldung.imfuss{transform:none;border-radius:0;background:var(--karte);color:var(--tinte);padding:0 6px;display:flex;align-items:center;justify-content:center;gap:4px;
   white-space:nowrap;overflow:hidden;font-size:var(--fs-13);font-weight:var(--fw-600);z-index:13;max-width:none;text-align:left}
 .meldung.imfuss.an{opacity:1}.meldung.imfuss .mtext{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.zeile .w.platzw{font-style:italic}      /* ab v1.67 (GZ11) Platzhalter */
 .meldung.imfuss .mknopf{color:var(--akzent);padding:4px 6px;margin-left:4px;flex:0 0 auto}
 /* F18: Fußleiste in Segmenten */
 .hinweiszeile .standtext{display:flex;align-items:center;gap:0;overflow:hidden}
@@ -982,6 +994,7 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
 .zeile .un.warnun{color:var(--warn)}
 /* F42: „Mehr“ mit Pfeil nach unten, rechts vom Wort */
 .kopfaktionen .ikon.mehr{flex-direction:row-reverse}
+.kopfaktionen.knapp .ikon:not(.mehr) .ikontext{display:none}.kopfaktionen.knapp .ikon{padding:0 7px}      /* ab v1.67 (DS3-02) */
 /* F34: Typo-Skala auch in Fenstern, Hilfe, Menü und Mehrfachliste; dichtes Maß für Projektdaten und Steuerstromkreise mit Maus */
 .menue button small,.menue kbd{font-size:var(--fs-12)}
 @media (hover:hover) and (pointer:fine){
@@ -1168,9 +1181,11 @@ function sichern() {
   const neu = JSON.stringify(P), jetzt = Date.now();
   if (verlauf.stand !== null && neu !== verlauf.stand) {
     const name = verlauf.name || 'Änderung', letzt = verlauf.zurueck[verlauf.zurueck.length - 1];
-    // zusammenfassen nur, was im selben Feld (ab v1.60) bzw. kurz hintereinander am selben Feld geschieht (Tippen)
-    const sz = verlauf.sitzung, eins = sz ? !!letzt && letzt.sitz === sz : !!letzt && !letzt.sitz && letzt.n === name && jetzt - verlauf.zeit <= 800;
-    if (!eins) { verlauf.zurueck.push({ s: verlauf.stand, n: name, sitz: sz }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
+    // zusammenfassen nur, was im selben Feld geschieht (Tippen, ab v1.60); ab v1.67 (R01) ist jeder Befehl (Löschen, Verschieben,
+    // Einfügen …) ein eigener Schritt, auch wenn er gleich heißt und kurz nach dem vorigen kommt
+    const sz = verlauf.sitzung, eins = !!sz && !!letzt && letzt.sitz === sz;
+    // ab v1.67 (I3-03): jeder Schritt merkt die Auswahl davor – Rückgängig stellt sie wieder her (Mehrfachauswahl, Platz …)
+    if (!eins) { verlauf.zurueck.push({ s: verlauf.stand, n: name, sitz: sz, a: verlauf.auswahl }); if (verlauf.zurueck.length > 50) verlauf.zurueck.shift(); }
     else if (letzt.s === neu) verlauf.zurueck.pop();      // zurückgetippt bzw. Esc: der Schritt entfällt
     verlauf.zeit = jetzt; verlauf.vor = [];
     verlauf.name = null;
@@ -1210,10 +1225,19 @@ function projektRueck(vor) {
   (vor ? verlauf.zurueck : verlauf.vor).push({ s: verlauf.stand, n: s.n });
   const alt = P; P = d; verlauf.stand = s.s; verlauf.zeit = 0;
   ablegen(s.s);
-  if (imEd) { const sel = auswahlNachRueck(alt, P, eb.vid); if (sel !== undefined) { eb.sel = sel; eb.pz = []; eb.anordnen = null; if (sel) { eb.blatt = true; eb.springen = true; }
+  // ab v1.67 (I3-03): Rückgängig wählt, was vor dem Schritt gewählt war (wenn es das noch gibt), sonst das Geänderte
+  const vorher = !vor && imEd && auswahlVorher(s.a, eb.vid, s.s);
+  if (vorher) { eb.sel = vorher.sel; eb.mehr = vorher.mehr; eb.sammel = false; eb.umschalten = false; eb.pz = []; eb.anordnen = null; if (eb.sel) { eb.blatt = true; eb.springen = true; }
+    const w = reiterFuer(eb.sel, eb.palette); if (w !== eb.palette) { eb.palette = w; eb.tool = null; } }
+  else if (imEd) { const sel = auswahlNachRueck(alt, P, eb.vid); if (sel !== undefined) { eb.sel = sel; eb.pz = []; eb.anordnen = null; if (sel) { eb.blatt = true; eb.springen = true; }
     const w = reiterFuer(sel, eb.palette); if (w !== eb.palette) { eb.palette = w; eb.tool = null; } } }      // ab v1.65 (F26): Reiter folgt der Auswahl
   zeichne();
   meldung((vor ? 'Wiederholt: ' : 'Rückgängig: ') + s.n);
+}
+function auswahlVorher(a, vid, text) {
+  if (!a || a.vid !== vid || !a.sel) return null;
+  const da = x => { const id = x.split(':')[1]; return !id || text.includes(`"${id}"`); };
+  return (a.sel === 'm:' ? (a.mehr || []).length > 1 && a.mehr.every(da) : da(a.sel)) ? a : null;
 }
 function auswahlNachRueck(a, n, vid) {
   const va = a.verteiler.find(x => x.id === vid), vn = n.verteiler.find(x => x.id === vid); if (!va || !vn) return undefined;
@@ -1323,7 +1347,7 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Einstellbereich/, 'Einstellbereich passend zum Nennstrom wählen.'],
   [/Kennzeichen .* vergeben/, 'Kennzeichen von Hand ändern oder leeren (automatische Vergabe).']];      // ab v1.59 (D06)
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
-const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), t, ab ? h('span', { class: 'abhilfe' }, ab) : null); };
+const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), ohnePunkt(t), ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
 const fiAm = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi && zahlVon(g.idn || '30') <= 30);
 function fiVorVerteiler(v, tiefe = 0) {
@@ -1475,6 +1499,9 @@ function berechne(v) {
   e.doppelt = {};
   Object.entries(zahl).filter(([, n]) => n > 1).forEach(([t, n]) => { e.doppelt[t] = n;
     e.warn.push(`Kennzeichen ${t} ist ${n === 2 ? 'doppelt' : n + '-mal'} vergeben – jedes Betriebsmittel braucht ein eigenes (DIN EN IEC 81346).`); });
+  // ab v1.67 (I3-07): ein von Hand gesetztes Kennzeichen ohne „-“ bleibt als Hinweis stehen (nicht nur als kurze Meldung am Feld)
+  [...new Set(vergeben.filter(r => r.hand && String(r.t || '').trim() && !/^-[A-Za-zÄÖÜäöü]/.test(String(r.t).trim())).map(r => String(r.t).trim()))]
+    .forEach(t => e.warn.push(`Kennzeichen „${t}“ beginnt nicht mit „-“ (z. B. -F3, DIN EN IEC 81346).`));
   return e;
 }
 // Warnungen zum Verteiler (ab v1.43, Prüfbericht E2; ändern keinen Plan)
@@ -1680,7 +1707,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
   kreise.forEach(kr => kr.pfade.forEach(p => { if (p.verbraucher) spulen[p.verbraucher.g] = (spulen[p.verbraucher.g] || 0) + 1; }));
   Object.entries(spulen).forEach(([g, n]) => { if (n > 1) { const t = `${name(g)}: Spule bzw. Verbraucher ${n}-mal gesetzt.`; r.warn.push(t);
     kreise.forEach(kr => { if (kr.pfade.some(p => p.verbraucher && p.verbraucher.g === g)) vonKreis(t, kr.id); }); } });
-  Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) { const kn = knoten(v, kid.split('~')[0]); r.warn.push(`${[a.schalt.bmk.t, kn ? abgangName(kn.k) : ''].filter(Boolean).join(' ')}: Steuerstromkreis fehlt – Spule nicht gesetzt`); } });      // ab v1.62 (D35)
+  Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.schalt && !spulen[kid]) { const kn = knoten(v, kid.split('~')[0]); r.warn.push(`${[a.schalt.bmk.t, kn ? abgangText(kn.k) : ''].filter(Boolean).join(' ')}: Steuerstromkreis fehlt – Spule nicht gesetzt`); } });      // ab v1.62 (D35)
   const kreisDes = (kid, t) => kreise.forEach(kr => { if (kr.pfade.some(p => p.verbraucher && p.verbraucher.g === kid)) vonKreis(t, kr.id); });
   Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.ol && !(a.olKont && a.olKont.o.length)) { const t = `${a.ol.bmk.t}: Öffner 95–96 des Überlastrelais fehlt im Steuerstromkreis.`; r.warn.push(t); kreisDes(kid, t); } });
   // Motorschutzschalter mit Schütz (ab v1.52): ohne Hilfskontakt im Steuerkreis zieht das Schütz nach dem Auslösen wieder an
@@ -1733,7 +1760,7 @@ function neuesSteuerGeraet(v, zeichen) {
 function kreisOhneSchaltgeraet(v) { const kr = { id: id(), quelle: null, pfade: [neuerPfad()] }; stDaten(v).kreise.push(kr); return kr; }
 // Verbraucher eines Kreises für Überschriften: Schaltgerät eines Abgangs oder Gerät
 function kreisKopf(v, e, kr) {
-  for (const p of kr.pfade) { const a = p.verbraucher && e.abgaenge[p.verbraucher.g], kn = a && knoten(v, p.verbraucher.g); if (a && a.schalt && kn) return { bmk: a.schalt.bmk, name: abgangName(kn.k), art: SCHALT[a.schalt.typ] }; }
+  for (const p of kr.pfade) { const a = p.verbraucher && e.abgaenge[p.verbraucher.g], kn = a && knoten(v, p.verbraucher.g); if (a && a.schalt && kn) return { bmk: a.schalt.bmk, name: abgangText(kn.k), art: SCHALT[a.schalt.typ] }; }
   for (const p of kr.pfade) { const g = p.verbraucher && ((v.steuerung && v.steuerung.geraete) || []).find(x => x.id === p.verbraucher.g);
     if (g) return { bmk: e.steuer.geraete[g.id], name: [g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], art: ST_ZEICHEN[g.zeichen][0] }; }
   return null;
@@ -1936,6 +1963,9 @@ function fokusMerken(el) {
   // ab v1.65 (F23): ohne Auslöser (Fokus lag auf body) bzw. ohne seinen Bereich (z. B. Menüeintrag) an die Arbeitsfläche
   const flaeche = () => { if (ED && ED.flaeche.isConnected) ED.flaeche.focus({ preventScroll: true }); };
   if (!el || el === document.body || !el.closest) return flaeche;
+  // ab v1.67 (I3-01): ein Teil im Blatt (z. B. nach Rechtsklick + Esc) gibt den Fokus an die Fläche zurück – Eingabe wirkt dann
+  // auf die aktuelle Auswahl, nicht auf das früher angeklickte Teil
+  if (ED && ED.flaeche.contains(el) && el !== ED.flaeche) return flaeche;
   const bereich = ['.edeigen', '.edkopf', '.edpal', '.edfuss', '.edflaeche', '#app'].find(s => el.closest(s));
   const sig = x => x.getAttribute('aria-label') || (x.querySelector && x.querySelector('.ob') ? x.querySelector('.ob').textContent : '') || (x.textContent || '').trim().slice(0, 40), s = sig(el);
   return () => {
@@ -2039,10 +2069,13 @@ function textInline(z, titel, wert, setzen, opt) {
 function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
   let schl;
   // kurze Werte ohne Zusatz (Nennstrom, Kennlinie, Querschnitt …) als Raster zum schnellen Antippen
-  const raster = optionen.length > 3 && optionen.every(o => { const [, t, k] = Array.isArray(o) ? o : [o, o]; return !k && String(t).length <= 7; });
+  // ab v1.67 (DS3-10): { kopf: 'Befehlsgeber' } setzt eine leise Gruppenüberschrift (kein Knopf)
+  const kopfE = o => o && !Array.isArray(o) && typeof o === 'object' && o.kopf;
+  const raster = !optionen.some(kopfE) && optionen.length > 3 && optionen.every(o => { const [, t, k] = Array.isArray(o) ? o : [o, o]; return !k && String(t).length <= 7; });
   // ab v1.58 (C31): mit Erklärzeilen breiter, Name einzeilig, Erklärung darunter
   const mitKlein = !raster && optionen.some(o => Array.isArray(o) && o[2]);
   const liste = h('div', { class: 'wahl' + (raster ? ' raster' : '') + (mitKlein ? ' mitklein' : ''), role: 'radiogroup' }, optionen.map(o => {
+    if (kopfE(o)) return h('div', { class: 'wahlkopf', role: 'presentation' }, o.kopf);
     const [w, t, klein, aus] = Array.isArray(o) ? o : [o, o];     // aus (ab v1.54): ausgegraut, klein nennt den Grund
     return h('button', { role: 'radio', 'aria-checked': String(w) === String(wert ?? ''), disabled: aus || null, on: { click: () => { setzen(w); aenderung(titel); sichern(); schl(); } } },
       h('span', {}, t), klein ? h('small', {}, klein) : null);
@@ -2226,7 +2259,13 @@ function zeichne() {
   document.body.classList.toggle('imeditor', b.s === 'editor'); document.body.classList.remove('fachoffen');
   ({ start: bStart, projekte: bProjekte, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
      steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
-  if (flFokus) flaecheFokus();
+  // ab v1.67 (I3-04): im Editor fällt der Fokus nach dem Neuzeichnen nie auf body (Palette, Fachzeile, Rückkehr aus der Vorschau)
+  if (flFokus || b.s === 'editor') flaecheFokus();
+  // ab v1.67 (GZ9, I3-02, DS3-06): eine Meldung gehört zur Seite, auf der sie entstand – beim Wechsel der Seite schließt sie
+  // (nicht die eben zur selben Handlung gesetzte), sonst wird ihre Lage neu bestimmt (Fußleiste nur im Editor)
+  const mEl = document.getElementById('meldung');
+  if (zeichne.seite && zeichne.seite !== b.s && mEl.classList.contains('an') && Date.now() - (meldung.zeit || 0) > 300) { clearTimeout(meldung.t); mEl.classList.remove('an', 'mitknopf', 'imfuss'); }
+  zeichne.seite = b.s; meldungNeuLegen();
   historie();
 }
 // Fokus auf die Arbeitsfläche (ab v1.65, F23), wenn er sonst auf body fiele – nie aus einem Fenster oder Feld heraus
@@ -2305,7 +2344,7 @@ const freierName = basis => { let n = 1; while (P.verteiler.some(w => w.name ===
 function neuerVerteilerFenster() {
   const vorschlag = !P.verteiler.length ? 'Hauptverteiler' : freierName('Unterverteiler');
   nameFenster('Neuer Verteiler', 'Name des Verteilers', vorschlag, 'z. B. Hauptverteiler Keller', 'Anlegen', name => {
-    const v = neuerVerteiler(name); P.verteiler.push(v); aenderung('Neuer Verteiler'); sichern(); geh({ s: 'editor', vid: v.id }); });
+    const v = neuerVerteiler(name); P.verteiler.push(v); aenderung(`${v.name} anlegen`); sichern(); geh({ s: 'editor', vid: v.id }); });
 }
 // Unterverteiler anlegen und aus dem Abgang k speisen (ab v1.54)
 function uvAnlegen(v, k, name) {
@@ -2435,10 +2474,14 @@ function sortKnoepfe(liste, i, nachZeichnen = zeichne) {
 function bProjekt() {
   app.append(kopf('Projektdaten'));
   const p = P.projekt, m = h('main', { class: 'dicht' });      // ab v1.66 (F34): dichtes Maß mit Maus wie im Fach
-  const f = (titel, feld, opt = {}, txt = true) => zeile(titel, (feld === 'datum' ? datumDE(p[feld]) : p[feld]) || opt.platz || '—', () => textFeld(titel, p[feld], w => p[feld] = w, opt), { ohnePfeil: false, text: txt });
+  // ab v1.67 (GZ11): ein Platzhalter („Unbenanntes Projekt“) kursiv, damit er nicht wie ein Wert aussieht; (DS3-12) „Firma“ einzeilig,
+  // die Erklärung im Tooltip
+  const f = (titel, feld, opt = {}, txt = true) => { const leer = !p[feld] && !!opt.platz;
+    const z = zeile(titel, (feld === 'datum' ? datumDE(p[feld]) : p[feld]) || opt.platz || '—', () => textFeld(titel, p[feld], w => p[feld] = w, opt), { ohnePfeil: false, text: txt, titel: opt.tip || null });
+    if (leer) z.querySelector('.w').classList.add('platzw'); return z; };
   // ab v1.66 (F14): ohne Namen „Unbenanntes Projekt“ (wie auf dem Deckblatt), Hinweis vor dem Drucken
   m.append(h('h2', {}, 'Schriftfeld'), h('div', { class: 'liste' },
-    f('Firma (rechtlicher Eigentümer)', 'firma'), f('Anschrift', 'anschrift'), f('Projekt', 'projekt', { platz: 'Unbenanntes Projekt' }), f('Dokumenttitel', 'titel'),
+    f('Firma', 'firma', { tip: 'Firma – rechtlicher Eigentümer des Plans' }), f('Anschrift', 'anschrift'), f('Projekt', 'projekt', { platz: 'Unbenanntes Projekt' }), f('Dokumenttitel', 'titel'),
     f('Erstellt durch', 'ersteller'), f('Zeichnungsnummer', 'nummer'), f('Revision', 'rev'), f('Ausgabedatum', 'datum', { typ: 'date' }, false)));
   m.append(h('p', { class: 'hinweis' }, 'Verteiler und Blattnummern trägt die App automatisch ein.'));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
@@ -2488,7 +2531,7 @@ function bVerteiler(b) {
   m.append(l);
   // ab v1.66 (F16/F39): „Mehrere Abgänge ändern …“ entfällt (Mehrfachauswahl: Strg+Klick, Rahmen, „Mehrfach wählen“), die
   // Phasenbelastung steht erst ab einem Abgang
-  if (v.leiter === '3NPE' && Object.keys(e.abgaenge).length) m.append(h('p', { class: 'hinweis' }, `Phasenbelastung: L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3} Abgänge`));
+  if (v.leiter === '3NPE' && Object.keys(e.abgaenge).length) m.append(h('p', { class: 'hinweis' }, `Phasenbelastung (Abgänge): L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));      // ab v1.67 (GZ14)
   const nKreise = Object.keys(e.steuer.aktiv).length;
   m.append(h('h2', {}, 'Steuerung'), h('div', { class: 'liste' },
     zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
@@ -2519,7 +2562,8 @@ const ohneTitel = (titel, t) => String(t || '').startsWith(titel + ' ') ? t.slic
 function kopfZeile(v, feld, titel, bmk) {
   const g = v[feld];
   const wert = g.zeichen ? [ohneTitel(titel, gName(g.zeichen)), bemessung(g)].filter(Boolean).join(', ') : null;
-  return zeile(titel, g.zeichen ? null : 'kein', () => g.zeichen ? geh({ s: 'kopf', vid: v.id, feld }) : kopfGeraetWahl(v, feld), { bmk: g.zeichen ? bmk : null, un: wert });
+  // ab v1.67 (GZ14): „die Vorsicherung – keine“
+  return zeile(titel, g.zeichen ? null : feld === 'vorsicherung' ? 'keine' : 'kein', () => g.zeichen ? geh({ s: 'kopf', vid: v.id, feld }) : kopfGeraetWahl(v, feld), { bmk: g.zeichen ? bmk : null, un: wert });
 }
 function kopfGeraetWahl(v, feld) {
   const g = v[feld];
@@ -2722,10 +2766,10 @@ function bAbgang(b) {
   const freie = P.verteiler.filter(w => w !== v && (!speisenderAbgang(w.id) || k.speist === w.id));
   // ab v1.62 (D35): ohne eigenen Abschnitt in der Liste „Verbraucher“ (dichter, alle Felder ohne Scrollen)
   m.querySelector('.liste').append(
-    zeile('Speist Unterverteiler', k.speist ? (vById(k.speist) || {}).name : 'nein', () => wahlFeld('Speist Unterverteiler',
-      [['', 'nein']].concat(freie.map(w => [w.id, w.name]), [['+neu', 'Neuer Unterverteiler …', 'legt einen Verteiler an, der aus diesem Abgang gespeist wird']]), k.speist || '', w => {
+    zeile('Speist Unterverteiler', k.speist ? (vById(k.speist) || {}).name : 'keinen', () => wahlFeld('Speist Unterverteiler',      // ab v1.67 (DS3-12)
+      [['', 'keinen']].concat(freie.map(w => [w.id, w.name]), [['+neu', 'Neuer Unterverteiler …', 'legt einen Verteiler an, der aus diesem Abgang gespeist wird']]), k.speist || '', w => {
         if (w === '+neu') return setTimeout(() => nameFenster('Neuer Unterverteiler', 'Name des Unterverteilers', freierName('UV'), 'z. B. UV Obergeschoss', 'Anlegen', n => {
-          uvAnlegen(v, k, n); aenderung('Neuer Unterverteiler'); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
+          uvAnlegen(v, k, n); aenderung(`${n} anlegen`); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
         k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
       { titel: 'Der Unterverteiler zeigt diesen Abgang als Einspeisung' }));
   if (!(einbettung && ED)) m.append(h('h2', {}, ''), h('div', { class: 'liste' },      // ab v1.60 (D12/D15) wie bei der Gruppe
@@ -2913,21 +2957,30 @@ function bSteuerung(b) {
       kk ? { bmk: kk.bmk, un: `${kk.art} · ` + (gem && !kr.eigen ? 'gemeinsame Steuerspannung' : qa ? `Abgriff ${qa.f ? qa.f.t : 'im Abgang'}` : 'Abgriff fehlt') }
          : { rot: true, un: 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.' }));
   });
-  schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id)).forEach(k => l.append(h('button', { class: 'neu inliste', on: { click: () => {
-    const kr = kreisAnlegen(v, k); sichern(); imPlan(v, kr); } } }, `+ Kreis für ${e.abgaenge[k.id].schalt.bmk.t} ${abgangName(k)}`)));
-  l.append(h('button', { class: 'neu inliste', on: { click: () => { const kr = kreisOhneSchaltgeraet(v); sichern(); imPlan(v, kr); } } },
-    '+ Kreis ohne Schaltgerät'));
+  // ab v1.67 (DS3-07): „Neuer Kreis …“, „Kreis für -Q4 anlegen“ und „Neues Gerät …“ sind Befehle (Kopfleiste, Rechtsklick: befehle('st:'));
+  // mit Finger (dort hat „Steuerstromkreise“ keine Kontextleiste) und außerhalb des Editors bleiben sie Zeilen am Listenende
+  const stB = ED && feinZeiger() ? [] : befehleSt(v, e);
+  stB.filter(x => x.id !== 'geraetneu').forEach(x => l.append(h('button', { class: 'neu inliste', on: { click: x.f } }, '+ ' + x.l.replace(/ …$/, ''))));
   m.append(h('h2', {}, 'Kreise'), l);
-  e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, warnIk(), w)));
+  e.steuer.warn.forEach(w => m.append(h('p', { class: 'warnung' }, warnIk(), ohnePunkt(w))));
   // Befehlsgeber und Meldeleuchten
   const gl = h('div', { class: 'liste' });
   st.geraete.forEach(g => gl.append(zeile([g.bez, g.ort].filter(Boolean).join(', ') || ST_ZEICHEN[g.zeichen][0], null,
     () => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), { bmk: e.steuer.geraete[g.id], un: ST_ZEICHEN[g.zeichen][0] + verwendetText(v, g.id) })));
-  gl.append(h('button', { class: 'neu inliste', on: { click: () => wahlFeld('Neues Gerät',
-    Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml' || art === 'zg').map(([z, [n]]) => [z, n]), '',
-    w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) } }, '+ Befehlsgeber, Meldeleuchte oder Zeitrelais'));
+  stB.filter(x => x.id === 'geraetneu').forEach(x => gl.append(h('button', { class: 'neu inliste', on: { click: x.f } }, '+ Befehlsgeber, Meldeleuchte oder Zeitrelais')));
   m.append(h('h2', {}, 'Befehlsgeber, Meldeleuchten, Zeitrelais'), gl);
   app.append(m);
+}
+// Befehle der Steuerstromkreise eines Verteilers (ab v1.67, DS3-07): Kreis für ein Schaltgerät ohne Kreis, Kreis ohne Schaltgerät,
+// Gerät vorab anlegen
+function befehleSt(v, e) {
+  const kn = schaltAbgaenge(v, e).filter(k => !kreisVon(v, k.id) && knoten(v, k.id)).map(k => ({ id: 'kreis', l: `Kreis für ${e.abgaenge[k.id].schalt.bmk.t} anlegen`, i: 'plus',
+    f: () => { const kr = kreisAnlegen(v, k); aenderung('Kreis anlegen'); sichern(); imPlan(v, kr); } }));
+  kn.push({ id: 'kreisneu', l: 'Neuer Kreis ohne Schaltgerät', i: 'plus', kern: true, f: () => { const kr = kreisOhneSchaltgeraet(v); aenderung('Kreis anlegen'); sichern(); imPlan(v, kr); } },
+    { id: 'geraetneu', l: 'Neues Gerät …', i: 'plus', kern: true, f: () => wahlFeld('Neues Gerät',
+      Object.entries(ST_ZEICHEN).filter(([, [, art]]) => art === 'bg' || art === 'ml' || art === 'zg').map(([z, [n]]) => [z, n]), '',
+      w => { const g = neuesSteuerGeraet(v, w); setTimeout(() => geh({ s: 'sgeraet', vid: v.id, gid: g.id }), 0); }) });
+  return kn;
 }
 // ab v1.62 (D35): „2× verwendet“ erst bei mehrfacher Nutzung
 const verwendetText = (v, gid) => { const n = stVerwendet(v, gid); return n === 1 ? '' : n ? ` · ${n}× verwendet` : ' · nicht verwendet'; };
@@ -2948,8 +3001,8 @@ function bKreis(b) {
   const m = h('main');
   // Kreis und Steuerspannung
   const gem = sp.art !== 'abgang' && sp.quelle && knoten(v, sp.quelle);
-  const kz = [zeile('Bezeichnung', kr.name || (sk ? abgangName(sk) : '—'), () => textFeld('Bezeichnung', kr.name,
-    w => kr.name = w || undefined, { platz: sk ? abgangName(sk) : '', text: 'Leer lassen für die Bezeichnung des Abgangs.' }))];
+  const kz = [zeile('Bezeichnung', kr.name || (sk ? abgangText(sk) : '—'), () => textFeld('Bezeichnung', kr.name,
+    w => kr.name = w || undefined, { platz: sk ? abgangText(sk) : '', text: 'Leer lassen für die Bezeichnung des Abgangs.' }))];
   if (gem) kz.push(zeile('Steuerspannung', kr.eigen ? 'eigener Abgriff' : 'gemeinsam', () => wahlFeld('Steuerspannung dieses Kreises', [
     ['gem', 'gemeinsam', ST_ART[sp.art]], ['eigen', 'eigener Abgriff', 'L und N hinter dem Schutzorgan eines Abgangs']],
     kr.eigen ? 'eigen' : 'gem', w => kr.eigen = w === 'eigen')));
@@ -2966,7 +3019,7 @@ function bKreis(b) {
   if (!imEd) kz.push(zeile('Vorlage einsetzen …', null, () => vorlageWahl(v, kr), { un: `${VORLAGEN.length} Vorlagen, z. B. Selbsthaltung, Treppenlicht` }));
   m.append(h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, ...kz));
   if (!kk) m.append(h('p', { class: 'warnung' }, 'Kein Verbraucher gesetzt (bzw. Schaltgerät entfernt); der Kreis wird nicht gezeichnet.'));
-  if (imEd) kreisHinweise(e, kr).forEach(w => m.append(h('p', { class: 'warnung' }, warnIk(), w)));      // ab v1.66 (F38)
+  if (imEd) kreisHinweise(e, kr).forEach(w => m.append(h('p', { class: 'warnung' }, warnIk(), ohnePunkt(w))));      // ab v1.66 (F38)
   // Pfade und Zweige
   let nr = 0, nz = 0;
   kr.pfade.forEach((p, j) => {
@@ -3043,9 +3096,11 @@ function verbraucherZeile(v, e, p) {
 function platzWahl(v, e, p, i) {
   const cur = p.plaetze[i], g0 = cur && (v.steuerung.geraete || []).find(x => x.id === cur.g);
   const curZ = cur ? (cur.z || (g0 && g0.zeichen) || '') : '';
-  const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakt eines Schaltgeräts', zr: 'verzögerter Kontakt eines Zeitrelais', ol: 'Kontakt eines Überlastrelais', ms: 'Hilfsschalter eines Motorschutzschalters' };
-  wahlFeld(`Platz ${i + 1}`, [['', 'leer', 'durchgehende Leitung']].concat(Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a !== 'ml' && a !== 'zg')
-    .map(([z, [n, a]]) => [z, n, art[a]])), curZ, z => {
+  // ab v1.67 (DS3-10): Gruppen mit einer leisen Überschrift statt derselben Zweitzeile an jedem Eintrag
+  const art = { bg: 'Befehlsgeber', hk: 'Hilfskontakte eines Schaltgeräts', zr: 'Verzögerte Kontakte eines Zeitrelais', ol: 'Kontakte eines Überlastrelais', ms: 'Hilfsschalter eines Motorschutzschalters' };
+  const opt = [['', 'leer']];
+  Object.keys(art).forEach(a => { opt.push({ kopf: art[a] }); Object.entries(ST_ZEICHEN).filter(([, [, x]]) => x === a).forEach(([z, [n]]) => opt.push([z, n])); });
+  wahlFeld(`Platz ${i + 1}`, opt, curZ, z => {
     if (!z) { p.plaetze[i] = null; return; }
     setTimeout(() => geraetWahl(v, e, z, cur, gid => platzSetzen(p, i, z, gid)), 0);
   });
@@ -3105,7 +3160,8 @@ function bSGeraet(b) {
   const v = vById(b.vid), st = v && v.steuerung, g = st && st.geraete.find(x => x.id === b.gid); if (!g) { zurueck(); return; }
   const e = berechne(v), bmk = e.steuer.geraete[g.id];
   const art = ST_ZEICHEN[g.zeichen][1];
-  app.append(kopf(art === 'ml' ? 'Meldeleuchte' : art === 'zg' ? 'Zeitrelais' : 'Befehlsgeber'));
+  // ab v1.67 (DS3-08): Fachtitel nach dem Muster „Art Kennzeichen – Name“ wie bei den Abgängen
+  app.append(kopf([stGeraetArt(g, bmk.t), bmk.t].filter(Boolean).join(' ') + (bezOrt(g) ? ' – ' + bezOrt(g) : '')));
   const m = h('main');
   const arten = Object.entries(ST_ZEICHEN).filter(([, [, a]]) => a === art).map(([z, [n]]) => [z, n]);
   m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
@@ -3473,7 +3529,7 @@ function editorPlatz(v, b, pid, i) {
     // ab v1.66 (F16): Wert statt Befehl – „Steuerstromkreis  -Q2 Pumpe“ führt zum Kreis
     h('h2', {}, 'Kreis'), h('div', { class: 'liste' }, zeile('Steuerstromkreis', kk ? `${kk.bmk.t} ${kr.name || kk.name}` : (kr.name || '—'), () => geh({ s: 'kreis', vid: v.id, krid: kr.id }),
       { titel: 'Bezeichnung, Steuerspannung, Abgriff, alle Pfade' })),
-    ...kreisHinweise(e, kr).map(w => h('p', { class: 'warnung' }, warnIk(), w))) };
+    ...kreisHinweise(e, kr).map(w => h('p', { class: 'warnung' }, warnIk(), ohnePunkt(w)))) };
 }
 // Hinweise eines Kreises (ab v1.66, F38): nur die eigenen, nicht die anderer Kreise oder des Verteilers
 const kreisHinweise = (e, kr) => e.steuer.warn.filter(t => (e.steuer.warnKr[t] || []).includes(kr.id));
@@ -3487,6 +3543,9 @@ document.addEventListener('keydown', ev => {
   if (t === 'escape' && b.s !== 'editor' && stapel.length > 1 && !einbettung) { ev.preventDefault(); return zurueck(); }
   if (b.s !== 'editor' || !ED) return;
   const v = ED.v;
+  // ab v1.67 (GZ8): mit dem Fokus im Fach wirken Entf/Rücktaste und Strg+C/X/V/D nicht auf die Auswahl im Plan – ein Objekt wird
+  // nur gelöscht, wenn der Fokus auf der Arbeitsfläche liegt (Eigenschaftenfenster in Office, EPLAN)
+  if (ev.target.closest && ev.target.closest('.edeigen') && (t === 'delete' || t === 'backspace' || (strg && 'cxvd'.includes(t) && t.length === 1))) return;
   // ab v1.59 (D04): Esc bricht Ziehen, Rahmen und Schwenken ab, bevor es etwas anderes tut
   if (t === 'escape' && (zieh || rahmenZug || schwenk)) { ev.preventDefault(); return ziehAbbruch(); }
   // Teil im Blatt mit der Tastatur fokussiert: Eingabe/Leertaste wählt es – die Leertaste nur, solange die Maus nicht über
@@ -3561,6 +3620,7 @@ document.addEventListener('keydown', ev => {
 // Palette, in der Mitte die Blätter des Verteilers mit Antippflächen, rechts die Eigenschaften
 // (iPad hoch: Fach von unten), unten Blattwahl, Hinweis und Zoom. Alle Bildschirme der Eingabe
 // erscheinen in der Eigenschaften-Leiste (geh() wird im Editor dorthin umgelenkt).
+let tabZeit = 0; document.addEventListener('keydown', ev => { if (ev.key === 'Tab') tabZeit = Date.now(); }, true);      // ab v1.67 (DS3-11)
 let ED = null;                     // laufender Editor: { b, v, ed, pal, flaeche, blaetter, eigen, fuss, svgs, karten, … }
 const ANSICHT = 'slp.ansicht.v1';  // Vorlieben dieses Geräts (Eigenschaften-Leiste ein/aus)
 let ansicht = {}; try { ansicht = JSON.parse(localStorage.getItem(ANSICHT)) || {}; } catch (e) { ansicht = {}; }
@@ -4081,6 +4141,7 @@ function waehle(sel, opt = {}) {
   flaecheFokus();      // ab v1.65 (F23): z. B. Esc in einer Fachzeile
 }
 function markieren() {
+  verlauf.auswahl = { vid: ED.v.id, sel: ED.b.sel || null, mehr: ED.b.sel === 'm:' && ED.b.mehr ? [...ED.b.mehr] : null };      // ab v1.67 (I3-03)
   ED.blaetter.querySelectorAll('[data-sel]').forEach(x => x.removeAttribute('data-sel'));
   const gew = ED.b.sel === 'm:' ? new Set(ED.b.mehr || []) : new Set([ED.b.sel]);
   if (ED.b.sel) ED.blaetter.querySelectorAll('[data-ziel]').forEach(r => { if (gew.has(r.dataset.ziel)) r.setAttribute('data-sel', ''); });
@@ -4432,6 +4493,7 @@ function befehle(sel, opt = {}) {
   const anordnenB = bes => !ED.liste.some(bl => bl.szene && Object.values(bl.szene.teile).some(t => t.box && teilAnzeige(t.key) === bes)) ? null
     : b.anordnen === bes ? { id: 'anordnen', l: 'Anordnen beenden', i: 'breite', taste: 'Esc', f: () => anordnen(null) } : { id: 'anordnen', l: 'Anordnen', i: 'breite', f: () => anordnen(bes) };
   const automatikB = key => vonHand(v, key) ? { id: 'automatik', l: 'Automatik anwenden', i: 'auto', f: () => { automatik(v, key); aenderung('Automatik anwenden'); sichern(); zeichne(); } } : null;
+  if (art === 'st') return befehleSt(v, berechne(v));      // ab v1.67 (DS3-07)
   if (art === 'k') {
     const r = knoten(v, id); if (!r) return kn;
     const a = was => () => editorAktion(v, b, was), lage = !r.eltern && abgangLage(id), um = v.layout && v.layout.umbruch && v.layout.umbruch[id];
@@ -4570,7 +4632,7 @@ function bezeichnungBearbeiten(feld = null) {
 function schriftfeldFeld(svg, ev) {
   const q = svgPunkt(svg, ev); if (!q) return null;
   const vb = svg.viewBox.baseVal, x0 = 20, x1 = vb.width - 10, y1 = vb.height - 10, y0 = y1 - 20, xa = x0 + 70;
-  if (q[0] < xa) return q[1] < y0 + 11.5 ? 'Firma (rechtlicher Eigentümer)' : 'Anschrift';
+  if (q[0] < xa) return q[1] < y0 + 11.5 ? 'Firma' : 'Anschrift';
   const r = (q[0] - xa) / (x1 - xa), oben = q[1] < y0 + 10;
   const reihe = oben ? [['Projekt', 0.5], ['Dokumenttitel', 0.3], ['Projekt', 0.2]]
     : [['Zeichnungsnummer', 0.3], ['Revision', 0.1], ['Ausgabedatum', 0.18], ['Erstellt durch', 0.27], ['Projekt', 0.15]];
@@ -4630,14 +4692,27 @@ function kontextNeu() {
   if (b.sel === 'm:' && b.sammel && b.umschalten && !fein) return;
   const kn = befehle(b.sel); if (!kn.length) return;
   const kern = kn.filter(x => x.kern).slice(0, 4), rest = kn.filter(x => !kern.includes(x));
-  const knopf = x => ik(x.i, x.l, x.f, { taste: x.taste, cls: x.rot ? 'rot' : null, text: x.t || x.l });
+  // ab v1.67 (DS3-02): „3 Abgänge löschen“ als Knopftext nur „Löschen“ (die Anzahl steht im Tooltip und in der Fußleiste)
+  const knopf = x => ik(x.i, x.l, x.f, { taste: x.taste, cls: x.rot ? 'rot' : null, text: (x.t || x.l).replace(/^\d+ Abgänge löschen$/, 'Löschen') });
   const liste = kern.map(knopf);
-  if (rest.length) liste.push(ik('ab', 'Weitere Befehle', () => befehlMenue(kn), { text: 'Mehr', cls: 'mehr' }));
-  if (fein && ED.aktionen) return ED.aktionen.append(...liste);
+  // ab v1.67 (GZ15): „Mehr“ ist ein Überlaufmenü – nur, was nicht schon als Knopf daneben steht (Rechtsklick bleibt vollständig)
+  if (rest.length) liste.push(ik('ab', 'Weitere Befehle', () => befehlMenue(rest), { text: 'Mehr', cls: 'mehr' }));
+  if (fein && ED.aktionen) { ED.aktionen.append(...liste); return kopfEinpassen(); }
   const L = h('div', { class: 'kontext', role: 'toolbar', 'aria-label': 'Befehle für die Auswahl' }, liste);
   L.style.maxWidth = Math.max(120, ED.flaeche.clientWidth - 16) + 'px'; blaetter.append(L);
   kontextLage();
 }
+// ab v1.67 (DS3-02, GZ13): reicht die Kopfleiste nicht, verlieren erst die Befehle ihre Beschriftung (nur Symbole), bevor sich
+// Knöpfe überlappen oder der Verteilername gekürzt wird – gemessen an der Leiste, nicht an der Fensterbreite
+function kopfEinpassen() {
+  if (!ED || !ED.aktionen || !ED.aktionen.isConnected) return;
+  const a = ED.aktionen, k = a.closest('.edkopf'), n = k.querySelector('.vw-n');
+  a.classList.remove('knapp');
+  if (!a.childElementCount) return;
+  const eng = () => a.scrollWidth > a.clientWidth + 1 || k.scrollWidth > k.clientWidth + 1 || (n && n.scrollWidth > n.clientWidth + 1);
+  if (eng()) a.classList.add('knapp');
+}
+window.addEventListener('resize', () => { if (ED) kopfEinpassen(); });
 // Lage der Kontextleiste (ab v1.53): ganz im sichtbaren Bereich der Fläche, ohne Marken „+“ und das gewählte Teil
 // zu verdecken – erst über dem Teil, dann darunter, dann über dem Blattkopf, sonst oben an der Fläche
 function kontextLage() {
@@ -4737,8 +4812,16 @@ function zoomAufAuswahl() {
   // die ganze Auswahl ist zu sehen; 400 % erreichen nur sehr kleine Teile. Touch wie bisher (C16): nach der Breite, nie kleiner
   // als bisher bzw. 100 %; ist das Teil höher als die Fläche, steht seine Oberkante oben
   const f = ED.flaeche, kb = (f.clientWidth - 48) / Math.max(w, 1);
-  if (feinZeiger()) zoomSetzen(ED.b.zoom * Math.min(kb, (f.clientHeight - 56 - 34) / Math.max(hh, 1)));
-  else zoomSetzen(Math.max(ED.b.zoom, 100, ED.b.zoom * kb));
+  if (feinZeiger()) {
+    zoomSetzen(ED.b.zoom * Math.min(kb, (f.clientHeight - 56 - 34) / Math.max(hh, 1)));
+    // ab v1.67 (I3-05): die ganze Auswahl mittig – auch eine Gruppe, die über zwei Blätter läuft
+    const us = [...ED.blaetter.querySelectorAll('[data-sel]')].map(x => x.getBoundingClientRect()), F = f.getBoundingClientRect();
+    const U = { l: Math.min(...us.map(r => r.left)), r: Math.max(...us.map(r => r.right)), t: Math.min(...us.map(r => r.top)), b: Math.max(...us.map(r => r.bottom)) };
+    f.scrollLeft += (U.l + U.r) / 2 - (F.left + f.clientWidth / 2); f.scrollTop += (U.t + U.b) / 2 - (F.top + f.clientHeight / 2);
+    if (ED.b) { ED.b.sx = f.scrollLeft; ED.b.sy = f.scrollTop; }
+    return kontextLage();
+  }
+  zoomSetzen(Math.max(ED.b.zoom, 100, ED.b.zoom * kb));
   zeigeAuswahl(true); kontextLage();
 }
 // Blattwahl in der Fußleiste
@@ -4770,10 +4853,15 @@ function fussNeu() {
   // ab v1.61 (D21): einzeilig „6 Stromlaufplan HV“; Blätter, die nur im Druck stehen (Deckblatt, Inhalt, Übersicht, Klemmenplan,
   // andere Verteiler), als Sprung in die Druckvorschau an das Blatt
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
-    const druck = (a, z, klein) => a <= z ? [`${a === z ? 'Blatt ' + a : 'Blätter ' + a + '–' + z} in der Druckvorschau`, () => geh({ s: 'plan', vid: ED.v.id, nr: a }), { klein }] : null;
-    menue('', [druck(1, erst - 1, 'Deckblatt, Inhalt, Übersicht bzw. andere Verteiler'), erst > 1 ? '—' : null,
+    // ab v1.67 (DS3-09): die Zweitzeile nennt die echten Blätter („Deckblatt, Inhalt, Übersicht HV, Übersicht UV Werkstatt“)
+    let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, {}).blaetter; } catch (er) { alle = []; }
+    const ART_KURZ = { deckblatt: 'Deckblatt', inhalt: 'Inhalt', uebersicht: 'Übersicht', einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis', klemmen: 'Klemmenplan' };
+    const namen = (a, z) => { const n = [...new Set(alle.filter(bl => bl.nr >= a && bl.nr <= z).map(bl => [ART_KURZ[bl.art] || bl.titel, bl.verteiler].filter(Boolean).join(' ')))];
+      return n.length > 4 ? n.slice(0, 4).join(', ') + ' …' : n.join(', '); };
+    const druck = (a, z) => a <= z ? [`${a === z ? 'Blatt ' + a : 'Blätter ' + a + '–' + z} in der Druckvorschau`, () => geh({ s: 'plan', vid: ED.v.id, nr: a }), { klein: namen(a, z) || null }] : null;
+    menue('', [druck(1, erst - 1), erst > 1 ? '—' : null,
       ...L.map((bl, i) => [`${bl.nr} ${BLATT_ART[bl.art]} ${ED.v.name}`, () => blattZeigen(i, true), { an: i === ED.blattI }]),
-      letzt < ges ? '—' : null, druck(letzt + 1, ges, 'Klemmenplan bzw. andere Verteiler')], null, { label: 'Blätter' }); };
+      letzt < ges ? '—' : null, druck(letzt + 1, ges)], null, { label: 'Blätter' }); };
   ED.blattKnopf = h('button', { class: 'blattwahl', 'aria-label': 'Blatt wählen', title: 'Blatt wählen (Bild↑/Bild↓)', on: { click: blattMenue } });
   // ab v1.61 (D20): Stufen 50/100/150/200 %, Ganzes Blatt, Blattbreite, Auswahl einpassen – mit Kürzeln, ohne gesperrte Einträge
   ED.zoomKnopf = h('button', { class: 'zoomwert', 'aria-label': 'Zoom wählen', title: 'Zoom – 100 % = Blattbreite', on: { click: () => menue('', [
@@ -4814,7 +4902,7 @@ function bandNeu(hinweis, sHinweis) {
   const kn = (b.mehr || []).length > 1 ? befehle('m:') : [], kern = kn.filter(x => x.kern).slice(0, 4);      // Befehle erst ab zwei Abgängen; davor der Hinweis
   const knopf = x => ik(x.i, x.l, x.f, { taste: x.taste, cls: x.rot ? 'rot' : null, text: x.l.replace(/^\d+ Abgänge löschen$/, 'Löschen') });
   ED.band.replaceChildren(...(kern.length ? [h('div', { class: 'kontext imband', role: 'toolbar', 'aria-label': 'Befehle für die Auswahl' }, kern.map(knopf),
-      kn.length > kern.length ? ik('ab', 'Weitere Befehle', () => befehlMenue(kn), { text: 'Mehr', cls: 'mehr' }) : null)]
+      kn.length > kern.length ? ik('ab', 'Weitere Befehle', () => befehlMenue(kn.filter(x => !kern.includes(x))), { text: 'Mehr', cls: 'mehr' }) : null)]
     : [h('span', {}, `${sHinweis || 'Weitere Abgänge antippen, um sie hinzuzunehmen'} – „Fertig“ beendet`)]), fertig(() => waehle(null)));
 }
 // Zustand für die Fußleiste (ab v1.61, D26): Auswahl bzw. Anzahl, „Gespeichert hh:mm · als Datei gesichert vor n Tagen“
@@ -4901,20 +4989,28 @@ const XD_NAME = { steckdose3: 'Steckdose', steckdose5: 'CEE-Steckdose', dose: 'G
 function suchListe() {
   const l = [], kz = o => Object.values(o || {}).filter(x => x && typeof x.t === 'string' && x.t.startsWith('-')).map(x => x.t);
   const kzn = (o, k) => Object.entries(o || {}).filter(([, x]) => x && typeof x.t === 'string' && x.t.startsWith('-'))
-    .map(([n]) => n === 'xd' ? XD_NAME[(k && k.ziel || {}).anschluss] || 'Anschluss' : SUCH_NAME[n] || 'Gerät');
+    .map(([n, x]) => n === 'xd' ? XD_NAME[(k && k.ziel || {}).anschluss] || 'Anschluss' : x._art || SUCH_NAME[n] || 'Gerät');
   P.verteiler.forEach(v => {
     const e = berechne(v);
+    // ab v1.67 (R02): Schaltgerät (Schütz, Stromstoßschalter, Zeitrelais) und Zusatzschütze (~2, ~3) des Abgangs sind suchbar
+    const mitSchalt = id => { const a = e.abgaenge[id]; if (!a) return a; const o = Object.assign({}, a);
+      [a, e.abgaenge[id + '~2'], e.abgaenge[id + '~3']].forEach((x, n) => { if (x && x.schalt && x.schalt.bmk) o['schalt' + (n || '')] = Object.assign({}, x.schalt.bmk, { _art: SCHALT[x.schalt.typ] || 'Schaltgerät' }); });
+      return o; };
     l.push({ v, sel: null, kz: [], name: v.name, art: 'Verteiler' });
     if (kz(e.kopf).length) { const ko = Object.fromEntries(Object.entries(e.kopf).filter(([n]) => n !== 'spd'));
       l.push({ v, sel: 'e:' + v.id, kz: kz(ko), kzn: kzn(ko), name: 'Einspeisung', art: 'Einspeisung' }); }
     if (e.kopf.spd) l.push({ v, sel: 's:' + v.id, kz: [e.kopf.spd.t], name: 'Überspannungsschutz', art: 'Einspeisung' });
     alleKnoten(v, k => l.push(k.typ === 'gruppe' ? { v, sel: 'k:' + k.id, kz: kz({ g: e.geraete[k.id] }), name: (k.bez || 'Gruppe'), art: 'Gruppe' }
-      : { v, sel: 'k:' + k.id, kz: kz(e.abgaenge[k.id]), kzn: kzn(e.abgaenge[k.id], k), name: abgangText(k), art: 'Abgang' }));
+      : { v, sel: 'k:' + k.id, kz: kz(mitSchalt(k.id)), kzn: kzn(mitSchalt(k.id), k), name: abgangText(k), art: 'Abgang' }));
+    // ab v1.67 (R02): Steuerstromkreise als eigene Treffer („Steuerstromkreis -Q2“), nur gezeichnete (mit Kopf)
+    ((v.steuerung || {}).kreise || []).forEach(kr => { const kk = kreisKopf(v, e, kr); if (kk && kk.bmk && kk.bmk.t) l.push({ v, sel: 'kr:' + kr.id, kz: [kk.bmk.t], kzn: ['Steuerstromkreis'], name: kk.name, art: 'Steuerstromkreis' }); });
+    // ab v1.67 (R03): Art nach dem Gerät – Meldeleuchte, Zeitrelais, Melder (-B), sonst Befehlsgeber; Name „Bezeichnung, Ort“ (DS3-08)
     ((v.steuerung || {}).geraete || []).forEach(g => { const t = (e.steuer.geraete[g.id] || {}).t; if (t) l.push({ v, sel: 'g:' + g.id, kz: [t],
-      name: [g.bez, g.ort].filter(Boolean).join(' ') || ((ST_ZEICHEN[g.zeichen] || [g.zeichen])[0]), art: 'Befehlsgeber' }); });
+      name: bezOrt(g) || ((ST_ZEICHEN[g.zeichen] || [g.zeichen])[0]), art: stGeraetArt(g, t) }); });
   });
   return l;
 }
+const stGeraetArt = (g, t) => { const a = (ST_ZEICHEN[g.zeichen] || [])[1]; return a === 'ml' ? 'Meldeleuchte' : a === 'zg' ? 'Zeitrelais' : /^-B/.test(t || '') ? 'Melder' : 'Befehlsgeber'; };
 function suchTreffer(q) {
   q = q.trim().toLowerCase(); if (!q) return [];
   const ohne = x => x.replace(/^-/, ''), qo = ohne(q);
@@ -4957,7 +5053,9 @@ function suche() {
   setTimeout(() => i.focus(), 0);
 }
 // Eigenschaften-Leiste ein- und ausblenden (Desktop)
-function eigenUmschalten() { ansicht.eigenZu = !ansicht.eigenZu; ansichtMerken(); if (ED) ED.ed.classList.toggle('eigenzu', !!ansicht.eigenZu); }
+function eigenUmschalten() { ansicht.eigenZu = !ansicht.eigenZu; ansichtMerken(); if (!ED) return; ED.ed.classList.toggle('eigenzu', !!ansicht.eigenZu);
+  const k = ED.ed.querySelector('.edkopf .ikon.nurbreit'), n = ansicht.eigenZu ? 'Eigenschaften einblenden' : 'Eigenschaften ausblenden';
+  if (k) { k.setAttribute('aria-label', n); k.title = n; } kopfEinpassen(); }
 // Ablage (ab v1.20.1): { k, aus, vid, kreise, geraete } – das Teil samt den Steuerstromkreisen seiner
 // Schaltgeräte; Ausschneiden verschiebt (Kennungen bleiben), Kopieren legt alles mit neuen Kennungen an
 let editorAblage = null;
@@ -5148,7 +5246,7 @@ function knotenLoeschen(v, rs) {
   const t = namen.length === 1 ? `${namen[0]} gelöscht` : `${namen.length} Abgänge gelöscht`;
   const eb = stapel[stapel.length - 1];
   if (eb.s === 'editor') { eb.sel = nach ? 'k:' + nach.id : null; eb.pz = []; eb.mehr = null; eb.sammel = false; eb.umschalten = false; if (nach) eb.blatt = true; } else fertig();
-  aenderung(namen.length === 1 ? `Löschen: ${namen[0]}` : `Löschen: ${t.replace(' gelöscht', '')}`); sichern(); zeichne();
+  aenderung(namen.length === 1 ? `${namen[0]} löschen` : `${namen.length} Abgänge löschen`); sichern(); zeichne();      // ab v1.67 (I3-06, DS3-04): „Objekt Verb“
   if (!kennzeichenMelden(v, kzVor, t + ' · ')) meldung(t, ['Rückgängig', () => projektRueck(false)]);
 }
 // Aktionen für das gewählte Teil (Kontextleiste und Tasten)
@@ -5179,7 +5277,7 @@ function editorAktion(v, b, was) {
     case 'automatik': automatik(v, 'k:' + id); aenderung('Automatik anwenden'); sichern(); return zeichne();
     case 'links': case 'rechts': {
       const j = r.i + (was === 'links' ? -1 : 1); if (j < 0 || j >= r.liste.length) return;
-      [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; aenderung('Verschieben'); sichern(); zeichne(); kennzeichenMelden(v, kzVor); return;
+      [r.liste[r.i], r.liste[j]] = [r.liste[j], r.liste[r.i]]; aenderung(`${knotenName(v, r.k)} verschieben`); sichern(); zeichne(); kennzeichenMelden(v, kzVor); return;
     }
     // ab v1.66 (F33): Meldung „-F1 kopiert (7 Abgänge)“, Rückgängig-Namen „-F4 Küche ausschneiden“
     case 'kopieren': ablageSetzen(v, [r.k], false); if (ED) paletteNeu(); return meldung(`${kopierName(v, [r.k])} kopiert${kopierZahl([r.k])}`);
@@ -5268,7 +5366,7 @@ function bEditor(b) {
     aktionen,      // ab v1.60 (D10): Befehle der Auswahl am Desktop (kontextNeu)
     h('span', { class: 'luecke' }),
     // ab v1.65 (F30): an der Verteilergrenze (der letzte Schritt legte diesen Verteiler an) gesperrt, mit Hinweis im Tooltip
-    grenze ? ik('rueck', 'Rückgängig', () => {}, { aus: true, titel: `Rückgängig (${verlauf.zurueck[nZ - 1].n}: auf der Startseite)` })
+    grenze ? ik('rueck', 'Rückgängig', () => {}, { aus: true, titel: `Rückgängig: ${verlauf.zurueck[nZ - 1].n} – auf der Startseite` })
       : ik('rueck', nZ ? `Rückgängig: ${verlauf.zurueck[nZ - 1].n}` : 'Rückgängig', () => projektRueck(false), { aus: !nZ, taste: 'Strg+Z' }),
     ik('vor', nV ? `Wiederholen: ${verlauf.vor[nV - 1].n}` : 'Wiederholen', () => projektRueck(true), { aus: !nV, taste: 'Strg+Y' }),
     h('span', { class: 'sep' }),
@@ -5276,7 +5374,7 @@ function bEditor(b) {
     ik('drucken', 'Drucken', () => druckMenue(v), { text: 'Drucken', cls: 'mittext', taste: 'Strg+P' }),
     ik('frage', 'Hilfe', () => hilfe(), { cls: 'hilfeikon', taste: 'F1' }),
     ik('menue', 'Menü', () => hauptMenue(v)),
-    ik('eigen', 'Eigenschaften ein- oder ausblenden', eigenUmschalten, { cls: 'nurbreit' }));
+    ik('eigen', ansicht.eigenZu ? 'Eigenschaften einblenden' : 'Eigenschaften ausblenden', eigenUmschalten, { cls: 'nurbreit' }));      // ab v1.67 (DS3-12) ein Name wie im Menü
   if (palQuer && !fachRechts()) palQuer = false;
   const ed = h('div', { 'data-reiter': b.palette, class: 'ed' + (palQuer ? ' palauf' : '') + (ansicht.eigenZu ? ' eigenzu' : '') + (b.tool && !istSteuerWerkzeug(b.tool) ? ' einfuegen' : '') + (b.tool && istSteuerWerkzeug(b.tool) ? ' stwerkzeug' : '') });
   const pal = h('aside', { class: 'edpal', 'aria-label': 'Palette' });
@@ -5290,6 +5388,11 @@ function bEditor(b) {
   flaeche.addEventListener('pointerdown', ev => { if (ev.pointerType !== 'mouse' || !(ev.button === 1 || (leerTaste && ev.button === 0))) return;
     ev.preventDefault(); ev.stopPropagation(); schwenkStart(ev); }, true);
   flaeche.addEventListener('contextmenu', kontextMenue);      // ab v1.60 (D09): Rechtsklick-Menü
+  // ab v1.67 (I3-01): mit der Maus bekommt nie ein einzelnes Teil den Fokus (Rahmen, Rechtsklick, Anordnen), sondern die Fläche –
+  // Eingabe/F2 bearbeiten so immer die aktuelle Auswahl
+  flaeche.addEventListener('focusin', ev => { if (ev.target !== flaeche && ev.target.closest('svg [data-ziel]') && dtZeiger === 'mouse') flaeche.focus({ preventScroll: true }); });
+  // ab v1.67 (DS3-11): Fokusring der Fläche nur, wenn sie mit Tab erreicht wurde – sonst zeigt die Auswahl, wo man ist
+  flaeche.addEventListener('focus', () => flaeche.classList.toggle('pertab', Date.now() - (tabZeit || 0) < 400));
   flaeche.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = true; });
   flaeche.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') ED.zeigerDrin = false; });
   // ab v1.59 (D01): Klick bzw. Tipp auf die graue Fläche oder den Blattkopf hebt die Auswahl auf (Wischen löst keinen Klick aus)
@@ -5679,7 +5782,11 @@ function blattFesthalten(v, i, an) {
   const naechstes = ED.liste.slice(i + 1).find(x => x.art !== 'steuerung' && (x.spalten || []).some(s => s.id));
   const erster = (naechstes && naechstes.spalten.find(s => s.id)) || null;
   L.fest = L.fest || {};
-  if (an) { items.forEach(x => { L.spalten[x.id] = x.col; }); if (i > 0 || bl.art === 'abgang') L.umbruch[items[0].id] = true; if (erster) L.umbruch[erster.id] = true; L.fest[bl.anker] = true; }
+  // ab v1.67 (DS3-01): „neues Blatt ab hier“ nur, wenn der Abgang das Blatt wirklich eröffnet – steht davor der Überspannungsschutz
+  // oder das Folgestück einer Gruppe, würde der Umbruch ihn (und alle danach) auf ein neues Blatt schieben
+  const eroeffnet = (b2, x) => !!x && !!(b2.spalten || []).length && b2.spalten[0].id === x.id;
+  if (an) { items.forEach(x => { L.spalten[x.id] = x.col; }); if ((i > 0 || bl.art === 'abgang') && eroeffnet(bl, items[0])) L.umbruch[items[0].id] = true;
+    if (erster && eroeffnet(naechstes, erster)) L.umbruch[erster.id] = true; L.fest[bl.anker] = true; }
   else { items.forEach(x => { delete L.spalten[x.id]; }); delete L.umbruch[items[0].id]; if (erster && !blattFest(v, naechstes)) delete L.umbruch[erster.id]; delete L.fest[bl.anker]; }
   aenderung(an ? 'Blatt festhalten' : 'Blatt freigeben'); sichern(); zeichne();
 }
@@ -5802,6 +5909,7 @@ function bPlan(b) {
   if (!res.blaetter.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
   app.append(m);
   requestAnimationFrame(() => { res.begrenzen(); if (ziel && !(b.hinweise && hl)) ziel.scrollIntoView(); });      // ab v1.65: mit Hinweisen oben
+  vorschauFokus();      // ab v1.67 (GZ10)
 }
 // Lupe für ein Planblatt (ab v1.53): Vollbild, Pinch und Strg+Mausrad zoomen, Doppeltipp 1×/2×/4×,
 // Wischen (bei 1×) bzw. Pfeiltasten zum Nachbarblatt, Esc oder „Schließen“
@@ -5900,7 +6008,7 @@ function drucken() {
 // Hinweisleiste der Druckvorschau (ab v1.65, F13): je Hinweis „Verteiler – Text“, ein Klick zeigt die Stelle im Plan-Editor
 function druckHinweisListe() {
   const hw = druckHinweise(); if (!hw.length) return null;
-  const nm = x => { const v = vById(x.vid), vn = v ? v.name + ': ' : ''; return v && x.t.startsWith(vn) ? `${v.name} – ${x.t.slice(vn.length)}` : x.t; };
+  const nm = x => { const v = vById(x.vid), vn = v ? v.name + ': ' : ''; return v && x.t.startsWith(vn) ? `${v.name}, ${x.t.slice(vn.length)}` : x.t; };      // ab v1.67 (R06, DS3-03): „UV OG, -F1: …“
   return h('section', { class: 'druckhinweise', role: 'region', 'aria-label': 'Hinweise vor dem Drucken' },
     h('h2', {}, warnIk(), hw.length === 1 ? '1 Hinweis vor dem Drucken' : `${hw.length} Hinweise vor dem Drucken`),
     // ab v1.66 (F32): Hinweistexte ohne Schlusspunkt
@@ -5942,9 +6050,9 @@ function tuerzettel(v) {
     h('div', { class: 'fuss' }, h('span', {}, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
       .filter(Boolean).join(' · ')), h('span', { class: 'seitenzahl' })));
 }
-// feste Spaltenbreiten des Türzettels (ab v1.64, F07), damit Folgeseiten dieselben Kanten haben
+// feste Spaltenbreiten des Türzettels (ab v1.64, F07), damit Folgeseiten dieselben Kanten haben; ab v1.67 (P3-04) „Ort“ breiter (Treppenhaus ungetrennt)
 function tzSpalten() {
-  return h('colgroup', {}, [9, 27, 7, 24, 13, 20].map(w => h('col', { style: `width:${w}%` })));
+  return h('colgroup', {}, [9, 27, 7, 22, 15, 20].map(w => h('col', { style: `width:${w}%` })));
 }
 // Hinweise für den Druckdialog (ab v1.62, D58): Skalierung 100 %, Ränder keine, PDF über das Ziel des Dialogs
 // ab v1.66 (F40): eine Zeile; „anklicken zum Vergrößern“ steht nur noch als Tooltip an den Blättern
@@ -5955,15 +6063,18 @@ function druckHinweisLeiste() {
 // ab v1.62 (D32): „Türzettel-Vorschau“ – dieser Verteiler oder alle, Knopf „Drucken“
 function bTuer(b) {
   const ein = b.vid && vById(b.vid) && !b.alle, liste = ein ? [vById(b.vid)] : P.verteiler;
-  app.append(kopf('Türzettel-Vorschau', h('button', { class: 'kopfknopf knopfvoll', title: 'Türzettel drucken', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
+  app.append(kopf('Türzettel-Vorschau', h('button', { class: 'kopfknopf knopfvoll druckknopf', title: 'Türzettel drucken', on: { click: () => tuerDrucken(liste) } }, 'Drucken')));
   const m = h('main');
   if (b.vid && vById(b.vid) && P.verteiler.length > 1) m.append(h('div', { class: 'segment tzwahl', role: 'tablist', 'aria-label': 'Türzettel' },
     ...[[true, vById(b.vid).name], [false, 'Alle Verteiler']].map(([e1, t]) => h('button', { role: 'tab', 'aria-selected': String(!!ein === e1), on: { click: () => { b.alle = !e1; zeichne(); } } }, t))));
   m.append(druckHinweisLeiste());
   liste.forEach((v, i) => { const tz = tuerzettel(v); tz.setAttribute('role', 'button'); tz.setAttribute('aria-label', `Türzettel ${v.name} vergrößern`); tz.title = `Türzettel vergrößern (${tipp()})`;
     tz.addEventListener('click', () => tuerLupe(liste, i)); m.append(h('div', { class: 'tzwrap' }, tz)); });
-  app.append(m); tzEinpassen();
+  app.append(m); tzEinpassen(); vorschauFokus();
 }
+// ab v1.67 (GZ10): in Druck- und Türzettel-Vorschau liegt der Fokus auf „Drucken“ (Eingabe druckt), nie auf body
+function vorschauFokus() { setTimeout(() => { const k = document.querySelector('#app .kopf .druckknopf'), a = document.activeElement;
+  if (k && !fensterStapel.length && (!a || a === document.body)) k.focus({ preventScroll: true }); }, 0); }
 // Türzettel unter 640 px (ab v1.55): in 720 px Breite gesetzt und auf die Bildschirmbreite verkleinert, wie ein Planblatt
 function tzEinpassen() {
   document.querySelectorAll('#app .tzwrap').forEach(w => {
@@ -6188,11 +6299,15 @@ function meldungImFuss() {
 // liegen Leiste bzw. Band in der oberen Hälfte der Fläche, steht die Meldung unten (über Fußleiste bzw. Fach), sonst oben
 function meldungLage() {
   const m = document.getElementById('meldung'); m.style.top = m.style.bottom = m.style.left = m.style.width = m.style.height = '';
+  const mt0 = m.querySelector('.mtext'); if (mt0 && m.title) mt0.textContent = m.title;      // ab v1.67: ungekürzt, gekürzt wird nur in der Fußleiste
   const hz = meldungImFuss(); m.classList.toggle('imfuss', !!hz);
   if (hz) {      // ab v1.66 (F17): über dem Text der Hinweiszeile, ein „Fertig“ daneben bleibt frei
     const r = hz.getBoundingClientRect(), kn = hz.querySelector('.knopf'), re = kn ? kn.getBoundingClientRect().left - 8 : r.right;
     m.style.left = Math.round(r.left) + 'px'; m.style.width = Math.max(80, Math.round(re - r.left)) + 'px';
     m.style.top = Math.round(r.top) + 'px'; m.style.height = Math.round(r.height) + 'px'; m.style.bottom = 'auto';
+    // ab v1.67 (GZ12): passt der Text nicht, entfallen erst die Klammer, dann hintere Teile ab „ · “ – nie mitten im Wort
+    const mt = m.querySelector('.mtext');
+    for (const f of [x => x.replace(/ \([^()]*\)$/, ''), x => x.replace(/ · [^·]*$/, '')]) { if (!mt || mt.scrollWidth <= mt.clientWidth + 1) break; mt.textContent = f(mt.textContent); }
     return;
   }
   if (!ED || !ED.ed.isConnected || !schmal()) return;

@@ -394,6 +394,13 @@ Mitteltaste schwenkt, Strg+S/O/P/F, Strg+±/0, Umschalt+1/2, Hauptmenü `hauptMe
 v1.63 Plan-Beschriftung E4 Schritt 3 (R4/R6/R7, keine Stauchung unter 85 %, Umbruch statt Stauchung, Trafo 1.1/1.2/2.1/2.2,
 „+“/„−“ an DC) – von Jean am 06.11.2026 abgenommen („Mit den Umbrüchen bin ich fein“: zweizeilige Bemessungen im
 Übersichtsplan bleiben).
+Runde D2 → v1.64 (breite FI-Gruppen als Folgestücke mit Querverweisen, Prüfung „außerhalb des Rahmens“, Beispiel
+`breitgruppe`, Zeitangabe „t = …“, Türzettel mit festen Spalten/Seitenzahl), v1.65 (Tab öffnet Felder, Mehrfachauswahl
+kopieren/ausschneiden/duplizieren, Fenster-Fokus, Druckvorschau mit Hinweisleiste statt Fenster, Querverweis-Sprung per
+Doppelklick), v1.66 (Hauptmenü ≤ 20 Einträge, keine Befehle in den Fächern, Meldungen am Desktop in der Fußleiste).
+Runde D3 → v1.67 (Blatt festhalten ohne Planänderung, jeder Befehl ein Rückgängig-Schritt, Suche findet Schaltgeräte,
+Fokus immer auf der Arbeitsfläche), v1.68 Feinschliff. Unabhängige Schlussprüfung: alle Kriterien A–K erfüllt.
+Zurückgestellt: Schriftgrößen außerhalb des Editors (DS3-05), „-F12“ 2,4 statt 2,5 mm im Übersichtsplan von `schaltungen`.
 
 ## Technische Eckwerte
 

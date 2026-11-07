@@ -189,7 +189,7 @@ with sync_playwright() as p:
                 stapel = [{ s: 'start' }, { s: 'kreis', vid: v.id, krid: kr.id }]; zeichne(); }""")
             pg.locator('button.zeile', has_text='Platz 3').first.click()
             pg.locator('.wahl button', has_text='Taster Schließer').click(); pg.wait_for_timeout(100)
-            pg.locator('.wahl button', has_text='+ neu').click(); pg.wait_for_timeout(100)
+            pg.locator('.wahl button', has_text='Neuer Taster').click(); pg.wait_for_timeout(100)
             pg.locator('.fenster input').fill('Mitte'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
             ok = pg.evaluate("""() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.pfade.length > 1), pl = kr.pfade[0].plaetze[2];
                 const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return !!g && g.zeichen === 'taster_s' && g.bez === 'Mitte'; }""")
@@ -201,7 +201,7 @@ with sync_playwright() as p:
             pg.locator('.werkzeug', has_text='Taster Schließer').click(); pg.wait_for_timeout(200)
             zel = lambda: pg.locator(f'rect.ziel[data-ziel="pl:{pg.evaluate("PF")}:3"]')
             zel().dispatch_event('click'); pg.wait_for_timeout(200)
-            pg.locator('.wahl button', has_text='+ neu').click(); pg.wait_for_timeout(100)
+            pg.locator('.wahl button', has_text='Neuer Taster').click(); pg.wait_for_timeout(100)
             pg.locator('.fenster input').fill('Blatt'); pg.keyboard.press('Enter'); pg.wait_for_timeout(200)
             platz = """() => { const v = P.verteiler[0], kr = v.steuerung.kreise.find(k => k.id === KR), pl = kr.pfade[0].plaetze[3];
                 const g = pl && v.steuerung.geraete.find(x => x.id === pl.g); return g ? g.bez : null; }"""

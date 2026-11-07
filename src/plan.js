@@ -1981,7 +1981,7 @@ const PLAN = (() => {
     const y0 = RAND, y1 = F.h - RAND - SF_H, hh = y1 - y0, breit = (x1 - x0) - 30;
     const y = t => y0 + hh * t;
     if (f.firma) passend(text(g, cx, y(0.16), f.firma, 4.5 * s, 'middle', { 'font-weight': 'bold' }), breit);
-    passend(text(g, cx, y(0.33), f.projekt || 'Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
+    passend(text(g, cx, y(0.33), f.projekt || 'Unbenanntes Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
     passend(text(g, cx, y(0.44), f.titel || 'Stromlaufplan', 7 * s, 'middle'), breit);
     passend(text(g, cx, y(0.53), (namen.length > 1 ? 'Verteiler: ' : 'Verteiler ') + namen.join(' · '), 4.5 * s, 'middle'), breit);
     linie(g, cx - 60 * s, y(0.59), cx + 60 * s, y(0.59));

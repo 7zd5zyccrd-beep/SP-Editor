@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.67 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.68 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.68: Feinschliff nach der Schlussprüfung: Verteilername in der Kopfleiste ohne feste Höchstbreite – erst verlieren die Befehle
+           und „Drucken“ ihre Beschriftung, dann wird der Name gekürzt (N1); Fach eines UV-Abgangs mit einer Zeile „Speist
+           Unterverteiler“ samt „… öffnen“ (N2); Rückgängig-Name nach Ziehen „-F4 Steckdosen, Büro verschieben“ (N3); Pläne unverändert
      v1.67: Desktop-Runde D3, Schluss-Etappe „Schliff“: „Blatt festhalten“ ändert den Plan nicht (kein Umbruch vor einem Abgang
            hinter dem Überspannungsschutz bzw. einem Gruppen-Folgestück); Entf/Rücktaste und Strg+C/X/V/D mit Fokus im Fach wirken
            nicht auf die Auswahl; jeder Befehl ein eigener Rückgängig-Schritt (Zusammenfassen nur beim Tippen in einem Feld),
@@ -537,7 +540,9 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 .ikon:hover{background:var(--hover)}
 .ikon:disabled{opacity:.28;cursor:default;background:none}
 .ikon.rot{color:var(--rot)}
-.vwahl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:0;background:none;padding:2px 10px;height:46px;border-radius:10px;cursor:pointer;min-width:0;max-width:260px;text-align:left}
+.vwahl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:0;background:none;padding:2px 10px;height:46px;border-radius:10px;cursor:pointer;min-width:0;max-width:none;flex:0 1000 auto;text-align:left}
+/* ab v1.68 (N1): keine feste Höchstbreite – der Name nimmt den freien Platz und gibt als Erstes nach (Schrumpfen 1000), gekürzt wird erst,
+   wenn die Befehle schon nur Symbole zeigen (kopfEinpassen) */
 .vwahl:hover{background:var(--hover)}
 .vw-pj{font-size:11.5px;color:var(--leise);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vw-name{font-size:16.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
@@ -995,6 +1000,7 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
 /* F42: „Mehr“ mit Pfeil nach unten, rechts vom Wort */
 .kopfaktionen .ikon.mehr{flex-direction:row-reverse}
 .kopfaktionen.knapp .ikon:not(.mehr) .ikontext{display:none}.kopfaktionen.knapp .ikon{padding:0 7px}      /* ab v1.67 (DS3-02) */
+.edkopf.knapp .ikon.mittext:not(.zurueckprojekt) .ikontext{display:none}      /* ab v1.68 (N1): auch „Drucken“ nur als Symbol */
 /* F34: Typo-Skala auch in Fenstern, Hilfe, Menü und Mehrfachliste; dichtes Maß für Projektdaten und Steuerstromkreise mit Maus */
 .menue button small,.menue kbd{font-size:var(--fs-12)}
 @media (hover:hover) and (pointer:fine){
@@ -3509,7 +3515,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.67';
+const FASSUNG = 'v1.68';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -5204,8 +5210,18 @@ function bAbgang(b) {
   app.append(kopf([a.f ? `Abgang ${a.f.t}` : 'Abgang', abgangText(k)].filter(Boolean).join(' – ')));      // ab v1.66 (F37): „Bezeichnung, Ort“      // ab v1.62 (D36): „Art Kennzeichen – Name“
   const m = h('main');
   const inGruppe = !!r.eltern;
+  // Unterverteiler anschließen; ab v1.68 (N2) mit „… öffnen“ statt der eigenen Zeile „Speist Verteiler“
+  const freie = P.verteiler.filter(w => w !== v && (!speisenderAbgang(w.id) || k.speist === w.id)), uvName = k.speist && (vById(k.speist) || {}).name;
+  const speistZeile = zeile('Speist Unterverteiler', k.speist ? uvName : 'keinen', () => wahlFeld('Speist Unterverteiler',      // ab v1.67 (DS3-12)
+      [['', 'keinen']].concat(freie.map(w => [w.id, w.name]), [['+neu', 'Neuer Unterverteiler …', 'legt einen Verteiler an, der aus diesem Abgang gespeist wird']],
+        k.speist ? [['+auf', `${uvName} öffnen`, 'wechselt zu diesem Verteiler']] : []), k.speist || '', w => {
+        if (w === '+auf') return setTimeout(() => geh({ s: 'verteiler', vid: k.speist }), 0);
+        if (w === '+neu') return setTimeout(() => nameFenster('Neuer Unterverteiler', 'Name des Unterverteilers', freierName('UV'), 'z. B. UV Obergeschoss', 'Anlegen', n => {
+          uvAnlegen(v, k, n); aenderung(`${n} anlegen`); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
+        k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
+      { titel: 'Der Unterverteiler zeigt diesen Abgang als Einspeisung' });
   m.append(h('h2', {}, 'Verbraucher'), h('div', { class: 'liste' },
-    k.speist ? zeile('Speist Verteiler', (vById(k.speist) || {}).name, () => geh({ s: 'verteiler', vid: k.speist }))
+    k.speist ? speistZeile
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd', warn: t => bezWarnung(v, k, t) })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
     k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => anschlussSetzen(v, k, w))),
@@ -5258,16 +5274,9 @@ function bAbgang(b) {
     zeile('Kennzeichen Leitung', a.w.t, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
     zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : `wie im Verteiler (${KLEMMEN_V[v.klemmen || 'ohne']})`) + (a.klemmen ? ` · ${klemmenText(a)}` : ''),
       () => wahlFeld('Klemmen', KLEMMEN_WAHL(v), k.klemmen || 'verteiler', w => k.klemmen = w))));
-  // Unterverteiler anschließen
-  const freie = P.verteiler.filter(w => w !== v && (!speisenderAbgang(w.id) || k.speist === w.id));
-  // ab v1.62 (D35): ohne eigenen Abschnitt in der Liste „Verbraucher“ (dichter, alle Felder ohne Scrollen)
-  m.querySelector('.liste').append(
-    zeile('Speist Unterverteiler', k.speist ? (vById(k.speist) || {}).name : 'keinen', () => wahlFeld('Speist Unterverteiler',      // ab v1.67 (DS3-12)
-      [['', 'keinen']].concat(freie.map(w => [w.id, w.name]), [['+neu', 'Neuer Unterverteiler …', 'legt einen Verteiler an, der aus diesem Abgang gespeist wird']]), k.speist || '', w => {
-        if (w === '+neu') return setTimeout(() => nameFenster('Neuer Unterverteiler', 'Name des Unterverteilers', freierName('UV'), 'z. B. UV Obergeschoss', 'Anlegen', n => {
-          uvAnlegen(v, k, n); aenderung(`${n} anlegen`); sichern(); zeichne(); meldung(`${n} angelegt – im Verteilermenü oben wechseln`); }), 0);
-        k.speist = w || null; if (w) k.ziel.anschluss = 'fest'; }),
-      { titel: 'Der Unterverteiler zeigt diesen Abgang als Einspeisung' }));
+  // ab v1.62 (D35): ohne eigenen Abschnitt in der Liste „Verbraucher“ (dichter, alle Felder ohne Scrollen);
+  // ab v1.68 (N2): speist der Abgang schon einen Unterverteiler, steht die Zeile oben statt der Bezeichnung (nur einmal)
+  if (!k.speist) m.querySelector('.liste').append(speistZeile);
   if (!(einbettung && ED)) m.append(h('h2', {}, ''), h('div', { class: 'liste' },      // ab v1.60 (D12/D15) wie bei der Gruppe
     zeile('Abgang löschen', null, () => knotenLoeschen(v, r), { rot: true, ohnePfeil: true })));
   app.append(m);
@@ -7181,6 +7190,7 @@ function zoomGanz(bl) {
 function kontextNeu() {
   const { b, blaetter } = ED; const alt = blaetter.querySelector('.kontext'); if (alt) alt.remove();
   if (ED.aktionen) ED.aktionen.replaceChildren();
+  kopfEinpassen();      // ab v1.68 (N1): auch, wenn gleich keine Befehle folgen
   if (!b.sel || zieh || istZeichenWerkzeug(b.tool)) return;      // beim Zeichnen keine Leiste im Weg
   const fein = feinZeiger();
   // Mehrfach wählen (Touch): die Befehle stehen ab v1.65 (F11) im Band neben „Fertig“ (bandNeu) – eine schwebende Leiste
@@ -7203,10 +7213,10 @@ function kontextNeu() {
 function kopfEinpassen() {
   if (!ED || !ED.aktionen || !ED.aktionen.isConnected) return;
   const a = ED.aktionen, k = a.closest('.edkopf'), n = k.querySelector('.vw-n');
-  a.classList.remove('knapp');
-  if (!a.childElementCount) return;
+  a.classList.remove('knapp'); k.classList.remove('knapp');
+  // ab v1.68 (N1): auch ohne Auswahl – dann verliert „Drucken“ seine Beschriftung, bevor der Name gekürzt wird
   const eng = () => a.scrollWidth > a.clientWidth + 1 || k.scrollWidth > k.clientWidth + 1 || (n && n.scrollWidth > n.clientWidth + 1);
-  if (eng()) a.classList.add('knapp');
+  if (eng()) { a.classList.add('knapp'); k.classList.add('knapp'); }
 }
 window.addEventListener('resize', () => { if (ED) kopfEinpassen(); });
 // Lage der Kontextleiste (ab v1.53): ganz im sichtbaren Bereich der Fläche, ohne Marken „+“ und das gewählte Teil
@@ -8199,14 +8209,15 @@ function ziehEnde(ev) {
     const sp = ev && z.id.startsWith('k:') && spalteUnter(ev.clientX, ev.clientY, z), kid = z.id.slice(2), lg = abgangLage(kid);
     if (sp && lg && sp.blatt === lg.blatt && sp.col !== lg.col) {       // in eine freie Spalte desselben Blatts (ab v1.25)
       const L = lay(z.v); if (sp.col <= 2) delete L.spalten[kid]; else L.spalten[kid] = sp.col;
-      z.b.sel = z.id; aenderung('In Spalte ' + sp.col); sichern();
+      z.b.sel = z.id; aenderung(`${knotenName(z.v, knoten(z.v, kid).k)} in Spalte ${sp.col}`); sichern();      // ab v1.68 (N3)
     } else if (sp && lg && sp.blatt !== lg.blatt) abgangAufBlatt(z.v, z.b, kid, sp);
     zeichne(); return;
   }
   const { v, b } = z, t = ziel.dataset.ziel;
-  let kzVor = null;      // ab v1.57: Kennzeichen-Hinweis auch beim Ziehen (C03)
+  let kzVor = null, name = 'Kontakt verschieben';      // ab v1.57: Kennzeichen-Hinweis auch beim Ziehen (C03)
   if (z.id.startsWith('k:')) {
     const kid = z.id.slice(2), r = knoten(v, kid), k = r.k;
+    name = `${knotenName(v, k)} verschieben`;      // ab v1.68 (N3): Objekt + Verb wie bei Alt+→
     let [art, tid] = t.split(':'); if (art === 'k') art = 'nach';
     let innen = false; alleKnoten(v, x => { if (x.id === tid) innen = true; }, k.kinder || []);   // nicht in sich selbst
     if (innen || tid === kid) { zeichne(); return; }
@@ -8222,7 +8233,7 @@ function ziehEnde(ev) {
     const a1 = quelle.lesen(), a2 = ziel2.lesen(); quelle.setzen(a2); ziel2.setzen(a1);   // verschieben bzw. tauschen
     b.sel = t;
   }
-  aenderung('Verschieben'); sichern(); zeichne();
+  aenderung(name); sichern(); zeichne();
   if (kzVor) kennzeichenMelden(v, kzVor);
 }
 function platzStelle(v, id) {

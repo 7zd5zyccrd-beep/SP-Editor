@@ -400,7 +400,7 @@ kopieren/ausschneiden/duplizieren, Fenster-Fokus, Druckvorschau mit Hinweisleist
 Doppelklick), v1.66 (Hauptmenü ≤ 20 Einträge, keine Befehle in den Fächern, Meldungen am Desktop in der Fußleiste).
 Runde D3 → v1.67 (Blatt festhalten ohne Planänderung, jeder Befehl ein Rückgängig-Schritt, Suche findet Schaltgeräte,
 Fokus immer auf der Arbeitsfläche), v1.68 Feinschliff. Unabhängige Schlussprüfung: alle Kriterien A–K erfüllt.
-Zurückgestellt: Schriftgrößen außerhalb des Editors (DS3-05), „-F12“ 2,4 statt 2,5 mm im Übersichtsplan von `schaltungen`.
+v1.69 Schriftskala auch außerhalb des Editors (DS3-05). Zurückgestellt: „-F12“ 2,4 statt 2,5 mm im Übersichtsplan von `schaltungen`.
 
 ## Technische Eckwerte
 

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.68 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.69 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.69: Ruhe außerhalb des Editors (DS3-05): Startseite, Projektliste, Projektdaten, Stromkreisliste, Unterseiten, Druck- und
+           Türzettel-Vorschau, Lupe und Hilfe in der Typo-Skala des Editors (11/12/13/15/18 px, 400/600/700), mit Maus im dichten Maß;
+           Touch ohne Zwischenwerte (12,5/13,5/14/14,5/16,5/19/30 → nächste Stufe), Tippflächen unverändert; Pläne unverändert
      v1.68: Feinschliff nach der Schlussprüfung: Verteilername in der Kopfleiste ohne feste Höchstbreite – erst verlieren die Befehle
            und „Drucken“ ihre Beschriftung, dann wird der Name gekürzt (N1); Fach eines UV-Abgangs mit einer Zeile „Speist
            Unterverteiler“ samt „… öffnen“ (N2); Rückgängig-Name nach Ziehen „-F4 Steckdosen, Büro verschieben“ (N3); Pläne unverändert
@@ -375,7 +378,7 @@ button{font:inherit;color:inherit}
 .kopfknopf{border:0;background:none;color:var(--akzent);font-size:15px;padding:6px 4px;cursor:pointer}
 .kopfknopf[aria-pressed="true"]{font-weight:700}
 main{max-width:760px;margin:0 auto;padding:12px 16px 60px}
-h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--leise);margin:22px 4px 8px;font-weight:600}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--leise);margin:22px 4px 8px;font-weight:600}
 .liste{background:var(--karte);border:1px solid var(--linie);border-radius:12px;overflow:hidden}
 .zeile{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:11px 14px;min-height:48px;border-top:1px solid var(--linie);cursor:pointer}
 .zeile:first-child{border-top:0}
@@ -394,10 +397,10 @@ h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--le
 .neu.inliste{border:0;border-top:1px dashed var(--linie2);border-radius:0;margin:0;text-align:left;padding:11px 14px}
 .neu.inliste.einr{padding-left:34px}
 .gefahr{color:var(--rot)}
-.hinweis{font-size:13.5px;color:var(--leise);margin:6px 4px}
+.hinweis{font-size:13px;color:var(--leise);margin:6px 4px}
 .hinweis.lizenz{font-size:12px}
 .hinweis.lizenz a{color:inherit}
-.warnung{font-size:13.5px;color:var(--warn);margin:6px 4px}
+.warnung{font-size:13px;color:var(--warn);margin:6px 4px}
 .wahl.mitklein button{flex-direction:column;align-items:stretch;gap:2px}
 .wahl.mitklein button>span{white-space:nowrap}
 .wahl.mitklein button small{white-space:normal;line-height:1.3}
@@ -409,7 +412,7 @@ h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--le
 .sort{display:flex;gap:4px;flex:0 0 auto}
 .sort button{border:1px solid var(--linie);background:var(--karte);border-radius:8px;width:36px;height:32px;cursor:pointer;color:var(--akzent)}
 .sort button:disabled{opacity:.3}
-table.ueb{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--karte);border:1px solid var(--linie);border-radius:12px;overflow:hidden}
+table.ueb{width:100%;border-collapse:collapse;font-size:13px;background:var(--karte);border:1px solid var(--linie);border-radius:12px;overflow:hidden}
 table.ueb th{text-align:left;font-weight:600;color:var(--leise);font-size:12px;padding:8px;border-bottom:1px solid var(--linie);background:var(--karte2)}
 table.ueb td{padding:7px 8px;border-top:1px solid var(--linie);vertical-align:top}
 table.ueb td.m{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}
@@ -464,29 +467,29 @@ table.ueb tr.gr td{background:var(--karte2);font-weight:600}
 .leiste button:disabled{opacity:.35;cursor:default;background:var(--karte)}
 /* Startbildschirm (ab v1.21) */
 main.start{max-width:1040px}
-.abschnitt{display:flex;align-items:flex-end;justify-content:space-between}
-.abschnitt .kopfknopf{margin:0 4px 6px}
+.abschnitt{display:flex;align-items:baseline;justify-content:space-between}      /* ab v1.69: Knopf auf der Grundlinie der Überschrift */
+.abschnitt .kopfknopf{margin:0 4px}
 .projektkarte{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:16px 20px;cursor:pointer;margin-top:10px}
 .projektkarte:hover,.vkarte:hover{border-color:var(--linie2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
 .pk-klein{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--leise)}
 .pk-titel{font-size:24px;font-weight:700;line-height:1.2}
-.pk-un{color:var(--leise);font-size:14px}
-.pk-aktion,.vk-aktion{color:var(--akzent);font-size:14.5px;font-weight:600;margin-top:8px}
+.pk-un{color:var(--leise);font-size:13px}
+.pk-aktion,.vk-aktion{color:var(--akzent);font-size:15px;font-weight:600;margin-top:8px}
 .vkarten{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .vkarte{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;min-height:132px;width:100%;border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:16px 18px;cursor:pointer}
-.vk-name{font-size:19px;font-weight:700}
-.vk-un{font-size:14px;color:var(--leise)}
-.vk-warn{font-size:13.5px;color:var(--warn)}
+.vk-name{font-size:17px;font-weight:700}
+.vk-un{font-size:13px;color:var(--leise)}
+.vk-warn{font-size:13px;color:var(--warn)}
 .vk-aktion{margin-top:auto;padding-top:8px}
 .vkarte.neu{border:1.5px dashed var(--linie2);background:none;align-items:center;justify-content:center;color:var(--leise);font-size:15px}
-.vk-plus{font-size:30px;line-height:1;color:var(--akzent)}
+.vk-plus{font-size:24px;line-height:1;color:var(--akzent)}
 .vkhalter{display:flex;flex-direction:column;gap:6px}
 /* Projektliste (ab v1.56): Zeile und Knopf „…“ nebeneinander; das geöffnete Projekt mit violettem Rand links */
 .pzeile{display:flex;align-items:stretch;border-top:1px solid var(--linie)}
 .pzeile:first-child{border-top:0}
 .pzeile .zeile{border-top:0;flex:1 1 auto;min-width:0}
 .pzeile.aktiv{box-shadow:inset 3px 0 0 var(--akzent)}
-.pzeile.aktiv .zeile .w{color:var(--leise);font-weight:400;font-size:12.5px;background:var(--grund);border:1px solid var(--linie);border-radius:7px;padding:2px 8px;flex:0 0 auto}      /* ab v1.58 (C36): Etikett, kein Link */
+.pzeile.aktiv .zeile .w{color:var(--leise);font-weight:400;font-size:13px;background:var(--grund);border:1px solid var(--linie);border-radius:7px;padding:2px 8px;flex:0 0 auto}      /* ab v1.58 (C36): Etikett, kein Link */
 .projektknoepfe{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
 .pmehr{flex:0 0 48px;border:0;border-left:1px solid var(--linie);background:none;font-size:20px;line-height:1;color:var(--akzent);cursor:pointer}
 .pmehr:hover,.pmehr:active{background:var(--hover)}
@@ -526,7 +529,7 @@ main.start{max-width:1040px}
 .zeile.bearbeiten{cursor:default;background:var(--akzent-hell);flex-wrap:wrap}
 .zeile.bearbeiten .t{flex:1 1 140px}
 .zeile.bearbeiten input{flex:2 1 180px;min-width:0;font:inherit;padding:8px 10px;border:1.5px solid var(--akzent);border-radius:9px;background:var(--karte);outline:none}
-.knopf.klein{padding:5px 12px;font-size:13.5px;border-radius:8px}
+.knopf.klein{padding:5px 12px;font-size:13px;border-radius:8px}
 :focus-visible{outline:2px solid var(--akzent);outline-offset:2px}
 .liste>.zeile:focus-visible{outline-offset:-2px;border-radius:10px}      /* ab v1.65 (F28): Ring innen, nicht von der Liste beschnitten */
 /* ---- Plan-Editor (ab v1.21): Arbeitsfläche über den ganzen Bildschirm ---- */
@@ -587,12 +590,12 @@ body.imeditor{overflow:hidden;background:var(--flaeche)}
 /* ab v1.53: Blatt in der Ansicht „Stromlaufplan“ vergrößern (Pinch, Doppeltipp, Wischen zum Nachbarblatt) */
 .lupe.planlupe{inset:0;width:auto;height:auto;border-radius:0;border:0;box-shadow:none;pointer-events:auto;display:flex;flex-direction:column;background:var(--flaeche);z-index:35}
 .planlupe .lupekopf{display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px 14px;background:var(--karte);border-bottom:1px solid var(--linie);min-height:52px}
-.planlupe .lupetitel{flex:1;min-width:0;font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.planlupe .lupezoom{font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--leise);padding:0 6px}
+.planlupe .lupetitel{flex:1;min-width:0;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planlupe .lupezoom{font-variant-numeric:tabular-nums;font-size:13px;color:var(--leise);padding:0 6px}
 .planlupe .lupeflaeche{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .planlupe .lupeinnen{padding:12px;width:max-content;margin:0 auto}
 .planlupe .lupeinnen svg{display:block;width:100%;height:auto;background:var(--karte);box-shadow:0 1px 2px rgba(0,0,0,.1),0 8px 24px rgba(0,0,0,.08)}
-.planlupe .lupefuss{padding:6px 12px calc(env(safe-area-inset-bottom) + 6px);font-size:12.5px;color:var(--leise);text-align:center;background:var(--karte);border-top:1px solid var(--linie)}
+.planlupe .lupefuss{padding:6px 12px calc(env(safe-area-inset-bottom) + 6px);font-size:12px;color:var(--leise);text-align:center;background:var(--karte);border-top:1px solid var(--linie)}
 .blattkarte svg{cursor:zoom-in}
 .ed .zvorschau{pointer-events:none}
 .ed .zvorschau line{stroke:var(--ov);stroke-width:.35;stroke-dasharray:1 .7}
@@ -713,9 +716,9 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
 .hilfeknopf.gross{width:30px;height:30px;font-size:15px;margin:0 4px}
 h2.mithilfe{display:flex;align-items:center}
 .einfuehrung{background:var(--karte);border:1px solid var(--linie);border-radius:14px;padding:16px 18px;margin:4px 0 14px}
-.ef-satz{margin:0 0 10px;font-size:16.5px;font-weight:600;line-height:1.35}
+.ef-satz{margin:0 0 10px;font-size:16px;font-weight:600;line-height:1.35}
 .ef-schritte{margin:0 0 14px;padding-left:22px}
-.ef-schritte li{margin:5px 0}.ef-schritte li b{display:block}.ef-schritte li span{color:var(--leise);font-size:14px}
+.ef-schritte li{margin:5px 0}.ef-schritte li b{display:block}.ef-schritte li span{color:var(--leise);font-size:13px}
 .ef-knoepfe{display:flex;gap:8px;flex-wrap:wrap}
 .hinweis.sichern{color:var(--warn)}
 .linkknopf{border:0;background:none;padding:2px 0;color:var(--akzent);text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-size:inherit}
@@ -725,8 +728,8 @@ h2.mithilfe{display:flex;align-items:center}
 .fenster.hilfe .inhalt{max-height:min(70vh,640px);overflow-y:auto}
 .hilfenav{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 .hilfeabschnitt h4{margin:16px 0 6px;font-size:15px}
-.hilfeabschnitt ul,.hilfeabschnitt ol{padding-left:20px;margin:4px 0}.hilfeabschnitt li{margin:4px 0;font-size:14.5px}.hilfeabschnitt p{font-size:14.5px;margin:4px 0}
-dl.begriffe{margin:4px 0;font-size:14.5px}dl.begriffe dt{font-weight:700;margin-top:8px}dl.begriffe dd{margin:2px 0 0 0;color:var(--tinte)}
+.hilfeabschnitt ul,.hilfeabschnitt ol{padding-left:20px;margin:4px 0}.hilfeabschnitt li{margin:4px 0;font-size:15px}.hilfeabschnitt p{font-size:15px;margin:4px 0}
+dl.begriffe{margin:4px 0;font-size:15px}dl.begriffe dt{font-weight:700;margin-top:8px}dl.begriffe dd{margin:2px 0 0 0;color:var(--tinte)}
 .wahl button:disabled{opacity:.5;cursor:default}
 .kontext .ikon{flex-direction:column;gap:1px;height:auto;min-height:48px;min-width:46px;padding:4px 6px}
 .kontext .ikon svg{width:20px;height:20px}
@@ -1009,10 +1012,20 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
   .fenster .wahl button,.fenster .knopf{font-size:var(--fs-13)}
   .fenster input[type=text],.fenster input[type=number],.fenster input[type=date],.fenster input[type=search]{font-size:var(--fs-15)}
   .sammelzeile{font-size:var(--fs-13)}.sammelzeile .un{font-size:var(--fs-12)}
-  main.dicht .zeile{font-size:var(--fs-13);min-height:32px;padding-top:5px;padding-bottom:5px}main.dicht .zeile .un{font-size:var(--fs-12)}
-  main.dicht .zeile .pfeil{display:none}main.dicht h2{font-size:var(--fs-12);margin:14px 4px 5px}main.dicht .hinweis,main.dicht .warnung{font-size:var(--fs-13)}
-  main.dicht .bmk{font-size:var(--fs-12)}
+  /* ab v1.69 (DS3-05): das dichte Maß gilt für alle Seiten außerhalb des Editors (vorher nur Projektdaten und Steuerstromkreise) */
+  main .zeile{font-size:var(--fs-13);min-height:32px;padding-top:5px;padding-bottom:5px}main .zeile .un{font-size:var(--fs-12)}
+  main .zeile .pfeil{display:none}main h2{font-size:var(--fs-12);margin:14px 4px 5px}main .hinweis,main .warnung{font-size:var(--fs-13)}
+  main .bmk{font-size:var(--fs-12)}
   .fenster.pop .wahl.menue button{padding-top:5px;padding-bottom:5px}.wahl.menue .trennlinie{margin:4px 8px}      /* F15: 20 Einträge ohne Scrollen bei 720 px */
+}
+/* ---- ab v1.69 (DS3-05): Ruhe außerhalb des Editors – Startseite, Projektliste, Unterseiten und Vorschauen in derselben Skala
+   11/12/13/15/18 px, mit Maus im dichten Maß; Touch behält seine Größen (nur ohne Zwischenwerte) und die Tippflächen ---- */
+@media (hover:hover) and (pointer:fine){
+  .kopf h1{font-size:var(--fs-15)}.zurueck,.kopfknopf{font-size:var(--fs-13)}
+  main .knopf,.ef-schritte li,.ef-schritte li span,.pk-un,.vk-un,.vk-warn,.pk-aktion,.vk-aktion,.vkarte.neu,table.ueb{font-size:var(--fs-13)}
+  .pzeile.aktiv .zeile .w{font-size:var(--fs-12)}
+  .ef-satz,.vk-name,.pmehr{font-size:var(--fs-15)}.pk-titel,.vk-plus{font-size:var(--fs-18)}
+  .vkarte{min-height:108px}.projektkarte{padding:12px 18px}
 }
 </style>
 </head>
@@ -3515,7 +3528,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.68';
+const FASSUNG = 'v1.69';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------

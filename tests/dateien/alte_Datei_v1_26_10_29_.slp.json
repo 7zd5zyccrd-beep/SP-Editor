@@ -1,0 +1,760 @@
+{
+ "format": "slp-projekt",
+ "version": 1,
+ "projekt": {
+  "titel": "Stromlaufplan",
+  "datum": "2026-10-29",
+  "rev": "0",
+  "format": "A4",
+  "firma": "Musterfirma Elektro GmbH",
+  "anschrift": "Musterstraße 1, 12345 Musterstadt",
+  "projekt": "Halle 3 (Beispiel Steuerung)",
+  "ersteller": "Jean",
+  "nummer": "SLP-0001"
+ },
+ "verteiler": [
+  {
+   "id": "0o91q9k",
+   "name": "HV",
+   "netzform": "TN-S",
+   "leiter": "3NPE",
+   "klemmen": "leiste",
+   "vorsicherung": {
+    "zeichen": "sichlasttrenn3",
+    "art": "gG",
+    "nenn": "63"
+   },
+   "zaehler": {
+    "zeichen": "zaehler3"
+   },
+   "hauptschalter": {
+    "zeichen": "lasttrenn3",
+    "nenn": "63"
+   },
+   "spd": {
+    "zeichen": "spd4"
+   },
+   "knoten": [
+    {
+     "id": "6q3ncye",
+     "typ": "gruppe",
+     "geraet": {
+      "zeichen": "fi4",
+      "nenn": "40",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "kinder": [
+      {
+       "id": "e1vazmb",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "16"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "2,5"
+       },
+       "ziel": {
+        "bez": "Steckdosen",
+        "ort": "Büro",
+        "anschluss": "steckdose3"
+       },
+       "speist": null,
+       "klemmen": "verteiler"
+      },
+      {
+       "id": "343rwa5",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "10"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "1,5"
+       },
+       "ziel": {
+        "bez": "Licht",
+        "ort": "Büro",
+        "anschluss": "leuchte"
+       },
+       "speist": null,
+       "klemmen": "verteiler",
+       "schalt": {
+        "typ": "stromstoss",
+        "nMit": false,
+        "hs": 1,
+        "ho": 0,
+        "zr": {
+         "fkt": "aus",
+         "zeit": "3 min"
+        }
+       }
+      },
+      {
+       "id": "uwksa77",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "16"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "2,5"
+       },
+       "ziel": {
+        "bez": "Steckdosen",
+        "ort": "Flur",
+        "anschluss": "steckdose3"
+       },
+       "speist": null,
+       "klemmen": "verteiler"
+      },
+      {
+       "id": "xqhpytl",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "10"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "1,5"
+       },
+       "ziel": {
+        "bez": "Licht",
+        "ort": "Flur",
+        "anschluss": "leuchte"
+       },
+       "speist": null,
+       "klemmen": "verteiler"
+      }
+     ]
+    },
+    {
+     "id": "3ben563",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "fils3n",
+      "kennlinie": "C",
+      "nenn": "32",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "6"
+     },
+     "ziel": {
+      "bez": "CEE 32 A",
+      "ort": "Werkstatt",
+      "anschluss": "steckdose5"
+     },
+     "speist": null,
+     "klemmen": "verteiler",
+     "schalt": {
+      "typ": "schuetz",
+      "nMit": true,
+      "hs": 2,
+      "ho": 0,
+      "zr": {
+       "fkt": "aus",
+       "zeit": "3 min"
+      }
+     }
+    },
+    {
+     "id": "pcv4sbh",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "ls3",
+      "kennlinie": "B",
+      "nenn": "16"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Herd",
+      "ort": "Küche",
+      "anschluss": "dose"
+     },
+     "speist": null,
+     "klemmen": "verteiler",
+     "schalt": {
+      "typ": "schuetz",
+      "nMit": false,
+      "hs": 1,
+      "ho": 0,
+      "zr": {
+       "fkt": "aus",
+       "zeit": "3 min"
+      }
+     }
+    },
+    {
+     "id": "nnv1zhq",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "ls3",
+      "kennlinie": "C",
+      "nenn": "32"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "6"
+     },
+     "ziel": {
+      "bez": "",
+      "ort": "Werkstatt",
+      "anschluss": "fest"
+     },
+     "speist": "ghj02c3",
+     "klemmen": "verteiler"
+    },
+    {
+     "id": "kn4c9gi",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "fils1n",
+      "kennlinie": "B",
+      "nenn": "16",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Steckdosen",
+      "ort": "Lager 1",
+      "anschluss": "steckdose3"
+     },
+     "speist": null,
+     "klemmen": "verteiler",
+     "schalt": {
+      "typ": "zeitrelais",
+      "nMit": false,
+      "hs": 0,
+      "ho": 0,
+      "zr": {
+       "fkt": "aus",
+       "zeit": "3 min"
+      }
+     }
+    },
+    {
+     "id": "xvteybz",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "fils1n",
+      "kennlinie": "B",
+      "nenn": "16",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Steckdosen",
+      "ort": "Lager 2",
+      "anschluss": "steckdose3"
+     },
+     "speist": null,
+     "klemmen": "verteiler"
+    },
+    {
+     "id": "iikkd2h",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "fils1n",
+      "kennlinie": "B",
+      "nenn": "16",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Steckdosen",
+      "ort": "Lager 3",
+      "anschluss": "steckdose3"
+     },
+     "speist": null,
+     "klemmen": "verteiler"
+    },
+    {
+     "id": "0i2rcmv",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "fils1n",
+      "kennlinie": "B",
+      "nenn": "16",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Steckdosen",
+      "ort": "Lager 4",
+      "anschluss": "steckdose3"
+     },
+     "speist": null,
+     "klemmen": "verteiler"
+    },
+    {
+     "id": "no8mc7t",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "ls1",
+      "kennlinie": "B",
+      "nenn": "6"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Steuertrafo",
+      "ort": "",
+      "anschluss": "fest"
+     },
+     "speist": null,
+     "klemmen": "nein",
+     "steuer": true,
+     "trafo": {
+      "prim": "230",
+      "sek": "24",
+      "va": "63",
+      "erde": true,
+      "ls": {
+       "zeichen": "ls1",
+       "kennlinie": "B",
+       "nenn": "2"
+      }
+     }
+    }
+   ],
+   "steuerung": {
+    "geraete": [
+     {
+      "id": "h73kz4w",
+      "zeichen": "taster_s",
+      "bez": "Taster 1",
+      "ort": ""
+     },
+     {
+      "id": "cg9gzo2",
+      "zeichen": "taster_s",
+      "bez": "Taster 2",
+      "ort": ""
+     },
+     {
+      "id": "lo3dstr",
+      "zeichen": "taster_s",
+      "bez": "Taster 3",
+      "ort": ""
+     },
+     {
+      "id": "97zt9kk",
+      "zeichen": "notaus",
+      "bez": "Not-Aus",
+      "ort": ""
+     },
+     {
+      "id": "o7a0gf1",
+      "zeichen": "taster_oe",
+      "bez": "Aus",
+      "ort": ""
+     },
+     {
+      "id": "9n7apip",
+      "zeichen": "taster_s",
+      "bez": "Ein",
+      "ort": ""
+     },
+     {
+      "id": "yz6kq6l",
+      "zeichen": "meldeleuchte",
+      "bez": "Betrieb",
+      "ort": ""
+     },
+     {
+      "id": "9mkgdf3",
+      "zeichen": "schalter_hand",
+      "bez": "Hand-0-Auto",
+      "ort": "",
+      "feld": false
+     },
+     {
+      "id": "qkr7584",
+      "zeichen": "daemmerung",
+      "bez": "Dämmerung",
+      "ort": ""
+     },
+     {
+      "id": "jlx1lfh",
+      "zeichen": "taster_s",
+      "bez": "Taster 1",
+      "ort": ""
+     },
+     {
+      "id": "v1lbx0c",
+      "zeichen": "taster_s",
+      "bez": "Taster 2",
+      "ort": ""
+     }
+    ],
+    "kreise": [
+     {
+      "id": "irisaun",
+      "quelle": {
+       "art": "abgang",
+       "kid": "343rwa5"
+      },
+      "pfade": [
+       {
+        "id": "0ozv1iw",
+        "zweig": null,
+        "plaetze": [
+         {
+          "g": "h73kz4w"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": {
+         "g": "343rwa5"
+        }
+       },
+       {
+        "id": "zcruh7s",
+        "zweig": {
+         "von": 0,
+         "bis": 0
+        },
+        "plaetze": [
+         {
+          "g": "cg9gzo2"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": null
+       },
+       {
+        "id": "5hnw8hn",
+        "zweig": {
+         "von": 0,
+         "bis": 0
+        },
+        "plaetze": [
+         {
+          "g": "lo3dstr"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": null
+       }
+      ]
+     },
+     {
+      "id": "40l8q0m",
+      "quelle": {
+       "art": "abgang",
+       "kid": "3ben563"
+      },
+      "pfade": [
+       {
+        "id": "wcnruny",
+        "zweig": null,
+        "plaetze": [
+         {
+          "g": "97zt9kk"
+         },
+         {
+          "g": "o7a0gf1"
+         },
+         {
+          "g": "9n7apip"
+         },
+         null,
+         null,
+         null
+        ],
+        "verbraucher": {
+         "g": "3ben563"
+        }
+       },
+       {
+        "id": "9kvdtse",
+        "zweig": {
+         "von": 2,
+         "bis": 2
+        },
+        "plaetze": [
+         null,
+         null,
+         {
+          "g": "3ben563",
+          "z": "hilfs_s"
+         },
+         null,
+         null,
+         null
+        ],
+        "verbraucher": null
+       },
+       {
+        "id": "1lqrvlj",
+        "zweig": null,
+        "plaetze": [
+         {
+          "g": "3ben563",
+          "z": "hilfs_s"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": {
+         "g": "yz6kq6l"
+        }
+       }
+      ]
+     },
+     {
+      "id": "sldohh8",
+      "quelle": {
+       "art": "abgang",
+       "kid": "pcv4sbh"
+      },
+      "pfade": [
+       {
+        "id": "8vu7pef",
+        "zweig": null,
+        "plaetze": [
+         {
+          "g": "9mkgdf3"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": {
+         "g": "pcv4sbh"
+        }
+       },
+       {
+        "id": "2z54x5s",
+        "zweig": {
+         "von": 0,
+         "bis": 1
+        },
+        "plaetze": [
+         {
+          "g": "9mkgdf3"
+         },
+         {
+          "g": "qkr7584"
+         },
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": null
+       }
+      ]
+     },
+     {
+      "id": "48cgcym",
+      "quelle": {
+       "art": "abgang",
+       "kid": "kn4c9gi"
+      },
+      "pfade": [
+       {
+        "id": "0t1o8e2",
+        "zweig": null,
+        "plaetze": [
+         {
+          "g": "jlx1lfh"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": {
+         "g": "kn4c9gi"
+        }
+       },
+       {
+        "id": "wass9db",
+        "zweig": {
+         "von": 0,
+         "bis": 0
+        },
+        "plaetze": [
+         {
+          "g": "v1lbx0c"
+         },
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "verbraucher": null
+       }
+      ]
+     }
+    ],
+    "spannung": {
+     "art": "durch",
+     "quelle": "no8mc7t"
+    }
+   }
+  },
+  {
+   "id": "ghj02c3",
+   "name": "UV Werkstatt",
+   "netzform": "TN-S",
+   "leiter": "3NPE",
+   "klemmen": "ohne",
+   "vorsicherung": {
+    "zeichen": ""
+   },
+   "zaehler": {
+    "zeichen": ""
+   },
+   "hauptschalter": {
+    "zeichen": "lasttrenn3",
+    "nenn": "40"
+   },
+   "spd": {
+    "zeichen": ""
+   },
+   "knoten": [
+    {
+     "id": "33namc5",
+     "typ": "gruppe",
+     "geraet": {
+      "zeichen": "fi2",
+      "nenn": "40",
+      "idn": "30",
+      "fityp": "A"
+     },
+     "kinder": [
+      {
+       "id": "btbdq8l",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "16"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "2,5"
+       },
+       "ziel": {
+        "bez": "Werkbank",
+        "ort": "Werkstatt",
+        "anschluss": "steckdose3"
+       },
+       "speist": null,
+       "klemmen": "verteiler"
+      },
+      {
+       "id": "4lrwm4u",
+       "typ": "abgang",
+       "geraet": {
+        "zeichen": "ls1",
+        "kennlinie": "B",
+        "nenn": "10"
+       },
+       "phase": "auto",
+       "leitung": {
+        "typ": "NYM-J",
+        "quer": "1,5"
+       },
+       "ziel": {
+        "bez": "Licht",
+        "ort": "Werkstatt",
+        "anschluss": "fest"
+       },
+       "speist": null,
+       "klemmen": "verteiler"
+      }
+     ]
+    },
+    {
+     "id": "4pwst43",
+     "typ": "abgang",
+     "geraet": {
+      "zeichen": "ls3",
+      "kennlinie": "C",
+      "nenn": "16"
+     },
+     "phase": "auto",
+     "leitung": {
+      "typ": "NYM-J",
+      "quer": "2,5"
+     },
+     "ziel": {
+      "bez": "Kreissäge",
+      "ort": "Werkstatt",
+      "anschluss": "steckdose5"
+     },
+     "speist": null,
+     "klemmen": "verteiler"
+    }
+   ]
+  }
+ ]
+}

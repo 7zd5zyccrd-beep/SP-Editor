@@ -2,6 +2,7 @@
 - keine Skriptfehler, Blattliste je Beispiel
 - alle Abgänge enden auf einer Höhe (Unterkante der Steckdosen), Leuchten ausgenommen
 - Blätter als PNG und der Druck als PDF nach build/pruefung/
+- Importfälle aus tests/dateien: öffnen repariert statt abgelehnt, danach Export (ab v1.71); CSV formelsicher
 - mit --vergleich: SVG aller Blätter gegen tests/referenz.json (bitgleich);
   mit --referenz: Referenz neu schreiben (nur nach einer gewollten Änderung!)
 Aufruf: python3 tests/pruefen.py [--vergleich | --referenz]"""
@@ -259,6 +260,57 @@ with sync_playwright() as p:
         pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()
+    # ab v1.71 (Q18, Q07): Importfälle aus tests/dateien über das Dateifeld öffnen – jede Datei öffnet sich repariert, abgelehnt werden
+    # nur Dateien, die keine Projektdateien sind, und das mit verständlicher Meldung; danach Bildschirme aufbauen und als Datei sichern
+    import re
+    ABGELEHNT = {'leer', 'kein_JSON', 'Array', 'null', 'falsches_format'}
+    JSTEXT = re.compile(r'Cannot|undefined|is not a|reading|JSON|position|null|object Object|Error')
+    ctx = b.new_context(viewport={'width': 1440, 'height': 900}, accept_downloads=True); pg = ctx.new_page()
+    perr = []; pg.on('pageerror', lambda e: perr.append(str(e)))
+    pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
+    def importieren(f):
+        pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(250)
+        pg.set_input_files('#datei', str(f)); pg.wait_for_timeout(350)
+        ok = pg.locator('.fenster button', has_text=re.compile(r'^(Öffnen|Als weiteres Projekt|Ohne Vorgaben von Hand öffnen)$'))
+        if not ok.count(): return None, pg.evaluate("document.getElementById('meldung').textContent")
+        fen = pg.locator('.fenster').last.inner_text(); ok.last.click(); pg.wait_for_timeout(400); return fen, ''
+    dateien = sorted((W / 'tests' / 'dateien').glob('*.slp.json'))
+    for f in dateien:
+        n = f.name[:-len('.slp.json')]; perr.clear()
+        fen, mel = importieren(f)
+        if n in ABGELEHNT:
+            if fen is not None: fehler.append(f'Import {n}: hätte abgelehnt werden müssen')
+            elif 'lässt sich nicht öffnen' not in mel or JSTEXT.search(mel.split('“', 1)[-1]): fehler.append(f'Import {n}: Meldung „{mel}“')
+        elif fen is None: fehler.append(f'Import {n}: abgelehnt – {mel}')
+        else:
+            r = pg.evaluate("""() => { const o = [];
+                for (const v of P.verteiler) for (const s of ['editor', 'plan', 'tuer', 'liste', 'verteiler'])
+                  try { stapel = [{ s: 'start' }, { s, vid: v.id }]; zeichne(); } catch (e) { o.push(v.name + ' ' + s + ': ' + e.message); }
+                stapel = [{ s: 'start' }]; zeichne(); return o; }""")
+            fehler += [f'Import {n}: {x}' for x in r]
+            try:
+                with pg.expect_download(timeout=5000) as dl: pg.evaluate("exportieren()")
+                if not dl.value.suggested_filename.endswith('.slp.json'): fehler.append(f'Import {n}: Dateiname {dl.value.suggested_filename}')
+            except Exception as e: fehler.append(f'Import {n}: Export gescheitert ({str(e)[:80]})')
+        fehler += [f'Import {n}: Skriptfehler {e}' for e in perr]
+    print('Importfälle:', len(dateien))
+    # „Ohne Vorgaben von Hand öffnen“: der Plan scheitert (nachgestellt) an den Vorgaben von Hand
+    pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(250)
+    pg.evaluate("""() => { const alt = PLAN.blaetter; PLAN.blaetter = function (q, ...x) { if (q.verteiler.some(v => v.layout)) throw new Error('Probe'); return alt.call(this, q, ...x); }; }""")
+    pg.set_input_files('#datei', str(W / 'tests' / 'dateien' / 'layout_Riesenlage.slp.json')); pg.wait_for_timeout(350)
+    kn = pg.locator('.fenster button', has_text='Ohne Vorgaben von Hand öffnen')
+    if not kn.count(): fehler.append('Import: „Ohne Vorgaben von Hand öffnen“ wird nicht angeboten')
+    else:
+        kn.click(); pg.wait_for_timeout(300)
+        if pg.evaluate("P.verteiler.some(v => v.layout) || P.verteiler.length === 0"): fehler.append('Import: ohne Vorgaben von Hand geöffnet, aber Vorgaben noch da')
+    # CSV der Stromkreisliste formelsicher (Q07): Zeile 2 beginnt mit ="-F4"
+    pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(250); pg.add_script_tag(content=BSP); pg.evaluate("BEISPIELE.grund()")
+    with pg.expect_download(timeout=5000) as dl: pg.evaluate("listeCsv(P.verteiler[0])")
+    zeilen = pathlib.Path(dl.value.path()).read_bytes().decode('utf-8-sig').split('\r\n')
+    if not zeilen[1].startswith('="-F4";'): fehler.append(f'CSV: Zeile 2 beginnt mit {zeilen[1][:20]!r}')
+    if any(re.match(r'^[-+@]', c) or c.startswith('=') and not re.fullmatch(r'="[^"]*"', c) for z in zeilen for c in z.split(';')):
+        fehler.append('CSV: Zelle beginnt mit einem Formelzeichen')
+    ctx.close()
     b.close()
 if modus == '--referenz':
     REF.write_text(json.dumps(hashes, ensure_ascii=False, indent=1)); print('Referenz geschrieben:', REF)

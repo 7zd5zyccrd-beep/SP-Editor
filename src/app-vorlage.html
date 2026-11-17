@@ -16,6 +16,12 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.71: Import und Export härten (Etappe Q2: Q07, Q18, Q49, Q55): Stromkreisliste (CSV) formelsicher – Kennzeichen als ="-F4",
+           Zellen mit = + - @ am Anfang mit '; Objekt-URLs nach dem Herunterladen freigegeben; pruefeProjekt() repariert statt abzulehnen:
+           Nachschlagen nur in eigenen Schlüsseln (Object.hasOwn), Blattformat A4/A3, Textfelder als Text, Geräte nach WAHL (Gruppe,
+           Kopf, Abgang), Vorgaben von Hand je Art geprüft (layoutPruefen()), doppelte Kennungen neu, Gruppe in Gruppe aufgelöst,
+           Selbst-, Mehrfach- und Ringspeisung gelöst, unbrauchbare Verteiler entfernt; scheitert der Plan an den Vorgaben von Hand:
+           „Ohne Vorgaben von Hand öffnen“; Meldungen ohne Skriptfehlertext; „+ Abgang“ u. a. mit Rückgängig-Namen; Pläne unverändert
      v1.70: Datensicherheit im Gerät (Etappe Q1: Q01–Q03, Q19, Q34): ein unlesbarer gespeicherter Stand wird nie überschrieben – Kopie
            unter slp.defekt.<id>.<Zeit>, Fenster „Projekt … ist beschädigt“ (Rohdaten als Datei, letzter guter Stand aus IndexedDB slp/gut,
            anderes Projekt), weitergearbeitet wird unter neuer Kennung; „Nicht gespeichert – Als Datei sichern“ bleibt rot stehen, bis ein
@@ -412,6 +418,9 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--leis
 .wahl.mitklein button small{white-space:normal;line-height:1.3}
 .fenster.mitklein{min-width:min(360px, calc(100vw - 24px))}
 .fenster.mitklein:not(.pop){max-height:calc(100dvh - 24px);display:flex;flex-direction:column}.fenster.mitklein:not(.pop) .inhalt{overflow-y:auto;min-height:0}
+/* ab v1.71: lange Fenster (Projekt öffnen mit Ersetzungsliste) – Kopf und Knöpfe bleiben im Bild, der Inhalt scrollt */
+.fenster.lang:not(.pop){max-height:calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.fenster.lang:not(.pop) .inhalt{overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
 .abhilfe{display:block;color:var(--tinte);font-size:13px;margin-top:2px}      /* ab v1.58 (C29): zweite Zeile „So beheben: …“ */
 .feldfehler{color:var(--rot);font-size:13px;margin:6px 2px 0}.zeile .un.feldfehler{color:var(--rot);white-space:normal;overflow:visible}.feldfehler[hidden]{display:none !important}input.fehler{border-color:var(--rot) !important;outline-color:var(--rot)}
 .feldfehler.feldwarn,.zeile .un.feldfehler.feldwarn{color:var(--warn)}input.warn{border-color:var(--warn) !important;outline-color:var(--warn)}
@@ -1416,8 +1425,7 @@ function rohdatenSichern(df) {
   const d = new Date(), z = n => String(n).padStart(2, '0');
   const name = String(df.name || 'Projekt').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Projekt';
   const datei = new File([df.roh], `${String(d.getFullYear()).slice(2)}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${name} (beschädigt).slp.json`, { type: 'application/json' });
-  const url = URL.createObjectURL(datei), a = h('a', { href: url, download: datei.name });
-  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  herunterladen(datei, datei.name);
   meldung('Rohdaten als Datei gesichert');
 }
 // Projekt gilt als gesichert (ab v1.58, C35): nach dem Sichern als Datei, dem Öffnen aus Datei und beim Beispiel;
@@ -2757,10 +2765,10 @@ function bVerteiler(b) {
   const l = h('div', { class: 'liste' });
   baumZeilen(v, e, v.knoten, l, 0);
   // ab v1.60 (D12): im Plan-Editor stehen die Knöpfe „+ …“ nur im leeren Verteiler (sonst Palette und Marken „+“)
-  if (!(einbettung && ED) || !v.knoten.length) l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = editorNeu(v, 'steckdose'); v.knoten.push(a); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),
-           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ FI-Gruppe'),
-           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS'),
-           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo'));
+  if (!(einbettung && ED) || !v.knoten.length) l.append(h('button', { class: 'neu inliste', on: { click: () => { const a = editorNeu(v, 'steckdose'); v.knoten.push(a); aenderung('Abgang einfügen'); sichern(); geh({ s: 'abgang', vid: v.id, kid: a.id }); } } }, '+ Abgang'),      // ab v1.71 (Q55): Rückgängig mit Namen
+           h('button', { class: 'neu inliste', on: { click: () => { const g = neueGruppe(); if (v.leiter === '1NPE') g.geraet.zeichen = 'fi2'; v.knoten.push(g); aenderung('FI-Gruppe einfügen'); sichern(); geh({ s: 'gruppe', vid: v.id, kid: g.id }); } } }, '+ FI-Gruppe'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerLs(); v.knoten.push(s); aenderung('Steuer-LS einfügen'); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuer-LS'),
+           h('button', { class: 'neu inliste', on: { click: () => { const s = neuerSteuerTrafo(); v.knoten.push(s); aenderung('Steuertrafo einfügen'); sichern(); geh({ s: 'abgang', vid: v.id, kid: s.id }); } } }, '+ Steuertrafo'));
   m.append(l);
   // ab v1.66 (F16/F39): „Mehrere Abgänge ändern …“ entfällt (Mehrfachauswahl: Strg+Klick, Rahmen, „Mehrfach wählen“), die
   // Phasenbelastung steht erst ab einem Abgang
@@ -6116,11 +6124,15 @@ function listeCsv(v) {
       a.phase.t || '', k.steuer ? '' : `${a.w.t} ${leitungText(k, a)}`.trim(),
       k.steuer ? '' : k.leitung.quer ? `${k.leitung.quer} mm²` : '', klemmenText(a).replace('—', '')]);
   });
-  const feld = x => { const s = String(x == null ? '' : x).replace(nb, ' '); return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  // ab v1.71 (Q07): formelsicher für Excel – Kennzeichen (Zellen, die mit „-“ und einem Buchstaben beginnen, z. B. -F4, -W4 …,
+  // -X1:1–5) als ="-F4" (bleibt sichtbarer Text), andere Zellen, die mit = + - @, Tab oder CR beginnen, mit vorangestelltem '
+  const quote = s => /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  const feld = x => { const s = String(x == null ? '' : x).replace(nb, ' ');
+    if (/^-\p{L}/u.test(s)) { const f = '="' + s.replace(/"/g, '""') + '"'; return /[;\r\n]/.test(f) ? '"' + f.replace(/"/g, '""') + '"' : f; }
+    return quote(/^[=+\-@\t\r]/.test(s) ? "'" + s : s); };
   const text = '\ufeff' + zeilen.map(r => r.map(feld).join(';')).join('\r\n') + '\r\n';
   const name = dateiname().replace(/\.slp\.json$/, '') + ` Stromkreise ${v.name}`.replace(/[\\/:*?"<>|]+/g, ' ') + '.csv';
-  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' })), download: name });
-  document.body.append(a); a.click(); a.remove();
+  herunterladen(new Blob([text], { type: 'text/csv;charset=utf-8' }), name);
   meldung(`Gesichert als „${name}“`);
 }
 
@@ -6372,10 +6384,15 @@ function tuerDrucken(liste) {
 }
 
 // ---- Stand hinaus und herein ----------------------------------------------
+// Datei herunterladen (ab v1.71, Q49): die Objekt-URL wird nach dem Klick wieder freigegeben
+function herunterladen(blob, name) {
+  const url = URL.createObjectURL(blob), a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 // ab v1.54: ohne Projektnamen nach dem ersten Verteiler benannt
 function dateiname() {
   const d = new Date(), z = n => String(n).padStart(2, '0');
-  const name = (P.projekt.projekt || (P.verteiler[0] && P.verteiler[0].name) || 'Projekt').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Projekt';
+  const name = String(P.projekt.projekt || (P.verteiler[0] && P.verteiler[0].name) || 'Projekt').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Projekt';
   return `${String(d.getFullYear()).slice(2)}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${name}.slp.json`;
 }
 // Projekt als Datei sichern; true, wenn gesichert (ab v1.54 mit Meldung und Datum der letzten Sicherung)
@@ -6391,7 +6408,7 @@ async function exportieren() {
   if (navigator.canShare && navigator.canShare({ files: [datei] })) {
     try { await navigator.share({ files: [datei], title: name }); geteilt = true; } catch (e) { if (e.name === 'AbortError') return false; }
   }
-  if (!geteilt) { const a = h('a', { href: URL.createObjectURL(datei), download: name }); document.body.append(a); a.click(); a.remove(); }
+  if (!geteilt) herunterladen(datei, name);
   ansicht.export = new Date().toISOString(); ansichtMerken(); exportStand('export');
   meldung(`Gesichert als „${name}“`);
   const b = stapel[stapel.length - 1]; if (b && b.s === 'start' && !fensterStapel.length) zeichne();      // Status auf dem Start
@@ -6401,21 +6418,40 @@ async function exportieren() {
 // Prüft eine Projektdatei bzw. den gespeicherten Stand, bevor er übernommen wird: Pflichtfelder, bekannte Gerätearten,
 // Anschlüsse und Zahlenfelder. Unbekanntes wird durch die Voreinstellung ersetzt; zurück kommt die Liste der Ersetzungen.
 // Nicht Reparierbares (kein Projekt, keine Verteilerliste) wirft einen Fehler.
-function pruefeProjekt(d) {
+// datei (ab v1.71): Prüfung einer geöffneten Datei – dann wird auch eine fehlende Verteilerliste bzw. ein unbrauchbarer Verteiler
+// repariert (die Datei selbst bleibt unverändert); beim gespeicherten Stand bricht das ab, damit er nicht überschrieben wird
+function pruefeProjekt(d, datei = false) {
   const r = [], obj = x => x && typeof x === 'object' && !Array.isArray(x);
+  // ab v1.71 (Q18): Nachschlagen nur in eigenen Schlüsseln der Tabellen („constructor“, „toString“ … sind keine Geräte)
+  const hat = (tab, x) => typeof x === 'string' && Object.hasOwn(tab, x);
+  const kurz = x => { const t = typeof x === 'string' ? x : JSON.stringify(x); return t.length > 30 ? t.slice(0, 29) + '…' : t; };
   if (!obj(d) || d.format !== 'slp-projekt') throw new Error('keine Stromlaufplan-Datei');
-  if (!Array.isArray(d.verteiler)) throw new Error('die Liste der Verteiler fehlt');
+  // ab v1.71 (Q18): eine fehlende Verteilerliste bzw. unbrauchbare Einträge darin werden repariert, nicht abgelehnt
+  if (!Array.isArray(d.verteiler)) { if (!datei) throw new Error('die Liste der Verteiler fehlt'); d.verteiler = []; r.push('Liste der Verteiler fehlte'); }
   if (!obj(d.projekt)) { d.projekt = neuesProjekt().projekt; r.push('Projektangaben fehlten'); }
+  // Textfelder (ab v1.71, Q18): Zahl → Text, Objekt/Liste → leer (sonst „[object Object]“ im Plan und kein Dateiname)
+  const text = (o, f, wo) => { const x = o[f]; if (x === undefined || x === null || typeof x === 'string') return;
+    const t = typeof x === 'number' || typeof x === 'boolean' ? String(x) : ''; r.push(t ? `${wo}: ${typeof x === 'number' ? 'Zahl ' + t : '„' + t + '“'} als Text übernommen` : `${wo}: „${kurz(x)}“ → leer`); o[f] = t; };
+  Object.entries({ projekt: 'Projektname', titel: 'Dokumenttitel', firma: 'Firma', anschrift: 'Anschrift', ersteller: 'Erstellt durch', nummer: 'Zeichnungsnummer',
+    rev: 'Revision', datum: 'Ausgabedatum' }).forEach(([f, t]) => text(d.projekt, f, t));
+  if (d.projekt.format !== undefined && !['A4', 'A3'].includes(d.projekt.format)) { r.push(`Blattformat „${kurz(d.projekt.format)}“ → A4`); d.projekt.format = 'A4'; }
+  // Kennzeichen, Bezeichnungen, Orte und Namen in allen Teilen eines Verteilers (ohne Vorgaben von Hand)
+  const texte = (o, wo, tiefe = 0) => { if (!o || typeof o !== 'object' || tiefe > 40) return;
+    Object.keys(o).forEach(f => { if (f === 'layout') return; if (['bmk', 'bez', 'ort', 'name'].includes(f) && !Array.isArray(o)) text(o, f, `${wo} ${f === 'bmk' ? 'Kennzeichen' : f === 'bez' ? 'Bezeichnung' : f === 'ort' ? 'Ort' : 'Name'}`);
+      else texte(o[f], wo, tiefe + 1); }); };
   const zahl = (o, f, wo, z, vor) => { if (o[f] !== undefined && o[f] !== '' && zahlFehler(o[f], z)) { r.push(`${wo}: „${o[f]}“ → ${vor || 'leer'}`); o[f] = vor || ''; } };
   const Z_NENN = { min: 0.1, max: 6300, einheit: /^A$/i }, Z_QUER = { min: 0.5, max: 400 };
-  const geraet = (g, wo, vor, leer) => {
+  // erlaubt (ab v1.71, Q18): Geräte, die an dieser Stelle möglich sind (WAHL), z. B. kein LS 1-polig als Gruppengerät
+  const geraet = (g, wo, vor, leer, erlaubt) => {
     if (!obj(g)) return Object.assign({}, vor);
+    if (g.zeichen != null && typeof g.zeichen !== 'string') g.zeichen = String(g.zeichen);
+    const bekannt = hat(GERAETE, g.zeichen), passt = bekannt && (!erlaubt || erlaubt.includes(g.zeichen));
     // ab v1.57 (C11): fachlich neutral – nur das Zeichen ersetzen; gültige Kennlinie, Nennstrom und FI-Daten bleiben,
     // mit FI-Daten wird aus dem LS ein FI/LS; was fehlt oder ungültig ist, kommt aus der Voreinstellung (alles mit Meldung)
-    if (g.zeichen && !GERAETE[g.zeichen] || !g.zeichen && !leer) {
+    if (g.zeichen && !passt || !g.zeichen && !leer) {
       let z = vor.zeichen; const fiDaten = g.idn !== undefined && g.idn !== '';
       if (fiDaten && GERAETE[z] && GERAETE[z].kennlinie && !GERAETE[z].fi) z = GERAETE[z].pole === 3 ? 'fils3n' : 'fils1n';
-      r.push(`${wo}: unbekanntes Gerät „${g.zeichen || ''}“ → ${gName(z)}`); g.zeichen = z;
+      r.push(bekannt ? `${wo}: ${gName(g.zeichen)} ist hier nicht möglich → ${gName(z)}` : `${wo}: unbekanntes Gerät „${kurz(g.zeichen || '')}“ → ${gName(z)}`); g.zeichen = z;
       const d = GERAETE[z] || {}, setze = (f, w, t) => { if (g[f] !== undefined && g[f] !== '') r.push(`${wo}: ${t} „${g[f]}“ → ${w}`); else r.push(`${wo}: ${t} ergänzt (${w})`); g[f] = w; };
       if (d.kennlinie && !KENNLINIEN.includes(g.kennlinie)) setze('kennlinie', vor.kennlinie || 'B', 'Kennlinie');
       if (z && !d.ohneNenn && !d.bereich && (g.nenn === undefined || g.nenn === '')) setze('nenn', vor.nenn || '16', 'Nennstrom');
@@ -6426,55 +6462,128 @@ function pruefeProjekt(d) {
     zahl(g, 'nenn', wo + ' Nennstrom', Z_NENN, vor.nenn); zahl(g, 'idn', wo + ' Nennfehlerstrom', { min: 1, max: 1000 }, '30');
     return g;
   };
-  const ids = new Set(d.verteiler.map(v => v && v.id));
+  // Verteiler (ab v1.71): Unbrauchbares entfernen, fehlende und doppelte Kennungen neu vergeben (sonst träfe jede Suche nur den ersten)
+  const neueId = x => !x || typeof x !== 'string' || x.includes('~');
+  d.verteiler = d.verteiler.filter((v, vi) => { if (obj(v)) return true; if (!datei) throw new Error(`Verteiler ${vi + 1} ist kein Verteiler`);
+    r.push(`Verteiler ${vi + 1}: unbrauchbarer Eintrag entfernt`); return false; });
+  const vids = new Set();
   d.verteiler.forEach((v, vi) => {
-    if (!obj(v)) throw new Error(`Verteiler ${vi + 1} ist kein Verteiler`);
-    if (!v.id || typeof v.id !== 'string') { v.id = id(); r.push(`Verteiler ${vi + 1}: Kennung ergänzt`); }
+    if (neueId(v.id)) { v.id = id(); r.push(`Verteiler ${vi + 1}: Kennung ergänzt`); }
+    else if (vids.has(v.id)) { v.id = id(); r.push(`Verteiler ${vi + 1}: doppelte Kennung neu vergeben`); }
+    vids.add(v.id);
+  });
+  const ids = vids, kids = new Set();
+  d.verteiler.forEach((v, vi) => {
+    text(v, 'name', `Verteiler ${vi + 1} Name`);
     const wo = v.name = String(v.name || `Verteiler ${vi + 1}`);
     if (!['TN-S', 'TN-C', 'TN-C-S'].includes(v.netzform)) { r.push(`${wo}: Netzform „${v.netzform}“ → TN-S`); v.netzform = 'TN-S'; }
     if (!['3NPE', '1NPE'].includes(v.leiter)) { r.push(`${wo}: Leiter → 3/N/PE`); v.leiter = '3NPE'; }
-    ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true); });
+    ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true, WAHL[f]); });
     if (!Array.isArray(v.knoten)) { v.knoten = []; r.push(`${wo}: Abgangsliste fehlte`); }
-    const knoten = (liste, tiefe) => liste.filter((k, i) => {
-      if (!obj(k) || !['abgang', 'gruppe'].includes(k.typ) || tiefe > 1 && k.typ === 'gruppe') { r.push(`${wo}: unbrauchbarer Eintrag entfernt`); return false; }
-      if (!k.id || typeof k.id !== 'string') k.id = id();
-      if (k.typ === 'gruppe') {
-        k.geraet = geraet(k.geraet, `${wo} Gruppe`, neueGruppe().geraet);
-        if (!Array.isArray(k.kinder)) k.kinder = [];
-        k.kinder = knoten(k.kinder, tiefe + 1); return true;
-      }
-      const n = neuerAbgang(), kw = `${wo} ${(obj(k.ziel) && k.ziel.bez) || 'Abgang'}`;
-      if (!obj(k.ziel)) k.ziel = n.ziel;
-      if (v.leiter !== '1NPE' && ['steckdose5', 'wallbox', 'motor'].includes(k.ziel.anschluss)) n.geraet.zeichen = 'ls3';     // Ersatz mit passender Polzahl
-      k.geraet = geraet(k.geraet, kw, n.geraet, true);
-      if (!ANSCHLUSS[k.ziel.anschluss]) { r.push(`${kw}: Anschluss „${k.ziel.anschluss || ''}“ → Fester Anschluss`); k.ziel.anschluss = 'fest'; }      // ab v1.57 neutral (C11)
-      if (!obj(k.leitung)) k.leitung = n.leitung;
-      zahl(k.leitung, 'quer', kw + ' Querschnitt', Z_QUER, '2,5');
-      if (k.speist && !ids.has(k.speist)) { r.push(`${kw}: speiste einen fehlenden Verteiler`); k.speist = null; }
-      if (k.schalt && (!obj(k.schalt) || k.schalt.typ && !SCHALT[k.schalt.typ])) { r.push(`${kw}: unbekanntes Schaltgerät entfernt`); k.schalt = null; }
-      if (k.schalt && k.schalt.typ) { if (!obj(k.schalt.zr) || !ZR_FKT[k.schalt.zr.fkt]) k.schalt.zr = neuesSchalt('zeitrelais').zr;
-        zahl(k.schalt.zr, 'zeit', kw + ' Zeit', Z_ZEIT, '3 min'); }
-      if (obj(k.motor)) { if (!['1', '3'].includes(k.motor.art)) k.motor.art = '3'; zahl(k.motor, 'kw', kw + ' Leistung', Z_KW, ''); zahl(k.motor, 'strom', kw + ' Nennstrom', Z_A, ''); }
-      if (obj(k.pv)) { zahl(k.pv, 'kwp', kw + ' Leistung', Z_KWP, ''); if (obj(k.pv.speicher)) zahl(k.pv.speicher, 'kwh', kw + ' Kapazität', Z_KWH, ''); }
-      if (obj(k.speicher)) zahl(k.speicher, 'kwh', kw + ' Kapazität', Z_KWH, '');
-      if (k.trafo) { if (!obj(k.trafo)) k.trafo = neuerSteuerTrafo().trafo; k.trafo.ls = geraet(k.trafo.ls, kw + ' Sekundär-LS', neuerSteuerTrafo().trafo.ls); }
-      return true;
-    });
+    const gruppeVor = () => { const g = neueGruppe().geraet; if (v.leiter === '1NPE') g.zeichen = 'fi2'; return g; };
+    const knoten = (liste, tiefe) => {
+      // ab v1.71 (Q18): Gruppe in Gruppe auflösen – ihre Abgänge rücken an ihre Stelle (die Bedienung lässt das nicht zu)
+      if (tiefe > 0) while (liste.some(k => obj(k) && k.typ === 'gruppe'))
+        liste = liste.flatMap(k => { if (!obj(k) || k.typ !== 'gruppe') return [k]; r.push(`${wo}: Gruppe in Gruppe aufgelöst`); return Array.isArray(k.kinder) ? k.kinder : []; });
+      return liste.filter(k => {
+        if (!obj(k) || !['abgang', 'gruppe'].includes(k.typ)) { r.push(`${wo}: unbrauchbarer Eintrag entfernt`); return false; }
+        const kw = `${wo} ${(obj(k.ziel) && typeof k.ziel.bez === 'string' && k.ziel.bez) || (k.typ === 'gruppe' ? 'Gruppe' : 'Abgang')}`;
+        if (neueId(k.id)) k.id = id();
+        else if (kids.has(k.id)) { k.id = id(); r.push(`${kw}: doppelte Kennung neu vergeben`); }
+        kids.add(k.id);
+        if (k.typ === 'gruppe') {
+          k.geraet = geraet(k.geraet, `${wo} Gruppe`, gruppeVor(), false, WAHL.gruppe);
+          if (!Array.isArray(k.kinder)) { if (k.kinder !== undefined) r.push(`${wo} Gruppe: Abgangsliste fehlte`); k.kinder = []; }
+          k.kinder = knoten(k.kinder, tiefe + 1); texte(k, wo); return true;
+        }
+        const n = neuerAbgang();
+        if (!obj(k.ziel)) k.ziel = n.ziel;
+        if (v.leiter !== '1NPE' && ['steckdose5', 'wallbox', 'motor'].includes(k.ziel.anschluss)) n.geraet.zeichen = 'ls3';     // Ersatz mit passender Polzahl
+        k.geraet = geraet(k.geraet, kw, n.geraet, true, WAHL.abgang);
+        if (!hat(ANSCHLUSS, k.ziel.anschluss)) { r.push(`${kw}: Anschluss „${kurz(k.ziel.anschluss || '')}“ → Fester Anschluss`); k.ziel.anschluss = 'fest'; }      // ab v1.57 neutral (C11)
+        if (!obj(k.leitung)) k.leitung = n.leitung;
+        text(k.leitung, 'typ', kw + ' Leitungstyp');
+        zahl(k.leitung, 'quer', kw + ' Querschnitt', Z_QUER, '2,5');
+        if (k.speist && !ids.has(k.speist)) { r.push(`${kw}: speiste einen fehlenden Verteiler`); k.speist = null; }
+        if (k.schalt && (!obj(k.schalt) || k.schalt.typ && !hat(SCHALT, k.schalt.typ))) { r.push(`${kw}: unbekanntes Schaltgerät entfernt`); k.schalt = null; }
+        if (k.schalt && k.schalt.typ) { if (!obj(k.schalt.zr) || !hat(ZR_FKT, k.schalt.zr.fkt)) k.schalt.zr = neuesSchalt('zeitrelais').zr;
+          zahl(k.schalt.zr, 'zeit', kw + ' Zeit', Z_ZEIT, '3 min'); }
+        if (obj(k.motor)) { if (!['1', '3'].includes(k.motor.art)) k.motor.art = '3'; zahl(k.motor, 'kw', kw + ' Leistung', Z_KW, ''); zahl(k.motor, 'strom', kw + ' Nennstrom', Z_A, ''); }
+        if (obj(k.pv)) { zahl(k.pv, 'kwp', kw + ' Leistung', Z_KWP, ''); if (obj(k.pv.speicher)) zahl(k.pv.speicher, 'kwh', kw + ' Kapazität', Z_KWH, ''); }
+        if (obj(k.speicher)) zahl(k.speicher, 'kwh', kw + ' Kapazität', Z_KWH, '');
+        if (k.trafo) { if (!obj(k.trafo)) k.trafo = neuerSteuerTrafo().trafo; k.trafo.ls = geraet(k.trafo.ls, kw + ' Sekundär-LS', neuerSteuerTrafo().trafo.ls, false, WAHL.abgang); }
+        texte(k, kw);
+        return true;
+      });
+    };
     v.knoten = knoten(v.knoten, 0);
+    ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => texte(v[f], `${wo} ${KOPF_TITEL[f]}`));
     if (v.steuerung !== undefined) {
       const st = obj(v.steuerung) ? v.steuerung : (v.steuerung = {});
       if (!Array.isArray(st.geraete)) st.geraete = [];
       if (!Array.isArray(st.kreise)) st.kreise = [];
-      st.geraete = st.geraete.filter(g => { const ok = obj(g) && g.id && ST_ZEICHEN[g.zeichen]; if (!ok) r.push(`${wo}: unbekanntes Steuergerät entfernt`); return ok; });
-      st.geraete.forEach(g => { if (g.zeit !== undefined) zahl(g, 'zeit', `${wo} Zeit`, Z_ZEIT, '3 min'); });
+      st.geraete = st.geraete.filter(g => { const ok = obj(g) && g.id && hat(ST_ZEICHEN, g.zeichen); if (!ok) r.push(`${wo}: unbekanntes Steuergerät entfernt`); return ok; });
+      const gids = new Set();     // ab v1.71: doppelte Kennungen der Steuergeräte (die Plätze verweisen auf das erste)
+      st.geraete.forEach(g => { if (typeof g.id !== 'string' || gids.has(g.id)) { g.id = id(); r.push(`${wo}: Steuergerät mit doppelter Kennung neu vergeben`); } gids.add(g.id);
+        if (g.zeit !== undefined) zahl(g, 'zeit', `${wo} Zeit`, Z_ZEIT, '3 min'); texte(g, `${wo} Steuergerät`); });
       st.kreise = st.kreise.filter(kr => obj(kr) && Array.isArray(kr.pfade));
-      st.kreise.forEach(kr => { if (!kr.id) kr.id = id(); kr.pfade = kr.pfade.filter(obj);
-        kr.pfade.forEach(pf => { if (!pf.id) pf.id = id(); if (!Array.isArray(pf.plaetze)) pf.plaetze = leerePlaetze();
+      const sids = new Set(), eindeutig = o => { if (neueId(o.id) || sids.has(o.id)) o.id = id(); sids.add(o.id); };
+      st.kreise.forEach(kr => { eindeutig(kr); kr.pfade = kr.pfade.filter(obj); texte(kr, `${wo} Steuerstromkreis`, 39);
+        kr.pfade.forEach(pf => { eindeutig(pf); if (!Array.isArray(pf.plaetze)) pf.plaetze = leerePlaetze();
           pf.plaetze = leerePlaetze().map((_, i) => obj(pf.plaetze[i]) ? pf.plaetze[i] : null); if (!obj(pf.verbraucher)) pf.verbraucher = null; }); });
     }
     if (v.layout !== undefined && !obj(v.layout)) { delete v.layout; r.push(`${wo}: Vorgaben von Hand verworfen`); }
+    else if (v.layout !== undefined) layoutPruefen(v, wo, r);
+  });
+  // ab v1.71 (Q18): Speisungen – ein Verteiler speist sich nicht selbst, wird nur von einem Abgang gespeist und nicht im Kreis
+  const gespeist = new Map();
+  d.verteiler.forEach(v => alleKnoten(v, k => {
+    if (k.typ !== 'abgang' || !k.speist) return;
+    const kw = `${v.name} ${k.ziel.bez || 'Abgang'}`, uv = d.verteiler.find(w => w.id === k.speist);
+    if (k.speist === v.id) { r.push(`${kw}: speiste den eigenen Verteiler – Speisung gelöst`); k.speist = null; }
+    else if (gespeist.has(k.speist)) { r.push(`${kw}: „${uv.name}“ wird schon von einem anderen Abgang gespeist – Speisung gelöst`); k.speist = null; }
+    else gespeist.set(k.speist, { v, k });
+  }));
+  d.verteiler.forEach(v => {
+    let w = v;
+    for (let n = 0; n <= d.verteiler.length && gespeist.has(w.id); n++) {
+      w = gespeist.get(w.id).v;
+      if (w === v) { const q = gespeist.get(v.id); r.push(`${q.v.name} ${q.k.ziel.bez || 'Abgang'}: Speisung im Kreis – Speisung von „${v.name}“ gelöst`);
+        q.k.speist = null; gespeist.delete(v.id); break; }
+    }
   });
   return r;
+}
+// Vorgaben von Hand prüfen (ab v1.71, Q18): jede Art als Objekt, Einträge mit gültigen Werten, Zusätze mit Art und Punkten;
+// Unbrauchbares entfällt (eine Meldung je Verteiler), der Rest bleibt
+function layoutPruefen(v, wo, r) {
+  const L = v.layout, obj = x => x && typeof x === 'object' && !Array.isArray(x), zahl = x => typeof x === 'number' && isFinite(x);
+  const pkt = p => Array.isArray(p) && p.length === 2 && zahl(p[0]) && zahl(p[1]);
+  let weg = 0;
+  const pruefe = (art, gut) => { if (L[art] === undefined) return; if (!obj(L[art])) { delete L[art]; weg++; return; }
+    Object.keys(L[art]).forEach(x => { if (!gut(L[art][x])) { delete L[art][x]; weg++; } }); };
+  pruefe('spalten', x => Number.isInteger(x) && x >= 0 && x < 1000);
+  pruefe('umbruch', x => x === true);
+  pruefe('lage', pkt);
+  pruefe('wege', x => obj(x) && zahl(x.n));
+  pruefe('fest', x => x === true);
+  if (L.zusatz !== undefined) {
+    if (!Array.isArray(L.zusatz)) { delete L.zusatz; weg++; }
+    else {
+      const ids = new Set();
+      L.zusatz = L.zusatz.filter(z => {
+        const ok = obj(z) && ['leiter', 'text', 'rahmen'].includes(z.art) && pkt(z.a) && (z.art === 'text' || pkt(z.b));
+        if (!ok) { weg++; return false; }
+        if (typeof z.id !== 'string' || !z.id || ids.has(z.id)) z.id = id(); ids.add(z.id);
+        if (z.blatt !== undefined && typeof z.blatt !== 'string') delete z.blatt;
+        if (z.t !== undefined && typeof z.t !== 'string') z.t = typeof z.t === 'number' ? String(z.t) : '';
+        if (z.g !== undefined && !(zahl(z.g) && z.g > 0 && z.g < 50)) delete z.g;
+        if (z.leiter !== undefined && typeof z.leiter !== 'string') delete z.leiter;
+        return true;
+      });
+    }
+  }
+  if (weg) r.push(`${wo}: Vorgaben von Hand teilweise verworfen (${weg})`);
 }
 // Probe auf einer Kopie: berechnen und alle Blätter erzeugen; wirft bei einem Fehler, P bleibt unverändert
 function probeProjekt(d) {
@@ -6485,10 +6594,22 @@ function probeProjekt(d) {
 document.getElementById('datei').addEventListener('change', async ev => {
   const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
   let d, rep;
-  let datVersion = 1, datApp = '';
-  try { d = JSON.parse(await f.text()); if (d && typeof d === 'object') { datVersion = Number(d.version) || 1; datApp = typeof d.app === 'string' ? d.app : ''; }
-    rep = pruefeProjekt(d); migriere(d); probeProjekt(d); }
-  catch (e) { meldung('Datei fehlerhaft: ' + e.message); return; }      // ab v1.52: das bisherige Projekt bleibt
+  let datVersion = 1, datApp = '', ohneVorgaben = false;
+  // ab v1.71 (Q18): verständliche Meldungen ohne Text der Skriptsprache; das bisherige Projekt bleibt (ab v1.52)
+  const nichtOeffnen = t => meldung(`„${f.name}“ lässt sich nicht öffnen: ${t}`);
+  try { d = JSON.parse((await f.text()).replace(/^\ufeff/, '')); }
+  catch (e) { nichtOeffnen('Die Datei ist leer, abgeschnitten oder keine Projektdatei (Endung .slp.json)'); return; }
+  if (d && typeof d === 'object') { datVersion = Number(d.version) || 1; datApp = typeof d.app === 'string' ? d.app : ''; }
+  try { rep = pruefeProjekt(d, true); migriere(d); }
+  catch (e) { nichtOeffnen(e.message === 'keine Stromlaufplan-Datei' ? 'Das ist keine Projektdatei dieser App (Endung .slp.json)' : 'Die Projektdaten sind unvollständig'); return; }
+  try { probeProjekt(d); }
+  catch (e) {
+    // ab v1.71 (Q18): scheitert der Plan an den Vorgaben von Hand, lässt sich die Datei ohne sie öffnen (die Automatik ordnet neu)
+    const ohne = kopie(d); ohne.verteiler.forEach(v => { delete v.layout; });
+    try { if (!d.verteiler.some(v => v.layout)) throw e; probeProjekt(ohne); } catch (e2) {
+      console.warn(e2); nichtOeffnen('Der Plan ließ sich mit diesen Daten nicht zeichnen'); return; }
+    console.warn(e); d = ohne; ohneVorgaben = true; rep.push('Vorgaben von Hand (Lage, Leiterwege, Zusätze) verworfen – der Plan ließ sich damit nicht zeichnen');
+  }
   const neuer = datVersion > PROJEKT_VERSION, name = projektName(d);
   // ab v1.56: als weiteres Projekt; gibt es eines mit demselben Namen, wahlweise dieses ersetzen
   const gleich = projektListeAnzeige().find(x => (x.id === projektId ? projektName(P) : x.name) === name);
@@ -6506,12 +6627,14 @@ document.getElementById('datei').addEventListener('change', async ev => {
     try { zeichne(); } catch (e) {
       P = alt.P; projektId = alt.projektId; Object.assign(verlauf, { zurueck: alt.zurueck, vor: alt.vor, stand: alt.stand });
       try { localStorage.setItem(PAKTIV, projektId); } catch (er) {}
-      stapel = altStapel; s(false); zeichne(); meldung('Datei fehlerhaft: ' + e.message); return; }
+      stapel = altStapel; s(false); zeichne(); console.warn(e); nichtOeffnen('Der Plan ließ sich mit diesen Daten nicht zeichnen'); return; }
     aenderung(ersetzId ? 'Projekt ersetzen' : 'Projekt öffnen'); sichern(); exportStand('importiert'); s();
     if (umbenannt) setTimeout(() => meldung(`Als „${projektName(P)}“ angelegt – den Namen „${name}“ gibt es schon`), 0);
     if (rep.length) setTimeout(() => meldung(`Datei geöffnet, ${rep.length} Angabe${rep.length === 1 ? '' : 'n'} ersetzt`), 0);
   };
-  fenster('Projekt öffnen', h('div', { class: 'text' }, h('p', {}, gleich
+  fenster('Projekt öffnen', h('div', { class: 'text' }, ohneVorgaben
+      ? h('p', {}, 'Mit den Vorgaben von Hand (verschobene Geräte und Leiter, freie Leiter, Texte und Rahmen) ließ sich der Plan nicht zeichnen. '
+        + 'Ohne diese Vorgaben öffnet er sich; die Automatik ordnet dann alles neu. Die Datei selbst bleibt unverändert.') : null, h('p', {}, gleich
       ? `Ein Projekt „${name}“ gibt es auf diesem Gerät schon. Ersetzen oder als weiteres Projekt anlegen?`
       : projektLeer(P) ? `„${name || f.name}“ wird geöffnet und ersetzt das leere Projekt.`      // ab v1.65 (F12)
       : `„${name || f.name}“ wird als weiteres Projekt angelegt; die übrigen Projekte bleiben.`) , neuer
@@ -6523,7 +6646,7 @@ document.getElementById('datei').addEventListener('change', async ev => {
     rep.length > 10 ? h('p', {}, `… und ${rep.length - 10} weitere`) : null), s => [
     h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
     gleich ? h('button', { class: 'knopf zweit', on: { click: () => uebernehmen(s, gleich.id) } }, 'Ersetzen') : null,
-    h('button', { class: 'knopf', on: { click: () => uebernehmen(s, null) } }, gleich ? 'Als weiteres Projekt' : 'Öffnen')]);
+    h('button', { class: 'knopf', on: { click: () => uebernehmen(s, null) } }, gleich ? 'Als weiteres Projekt' : ohneVorgaben ? 'Ohne Vorgaben von Hand öffnen' : 'Öffnen')], null, { cls: 'lang' });
 });
 
 // Meldung unten; ab v1.56 wahlweise mit Knopf [Text, Aktion] (steht dann länger und ist antippbar)

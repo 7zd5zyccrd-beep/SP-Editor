@@ -203,6 +203,52 @@ window.BEISPIELE = {
     [['Steckdosen','Garage'],['Steckdosen','Außen']].forEach(([b,o])=>{const a=neuerAbgang(); a.ziel.bez=b; a.ziel.ort=o; a.geraet={zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; hv.knoten.push(a);});
     P.verteiler.push(hv); sichern();
     const kr = kreisAnlegen(hv, tl); vorlageEinsetzen(hv, kr, 'treppenlicht', { n: 2, zeit: '10 min' }); sichern(); zeichne(); },
+  // Etappe Q3 (v1.72, Q04/Q24): HV 3/N/PE mit Zähler 1-phasig (an L3 und N) und Überspannungsschutz 1/N an L2; UV Gartenhaus
+  // 1/N/PE mit LS-Vorsicherung 1-polig, Zähler 1-phasig, Lasttrennschalter 2-polig und Überspannungsschutz 1/N – PE nie geschaltet;
+  // dazu Pumpe 1~ am Motorschutzschalter (Pole in Reihe)
+  einphasig: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Laden mit Gartenhaus', ersteller:'Jean', nummer:'SLP-0072'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sich3', art:'gG', nenn:'50'}; hv.zaehler = {zeichen:'zaehler1'}; hv.spd = {zeichen:'spd2', phase:'L2'};
+    const a = neuerAbgang(); a.ziel.bez = 'Steckdosen'; a.ziel.ort = 'Laden'; a.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; hv.knoten.push(a);
+    const uvA = neuerAbgang(); uvA.geraet = {zeichen:'ls1', kennlinie:'C', nenn:'40'}; uvA.ziel = {bez:'', ort:'Gartenhaus', anschluss:'fest'}; uvA.leitung = {typ:'NYY-J', quer:'10'}; hv.knoten.push(uvA);
+    const uv = neuerVerteiler('UV Gartenhaus', '1NPE'); uvA.speist = uv.id;
+    uv.vorsicherung = {zeichen:'ls1', kennlinie:'C', nenn:'32'}; uv.zaehler = {zeichen:'zaehler1'}; uv.hauptschalter = {zeichen:'lasttrenn2', nenn:'40'}; uv.spd = {zeichen:'spd2'};
+    const g = neueGruppe(); g.geraet = {zeichen:'fi2', nenn:'40', idn:'30', fityp:'A'};
+    [['Steckdosen','Gartenhaus'],['Licht','Gartenhaus'],['Steckdosen','Terrasse']].forEach(([b,o])=>{const x=neuerAbgang(); x.ziel.bez=b; x.ziel.ort=o; if(b==='Licht'){x.ziel.anschluss='leuchte'; x.leitung.quer='1,5'; x.geraet.nenn='10';} g.kinder.push(x);});
+    uv.knoten.push(g);
+    [['Steckdosen','Werkbank'],['Steckdosen','Teich']].forEach(([b,o])=>{const x=neuerAbgang(); x.ziel.bez=b; x.ziel.ort=o; x.geraet={zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; uv.knoten.push(x);});
+    const pu = neuerAbgang(); pu.ziel = {bez:'Pumpe', ort:'Teich', anschluss:'motor'}; pu.motor = {art:'1', kw:'0,55', strom:'3,8'}; pu.geraet = {zeichen:'motorschutz3', bereich:'2,5–4'}; pu.leitung.quer = '1,5'; uv.knoten.push(pu);
+    P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q3 (v1.72, Q05/Q13): Pumpe 1~ am Motorschutzschalter (L über Pol 1 und 2 in Reihe, N über Pol 3) mit Schütz und
+  // Vorlage „Motor Ein/Aus“ mit Störung – Freigabe und Störmeldung über die Hilfsschalter des Motorschutzschalters, kein
+  // Überlastrelais; ebenso der Lüfter 3~ (Steuerspannung über Steuer-LS)
+  motor1mss: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Pumpwerk', ersteller:'Jean', nummer:'SLP-0073'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sichlasttrenn3', art:'gG', nenn:'63'}; hv.klemmen = 'leiste';
+    const pu = neuerAbgang(); pu.ziel = {bez:'Pumpe', ort:'Schacht', anschluss:'motor'}; pu.motor = {art:'1', kw:'1,1', strom:'7,2'};
+    pu.geraet = {zeichen:'motorschutz3', bereich:'6,3–10'}; pu.leitung.quer = '1,5'; pu.schalt = neuesSchalt('schuetz'); hv.knoten.push(pu);
+    const lu = neuerAbgang(); lu.ziel = {bez:'Lüfter', ort:'Halle', anschluss:'motor'}; lu.motor = {art:'3', kw:'2,2', strom:'4,9'};
+    lu.geraet = {zeichen:'motorschutz3', bereich:'4–6,3'}; lu.leitung.quer = '1,5'; lu.schalt = neuesSchalt('schuetz'); hv.knoten.push(lu);
+    const sls = neuerSteuerLs(); hv.knoten.push(sls);
+    P.verteiler.push(hv); stDaten(hv).spannung = { art: 'durch', quelle: sls.id };
+    let kr = kreisAnlegen(hv, pu); kr.eigen = true; vorlageEinsetzen(hv, kr, 'motor', { meldung: true, stoerung: true });
+    kr = kreisAnlegen(hv, lu); vorlageEinsetzen(hv, kr, 'motor', { meldung: true, stoerung: true }); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q3 (v1.72, Q14/X12): Baustromverteiler mit Einbausteckdosen ohne Leitung (CEE 32 A, CEE 16 A, Schuko-Gruppe)
+  // und einer Bauleuchte mit Leitung über -X1
+  baustrom: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Baustelle Nord', ersteller:'Jean', nummer:'SLP-0074'});
+    const bv = neuerVerteiler('Baustrom'); bv.klemmen = 'leiste'; bv.vorsicherung = {zeichen:'sich3', art:'gG', nenn:'63'};
+    const ohne = (x, ort) => { x.leitung = {typ:'ohne', quer:'2,5'}; x.ziel.ort = ort || 'im Verteiler'; return x; };
+    const g1 = neueGruppe(); g1.geraet = {zeichen:'fi4', nenn:'63', idn:'30', fityp:'A'};
+    const c32 = ohne(neuerAbgang()); c32.ziel.bez = 'CEE 32 A'; c32.ziel.anschluss = 'steckdose5'; c32.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'32'}; g1.kinder.push(c32);
+    const c16 = ohne(neuerAbgang()); c16.ziel.bez = 'CEE 16 A'; c16.ziel.anschluss = 'steckdose5'; c16.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'16'}; g1.kinder.push(c16);
+    bv.knoten.push(g1);
+    const g2 = neueGruppe(); g2.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    for (let i = 1; i <= 3; i++) { const x = ohne(neuerAbgang()); x.ziel.bez = 'Schuko ' + i; g2.kinder.push(x); }
+    bv.knoten.push(g2);
+    const bl = neuerAbgang(); bl.ziel = {bez:'Bauleuchte', ort:'Treppenhaus', anschluss:'leuchte'}; bl.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'10', idn:'30', fityp:'A'};
+    bl.leitung = {typ:'H07RN-F', quer:'1,5'}; bv.knoten.push(bl);
+    P.verteiler.push(bv); sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

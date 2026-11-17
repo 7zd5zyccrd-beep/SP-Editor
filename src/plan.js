@@ -26,7 +26,11 @@ const PLAN = (() => {
   const RAND_L = 20, RAND = 10, SF_H = 20, SF_FIRMA = 70;   // Schriftfeld: Höhe, Breite des Firmenfelds
   const FARBE = { N: '#1f5fd6', PE: '#1a8a3a', PEN: '#1a8a3a' };
   const POLE = { ls1: 1, ls3: 3, fils1n: 2, fils3n: 4, sich1: 1, sich3: 3, fi2: 2, fi4: 4, sichtrenn3: 3,
-    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2, motorschutz3: 3 };
+    sichlasttrenn3: 3, lasttrenn3: 3, trenn3: 3, leistung3: 3, zaehler3: 4, zaehler1: 2, spd4: 4, spd2: 2, lasttrenn2: 2, motorschutz3: 3,
+    sichtrenn1: 1, sichlasttrenn1: 1 };      // ab v1.72 (Q04): 1-polige Kopfgeräte für 1/N/PE
+  // Schutzleiter (PE, PEN) laufen nie durch ein Schaltglied (ab v1.72, Q04, DIN VDE 0100-540): hat ein Gerät mehr Pole als
+  // der Pfad Außenleiter und N, bleiben die überzähligen Pole frei und PE bzw. PEN laufen rechts am Gerät vorbei
+  const SCHUTZ_L = art => art === 'PE' || art === 'PEN';
   const LINKS = 14;        // Platz links vom ersten Leiter eines Pfades (Kennzeichen)
   const ABSTAND = 5;       // Leiterabstand = Polabstand
   const VOR_GERAET = 10;
@@ -534,7 +538,16 @@ const PLAN = (() => {
   // greift ein Steuerstromkreis seine Spannung im Abgang ab, braucht der Abgang
   // rechts Platz für die gehenden Querverweise (rund drei Leiterabstände)
   // Wende- und Stern-Dreieck-Schaltung (ab v1.40): Platz für die Zusatzschütze rechts neben PE samt Beschriftung
-  function abgangSpalten(k, a, v, R) { return spaltenFuer(abgangArten(k, a, v).length + (a.abgriff ? 3 : 0) + (a.sd ? 12 : a.wende ? 6 : 0), R); }
+  function abgangSpalten(k, a, v, R) { return spaltenFuer(abgangArten(k, a, v).length + polLuecke(k, abgangArten(k, a, v)) + (a.abgriff ? 3 : 0) + (a.sd ? 12 : a.wende ? 6 : 0), R); }
+  // ab v1.72 (Q04/Q05): freie Pole des Schutzorgans, an denen PE bzw. PEN rechts vorbeilaufen; Motorschutzschalter an einem
+  // einphasigen Abgang nach Herstellerschaltbild in Reihe: L über Pol 1 und 2 (Brücke 2–3), N über Pol 3, PE vorbei
+  const mssReihe = (k, arten) => k.geraet.zeichen === 'motorschutz3' && arten.length === 3 && arten[1] === 'N' && arten[2] === 'PE';
+  function polLuecke(k, arten) {
+    const z = k.geraet.zeichen; if (!z || k.trafo || !POLE[z]) return 0;
+    if (mssReihe(k, arten)) return 1;
+    const n = arten.filter(x => !SCHUTZ_L(x)).length;
+    return arten.length > n ? Math.max(0, POLE[z] - n) : 0;
+  }
 
   // ---- Abgang zeichnen --------------------------------------------------------
   // xSp: linke Kante der ersten Spalte; bars: {art: y}; yG: Höhe des oberen Geräteanschlusses.
@@ -567,14 +580,36 @@ const PLAN = (() => {
     ABGANG.g = g; ABGANG.i = g.children.length;
     if (k.trafo) return zeichneTrafo(g, ctx, v, k, a, xSp, bars, yG, breite, tap, yEnde);
     const arten = abgangArten(k, a, v);
-    const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
-    const z = k.geraet.zeichen, pole = z ? POLE[z] : 0;
+    const z = k.geraet.zeichen, luecke = polLuecke(k, arten), reihe = mssReihe(k, arten);
+    // ab v1.72 (Q04): PE bzw. PEN nie durch einen Pol – überzählige Pole bleiben frei, der Schutzleiter läuft rechts vorbei
+    // und rückt erst vor Klemmen bzw. Endgerät auf seinen Platz (Q05: am Motorschutzschalter in Reihe rücken danach alle
+    // Leiter um einen Platz nach rechts, x0 wandert mit)
+    let x0 = xSp + LINKS;
+    const xs = arten.map((art, i) => x0 + ABSTAND * (i + (SCHUTZ_L(art) || (reihe && i > 0) ? luecke : 0)));
+    const pole = z ? Math.min(POLE[z], arten.filter(x => !SCHUTZ_L(x)).length) : 0;
+    let zurueck = luecke && !reihe ? arten.map((_, i) => x0 + ABSTAND * i) : null, zurueckAn = false;
     const enden = arten.map(() => yG);
     // Abgriffe an den Schienen
     arten.forEach((art, i) => { const q = quelle(art, bars); const yq = bars[q]; enden[i] = yq;
       if (tap) tap(art, xs[i], yq); else punkt(g, xs[i], yq, art); });
     let cursor = yG, textBis = 0;      // textBis: Unterkante der letzten Beschriftung im Pfad (ab v1.47)
-    if (pole) {
+    if (reihe) {
+      [0, 1].forEach(i => leiter(g, xs[i], enden[i], xs[i], yG, arten[i]));
+      teil(`k:${k.id}/f`);
+      const tp = setze(g, z, x0, yG, null, [arten[0], arten[0], 'N']), t = unten(tp), o = tp.filter(p => p.richtung === 'n').sort((p, q) => p.x - q.x);
+      anschlussNr(g, tp, ['1', '3', '5'], ['2', '4', '6']);
+      // Brücke von 2 nach 3 zwischen den Polen hindurch
+      const yb = t[0].y + 1, yo = o[1].y - 1, xm = (t[0].x + o[1].x) / 2;
+      [[t[0].x, t[0].y, t[0].x, yb], [t[0].x, yb, xm, yb], [xm, yb, xm, yo], [xm, yo, o[1].x, yo], [o[1].x, yo, o[1].x, o[1].y]]
+        .forEach(([x1, y1, x2, y2]) => linie(g, x1, y1, x2, y2, 0.25, farbe(arten[0])));
+      xs[0] = t[1].x; enden[0] = t[1].y; enden[1] = t[2].y;
+      cursor = yb;
+      const mssRef = !a.mssKont ? [] : [...a.mssKont.s, ...a.mssKont.o].map(key => { const kn = ctx.steuer && ctx.steuer.kontakte[key], an = (a.mssAn || {})[key];
+        return kn ? `${an ? an.join('–') + ' ' : ''}/${kn.blatt}.${kn.spalte}` : ''; });
+      cursor = kennzeichen(g, z, x0, yG, cursor, a.f && a.f.t, bemZeilen(k.geraet).concat(mssRef.filter(Boolean)));
+      teil(null);
+      x0 += ABSTAND;      // dahinter liegen L, N, PE einen Platz weiter rechts
+    } else if (pole) {
       arten.slice(0, pole).forEach((art, i) => { leiter(g, xs[i], enden[i], xs[i], yG, art); });
       teil(`k:${k.id}/f`);
       const tp = setze(g, z, x0, yG, null, arten.slice(0, pole)), t = unten(tp);
@@ -587,7 +622,11 @@ const PLAN = (() => {
       cursor = kennzeichen(g, z, x0, yG, cursor, a.f && a.f.t, bemZeilen(k.geraet).concat(mssRef.filter(Boolean)));
       teil(null);
     }
-    const bis = (y) => { arten.forEach((art, i) => { if (enden[i] < y) leiter(g, xs[i], enden[i], xs[i], y, art); enden[i] = y; }); };
+    const bis = (y) => {
+      // ab v1.72 (Q04): vor Klemmen bzw. Endgerät rückt der vorbeigeführte Schutzleiter 2,5 mm darüber auf seinen Platz
+      if (zurueck && zurueckAn) { arten.forEach((art, i) => { if (Math.abs(xs[i] - zurueck[i]) < 0.01) return; const yk = Math.max(enden[i], y - 2.5);
+        leiter(g, xs[i], enden[i], xs[i], yk, art); leiter(g, xs[i], yk, zurueck[i], yk, art); xs[i] = zurueck[i]; enden[i] = yk; }); zurueck = null; }
+      arten.forEach((art, i) => { if (enden[i] < y) leiter(g, xs[i], enden[i], xs[i], y, art); enden[i] = y; }); };
     // hinter FI-Geräten steht deren Beschriftung unter dem Gerät: dort etwas Abstand lassen
     let yS = cursor + (z && GERAETE[z] && GERAETE[z].fi ? 3 : 0);
     // Abgriff der Steuerspannung hinter dem Schutzorgan (Etappe C): L (erster Außenleiter)
@@ -670,6 +709,7 @@ const PLAN = (() => {
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
+    zurueckAn = true;
     if (a.klemmen) {
       // die Beschriftung der Klemmen beginnt mindestens 1,5 mm unter der letzten Textzeile darüber (R4, ab v1.47)
       const ky = Math.max(cursor + (a.schalt ? 1 : 6), textBis + 1.5 - sichtOben('klemme')); bis(ky);
@@ -800,7 +840,8 @@ const PLAN = (() => {
     }
     if (k.ziel.ort) { passend(text(g, mx, ty, k.ziel.ort, 2.2, 'middle'), max); ty += 3.4; }
     // Stern-Dreieck (ab v1.42): beide Leitungen in einer Zeile, damit der Abstand zum Schriftfeld bleibt
-    passend(text(g, mx, ty, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${arten.length}×${k.leitung.quer || '?'}` +
+    // ab v1.72 (Q14): Einbausteckdose ohne Leitung – keine Leitungszeile
+    if (!a.ohneLtg) passend(text(g, mx, ty, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${arten.length}×${k.leitung.quer || '?'}` +
       (a.sd ? ` · ${a.w2.t} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : ''), 2.2, 'middle'), max);
     teil(null);
     return { unten: ty + 2, natur };
@@ -1110,7 +1151,8 @@ const PLAN = (() => {
   // ---- Überspannungsschutz als erster Pfad an den Schienen -----------------
   function zeichneSpd(g, v, e, xSp, bars, yG) {
     const z = v.spd.zeichen;
-    const arten = z === 'spd4' ? ['L1', 'L2', 'L3', 'N'] : ['L1', 'N'];
+    // ab v1.72 (Q24): 1/N im Drehstromverteiler am gewählten Außenleiter (v.spd.phase, Voreinstellung L1)
+    const arten = z === 'spd4' ? ['L1', 'L2', 'L3', 'N'] : [v.leiter === '3NPE' && /^L[123]$/.test(v.spd.phase || '') ? v.spd.phase : 'L1', 'N'];
     const x0 = xSp + LINKS, xs = arten.map((_, i) => x0 + ABSTAND * i);
     arten.forEach((art, i) => { const yq = bars[quelle(art, bars)]; punkt(g, xs[i], yq, art); leiter(g, xs[i], yq, xs[i], yG, art); });
     // alles unterhalb der Ableiter (deren untere Anschlüsse, Querverbindung,
@@ -1151,18 +1193,28 @@ const PLAN = (() => {
     const pen = v.netzform !== 'TN-S';
     let namen = v.leiter === '1NPE' ? (pen ? ['L1', 'PEN'] : ['L1', 'N', 'PE']) : (pen ? ['L1', 'L2', 'L3', 'PEN'] : ['L1', 'L2', 'L3', 'N', 'PE']);
     const x0 = xSp + LINKS;
-    let xs = namen.map((_, i) => x0 + ABSTAND * i);
+    // ab v1.72 (Q04): Schaltglieder schalten nur Außenleiter und N; hat eines mehr Pole (3-polig im 1/N/PE-Verteiler), laufen
+    // PE bzw. PEN rechts daran vorbei. Der Zähler bleibt wie bisher (im TN-C liegt der PEN an seinem N-Anschluss).
+    const nAktiv = namen.filter(n => !SCHUTZ_L(n)).length;
+    const breit = Math.max(nAktiv, ...['vorsicherung', 'hauptschalter'].map(f => v[f].zeichen ? POLE[v[f].zeichen] || 0 : 0));
+    let xs = namen.map((n, i) => x0 + ABSTAND * (SCHUTZ_L(n) ? i + breit - nAktiv : i));
     passend(text(g, x0 - 2, yOben, herkunft, 2.5, 'start', { 'font-weight': 'bold' }), 80);
     namen.forEach((n, i) => text(g, xs[i], yOben + 4, anzeige(n, v), 1.9, 'middle'));
     let enden = namen.map(() => yOben + 5.5), cursor = yOben + 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) {
       const gz = v[feld].zeichen; if (!gz) continue;
-      const pole = Math.min(POLE[gz], namen.length), top = cursor + 5;
+      const top = cursor + 5, zaehler = /^zaehler/.test(gz);
+      // Pole des Geräts → Leiter (Indizes in namen); Zähler 1-phasig im Drehstromverteiler (ab v1.72, Q24) an L3 und N bzw. PEN,
+      // den einzigen Außenleiter neben dem N (ein Hinweis nennt es)
+      let idx = zaehler ? namen.map((_, i) => i).slice(0, Math.min(POLE[gz], namen.length)).filter(i => !(SCHUTZ_L(namen[i]) && breit > nAktiv))
+        : namen.map((_, i) => i).filter(i => !SCHUTZ_L(namen[i])).slice(0, POLE[gz]);
+      if (gz === 'zaehler1' && nAktiv >= 3) idx = [2, 3];
       namen.forEach((n, i) => { leiter(g, xs[i], enden[i], xs[i], top, n); enden[i] = top; });
       teil(`e:${v.id}/${feld}`);
-      const tp = setze(g, gz, x0, top, null, namen.slice(0, pole)), t = unten(tp);
-      if (!/^zaehler/.test(gz)) anschlussNr(g, tp, ...polNr(namen.slice(0, pole)));
-      t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
+      const arten = idx.map(i => namen[i]), xg = xs[idx[0]];
+      const tp = setze(g, gz, xg, top, null, arten), t = unten(tp), pole = idx.length;
+      if (!zaehler) anschlussNr(g, tp, ...polNr(arten));
+      t.forEach((p, i) => { if (i < pole) enden[idx[i]] = p.y; });
       bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
@@ -1277,7 +1329,8 @@ const PLAN = (() => {
   // ---- Übersichtsschaltplan (einpolig) --------------------------------------
   const UE = { ls1: 'ls1', ls3: 'ls1', fils1n: 'ue_fils', fils3n: 'ue_fils', sich1: 'sich1', sich3: 'sich1',
     fi2: 'ue_fi', fi4: 'ue_fi', sichtrenn3: 'sichtrenn1', sichlasttrenn3: 'sichlasttrenn1', lasttrenn3: 'ue_lasttrenn',
-    trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd' };
+    trenn3: 'ue_trenn', leistung3: 'ue_leistung', motorschutz3: 'ue_leistung', zaehler3: 'ue_zaehler', zaehler1: 'ue_zaehler', spd4: 'ue_spd', spd2: 'ue_spd',
+    lasttrenn2: 'ue_lasttrenn', sichtrenn1: 'sichtrenn1', sichlasttrenn1: 'sichlasttrenn1' };      // ab v1.72 (Q04)
   const ST_BILD = { mss_s: 'hilfs_s', mss_oe: 'hilfs_oe' };   // Kontaktarten ohne eigenes Zeichen (ab v1.38)
   const UE_FEED_X = 24;      // Einspeisung: Abstand vom linken Rahmen
   // Leiterzahl: kurzer Schrägstrich über der Linie, Zahl rechts daneben
@@ -1336,7 +1389,7 @@ const PLAN = (() => {
     } else senk(-2.2, k.ziel.bez || '', 2.5, true);
     if (z2) senk(0.9, z2, 2.5, true);
     else senk(0.9, k.trafo ? `${k.trafo.prim}/${k.trafo.sek} V` : k.ziel.ort || '', 2.2);
-    if (!k.steuer) senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}` + (a.sd ? ` · ${a.w2.t} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : ''), 2.2);
+    if (!k.steuer && !a.ohneLtg) senk(3.9, `${a.w.t} ${k.leitung.typ || 'NYM-J'} ${n}×${k.leitung.quer || '?'}` + (a.sd ? ` · ${a.w2.t} ${adern(k.leitung.typ, 3).gesamt}×${k.leitung.quer || '?'}` : ''), 2.2);
   }
   // ein Abgang an einer Schiene auf ySrc: Gerät auf yG, Ende auf yE.
   // Gibt das untere Ende vor der Ableitung zum Ende zurück.

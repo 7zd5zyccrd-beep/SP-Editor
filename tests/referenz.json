@@ -1260,5 +1260,95 @@
    "7 HV steuerung",
    "3aaf75503c5e6fd410a51d59c10c0f5c"
   ]
+ ],
+ "einphasig": [
+  [
+   "1 Deckblatt deckblatt",
+   "6c5efcdb34d548f815d542e31f3c8477"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "299013f9e122f66b7876061da8db754d"
+  ],
+  [
+   "3 HV uebersicht",
+   "329345e2410ec4e99c4793e9c2897f98"
+  ],
+  [
+   "4 UV Gartenhaus uebersicht",
+   "287a19708fbca34d5cad547d6df7b076"
+  ],
+  [
+   "5 HV einspeisung",
+   "3ab8563a504157e725a48bb6876a0588"
+  ],
+  [
+   "6 HV abgang",
+   "ca506f7aab6f72795c1a83d2a89778a3"
+  ],
+  [
+   "7 UV Gartenhaus einspeisung",
+   "0aaf68df4775a20a786d895e724e9a1e"
+  ],
+  [
+   "8 UV Gartenhaus abgang",
+   "0292eb6da4489597cea81da419a87386"
+  ]
+ ],
+ "motor1mss": [
+  [
+   "1 Deckblatt deckblatt",
+   "c86996d5a7a9ea33fae4654c59f49dff"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "c4b6c46c333a01c6dac64134b262b976"
+  ],
+  [
+   "3 HV uebersicht",
+   "96e878355029f7e0b3f40b00337467b3"
+  ],
+  [
+   "4 HV einspeisung",
+   "0b956eed24f04076674bade6f2ad638a"
+  ],
+  [
+   "5 HV abgang",
+   "cd4339ce7863b66c58b025a73e803369"
+  ],
+  [
+   "6 HV steuerung",
+   "f552c2869fb4de4245e86e3576d8915f"
+  ],
+  [
+   "7 HV klemmen",
+   "57a74f6955f79e50e0fcf1fdd6a2d4a9"
+  ]
+ ],
+ "baustrom": [
+  [
+   "1 Deckblatt deckblatt",
+   "1f04acd3fcf43d8976902c97ad3906d9"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "92765f922f39b39c4acda29c306e0861"
+  ],
+  [
+   "3 Baustrom uebersicht",
+   "128e3d5ce8597283962595b714b32381"
+  ],
+  [
+   "4 Baustrom einspeisung",
+   "99922c642fa9c4d08070177399183ff8"
+  ],
+  [
+   "5 Baustrom abgang",
+   "2c09f5c9bcf372ec34d36125719f44f5"
+  ],
+  [
+   "6 Baustrom klemmen",
+   "d8058a6d531c0cea248d5c8119309b7f"
+  ]
  ]
 }

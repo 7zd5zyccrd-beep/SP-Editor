@@ -315,7 +315,12 @@ const PLAN = (() => {
   // Schriftfeld als Streifen über die ganze Breite (20 mm hoch): links Firma
   // und Anschrift, rechts zwei Zeilen zu je 10 mm. Bewusste Abweichung von
   // DIN EN ISO 7200 (höchstens 180 mm breit) zugunsten voller Zeichenhöhe.
+  // ab v1.81 (X06): SF_AB merkt je Blatt, ab welchem Kind das Schriftfeld beginnt (für blattHash()); REV = Revisionsstand
+  // des laufenden blaetter()-Aufrufs (null ohne Revisionen – dann bleibt das Schriftfeld wie bisher)
+  const SF_AB = new WeakMap();
+  let REV = null;
   function schriftfeld(g, F, f) {
+    SF_AB.set(g, g.children.length);
     const x0 = RAND_L, x1 = F.w - RAND, y1 = F.h - RAND, y0 = y1 - SF_H, ym = y0 + SF_H / 2;
     el('rect', { x: x0, y: y0, width: x1 - x0, height: SF_H, fill: '#fff', stroke: '#000', 'stroke-width': 0.7 }, g);
     const xa = x0 + SF_FIRMA, wr = x1 - xa;
@@ -333,11 +338,45 @@ const PLAN = (() => {
       });
     };
     reihe(y0, [['Projekt', f.projekt, 0.5], ['Dokumenttitel', f.titel, 0.3], ['Verteiler', f.verteiler, 0.2]]);
-    reihe(ym, [['Zeichnungsnummer', f.nummer, 0.3], ['Revision', f.rev, 0.1], ['Ausgabedatum', datumDE(f.datum), 0.18],
+    reihe(ym, [['Zeichnungsnummer', f.nummer, 0.3], ['Revision', REV ? REV.von(f.blatt) : f.rev, 0.1], ['Ausgabedatum', datumDE(f.datum), 0.18],
                ['Erstellt durch', f.ersteller, 0.27], ['Blatt', `${f.blatt} / ${f.blaetter}`, 0.15]]);
     text(g, x0 + 1.2, y0 + 2.6, 'Rechtlicher Eigentümer', 1.8, 'start', {});
     passend(text(g, x0 + 2.5, y0 + 10, f.firma || '', 4.5, 'start', { 'font-weight': 'bold' }), SF_FIRMA - 5);
-    passend(text(g, x0 + 2.5, y0 + 15.5, f.anschrift || '', 2.5), SF_FIRMA - 5);
+    // ab v1.81 (Q30): Firmenanschrift zweizeilig nur, wenn eine zweite Zeile eingetragen ist
+    if (f.anschrift2) {
+      passend(text(g, x0 + 2.5, y0 + 14.3, f.anschrift || '', 2.5), SF_FIRMA - 5);
+      passend(text(g, x0 + 2.5, y0 + 17.6, f.anschrift2, 2.5), SF_FIRMA - 5);
+    } else passend(text(g, x0 + 2.5, y0 + 15.5, f.anschrift || '', 2.5), SF_FIRMA - 5);
+  }
+  // ---- Revisionen (ab v1.81, X06) -------------------------------------------
+  // P.revisionen = [{ rev, datum, text, name, hash: { blattNr: kurzHash } }] – je festgeschriebener Revision die Hashes aller
+  // Planblätter (ohne Deckblatt und Inhaltsverzeichnis, die tragen immer die letzte Revision). Ein Blatt trägt die Revision, in
+  // der sich sein Hash zuletzt geändert hat; Blätter, die noch in keiner Revision stehen, bleiben ohne Angabe.
+  const revListe = P => (Array.isArray(P.revisionen) ? P.revisionen : []).filter(x => x && typeof x === 'object');
+  function revStand(P, vorn) {
+    const R = revListe(P); if (!R.length) return null;
+    const letzte = String(R[R.length - 1].rev || '');
+    const von = nr => { if (nr <= vorn) return letzte; let r = '';
+      R.forEach((x, i) => { const h = (x.hash || {})[nr]; if (h !== undefined && (!i || (R[i - 1].hash || {})[nr] !== h)) r = String(x.rev || ''); });
+      return r; };
+    return { letzte, von };
+  }
+  // Blätter, die Revision i geändert hat (i = 0: null = alle)
+  function revGeaendert(R, i) {
+    if (!i) return null; const a = R[i].hash || {}, b = R[i - 1].hash || {};
+    return Object.keys(a).map(Number).filter(n => a[n] !== b[n]).sort((x, y) => x - y);
+  }
+  // Nummern zusammengefasst: 3, 5–7, 9
+  function nrBereiche(l) {
+    const t = []; for (let i = 0; i < l.length; i++) { let j = i; while (j + 1 < l.length && l[j + 1] === l[j] + 1) j++;
+      t.push(j > i + 1 ? `${l[i]}–${l[j]}` : j > i ? `${l[i]}, ${l[j]}` : String(l[i])); i = j; }
+    return t.join(', ');
+  }
+  // Kurzhash eines Blatts ohne Schriftfeld (FNV-1a, 8 Hexziffern): Blattnummer, Datum und Revision ändern ihn nicht
+  function blattHash(b) {
+    const g = b.svg.children[1], n = SF_AB.get(g), t = [...g.children].slice(0, n === undefined ? g.children.length : n).map(c => c.outerHTML).join('');
+    let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
   }
 
   // ---- Zeichen setzen und einfärben ---------------------------------------
@@ -2191,6 +2230,8 @@ const PLAN = (() => {
     const f = P.projekt, s = F.w / 297, x0 = RAND_L, x1 = F.w - RAND, cx = (x0 + x1) / 2;
     const y0 = RAND, y1 = F.h - RAND - SF_H, hh = y1 - y0, breit = (x1 - x0) - 30;
     const y = t => y0 + hh * t;
+    // ab v1.81 (X06, Q30): mit Revisionen oder Projektkopf (Bauherr, Anlage, zweite Anschriftzeile, Prüfer) eigene Aufteilung
+    if (revListe(P).length || f.bauherr || f.anlage || f.anschrift2 || f.pruefer) { deckblattMitKopf(g, F, P, namen); return; }
     if (f.firma) passend(text(g, cx, y(0.16), f.firma, 4.5 * s, 'middle', { 'font-weight': 'bold' }), breit);
     passend(text(g, cx, y(0.33), f.projekt || 'Unbenanntes Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
     passend(text(g, cx, y(0.44), f.titel || 'Stromlaufplan', 7 * s, 'middle'), breit);
@@ -2208,6 +2249,45 @@ const PLAN = (() => {
     passend(text(g, cx, y1 - 3, 'Schaltzeichen: Elementsammlung von QElectroTech (The QElectroTech team und Mitwirkende), '
       + 'lizenziert unter CC BY 3.0 (creativecommons.org/licenses/by/3.0); teils daraus zusammengesetzt.', 2 * s, 'middle'), breit);
   }
+  // Deckblatt mit Projektkopf in zwei Spalten und Revisionstabelle (ab v1.81): Titel weiter oben, links Bauherr/Anlage und
+  // Plandaten, rechts Firma und Bearbeiter; darunter die Revisionen (älteste oben; passen nicht alle, die jüngsten)
+  function deckblattMitKopf(g, F, P, namen) {
+    const f = P.projekt, s = F.w / 297, x0 = RAND_L, x1 = F.w - RAND, cx = (x0 + x1) / 2;
+    const y0 = RAND, y1 = F.h - RAND - SF_H, hh = y1 - y0, breit = (x1 - x0) - 30;
+    const y = t => y0 + hh * t, R = revListe(P);
+    if (f.firma) passend(text(g, cx, y(0.08), f.firma, 4.5 * s, 'middle', { 'font-weight': 'bold' }), breit);
+    passend(text(g, cx, y(0.19), f.projekt || 'Unbenanntes Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
+    passend(text(g, cx, y(0.27), f.titel || 'Stromlaufplan', 7 * s, 'middle'), breit);
+    passend(text(g, cx, y(0.34), (namen.length > 1 ? 'Verteiler: ' : 'Verteiler ') + namen.join(' · '), 4.5 * s, 'middle'), breit);
+    linie(g, cx - 60 * s, y(0.385), cx + 60 * s, y(0.385));
+    const rev = R.length ? String(R[R.length - 1].rev || '') : f.rev;
+    const links = [['Bauherr/Kunde', f.bauherr], ['Anlagenanschrift', f.anlage], ['Zeichnungsnummer', f.nummer], ['Ausgabedatum', datumDE(f.datum)], ['Revision', rev]].filter(d => d[1]);
+    const an = [f.anschrift, f.anschrift2].filter(Boolean).map((a, i) => [i ? '' : 'Anschrift', a]);
+    const rechts = [['Firma', f.firma], ...an, ['Erstellt durch', f.ersteller], ['Geprüft durch', f.pruefer]].filter(d => d[1]);
+    const zh = 5.6 * s, yd = y(0.44), sp = 86 * s;
+    [[links, cx - 125 * s], [rechts, cx + 6 * s]].forEach(([l, xl]) => l.forEach(([t, w], i) => {
+      if (t) text(g, xl, yd + i * zh, t, 3 * s, 'start', {});
+      passend(text(g, xl + 33 * s, yd + i * zh, w, 3.5 * s), sp);
+    }));
+    if (R.length) {
+      const yt = yd + (Math.max(links.length, rechts.length, 1) - 1) * zh + 10 * s, xa = cx - 120 * s, w = 240 * s, rz = 5.2 * s;
+      const spalten = [['Rev.', 0.07], ['Datum', 0.12], ['Änderung', 0.45], ['Blätter', 0.16], ['Name', 0.2]];
+      const xs = []; let x = xa; spalten.forEach(([, a]) => { xs.push(x); x += w * a; });
+      const yk = yt + 6 * s, platz = Math.max(1, Math.floor((y1 - 3 - 4 * s - yk) / rz));
+      const ab = Math.max(0, R.length - platz);
+      text(g, xa, yt, ab ? `Revisionen (die letzten ${R.length - ab} von ${R.length})` : 'Revisionen', 3.5 * s, 'start', { 'font-weight': 'bold' });
+      const zeile = (yy, werte, kopf) => werte.forEach((t, i) => passend(text(g, xs[i] + 1, yy - 1.4 * s, t, kopf ? 2.5 * s : 3 * s, 'start', {}), w * spalten[i][1] - 2));
+      zeile(yk, spalten.map(x => x[0]), true);
+      linie(g, xa, yk, xa + w, yk, 0.5);
+      R.slice(ab).forEach((r, j) => {
+        const i = ab + j, yy = yk + rz * (j + 1), ge = revGeaendert(R, i);
+        zeile(yy, [String(r.rev || ''), datumDE(r.datum || ''), String(r.text || ''), ge === null ? 'alle' : ge.length ? nrBereiche(ge) : '—', String(r.name || '')], false);
+        linie(g, xa, yy, xa + w, yy, 0.25, '#999');
+      });
+    }
+    passend(text(g, cx, y1 - 3, 'Schaltzeichen: Elementsammlung von QElectroTech (The QElectroTech team und Mitwirkende), '
+      + 'lizenziert unter CC BY 3.0 (creativecommons.org/licenses/by/3.0); teils daraus zusammengesetzt.', 2 * s, 'middle'), breit);
+  }
   function zeichneInhalt(g, F, P, eintraege, teil, teile) {
     const x0 = RAND_L, x1 = F.w - RAND, w = x1 - x0 - 20, xa = x0 + 10;
     text(g, xa, RAND + 13, 'Inhaltsverzeichnis' + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
@@ -2221,7 +2301,7 @@ const PLAN = (() => {
     linie(g, xa, INH_Y0 + INH_ZH, xa + w, INH_Y0 + INH_ZH, 0.5);
     eintraege.forEach((e, i) => {
       const yy = INH_Y0 + INH_ZH * (i + 2);
-      zeile(yy, [String(e.nr), e.verteiler, e.inhalt, P.projekt.rev || ''], false);
+      zeile(yy, [String(e.nr), e.verteiler, e.inhalt, REV ? REV.von(e.nr) : P.projekt.rev || ''], false);      // ab v1.81: je Blatt
       linie(g, xa, yy, xa + w, yy, 0.25, '#999');
     });
   }
@@ -2324,6 +2404,7 @@ const PLAN = (() => {
     let nInhalt = 0;
     if (mitVorn) { nInhalt = 1; while (Math.ceil((planZahl + 1 + nInhalt) / zProBlatt) > nInhalt) nInhalt++; }
     const vorn = mitVorn ? 1 + nInhalt : 0;
+    REV = revStand(P, vorn);      // ab v1.81 (X06)
     let nr = vorn; const ctx = { verteiler: {}, ue: {} };
     const spalteVon = x => Math.min(F.sp, Math.floor((x - R.x0) / R.sb) + 1);
     const lageUe = {};
@@ -2549,5 +2630,5 @@ const PLAN = (() => {
   }
   // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
   function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(v, e); }
-  return { blaetter, pfadtext, klemmen, adern };
+  return { blaetter, pfadtext, klemmen, adern, blattHash, revGeaendert, nrBereiche };
 })();

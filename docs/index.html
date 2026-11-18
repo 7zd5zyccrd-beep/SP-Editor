@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.80 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.81 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.81: Revisionen und Projektkopf (Etappe X-F: X06, Q30): P.revisionen = [{ rev, datum, text, name, hash }] – „Revision festschreiben …“
+           (Hauptmenü, Projektdaten) merkt je Planblatt einen Kurzhash ohne Schriftfeld (PLAN.blattHash, FNV-1a), schlägt die nächste Revision vor
+           (0 → 1, A → B), nennt die seit der letzten Revision geänderten bzw. entfallenen Blätter und setzt Revision und Ausgabedatum des Projekts;
+           Einträge lassen sich ändern, die letzte zurücknehmen. Ein Blatt trägt die Revision seiner letzten Änderung (Schriftfeld, Spalte Revision
+           im Inhaltsverzeichnis), Deckblatt und Inhaltsverzeichnis die letzte. Deckblatt mit Revisionstabelle (Rev., Datum, Änderung, Blätter, Name;
+           passen nicht alle, die jüngsten). Projektkopf: Bauherr/Kunde, Anlagenanschrift (auch im Prüfprotokoll), Geprüft durch, zweite
+           Anschriftzeile der Firma (Schriftfeld zweizeilig nur mit ihr); Deckblatt dann mit Kopf in zwei Spalten. PROJEKT_VERSION 7; Beispiel
+           revision. Ohne Revisionen und Projektkopf bitgleich.
      v1.80: Stückliste (Etappe X-E: X07, X16): Geräte- und Materialliste je Verteiler und für das Projekt aus berechne() (stueckliste,
            stuecklisteProjekt, stuecklisteDaten): Reiheneinbaugeräte (Kopfgeräte, Gruppen, Schutzorgane, FI, Schütze/Stromstoßschalter/Zeitrelais mit
            Hilfskontakten, Erzeugungszähler, Steuertrafo, Sekundär-LS, Meldeleuchten/Befehlsgeber im Verteiler) mit TE-Richtwert (GERAETE[…].te,
@@ -528,6 +536,8 @@ table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:no
 .knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
 .knopf.rot{background:var(--rot)}
 .fenster .text{font-size:15px;color:var(--leise);margin:0 0 8px}
+/* ab v1.81 (X06): Formular „Revision festschreiben“ – Feldname über dem Feld */
+.revform{display:grid;gap:10px}.revform .revfeld{display:grid;gap:4px}.revform .revfeld>span{font-size:13px;color:var(--leise)}
 .meldung{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinte);color:var(--karte);padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
 .meldung.an{opacity:.92}
 .blattkarte{background:var(--flaeche);border-radius:12px;padding:10px;margin-bottom:14px}
@@ -1704,7 +1714,12 @@ const PLAN = (() => {
   // Schriftfeld als Streifen über die ganze Breite (20 mm hoch): links Firma
   // und Anschrift, rechts zwei Zeilen zu je 10 mm. Bewusste Abweichung von
   // DIN EN ISO 7200 (höchstens 180 mm breit) zugunsten voller Zeichenhöhe.
+  // ab v1.81 (X06): SF_AB merkt je Blatt, ab welchem Kind das Schriftfeld beginnt (für blattHash()); REV = Revisionsstand
+  // des laufenden blaetter()-Aufrufs (null ohne Revisionen – dann bleibt das Schriftfeld wie bisher)
+  const SF_AB = new WeakMap();
+  let REV = null;
   function schriftfeld(g, F, f) {
+    SF_AB.set(g, g.children.length);
     const x0 = RAND_L, x1 = F.w - RAND, y1 = F.h - RAND, y0 = y1 - SF_H, ym = y0 + SF_H / 2;
     el('rect', { x: x0, y: y0, width: x1 - x0, height: SF_H, fill: '#fff', stroke: '#000', 'stroke-width': 0.7 }, g);
     const xa = x0 + SF_FIRMA, wr = x1 - xa;
@@ -1722,11 +1737,45 @@ const PLAN = (() => {
       });
     };
     reihe(y0, [['Projekt', f.projekt, 0.5], ['Dokumenttitel', f.titel, 0.3], ['Verteiler', f.verteiler, 0.2]]);
-    reihe(ym, [['Zeichnungsnummer', f.nummer, 0.3], ['Revision', f.rev, 0.1], ['Ausgabedatum', datumDE(f.datum), 0.18],
+    reihe(ym, [['Zeichnungsnummer', f.nummer, 0.3], ['Revision', REV ? REV.von(f.blatt) : f.rev, 0.1], ['Ausgabedatum', datumDE(f.datum), 0.18],
                ['Erstellt durch', f.ersteller, 0.27], ['Blatt', `${f.blatt} / ${f.blaetter}`, 0.15]]);
     text(g, x0 + 1.2, y0 + 2.6, 'Rechtlicher Eigentümer', 1.8, 'start', {});
     passend(text(g, x0 + 2.5, y0 + 10, f.firma || '', 4.5, 'start', { 'font-weight': 'bold' }), SF_FIRMA - 5);
-    passend(text(g, x0 + 2.5, y0 + 15.5, f.anschrift || '', 2.5), SF_FIRMA - 5);
+    // ab v1.81 (Q30): Firmenanschrift zweizeilig nur, wenn eine zweite Zeile eingetragen ist
+    if (f.anschrift2) {
+      passend(text(g, x0 + 2.5, y0 + 14.3, f.anschrift || '', 2.5), SF_FIRMA - 5);
+      passend(text(g, x0 + 2.5, y0 + 17.6, f.anschrift2, 2.5), SF_FIRMA - 5);
+    } else passend(text(g, x0 + 2.5, y0 + 15.5, f.anschrift || '', 2.5), SF_FIRMA - 5);
+  }
+  // ---- Revisionen (ab v1.81, X06) -------------------------------------------
+  // P.revisionen = [{ rev, datum, text, name, hash: { blattNr: kurzHash } }] – je festgeschriebener Revision die Hashes aller
+  // Planblätter (ohne Deckblatt und Inhaltsverzeichnis, die tragen immer die letzte Revision). Ein Blatt trägt die Revision, in
+  // der sich sein Hash zuletzt geändert hat; Blätter, die noch in keiner Revision stehen, bleiben ohne Angabe.
+  const revListe = P => (Array.isArray(P.revisionen) ? P.revisionen : []).filter(x => x && typeof x === 'object');
+  function revStand(P, vorn) {
+    const R = revListe(P); if (!R.length) return null;
+    const letzte = String(R[R.length - 1].rev || '');
+    const von = nr => { if (nr <= vorn) return letzte; let r = '';
+      R.forEach((x, i) => { const h = (x.hash || {})[nr]; if (h !== undefined && (!i || (R[i - 1].hash || {})[nr] !== h)) r = String(x.rev || ''); });
+      return r; };
+    return { letzte, von };
+  }
+  // Blätter, die Revision i geändert hat (i = 0: null = alle)
+  function revGeaendert(R, i) {
+    if (!i) return null; const a = R[i].hash || {}, b = R[i - 1].hash || {};
+    return Object.keys(a).map(Number).filter(n => a[n] !== b[n]).sort((x, y) => x - y);
+  }
+  // Nummern zusammengefasst: 3, 5–7, 9
+  function nrBereiche(l) {
+    const t = []; for (let i = 0; i < l.length; i++) { let j = i; while (j + 1 < l.length && l[j + 1] === l[j] + 1) j++;
+      t.push(j > i + 1 ? `${l[i]}–${l[j]}` : j > i ? `${l[i]}, ${l[j]}` : String(l[i])); i = j; }
+    return t.join(', ');
+  }
+  // Kurzhash eines Blatts ohne Schriftfeld (FNV-1a, 8 Hexziffern): Blattnummer, Datum und Revision ändern ihn nicht
+  function blattHash(b) {
+    const g = b.svg.children[1], n = SF_AB.get(g), t = [...g.children].slice(0, n === undefined ? g.children.length : n).map(c => c.outerHTML).join('');
+    let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
   }
 
   // ---- Zeichen setzen und einfärben ---------------------------------------
@@ -3580,6 +3629,8 @@ const PLAN = (() => {
     const f = P.projekt, s = F.w / 297, x0 = RAND_L, x1 = F.w - RAND, cx = (x0 + x1) / 2;
     const y0 = RAND, y1 = F.h - RAND - SF_H, hh = y1 - y0, breit = (x1 - x0) - 30;
     const y = t => y0 + hh * t;
+    // ab v1.81 (X06, Q30): mit Revisionen oder Projektkopf (Bauherr, Anlage, zweite Anschriftzeile, Prüfer) eigene Aufteilung
+    if (revListe(P).length || f.bauherr || f.anlage || f.anschrift2 || f.pruefer) { deckblattMitKopf(g, F, P, namen); return; }
     if (f.firma) passend(text(g, cx, y(0.16), f.firma, 4.5 * s, 'middle', { 'font-weight': 'bold' }), breit);
     passend(text(g, cx, y(0.33), f.projekt || 'Unbenanntes Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
     passend(text(g, cx, y(0.44), f.titel || 'Stromlaufplan', 7 * s, 'middle'), breit);
@@ -3597,6 +3648,45 @@ const PLAN = (() => {
     passend(text(g, cx, y1 - 3, 'Schaltzeichen: Elementsammlung von QElectroTech (The QElectroTech team und Mitwirkende), '
       + 'lizenziert unter CC BY 3.0 (creativecommons.org/licenses/by/3.0); teils daraus zusammengesetzt.', 2 * s, 'middle'), breit);
   }
+  // Deckblatt mit Projektkopf in zwei Spalten und Revisionstabelle (ab v1.81): Titel weiter oben, links Bauherr/Anlage und
+  // Plandaten, rechts Firma und Bearbeiter; darunter die Revisionen (älteste oben; passen nicht alle, die jüngsten)
+  function deckblattMitKopf(g, F, P, namen) {
+    const f = P.projekt, s = F.w / 297, x0 = RAND_L, x1 = F.w - RAND, cx = (x0 + x1) / 2;
+    const y0 = RAND, y1 = F.h - RAND - SF_H, hh = y1 - y0, breit = (x1 - x0) - 30;
+    const y = t => y0 + hh * t, R = revListe(P);
+    if (f.firma) passend(text(g, cx, y(0.08), f.firma, 4.5 * s, 'middle', { 'font-weight': 'bold' }), breit);
+    passend(text(g, cx, y(0.19), f.projekt || 'Unbenanntes Projekt', 10 * s, 'middle', { 'font-weight': 'bold' }), breit);
+    passend(text(g, cx, y(0.27), f.titel || 'Stromlaufplan', 7 * s, 'middle'), breit);
+    passend(text(g, cx, y(0.34), (namen.length > 1 ? 'Verteiler: ' : 'Verteiler ') + namen.join(' · '), 4.5 * s, 'middle'), breit);
+    linie(g, cx - 60 * s, y(0.385), cx + 60 * s, y(0.385));
+    const rev = R.length ? String(R[R.length - 1].rev || '') : f.rev;
+    const links = [['Bauherr/Kunde', f.bauherr], ['Anlagenanschrift', f.anlage], ['Zeichnungsnummer', f.nummer], ['Ausgabedatum', datumDE(f.datum)], ['Revision', rev]].filter(d => d[1]);
+    const an = [f.anschrift, f.anschrift2].filter(Boolean).map((a, i) => [i ? '' : 'Anschrift', a]);
+    const rechts = [['Firma', f.firma], ...an, ['Erstellt durch', f.ersteller], ['Geprüft durch', f.pruefer]].filter(d => d[1]);
+    const zh = 5.6 * s, yd = y(0.44), sp = 86 * s;
+    [[links, cx - 125 * s], [rechts, cx + 6 * s]].forEach(([l, xl]) => l.forEach(([t, w], i) => {
+      if (t) text(g, xl, yd + i * zh, t, 3 * s, 'start', {});
+      passend(text(g, xl + 33 * s, yd + i * zh, w, 3.5 * s), sp);
+    }));
+    if (R.length) {
+      const yt = yd + (Math.max(links.length, rechts.length, 1) - 1) * zh + 10 * s, xa = cx - 120 * s, w = 240 * s, rz = 5.2 * s;
+      const spalten = [['Rev.', 0.07], ['Datum', 0.12], ['Änderung', 0.45], ['Blätter', 0.16], ['Name', 0.2]];
+      const xs = []; let x = xa; spalten.forEach(([, a]) => { xs.push(x); x += w * a; });
+      const yk = yt + 6 * s, platz = Math.max(1, Math.floor((y1 - 3 - 4 * s - yk) / rz));
+      const ab = Math.max(0, R.length - platz);
+      text(g, xa, yt, ab ? `Revisionen (die letzten ${R.length - ab} von ${R.length})` : 'Revisionen', 3.5 * s, 'start', { 'font-weight': 'bold' });
+      const zeile = (yy, werte, kopf) => werte.forEach((t, i) => passend(text(g, xs[i] + 1, yy - 1.4 * s, t, kopf ? 2.5 * s : 3 * s, 'start', {}), w * spalten[i][1] - 2));
+      zeile(yk, spalten.map(x => x[0]), true);
+      linie(g, xa, yk, xa + w, yk, 0.5);
+      R.slice(ab).forEach((r, j) => {
+        const i = ab + j, yy = yk + rz * (j + 1), ge = revGeaendert(R, i);
+        zeile(yy, [String(r.rev || ''), datumDE(r.datum || ''), String(r.text || ''), ge === null ? 'alle' : ge.length ? nrBereiche(ge) : '—', String(r.name || '')], false);
+        linie(g, xa, yy, xa + w, yy, 0.25, '#999');
+      });
+    }
+    passend(text(g, cx, y1 - 3, 'Schaltzeichen: Elementsammlung von QElectroTech (The QElectroTech team und Mitwirkende), '
+      + 'lizenziert unter CC BY 3.0 (creativecommons.org/licenses/by/3.0); teils daraus zusammengesetzt.', 2 * s, 'middle'), breit);
+  }
   function zeichneInhalt(g, F, P, eintraege, teil, teile) {
     const x0 = RAND_L, x1 = F.w - RAND, w = x1 - x0 - 20, xa = x0 + 10;
     text(g, xa, RAND + 13, 'Inhaltsverzeichnis' + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
@@ -3610,7 +3700,7 @@ const PLAN = (() => {
     linie(g, xa, INH_Y0 + INH_ZH, xa + w, INH_Y0 + INH_ZH, 0.5);
     eintraege.forEach((e, i) => {
       const yy = INH_Y0 + INH_ZH * (i + 2);
-      zeile(yy, [String(e.nr), e.verteiler, e.inhalt, P.projekt.rev || ''], false);
+      zeile(yy, [String(e.nr), e.verteiler, e.inhalt, REV ? REV.von(e.nr) : P.projekt.rev || ''], false);      // ab v1.81: je Blatt
       linie(g, xa, yy, xa + w, yy, 0.25, '#999');
     });
   }
@@ -3713,6 +3803,7 @@ const PLAN = (() => {
     let nInhalt = 0;
     if (mitVorn) { nInhalt = 1; while (Math.ceil((planZahl + 1 + nInhalt) / zProBlatt) > nInhalt) nInhalt++; }
     const vorn = mitVorn ? 1 + nInhalt : 0;
+    REV = revStand(P, vorn);      // ab v1.81 (X06)
     let nr = vorn; const ctx = { verteiler: {}, ue: {} };
     const spalteVon = x => Math.min(F.sp, Math.floor((x - R.x0) / R.sb) + 1);
     const lageUe = {};
@@ -3938,13 +4029,13 @@ const PLAN = (() => {
   }
   // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
   function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(v, e); }
-  return { blaetter, pfadtext, klemmen, adern };
+  return { blaetter, pfadtext, klemmen, adern, blattHash, revGeaendert, nrBereiche };
 })();
 
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.80';
+const FASSUNG = 'v1.81';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -4230,9 +4321,9 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // ---------------------------------------------------------------------------
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
-// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.80: 6)
+// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.81: 7)
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 6, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 7, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -4307,7 +4398,11 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 //    (Anzahl, fehlt = 1), P.projekt.duMax (%, fehlt = 3) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
 // v5 (ab v1.78, Bemessung II): optional v.netz = { zs } (Ω, nur am obersten Verteiler), k.last = { kw, gz } (fehlt = keine Angabe bzw. 1),
 //    k.speicher.kw (Wechselrichterleistung) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
-const PROJEKT_VERSION = 6;      // ab v1.80 (X07, X16): P.projekt.stueckliste, k.ziel.anzahl
+// v6 (ab v1.80, X07, X16): P.projekt.stueckliste, k.ziel.anzahl
+// v7 (ab v1.81, X06, Q30): optional P.revisionen = [{ rev, datum, text, name, hash: { blattNr: kurzHash } }] und im Projektkopf
+//    P.projekt.bauherr, .anlage (Anlagenanschrift), .anschrift2 (zweite Zeile der Firmenanschrift), .pruefer („Geprüft durch“) –
+//    ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
+const PROJEKT_VERSION = 7;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -5972,7 +6067,7 @@ function projektAnlegen(d, name) {
   projektAktiv(alt.id, alt.P); return false;
 }
 // ab v1.58 (C33): zuerst nach dem Namen fragen – Liste, Startkarte und Deckblatt zeigen denselben Namen
-const FIRMA_FELDER = ['firma', 'anschrift', 'ersteller'];
+const FIRMA_FELDER = ['firma', 'anschrift', 'anschrift2', 'ersteller'];      // ab v1.81 mit zweiter Anschriftzeile
 // Schriftfelddaten des zuletzt bearbeiteten Projekts mit Firmenangaben (das geöffnete zuerst, sonst das jüngste in der Liste)
 function firmaQuelle() {
   const hat = p => p && FIRMA_FELDER.some(f => p[f]) && !/^Beispiel( |$)/.test(p.projekt || '');      // nicht die Musterfirma des Beispiels
@@ -6305,9 +6400,31 @@ function bProjekt() {
     if (leer) z.querySelector('.w').classList.add('platzw'); return z; };
   // ab v1.66 (F14): ohne Namen „Unbenanntes Projekt“ (wie auf dem Deckblatt), Hinweis vor dem Drucken
   m.append(h('h2', {}, 'Schriftfeld'), h('div', { class: 'liste' },
-    f('Firma', 'firma', { tip: 'Firma – rechtlicher Eigentümer des Plans' }), f('Anschrift', 'anschrift'), f('Projekt', 'projekt', { platz: 'Unbenanntes Projekt' }), f('Dokumenttitel', 'titel'),
-    f('Erstellt durch', 'ersteller'), f('Zeichnungsnummer', 'nummer'), f('Revision', 'rev'), f('Ausgabedatum', 'datum', { typ: 'date' }, false)));
+    f('Firma', 'firma', { tip: 'Firma – rechtlicher Eigentümer des Plans' }), f('Anschrift', 'anschrift'),
+    // ab v1.81 (Q30): zweite Anschriftzeile – das Schriftfeld wird nur mit ihr zweizeilig
+    f('Anschrift, 2. Zeile', 'anschrift2', { tip: 'z. B. PLZ und Ort – im Schriftfeld unter der Anschrift' }),
+    f('Projekt', 'projekt', { platz: 'Unbenanntes Projekt' }), f('Dokumenttitel', 'titel'),
+    f('Erstellt durch', 'ersteller'), f('Zeichnungsnummer', 'nummer'),
+    // ab v1.81 (X06): mit Revisionsliste zeigt das Feld die letzte festgeschriebene Revision; jedes Blatt trägt seine eigene
+    revListe().length ? zeile('Revision', revListe()[revListe().length - 1].rev || '—', () => revisionFenster(), { un: 'festgeschrieben – je Blatt die Revision seiner letzten Änderung' })
+      : f('Revision', 'rev'),
+    f('Ausgabedatum', 'datum', { typ: 'date' }, false)));
   m.append(h('p', { class: 'hinweis' }, 'Verteiler und Blattnummern trägt die App automatisch ein.'));
+  // ab v1.81 (Q30): Projektkopf auf dem Deckblatt
+  m.append(h('h2', {}, 'Projektkopf'), h('div', { class: 'liste' },
+    f('Bauherr/Kunde', 'bauherr'), f('Anlagenanschrift', 'anlage', { tip: 'Ort der Anlage – Deckblatt und Prüfprotokoll' }), f('Geprüft durch', 'pruefer', { tip: 'Prüfer des Plans – Deckblatt' })));
+  m.append(h('p', { class: 'hinweis' }, 'Stehen auf dem Deckblatt.'));
+  // ab v1.81 (X06): Revisionsliste, jüngste oben
+  const R = revListe();
+  m.append(h('h2', {}, 'Revisionen'), h('div', { class: 'liste' },
+    ...R.map((r, i) => ({ r, i })).reverse().map(({ r, i }) => { const ge = PLAN.revGeaendert(R, i);
+      return zeile(`Rev. ${r.rev || '—'}`, datumDE(r.datum), () => revisionFenster(i),
+        { un: [r.text, r.name, ge === null ? 'alle Blätter' : ge.length ? (ge.length > 1 ? 'Blätter ' : 'Blatt ') + PLAN.nrBereiche(ge) : 'kein Blatt geändert'].filter(Boolean).join(' · ') }); }),
+    P.verteiler.length ? zeile('Revision festschreiben …', null, () => revisionFenster(), { un: R.length ? 'markiert die seit der letzten Revision geänderten Blätter' : 'merkt den Stand aller Blätter' }) : null,
+    R.length ? zeile('Letzte Revision zurücknehmen', null, () => frage('Letzte Revision zurücknehmen', `Rev. ${R[R.length - 1].rev || '—'} wird aus der Liste entfernt; die Blätter tragen wieder ihre vorige Revision.`, () => {
+      P.revisionen.pop(); const l = revListe(); if (l.length) P.projekt.rev = l[l.length - 1].rev || ''; else delete P.revisionen; }, 'Zurücknehmen'), { rot: true }) : null));
+  m.append(h('p', { class: 'hinweis' }, R.length ? 'Deckblatt mit Revisionstabelle, Inhaltsverzeichnis und Schriftfelder zeigen die Revision je Blatt.'
+    : P.verteiler.length ? 'Noch keine Revision festgeschrieben – Schriftfeld und Inhaltsverzeichnis zeigen das Feld „Revision“.' : 'Revisionen lassen sich festschreiben, sobald es einen Verteiler gibt.'));
   m.append(h('h2', {}, 'Plan'), h('div', { class: 'liste' },
     // ab v1.66 (F15): das Blattformat steht hier statt im Menü
     zeile('Format', `${p.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], p.format || 'A4', w => p.format = w)),
@@ -8939,6 +9056,7 @@ function hauptMenue(v = null) {
       ['Als Datei sichern …', exportieren, { taste: 'Strg+S' }], ['Versionen …', () => versionenFenster(projektId, projektName(P))],      // ab v1.76 (X01)
       ed ? null : ['Beispielprojekt öffnen', beispielOeffnen],
       ['Projektdaten', () => ed ? waehle('p:', { springen: false }) : geh({ s: 'projekt' })],
+      da ? REV_MENUE : null,      // ab v1.81 (X06)
       da ? ['Plan drucken …', drucken, { taste: 'Strg+P' }] : null,
       da ? ['Türzettel drucken …', () => geh({ s: 'tuer', vid: ed ? v.id : undefined })] : null,
       da ? ['Prüfprotokoll drucken …', () => geh({ s: 'pruef', vid: ed ? v.id : undefined })] : null),      // ab v1.79 (X05)
@@ -8955,7 +9073,66 @@ function hauptMenue(v = null) {
     ...abschnitt(
       ed ? ['Steuerstromkreise', () => waehle('st:')] : null, ed ? ['Stromkreisliste', () => geh({ s: 'liste', vid: v.id })] : null,      // ab v1.79 dort auch „Alle Verteiler“
       ed ? null : ['Neuer Verteiler …', neuerVerteilerFenster]),      // ab v1.76: „Automatik für den ganzen Verteiler …“ im Verteilermenü
-    ...abschnitt(['Hilfe', () => hilfe(), { taste: 'F1' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }])].slice(1), null, { label: 'Menü' });
+    ...abschnitt(['Hilfe', () => hilfe(), { taste: 'F1' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }])].slice(1)
+    // ab v1.81: höchstens 20 Einträge (v1.66, F15) – im vollen Editor-Menü (Auswahl, Rückgängig und Wiederholen) entfällt
+    // „Revision festschreiben …“; es steht immer auch in den Projektdaten
+    .filter((x, _, l) => x !== REV_MENUE || l.filter(y => y && y !== '—').length <= 20), null, { label: 'Menü' });
+}
+// ---- Revisionen (ab v1.81, X06) -------------------------------------------------------------------------------------
+// „Revision festschreiben“ merkt je Planblatt einen Kurzhash ohne Schriftfeld (PLAN.blattHash); ein Blatt trägt die Revision,
+// in der sich sein Hash zuletzt geändert hat (Schriftfeld, Inhaltsverzeichnis), das Deckblatt die Revisionstabelle.
+const REV_MENUE = ['Revision festschreiben …', () => revisionFenster()];
+const revListe = () => (Array.isArray(P.revisionen) ? P.revisionen : []).filter(x => x && typeof x === 'object');
+function revisionHashes() {
+  const h = {};
+  PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter.forEach(b => { if (b.art !== 'deckblatt' && b.art !== 'inhalt') h[b.nr] = PLAN.blattHash(b); });
+  return h;
+}
+// nächste Revision: 0 → 1, A → B, a3 → a4; sonst mit 1 dahinter
+function naechsteRev(r) {
+  r = String(r || '').trim(); if (!r) return '0';
+  if (/^[A-Ya-y]$/.test(r)) return String.fromCharCode(r.charCodeAt(0) + 1);
+  const m = /^(.*?)(\d+)$/.exec(r); return m ? m[1] + (+m[2] + 1) : r + '1';
+}
+// i: Eintrag bearbeiten (ohne neue Hashes); ohne i: neue Revision festschreiben
+function revisionFenster(i) {
+  const R = revListe(), neu = i === undefined, alt = neu ? null : R[i];
+  if (!neu && !alt) return;
+  if (neu && !P.verteiler.length) { meldung('Erst einen Verteiler anlegen'); return; }
+  let hash = null, info = '';
+  if (neu) {
+    try { hash = revisionHashes(); } catch (er) { meldung('Plan lässt sich nicht zeichnen – Revision nicht festgeschrieben'); return; }
+    const n = Object.keys(hash).length, l = R[R.length - 1];
+    if (!l) info = `Die erste Revision merkt den Stand aller ${n} Planblätter. Jede weitere markiert die Blätter, die sich seither geändert haben.`;
+    else { const a = l.hash || {}, ge = Object.keys(hash).map(Number).filter(nr => a[nr] !== hash[nr]).sort((x, y) => x - y),
+        weg = Object.keys(a).map(Number).filter(nr => !(nr in hash)).sort((x, y) => x - y);
+      info = (ge.length ? `Seit Rev. ${l.rev || '—'} geändert: ${ge.length > 1 ? 'Blätter' : 'Blatt'} ${PLAN.nrBereiche(ge)}.` : `Seit Rev. ${l.rev || '—'} ist kein Blatt geändert.`)
+        + (weg.length ? ` Entfallen: ${weg.length > 1 ? 'Blätter' : 'Blatt'} ${PLAN.nrBereiche(weg)}.` : ''); }
+  }
+  const heute = new Date().toISOString().slice(0, 10);
+  const feld = (titel, wert, opt = {}) => { const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', autocapitalize: 'sentences', 'aria-label': titel });
+    return [i, h('label', { class: 'revfeld' }, h('span', {}, titel), i)]; };
+  const [iRev, lRev] = feld('Revision', neu ? (R.length ? naechsteRev(R[R.length - 1].rev) : P.projekt.rev || '0') : alt.rev);
+  const [iDat, lDat] = feld('Datum', neu ? heute : alt.datum, { typ: 'date' });
+  const [iTxt, lTxt] = feld('Änderung', neu ? (R.length ? '' : 'Erstausgabe') : alt.text, { platz: R.length || !neu ? 'z. B. Abgang Küche ergänzt' : 'Erstausgabe' });
+  const [iNam, lNam] = feld('Name', neu ? P.projekt.ersteller || '' : alt.name);
+  const hw = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true }, 'Bitte die Revision angeben.');
+  let an;
+  const los = s => {
+    const rev = iRev.value.trim(); if (!rev) { hw.hidden = false; iRev.focus(); return; }
+    const e = { rev, datum: iDat.value || heute, text: iTxt.value.trim(), name: iNam.value.trim() };
+    if (neu) { e.hash = hash; P.revisionen = R.concat([e]); P.projekt.rev = rev; P.projekt.datum = e.datum; }
+    else { Object.assign(alt, e); if (i === R.length - 1) P.projekt.rev = rev; }
+    aenderung(neu ? `Revision ${rev} festschreiben` : `Revision ${rev} ändern`); sichern(); s();
+    meldung(neu ? `Revision ${rev} festgeschrieben` : `Revision ${rev} geändert`, ['Rückgängig', () => projektRueck(false)]);
+  };
+  const schl = fenster(neu ? 'Revision festschreiben' : `Revision ${alt.rev || ''}`, [info ? h('p', { class: 'text' }, info) : null,
+    h('div', { class: 'revform' }, lRev, lDat, lTxt, lNam), hw], s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    an = h('button', { class: 'knopf', on: { click: () => los(s) } }, neu ? 'Festschreiben' : 'Übernehmen')], null, { label: neu ? 'Revision festschreiben' : 'Revision' });
+  [iRev, iDat, iTxt, iNam].forEach(x => x.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); los(schl); } }));
+  iRev.addEventListener('input', () => { hw.hidden = !!iRev.value.trim(); });
+  setTimeout(() => { (neu && R.length ? iTxt : iRev).focus(); }, 50);
 }
 // Suche (ab v1.61, D22): Kennzeichen, Bezeichnung und Ort aller Abgänge, Gruppen, Einspeisungen und Befehlsgeber des Projekts;
 // ↑/↓ wählt, Enter springt in den Editor (auch in einen anderen Verteiler). Erst genaue Kennzeichen, dann Anfänge, dann Teile.
@@ -10457,7 +10634,7 @@ function pruefprotokoll(v) {
   // Kopf in drei Spalten, Besichtigen in zwei Spalten neben Erproben – damit ein kleiner Verteiler auf eine Seite passt
   const kopfF = h('div', { class: 'ppkopf' },
     ppFeld('Projekt', P.projekt.projekt || ''), ppFeld('Verteiler', v.name), ppFeld('Netz', netz),
-    ppFeld('Anlage, Ort', ''), ppFeld('Errichter', P.projekt.firma || ''),
+    ppFeld('Anlage, Ort', P.projekt.anlage || ''),      // ab v1.81 (Q30): Anlagenanschrift aus dem Projektkopf ppFeld('Errichter', P.projekt.firma || ''),
     ppFeld([...sb('Z', 's'), ' am Verteiler'], zv != null ? `ber. ${ohm(zv)} Ω · gem. ______ Ω` : 'gemessen ______ Ω'),
     ppFeld('Prüfer', ''), ppFeld('Datum der Prüfung', ''),
     h('div', { class: 'ppf ppart' }, h('span', { class: 'ppl' }, 'Art'),
@@ -10624,7 +10801,23 @@ function pruefeProjekt(d, datei = false) {
   const text = (o, f, wo) => { const x = o[f]; if (x === undefined || x === null || typeof x === 'string') return;
     const t = typeof x === 'number' || typeof x === 'boolean' ? String(x) : ''; r.push(t ? `${wo}: ${typeof x === 'number' ? 'Zahl ' + t : '„' + t + '“'} als Text übernommen` : `${wo}: „${kurz(x)}“ → leer`); o[f] = t; };
   Object.entries({ projekt: 'Projektname', titel: 'Dokumenttitel', firma: 'Firma', anschrift: 'Anschrift', ersteller: 'Erstellt durch', nummer: 'Zeichnungsnummer',
-    rev: 'Revision', datum: 'Ausgabedatum' }).forEach(([f, t]) => text(d.projekt, f, t));
+    rev: 'Revision', datum: 'Ausgabedatum', anschrift2: 'Anschrift, 2. Zeile', bauherr: 'Bauherr/Kunde', anlage: 'Anlagenanschrift', pruefer: 'Geprüft durch' })
+    .forEach(([f, t]) => text(d.projekt, f, t));      // ab v1.81 mit dem Projektkopf
+  // ab v1.81 (X06): Revisionsliste – unbrauchbare Einträge entfernen, Texte wie oben, Hashes nur Blattnummer → Text
+  if (d.revisionen !== undefined) {
+    if (!Array.isArray(d.revisionen)) { r.push('Revisionsliste unbrauchbar → entfernt'); delete d.revisionen; }
+    else {
+      const n = d.revisionen.length; d.revisionen = d.revisionen.filter(obj);
+      if (d.revisionen.length < n) r.push(`Revisionsliste: ${n - d.revisionen.length} unbrauchbare Einträge entfernt`);
+      d.revisionen.forEach((x, i) => {
+        Object.entries({ rev: 'Revision', datum: 'Datum', text: 'Änderung', name: 'Name' }).forEach(([f, t]) => text(x, f, `Revision ${i + 1} ${t}`));
+        if (x.hash !== undefined && !obj(x.hash)) { r.push(`Revision ${i + 1}: Blattstände unbrauchbar → leer`); x.hash = {}; }
+        else if (x.hash) { const k = Object.keys(x.hash).filter(b => !/^[1-9]\d{0,3}$/.test(b) || typeof x.hash[b] !== 'string');
+          if (k.length) { k.forEach(b => delete x.hash[b]); r.push(`Revision ${i + 1}: ${k.length} unbrauchbare Blattstände entfernt`); } }
+      });
+      if (!d.revisionen.length) delete d.revisionen;
+    }
+  }
   if (d.projekt.format !== undefined && !['A4', 'A3'].includes(d.projekt.format)) { r.push(`Blattformat „${kurz(d.projekt.format)}“ → A4`); d.projekt.format = 'A4'; }
   if (d.projekt.duMax !== undefined && zahlFehler(d.projekt.duMax, Z_PROZ)) { r.push(`Spannungsfall höchstens „${kurz(d.projekt.duMax)}“ → 3 %`); delete d.projekt.duMax; }      // ab v1.77
   // Kennzeichen, Bezeichnungen, Orte und Namen in allen Teilen eines Verteilers (ohne Vorgaben von Hand)

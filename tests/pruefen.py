@@ -22,7 +22,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung', 'stueckliste']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung', 'stueckliste', 'revision']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -308,6 +308,19 @@ with sync_playwright() as p:
             if not r[0] or not r[2]: fehler.append(f'stueckliste: Blätter {r[0]} nicht am Ende')
             if r[3] != len(r[0]): fehler.append(f'stueckliste: Inhaltsverzeichnis nennt {r[3]} statt {len(r[0])} Stücklistenblätter')
             print(name, ': Stückliste', r[4])
+        # ab v1.81 (X06): Revisionen – Rev. 1 ändert genau die Blätter mit dem Herd; Inhaltsverzeichnis und Schriftfeld je Blatt
+        if name == 'revision':
+            r = pg.evaluate("""() => { const bl = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter, ge = PLAN.revGeaendert(P.revisionen, 1);
+                const herd = bl.filter(b => b.art !== 'inhalt' && b.art !== 'deckblatt' && b.svg.textContent.includes('Herd')).map(b => b.nr);
+                const inh = bl.filter(b => b.art === 'inhalt').flatMap(b => [...b.svg.querySelectorAll('text')].map(t => t.textContent));
+                const sf = bl.map(b => { const t = [...b.svg.querySelectorAll('text')], i = t.findLastIndex(x => x.textContent === 'Revision'); return t[i + 1] ? t[i + 1].textContent : null; });
+                return [ge, herd, bl.map(b => b.nr), sf, bl[0].svg.textContent.includes('Herd mit 20 A abgesichert')]; }""")
+            ge, herd, nrs, sf = r[0], r[1], r[2], r[3]
+            if ge != herd: fehler.append(f'revision: geändert {ge}, Blätter mit Herd {herd}')
+            soll = ['1' if n <= 2 or n in herd else '0' for n in nrs]
+            if sf != soll: fehler.append(f'revision: Schriftfeld-Revisionen {sf}, erwartet {soll}')
+            if not r[4]: fehler.append('revision: Revisionstabelle fehlt auf dem Deckblatt')
+            print(name, ': Revision 1 ändert Blätter', ge)
         pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()

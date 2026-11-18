@@ -361,6 +361,13 @@ window.BEISPIELE = {
     sd.forEach((k, i) => { k.ziel.anzahl = String([3, 2, 4, 1, 2, 6][i] || 1); k.leitung.laenge = String(10 + 5 * i); });
     uv.knoten.find(k => k.ziel && k.ziel.bez === 'Kreissäge').ziel.anzahl = '2';
     sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.81 (X06, Q30): wie grund mit Projektkopf und zwei Revisionen; in der zweiten ist der Herd mit 20 A statt 16 A abgesichert
+  revision: () => { BEISPIELE.grund(); const [hv] = P.verteiler;
+    Object.assign(P.projekt, { anschrift: 'Musterstraße 1', anschrift2: '12345 Musterstadt', bauherr: 'Muster Logistik GmbH', anlage: 'Hafenweg 7, 12345 Musterstadt', pruefer: 'M. Prüfer' });
+    P.revisionen = [{ rev: '0', datum: '2026-11-02', text: 'Erstausgabe', name: 'Jean', hash: revisionHashes() }];
+    hv.knoten.find(k => k.ziel && k.ziel.bez === 'Herd').geraet.nenn = '20';
+    P.revisionen.push({ rev: '1', datum: '2026-11-16', text: 'Herd mit 20 A abgesichert', name: 'Jean', hash: revisionHashes() });
+    P.projekt.rev = '1'; sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

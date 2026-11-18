@@ -1616,5 +1616,39 @@
    "15 Alle Verteiler stueckliste",
    "f52d713938a6b790a8d6395b156bff0b"
   ]
+ ],
+ "revision": [
+  [
+   "1 Deckblatt deckblatt",
+   "957e4bf4c3c5298d7fa35856704ee8b7"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "d54558dc0b84320628f6e7ee7dd1b4b2"
+  ],
+  [
+   "3 HV uebersicht",
+   "8a71a98d3d9f1c77a7a250ece1eac234"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "9e0314d5196f0788e14aae18ae2f682e"
+  ],
+  [
+   "5 HV einspeisung",
+   "c1a88ebb29425564db4f7d028cc55416"
+  ],
+  [
+   "6 HV abgang",
+   "0a8086cd866f842989c5e31ec7174a23"
+  ],
+  [
+   "7 HV abgang",
+   "bec8cbd8c1d4df2d3e38be2f65a03ffc"
+  ],
+  [
+   "8 UV Werkstatt kombiniert",
+   "9227cc5a5fc40b5de27230b98384d5e7"
+  ]
  ]
 }

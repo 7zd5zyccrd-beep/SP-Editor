@@ -1158,7 +1158,7 @@ const PLAN = (() => {
     alle.forEach(art => {
       const an = bereich[art]; if (!an.length) return;
       const xsA = an.map(p => p.x), lo = Math.min(...xsA), hi = Math.max(...xsA), y = ys[art];
-      if (hi > lo) linie(g, lo, y, hi, y, 0.25, farbe(art), art);   // Untersammelschiene in Leiterstärke
+      if (hi > lo) leiter(g, lo, y, hi, y, art);   // Untersammelschiene in Leiterstärke (ab v1.75, Q38: PEN gestrichelt)
       const gleich = (a, b) => Math.abs(a - b) < 0.01;
       [...new Set(xsA.map(x => x.toFixed(2)))].map(Number).forEach(xp => {
         const hier = an.filter(p => gleich(p.x, xp) && !p.durch);
@@ -1198,7 +1198,7 @@ const PLAN = (() => {
     const namen = schienenNamen(v), bars = {};
     namen.forEach((n, i) => {
       const y = y0 + ABSTAND * i, xs = Array.isArray(xStarts) ? xStarts[i] : xStarts;
-      linie(g, xs, y, xEnde, y, 0.25, farbe(n), n);
+      leiter(g, xs, y, xEnde, y, n);       // ab v1.75 (Q38): PEN-Schiene grün mit blauer Strichelung wie die PEN-Zuleitung
       bars[n] = y;
       if (mitNamen) text(g, RAND_L + 1.5, y + 0.9, anzeige(n, v), 2.5);
       if (kommend) { setze(g, 'qv_kommend', xs, y, t => t.richtung === 'e', n); }
@@ -1211,7 +1211,7 @@ const PLAN = (() => {
   // ---- Einspeisung ----------------------------------------------------------
   // zeichnet die Leiter von oben durch Vorsicherung, Zähler, Hauptschalter;
   // gibt die x-Lage der Leiter und das untere Ende zurück
-  function zeichneEinspeisung(g, v, e, xSp, yOben, herkunft) {
+  function zeichneEinspeisung(g, v, e, xSp, yOben, herkunft, speisePhase) {
     const pen = v.netzform !== 'TN-S';
     let namen = v.leiter === '1NPE' ? (pen ? ['L1', 'PEN'] : ['L1', 'N', 'PE']) : (pen ? ['L1', 'L2', 'L3', 'PEN'] : ['L1', 'L2', 'L3', 'N', 'PE']);
     const x0 = xSp + LINKS;
@@ -1221,7 +1221,9 @@ const PLAN = (() => {
     const breit = Math.max(nAktiv, ...['vorsicherung', 'hauptschalter'].map(f => v[f].zeichen ? POLE[v[f].zeichen] || 0 : 0));
     let xs = namen.map((n, i) => x0 + ABSTAND * (SCHUTZ_L(n) ? i + breit - nAktiv : i));
     passend(text(g, x0 - 2, yOben, herkunft, 2.5, 'start', { 'font-weight': 'bold' }), 80);
-    namen.forEach((n, i) => text(g, xs[i], yOben + 4, anzeige(n, v), 1.9, 'middle'));
+    // ab v1.75 (Q39): 1/N/PE-Unterverteiler nennen den speisenden Außenleiter, „L (L2)“
+    const kopfName = n => v.leiter === '1NPE' && n === 'L1' && /^L[123]$/.test(speisePhase || '') ? `L (${speisePhase})` : anzeige(n, v);
+    namen.forEach((n, i) => text(g, xs[i], yOben + 4, kopfName(n), 1.9, 'middle'));
     let enden = namen.map(() => yOben + 5.5), cursor = yOben + 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) {
       const gz = v[feld].zeichen; if (!gz) continue;
@@ -1446,6 +1448,8 @@ const PLAN = (() => {
       if (l2 && textBreite(`${l1} · ${l2}`, 2.2) * 0.85 > max) { senk(3.9, l1, 2.2); senk(6.6, l2, 2.2); }
       else senk(3.9, l1 + (l2 ? ` · ${l2}` : ''), 2.2);
     }
+    // ab v1.75 (Q28): Speicher am Hybrid-Wechselrichter als Zeile der Beschriftung (kein einpoliges Zeichen dafür)
+    if (ende === 'pv' && k.pv && k.pv.speicher && a.bat) senk(6.6, `+ Speicher ${a.bat.t}${k.pv.speicher.kwh ? ` ${k.pv.speicher.kwh} kWh` : ''}`, 2.2);
   }
   // ein Abgang an einer Schiene auf ySrc: Gerät auf yG, Ende auf yE.
   // Gibt das untere Ende vor der Ableitung zum Ende zurück.
@@ -1694,7 +1698,8 @@ const PLAN = (() => {
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, l, ph))
           || schiene(l, ph);
         const art = l === 'PE' ? 'Schutzleiterklemme' : l === 'PEN' ? 'PEN-Klemme' : l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
-        const anzeige = l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : (tnc && (l === 'N' || l === 'PE') ? 'PEN' : l);
+        // ab v1.75 (Q27): Leitername aus der Leitung – N und PE bleiben N und PE (an der PEN-Schiene), PEN nur bei PEN-Zuleitung
+        const anzeige = l === 'L' ? (v.leiter === '1NPE' ? 'L' : ph) : l;
         const ader = sdI !== undefined ? ['br', 'sw', 'gr'][sdI] : a.drei ? ADER[l] : ADER[l === 'L' ? 'L' : l];
         // Motor (ab v1.45): Ziel mit Motoranschluss U1 V1 W1 (U2 V2 W2) bzw. U1 U2 beim Wechselstrommotor
         const ma = k.ziel.anschluss === 'motor' && a.xd ? ({ L1: 'U1', L2: 'V1', L3: 'W1', U2: 'U2', V2: 'V2', W2: 'W2', PE: 'PE' }[l]
@@ -1737,6 +1742,14 @@ const PLAN = (() => {
     }
     // Feldgeräte der Steuerstromkreise (ab v1.13): je Kontakt bzw. Meldeleuchte zwei Klemmen
     const sf = e.steuer || {}, ader = {};
+    // ab v1.75 (Q37): liegt der Nachbar im Strompfad selbst im Feld (Reihenschaltung), steht in „intern“ die Brücke zu dessen
+    // Klemme; dafür vorab je Feldanschluss „Kennzeichen:Anschluss“ → Klemme
+    const feldKlemme = {};
+    (sf.feldListe || []).forEach(f => {
+      const kz = (sf.geraete[f.gid] || {}).t, ml = f.z === 'meldeleuchte';
+      const an = ml ? ['X1', 'X2'] : (sf.kontakte[f.key] || {}).an || (/_oe|notaus/.test(f.z) ? ['11', '12'] : ['13', '14']);
+      if (kz) (sf.feld[f.key] || []).forEach((nr, i) => { if (an[i]) feldKlemme[`${kz}:${an[i]}`] = nr; });
+    });
     (sf.feldListe || []).forEach(f => {
       const g = v.steuerung.geraete.find(x => x.id === f.gid), kz = (sf.geraete[f.gid] || {}).t || '', nrn = sf.feld[f.key];
       const kr = v.steuerung.kreise.find(x => x.id === f.kr);
@@ -1748,7 +1761,8 @@ const PLAN = (() => {
       const zeilen = nrn.map((nr, i) => {
         ader[f.gid] = (ader[f.gid] || 0) + 1;
         // innen (ab v1.45): der Nachbar im Strompfad – oben der Anschluss darüber, unten der darunter
-        const innen = p ? stNachbar(v, e, kr, p, platz, i === 0) : '';
+        let innen = p ? stNachbar(v, e, kr, p, platz, i === 0) : '';
+        if (innen && feldKlemme[innen] !== undefined && feldKlemme[innen] !== nr) innen = `Brücke X1:${feldKlemme[innen]}`;
         return [String(nr), ml && i ? 'N' : '', ml && i ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme',
           innen || 'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''), leitung, ad ? ad.kennung(ader[f.gid] - 1) : String(ader[f.gid]),
           `${kz}:${an[i]} ${[g.bez, g.ort].filter(Boolean).join(', ')}`.trim()];
@@ -2355,6 +2369,7 @@ const PLAN = (() => {
       const sp = hilf.speisenderAbgang(v.id);
       let herkunft = `Netz ${v.netzform}, ${netzLeiter(v)}`;
       if (sp) { const l = lage[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
+      const speisePhase = sp ? (hilf.berechne(sp.v).abgaenge[sp.k.id].phase || {}).t : null;      // ab v1.75 (Q39)
       p.blaetter.forEach((b, i) => {
         // ab v1.73 (Q09): Blätter mit hochgezogenen Untersammelschienen (b.hoch) haben keine Sammelschienen – deren Querverweise
         // springen über sie hinweg
@@ -2365,14 +2380,14 @@ const PLAN = (() => {
         const xEnde = R.x1 - 12;
         let bars;
         if (b.art === 'einspeisung') {
-          const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft));
+          const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft, speisePhase));
           const y0 = ein.cursor + 10;
           if (opt.ziele) ziel(g, R.x0, RAND, 3 * R.sb, y0 - RAND, 'e:' + v.id);
           mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n)));
           zeichneSchienen(g, v, y0, ein.xs, xEnde, null, naechstes, false);
         } else {
           if (b.art === 'kombiniert') {
-            const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0, 14, herkunft));
+            const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0, 14, herkunft, speisePhase));
             mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], b.y0 + ABSTAND * j, n)));
             if (opt.ziele) ziel(g, R.x0, RAND, R.sb, b.y0 - RAND, 'e:' + v.id);
             bars = zeichneSchienen(g, v, b.y0, ein.xs, xEnde, null, naechstes, false);

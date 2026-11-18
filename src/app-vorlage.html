@@ -16,6 +16,9 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.75: Planfehler mittel, Darstellung, Türzettel (Etappe Q6: Q27, Q28, Q37 Brücke, Q38, Q39, Q43): Klemmenplan TN-C
+           mit N/PE statt „PEN“, Hybrid-Speicher in der Übersicht, Brücke zwischen Feldgeräten in Reihe, PEN-Schiene
+           gestrichelt, 1~-UV „L (L2)“ im Kopf und auf dem Türzettel, Türzettel ohne Umbruch im Kennzeichen, alle Schütze
      v1.74: Fachwarnungen (Etappe Q5: Q10, Q11, Q12, Q15 Zählgrenze, Q22, Q23 Hinweise, Q26, Q36, Q40, Q41): Überlastschutz
            des FI (Schutzorgan davor bzw. Summe/größter Abgang dahinter), Abgang ohne Schutzorgan, Typ B/Wallbox ohne RDC-DD/FU
            hinter FI Typ A/F/AC, FI Typ AC, FI in Reihe, LS hinter LS, PV einphasig über 4,6 kVA, Trennschalter als Hauptschalter,
@@ -6482,9 +6485,11 @@ function tuerzettel(v) {
   const e = berechne(v), sp = speisenderAbgang(v.id);
   const zielText = (k, a) => k.speist ? `${(vById(k.speist) || {}).name || 'Verteiler'}` : (k.ziel.bez || '');     // ab v1.63 ohne „→“ (D61)
   const tb = h('tbody');
+  // ab v1.75 (Q43): Kennzeichen im Fließtext (z. B. „über -Q4“) brechen nie nach dem „-“ um
+  const mitKenn = t => String(t || '').split(/(-[A-Z]+\d+(?::\S+)?)/).map((x, i) => i % 2 ? h('span', { class: 'nw' }, x) : x).filter(x => x !== '');
   const zeileT = (kl, kenn, schutz, leiter, kreis, ort, leitung) =>
     tb.append(h('tr', { class: kl }, h('td', { class: 'k' }, kenn || ''), h('td', {}, schutz || ''), h('td', {}, leiter || ''),
-      h('td', {}, kreis || ''), h('td', {}, ort || ''), h('td', {}, ...String(leitung || '').split(', ').flatMap((x, i) => [i ? ', ' : null, h('span', { class: 'nw' }, x)]).filter(Boolean))));
+      h('td', {}, ...mitKenn(kreis)), h('td', {}, ort || ''), h('td', {}, ...String(leitung || '').split(', ').flatMap((x, i) => [i ? ', ' : null, h('span', { class: 'nw' }, x)]).filter(Boolean))));
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
     if (v[feld].zeichen) zeileT('tzkopf', e.kopf[feld].t, `${gName(v[feld].zeichen)} ${bemessung(v[feld])}`.trim(), '', titel, '', '');
   alleKnoten(v, (k, eltern, l, i, tiefe) => {
@@ -6496,12 +6501,14 @@ function tuerzettel(v) {
     }
     const a = e.abgaenge[k.id];
     zeileT(tiefe ? 'ein' : '', a.f ? a.f.t : '—', k.geraet.zeichen ? `${gNameK(k)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
-      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
+      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${schaltText(a)})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
     // ab v1.52: Sekundär-LS ohne eigenen Einzug (wie sein Abgang), Überlastrelais als eigene Zeile
     if (a.ol) zeileT(tiefe ? 'ein' : '', a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), '', `${zielText(k, a)} (Motorschutz)`, k.ziel.ort, '');
     if (k.trafo) zeileT(tiefe ? 'ein' : '', a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, '', `Steuerspannung ${k.trafo.sek}\u00a0V`, '', '');
   });
-  const herkunft = sp ? `gespeist aus ${sp.v.name}${(berechne(sp.v).abgaenge[sp.k.id].f || {}).t ? ' ' + berechne(sp.v).abgaenge[sp.k.id].f.t : ''}`
+  // ab v1.75 (Q39): 1/N/PE-Unterverteiler nennen den speisenden Außenleiter, „L (L2)“
+  const spA = sp && berechne(sp.v).abgaenge[sp.k.id], spPh = spA && spA.phase && /^L[123]$/.test(spA.phase.t || '') && v.leiter === '1NPE' ? spA.phase.t : '';
+  const herkunft = sp ? `gespeist aus ${sp.v.name}${(spA.f || {}).t ? ' ' + spA.f.t : ''}${spPh ? `, L (${spPh})` : ''}`
                       : `Einspeisung ${v.netzform}, ${leiterText(v)}`;
   return h('section', { class: 'tz' },
     h('h1', {}, v.name),
@@ -6509,6 +6516,11 @@ function tuerzettel(v) {
     h('table', {}, tzSpalten(), h('thead', {}, h('tr', {}, ['Kennz.', 'Schutzorgan', 'Leiter', 'Stromkreis', 'Ort', 'Leitung'].map(t => h('th', {}, t)))), tb),
     h('div', { class: 'fuss' }, h('span', {}, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
       .filter(Boolean).join(' · ')), h('span', { class: 'seitenzahl' })));
+}
+// Schaltgerät eines Abgangs für den Türzettel (ab v1.75, Q43): Wende- und Stern-Dreieck-Schaltung nennen alle Schütze
+function schaltText(a) {
+  if (a.zusatz && a.zusatz.length) return `${[a.schalt, ...a.zusatz.map(z => z.schalt)].map(s => s.bmk.t).join(', ')} Schütze`;
+  return `${a.schalt.bmk.t} ${SCHALT[a.schalt.typ]}`;
 }
 // feste Spaltenbreiten des Türzettels (ab v1.64, F07), damit Folgeseiten dieselben Kanten haben; ab v1.67 (P3-04) „Ort“ breiter (Treppenhaus ungetrennt)
 function tzSpalten() {

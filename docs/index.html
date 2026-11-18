@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.76 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.77 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.77: Bemessung I – Belastbarkeit und Spannungsfall (Etappe X-B: X02, Q21, Q45 Querschnittvorschlag): I_z nach DIN VDE 0298-4
+           Tabelle 3 je Verlegeart A1/A2/B1/B2/C/E und 2 bzw. 3 belasteten Adern, Häufung nach Tabelle 21, Sicherung gG mit
+           I_n ≤ 0,9 · I_z (ersetzt IZ_MAX); Spannungsfall mit Leitungslänge (κ = 56, cos φ = 1, I = Motor- bzw. Nennstrom) ab dem
+           Zähler über die Zuleitungen der Unterverteiler, Grenze je Projekt (Voreinstellung 3 %); im Fach Länge, Verlegeart,
+           Häufung, Belastbarkeit, Spannungsfall und „Querschnitt vorschlagen“ (zugeklappt hinter „Bemessung“ im Kopf, solange
+           der Verteiler keine Angaben hat); Glossar; Sammeländerung Verlegeart/Häufung; Stromkreisliste
+           mit Länge/Iz/ΔU, CSV mit Bemessungsspalten; Motornennstrom aus kW (cos φ 0,82, η 0,86); PROJEKT_VERSION 4;
+           Beispiel `bemessung`; Pläne unverändert
      v1.76: Versionsstände, Papierkorb, Sammelsicherung (Etappe X-A: X01, Q35 teilweise): IndexedDB „slp“ Fassung 2 mit Store
            „staende“ (Stand beim Öffnen jeder Sitzung, letzter Stand je Tag, höchstens 10), „Versionen …“ im Hauptmenü und je
            Projekt (Wiederherstellen als Rückgängig-Schritt, Als Datei sichern), Löschen verschiebt in den Papierkorb
@@ -465,6 +473,7 @@ table.ueb th{text-align:left;font-weight:600;color:var(--leise);font-size:12px;p
 table.ueb td{padding:7px 8px;border-top:1px solid var(--linie);vertical-align:top}
 table.ueb td.m{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}
 table.ueb tr.gr td{background:var(--karte2);font-weight:600}
+table.ueb .zahl{text-align:right;font-variant-numeric:tabular-nums}table.ueb td.ueber{color:var(--warn);font-weight:600}      /* ab v1.77: Bemessung */
 .tabwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ph{display:inline-block;font:600 12px ui-monospace,Menlo,monospace;padding:1px 5px;border-radius:5px;background:var(--hover)}
 .ph.auto{background:var(--akzent-hell);color:var(--akzent)}
@@ -771,6 +780,10 @@ body.imeditor .meldung{bottom:calc(env(safe-area-inset-bottom) + 76px)}
   font:700 12.5px/1 system-ui,sans-serif;cursor:pointer;vertical-align:middle;text-transform:none;letter-spacing:0}
 .hilfeknopf.gross{width:30px;height:30px;font-size:15px;margin:0 4px}
 h2.mithilfe{display:flex;align-items:center}
+/* ab v1.77: Knopf „Bemessung“ rechts im Abschnittskopf „Leitung“ */
+.bemknopf{margin-left:auto;display:inline-flex;align-items:center;gap:2px;padding:2px 4px 2px 8px;border:0;background:none;color:var(--akzent);font:inherit;font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer;border-radius:6px}
+.bemknopf svg{width:14px;height:14px}.bemknopf:hover{background:var(--akzent-hell)}.bemknopf:disabled{color:var(--leise);cursor:default;background:none}
+@media (pointer:coarse){.bemknopf{min-height:44px;margin:-11px 0;font-size:15px}}
 .einfuehrung{background:var(--karte);border:1px solid var(--linie);border-radius:14px;padding:16px 18px;margin:4px 0 14px}
 .ef-satz{margin:0 0 10px;font-size:16px;font-weight:600;line-height:1.35}
 .ef-schritte{margin:0 0 14px;padding-left:22px}
@@ -3778,7 +3791,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.76';
+const FASSUNG = 'v1.77';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3832,8 +3845,78 @@ const NENNSTROM = ['6', '10', '13', '16', '20', '25', '32', '40', '50', '63', '8
 // ab v1.57 (C10): Schmelzsicherungen mit eigener Reihe nach DIN VDE 0636 / IEC 60269 (13 A wegen D0/NEOZED)
 const SICHERUNG_NENN = ['2', '4', '6', '10', '13', '16', '20', '25', '32', '35', '40', '50', '63', '80', '100', '125', '160', '200', '224', '250', '315', '355', '400'];
 const nennListe = z => z && GERAETE[z] && GERAETE[z].sicherung ? SICHERUNG_NENN : z && GERAETE[z] && (GERAETE[z].kennlinie || GERAETE[z].fi) ? NENNSTROM.filter(x => +x <= 125) : NENNSTROM;
-// größter Nennstrom des Schutzorgans je Querschnitt (ab v1.52): Cu, vereinfacht nach DIN VDE 0298-4, Verlegeart C
-const IZ_MAX = { '1,5': 16, '2,5': 25, '4': 32, '6': 40, '10': 63, '16': 80, '25': 100, '35': 125, '50': 160, '70': 200, '95': 250, '120': 250, '150': 315, '185': 315, '240': 400 };
+// ---- Bemessung I (ab v1.77, Etappe X-B: X02, Q21): Strombelastbarkeit und Spannungsfall ---------------------------
+// Strombelastbarkeit I_z in A: Kupfer, PVC-Isolierung 70 °C, Umgebung 30 °C (Luft) – DIN VDE 0298-4:2013-06, Tabelle 3
+// (deckungsgleich mit DIN VDE 0100-520 Beiblatt 2 bzw. IEC 60364-5-52 Tab. B.52.2/B.52.4); je Verlegeart [2, 3 belastete Adern]
+// Verlegearten nach DIN VDE 0298-4 Tabelle 2: A1 Aderleitungen im Rohr in wärmedämmender Wand, A2 mehradrige Leitung im Rohr in
+// wärmedämmender Wand, B1 Aderleitungen im Rohr auf bzw. in der Wand, B2 mehradrige Leitung im Rohr auf der Wand, C direkt auf
+// bzw. in der Wand (z. B. NYM unter Putz), E mehradrige Leitung frei in Luft (Abstand ≥ 0,3 d, z. B. gelochte Kabelwanne)
+const IZ_QUER = ['1,5', '2,5', '4', '6', '10', '16', '25', '35', '50', '70', '95', '120', '150', '185', '240'];
+const IZ = {
+  A1: { 2: [15.5, 19.5, 26, 34, 46, 61, 80, 99, 119, 151, 182, 210, 240, 273, 320], 3: [13.5, 18, 24, 31, 42, 56, 73, 89, 108, 136, 164, 188, 216, 245, 286] },
+  A2: { 2: [15.5, 18.5, 25, 32, 43, 57, 75, 92, 110, 139, 167, 192, 219, 248, 291], 3: [13, 17.5, 23, 29, 39, 52, 68, 83, 99, 125, 150, 172, 196, 223, 261] },
+  B1: { 2: [17.5, 24, 32, 41, 57, 76, 101, 125, 151, 192, 232, 269, 309, 353, 415], 3: [15.5, 21, 28, 36, 50, 68, 89, 110, 134, 171, 207, 239, 275, 314, 370] },
+  B2: { 2: [16.5, 23, 30, 38, 52, 69, 90, 111, 133, 168, 201, 232, 258, 294, 344], 3: [15, 20, 27, 34, 46, 62, 80, 99, 118, 149, 179, 206, 225, 255, 297] },
+  C:  { 2: [19.5, 27, 36, 46, 63, 85, 112, 138, 168, 213, 258, 299, 344, 392, 461], 3: [17.5, 24, 32, 41, 57, 76, 96, 119, 144, 184, 223, 259, 299, 341, 403] },
+  E:  { 2: [22, 30, 40, 51, 70, 94, 119, 148, 180, 232, 282, 328, 379, 434, 514], 3: [18.5, 25, 34, 43, 60, 80, 101, 126, 153, 196, 238, 276, 319, 364, 430] } };
+const VERLEGEARTEN = [['A1', 'A1', 'Aderleitungen im Rohr in wärmedämmender Wand'], ['A2', 'A2', 'mehradrige Leitung im Rohr in wärmedämmender Wand'],
+  ['B1', 'B1', 'Aderleitungen im Rohr bzw. Kanal auf oder in der Wand'], ['B2', 'B2', 'mehradrige Leitung im Rohr bzw. Kanal auf der Wand'],
+  ['C', 'C', 'direkt auf oder in der Wand, z. B. NYM unter Putz (Voreinstellung)'], ['E', 'E', 'frei in Luft, z. B. auf gelochter Kabelwanne']];
+// Häufung (Anzahl der Stromkreise nebeneinander): Umrechnungsfaktoren nach DIN VDE 0298-4 Tabelle 21 (= IEC 60364-5-52 B.52.17),
+// vereinfacht je Verlegeart eine Zeile – A1 bis B2 gebündelt im Rohr bzw. Kanal (Zeile 1), C einlagig auf der Wand (Zeile 2),
+// E einlagig auf gelochter Kabelwanne (Zeile 4); dazwischen gilt die nächstgrößere Anzahl, über 9 Kreise bei C und E keine weitere Minderung
+const HAEUF_N = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16, 20];
+const HAEUF = { b: [1, 0.80, 0.70, 0.65, 0.60, 0.57, 0.54, 0.52, 0.50, 0.45, 0.41, 0.38],
+  C: [1, 0.85, 0.79, 0.75, 0.73, 0.72, 0.72, 0.71, 0.70, 0.70, 0.70, 0.70], E: [1, 0.88, 0.82, 0.77, 0.75, 0.73, 0.73, 0.72, 0.72, 0.72, 0.72, 0.72] };
+const haeufFaktor = (art, n) => { const i = HAEUF_N.findIndex(x => x >= n); return (HAEUF[art] || HAEUF.b)[i < 0 ? HAEUF_N.length - 1 : i]; };
+// Spannungsfall: ΔU = k · I · L · cos φ / (κ · A) mit k = 2 (Wechselstrom, bezogen auf 230 V) bzw. √3 (Drehstrom, bezogen auf 400 V),
+// κ = 56 m/(Ω·mm²) für Kupfer, cos φ = 1, Blindwiderstand vernachlässigt (bis 16 mm² unerheblich); Grenze ab dem Zähler je Projekt,
+// Voreinstellung 3 % (DIN VDE 0100-520 Anhang G, DIN 18015-1 Abschnitt 4.2, TAB)
+const KAPPA_CU = 56;
+const duMax = () => zahlVon(P.projekt.duMax) || 3;
+const prozent = x => x.toFixed(2).replace('.', ',');
+const dezimal = x => String(Math.round(x * 10 + 1e-9) / 10).replace('.', ',');
+// Abschaltstrom für den Überlastschutz (DIN VDE 0100-430, 433.1: I_n ≤ I_z und I_2 ≤ 1,45 · I_z): LS (DIN EN 60898-1) und
+// Motorschutzschalter (DIN EN 60947-4-1) mit I_2 ≤ 1,45 · I_n → I_n ≤ I_z; Sicherung gG/gL (DIN EN 60269-1 Tabelle 2,
+// DIN VDE 0636-2) mit I_2 = 1,6 · I_n ab 16 A, 1,9 · I_n von 4 bis unter 16 A, 2,1 · I_n darunter → I_n ≤ 1,45/1,6 · I_z ≈ 0,9 · I_z;
+// aM-Sicherungen schützen nicht gegen Überlast (keine Prüfung)
+const gGFaktor = n => 1.45 / (n >= 16 ? 1.6 : n >= 4 ? 1.9 : 2.1);
+// Bemessung der Leitung eines Abgangs (ohne Leitung bzw. Steuer-LS: null); quer = anderer Querschnitt (für den Vorschlag)
+//   { iz (Tabellenwert), f (Häufung), izf = iz · f, adern 2|3, art, n, in (Nennstrom des Schutzorgans), grenze (I_n höchstens),
+//     gg (Sicherung gG/gL), mss, ok, i (Strom für ΔU), l (m), du (%) oder null ohne Länge }
+function leitungsBemessung(v, k, eltern, quer) {
+  if (!k || k.typ !== 'abgang' || k.steuer || !k.leitung || k.leitung.typ === 'ohne') return null;
+  const q = quer || k.leitung.quer, qi = IZ_QUER.indexOf(q); if (qi < 0) return null;
+  const art = IZ[k.leitung.verlegung] ? k.leitung.verlegung : 'C', n = Math.max(1, Math.round(zahlVon(k.leitung.haeufung)) || 1);
+  const drei = istDrei(k, v), adern = drei ? 3 : 2, iz = IZ[art][adern][qi], f = haeufFaktor(art === 'C' || art === 'E' ? art : 'b', n);
+  const r = { iz, f, izf: iz * f, adern, art, n, quer: q, drei };
+  // Schutzorgan gegen Überlast: das eigene, sonst das der Gruppe (LS- bzw. Sicherungsgruppe)
+  const g = istSchutz(k.geraet) || k.geraet.zeichen === 'motorschutz3' ? k.geraet : eltern && istSchutz(eltern.geraet) ? eltern.geraet : null;
+  const d = g ? GERAETE[g.zeichen] : null, motor = !k.speist && k.ziel.anschluss === 'motor';
+  // Stern-Dreieck: beide Motorleitungen führen den Strangstrom I_N/√3
+  const strang = motor && k.motor && k.motor.schaltung === 'sd' && !k.motor.fu && k.schalt && k.schalt.typ === 'schuetz' ? 1 / Math.sqrt(3) : 1;
+  if (d && d.bereich) { r.mss = true; r.in = motor ? motorStrom(k) * strang : 0; }       // Motorschutzschalter: Einstellstrom ≈ Motornennstrom
+  else if (d) { r.in = zahlVon(g.nenn); r.gg = !!d.sicherung && (g.art || 'gG') !== 'aM'; r.am = !!d.sicherung && g.art === 'aM'; }
+  if (r.in && !r.am) { r.grenze = r.izf * (r.gg ? gGFaktor(r.in) : 1); r.ok = r.in <= r.grenze + 1e-9; }
+  // Strom für den Spannungsfall: Motornennstrom (angegeben bzw. aus der Leistung geschätzt), sonst Nennstrom des Schutzorgans (sicher)
+  r.i = (motor && motorStrom(k) * strang) || r.in || 0;
+  const l = zahlVon(k.leitung.laenge);
+  if (l && r.i) { r.l = l; r.du = (drei ? Math.sqrt(3) : 2) * r.i * l / (KAPPA_CU * zahlVon(q)) / (drei ? 400 : 230) * 100; }
+  else r.du = null;
+  return r;
+}
+// Spannungsfall vor einem Verteiler: Summe über die Zuleitungen ab dem obersten Verteiler (Zähler); offen = eine Zuleitung ohne Länge
+function duVor(v, tiefe = 0) {
+  const sp = tiefe < 10 && speisenderAbgang(v.id); if (!sp) return { du: 0, offen: false, strecken: 0 };
+  const r = knoten(sp.v, sp.k.id), b = leitungsBemessung(sp.v, sp.k, r && r.eltern), vor = duVor(sp.v, tiefe + 1);
+  return { du: vor.du + (b && b.du != null ? b.du : 0), offen: vor.offen || !(b && b.du != null), strecken: vor.strecken + 1 };
+}
+// kleinster Querschnitt (aus der Auswahl), der Belastbarkeit und Spannungsfall erfüllt (ab v1.77, Q45); null = keiner
+function querVorschlag(v, k, eltern) {
+  const vor = duVor(v);
+  return QUERSCHNITTE.find(q => { const b = leitungsBemessung(v, k, eltern, q);
+    return b && b.ok !== false && (b.du == null || b.du + vor.du <= duMax() + 1e-9); }) || null;
+}
 const zahlVon = t => parseFloat(String(t || '').replace(',', '.')) || 0;
 // Grenzen der Zahlenfelder (ab v1.52)
 const Z_KW = { min: 0.01, max: 1000, einheit: /^kW$/i, zeigen: 'kW' }, Z_A = { min: 0.01, max: 2000, einheit: /^A$/i, zeigen: 'A' },
@@ -3873,7 +3956,7 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 3, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 4, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -3944,7 +4027,9 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // Fassung nicht kennt und beim nächsten Speichern verlöre
 // v2 (ab v1.25): je Verteiler optional v.layout mit den Vorgaben von Hand (fehlt = vollautomatisch)
 // v3 (ab v1.72): Kopfgeräte lasttrenn2, sichtrenn1, sichlasttrenn1, ls1, sich1; Leitungstyp „ohne“; v.spd.phase
-const PROJEKT_VERSION = 3;
+// v4 (ab v1.77, Bemessung I): optional k.leitung.laenge (m), k.leitung.verlegung (A1 A2 B1 B2 C E, fehlt = C), k.leitung.haeufung
+//    (Anzahl, fehlt = 1), P.projekt.duMax (%, fehlt = 3) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
+const PROJEKT_VERSION = 4;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -4348,7 +4433,10 @@ function istDrei(k, v) {
 const warnDazu = (a, t) => { a.warn = a.warn ? a.warn + ' ' + t : t; };
 // Abhilfe zu einer Warnung (ab v1.58, C29): nur als Text, ohne Automatik; mehrere Warnungen – mehrere Sätze
 const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrichtung/, 'Abgang in eine FI-Gruppe ziehen oder Gerät auf FI/LS stellen.'],
-  [/Belastbarkeit/, 'Nennstrom senken oder Querschnitt erhöhen.'], [/nicht selektiv/, 'kleineres Schutzorgan im Abgang wählen.'],
+  // ab v1.77 (X02): mit „Querschnitt vorschlagen“ in der Leitung
+  [/Belastbarkeit/, 'Nennstrom senken oder Querschnitt erhöhen („Querschnitt vorschlagen“ unter Leitung); Verlegeart und Häufung prüfen.'],
+  [/Spannungsfall .* über der Grenze/, 'Querschnitt erhöhen („Querschnitt vorschlagen“ unter Leitung), Leitung kürzen oder die Grenze in den Projektdaten prüfen.'],
+  [/nicht selektiv/, 'kleineres Schutzorgan im Abgang wählen.'],
   [/Einstellbereich/, 'Einstellbereich passend zum Nennstrom wählen.'],
   [/Kennzeichen .* vergeben/, 'Kennzeichen von Hand ändern oder leeren (automatische Vergabe).'],      // ab v1.59 (D06)
   // ab v1.72 (Etappe Q3)
@@ -4483,11 +4571,22 @@ function berechne(v) {
       if (o && iN > o) warnDazu(a, `Motornennstrom ${it} A über dem Einstellbereich ${k.geraet.bereich} A des Motorschutzschalters.`);
       else if (u && iN < u && !a.ol && !a.sd) warnDazu(a, `Motornennstrom ${it} A unter dem Einstellbereich ${k.geraet.bereich} A des Motorschutzschalters – kein Überlastschutz.`);
     }
-    // Belastbarkeit der Leitung (ab v1.52, vereinfacht): Nennstrom des Schutzorgans über dem Tabellenwert des Querschnitts
     // Einbausteckdose ohne Leitung (ab v1.72, Q14): keine Leitung -W, keine Klemmen, keine Belastbarkeitsprüfung
     a.ohneLtg = !k.steuer && !!k.leitung && k.leitung.typ === 'ohne';
-    if (!k.steuer && !a.ohneLtg && k.geraet.zeichen && !GERAETE[k.geraet.zeichen].ohneNenn && IZ_MAX[k.leitung.quer] && zahlVon(k.geraet.nenn) > IZ_MAX[k.leitung.quer])
-      warnDazu(a, `Nennstrom ${k.geraet.nenn} A über der Belastbarkeit der Leitung ${k.leitung.quer} mm² (höchstens ${IZ_MAX[k.leitung.quer]} A; vereinfacht, Verlegeart C).`);
+    // Belastbarkeit und Spannungsfall der Leitung (ab v1.77, X02/Q21; vorher ab v1.52 vereinfacht mit einer Spalte für Verlegeart C):
+    // I_z nach Verlegeart, belasteten Adern und Häufung, bei gG I_n ≤ 0,9 · I_z; ΔU nur mit Leitungslänge, aufsummiert über die Zuleitungen
+    const bem = a.ohneLtg ? null : leitungsBemessung(v, k, eltern);
+    if (bem) {
+      a.bem = bem;
+      if (bem.ok === false) warnDazu(a, `${bem.mss ? 'Motornennstrom' : 'Nennstrom'} ${dezimal(bem.in)} A über der Belastbarkeit der Leitung ${bem.quer} mm²: Iz = ${dezimal(bem.iz)} A (Verlegeart ${bem.art}, ${bem.adern} belastete Adern)`
+        + (bem.f < 1 ? `, Häufung ${bem.n} × ${String(bem.f).replace('.', ',')} = ${dezimal(bem.izf)} A` : '')
+        + (bem.gg ? `; Sicherung gG: In höchstens ${dezimal(bem.grenze)} A` : '') + ' (DIN VDE 0298-4, DIN VDE 0100-430).');
+      if (bem.du != null) {
+        const vor = duVor(v); bem.duVor = vor.du; bem.duSumme = vor.du + bem.du; bem.vorOffen = vor.offen && vor.strecken > 0;
+        if (bem.duSumme > duMax() + 1e-9) warnDazu(a, `Spannungsfall ${prozent(bem.duSumme)} % ab dem Zähler über der Grenze von ${dezimal(duMax())} %`
+          + (vor.strecken ? ` (Leitung ${prozent(bem.du)} %, davor ${prozent(vor.du)} %)` : '') + ' (DIN VDE 0100-520, DIN 18015-1).');
+      }
+    }
     // Steckdosen bis 32 A brauchen einen FI ≤ 30 mA (ab v1.52): am Abgang, an der Gruppe oder vor dem Verteiler
     if (!k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
       && !fiAm(k.geraet) && !(eltern && fiAm(eltern.geraet)) && !fiVorVerteiler(v))
@@ -5270,6 +5369,11 @@ const BEGRIFFE = {
   'NYM-J': 'Mantelleitung für feste Verlegung; „-J“ mit grün-gelber Schutzleiterader, „-O“ ohne.',
   'Querschnitt': 'Fläche einer Ader in mm²; sie bestimmt, wie viel Strom die Leitung führen darf.',
   'Kennzeichen': 'Betriebsmittelkennzeichen nach DIN EN IEC 81346, z. B. -F3 (Schutzorgan), -XD3 (Steckdose), -W3 (Leitung); die App vergibt sie automatisch, von Hand überschreibbar.',
+  // ab v1.77 (X02): Bemessung
+  'Verlegeart': 'Wie die Leitung verlegt ist, nach DIN VDE 0298-4: A1/A2 im Rohr in wärmedämmender Wand, B1/B2 im Rohr oder Kanal auf der Wand, C direkt auf oder in der Wand (z. B. NYM unter Putz), E frei in Luft bzw. auf gelochter Kabelwanne.',
+  'Häufung': 'Mehrere Stromkreise nebeneinander erwärmen sich gegenseitig; die Belastbarkeit sinkt um einen Faktor (DIN VDE 0298-4, Tabelle 21), z. B. 4 gebündelt: × 0,65.',
+  'Belastbarkeit': 'Strom Iz, den die Leitung dauernd führen darf (Kupfer, PVC, 30 °C). Das Schutzorgan darf höchstens Iz haben, eine Sicherung gG etwa 0,9 · Iz (DIN VDE 0100-430).',
+  'Spannungsfall': 'Spannungsverlust auf der Leitung bis zum Verbraucher, ab dem Zähler gerechnet; empfohlen höchstens 3 % (DIN 18015-1, DIN VDE 0100-520). Gerechnet wird mit der Länge, dem Querschnitt und dem Nennstrom des Schutzorgans.',
   'Klemmleiste -X1': 'Reihenklemmen im Verteiler, an denen die abgehenden Leitungen angeschlossen werden; sie stehen im Klemmenplan.',
   'Schütz': 'Elektrisch betätigter Schalter: die Spule im Steuerstromkreis schaltet die Hauptkontakte im Abgang.',
   'Steuerstromkreis': 'Stromkreis mit Tastern, Schaltern, Meldern und Spulen, der Schütze, Stromstoßschalter oder Zeitrelais steuert.',
@@ -5874,6 +5978,12 @@ function bProjekt() {
     schalterZeile('Deckblatt und Inhaltsverzeichnis', p.deckblatt !== false, an => p.deckblatt = an, { titel: 'Blatt 1 Deckblatt, Blatt 2 Inhaltsverzeichnis' }),
     schalterZeile('Übersichtsschaltplan', p.uebersicht !== false, an => p.uebersicht = an, { titel: 'einpolig, je Verteiler vor dem Stromlaufplan' }),
     schalterZeile('Klemmenplan', p.klemmenplan !== false, an => p.klemmenplan = an, { titel: 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan' })));
+  // ab v1.77 (X02): Grenze des Spannungsfalls ab dem Zähler (leer = 3 %)
+  m.append(h('h2', {}, 'Bemessung'), h('div', { class: 'liste' },
+    zeile('Spannungsfall höchstens', `${dezimal(duMax())} %${p.duMax ? '' : ' (Voreinstellung)'}`, () => textFeld('Spannungsfall höchstens (%)', p.duMax,
+      w => { const t = w.replace(/\s*%$/, ''); if (t && zahlVon(t) !== 3) p.duMax = t; else delete p.duMax; },
+      zahlOpt({ platz: '3', text: 'Ab dem Zähler bis zum Verbraucher. DIN 18015-1 empfiehlt 3 %; DIN VDE 0100-520 nennt 3 % für Beleuchtung und 5 % für andere Verbraucher.' }, Z_PROZ)),
+      { titel: 'gilt für alle Abgänge mit Leitungslänge' })));
   app.append(m);
 }
 function datumDE(iso) { const x = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return x ? `${x[3]}.${x[2]}.${x[1]}` : (iso || ''); }
@@ -6131,7 +6241,7 @@ function bAbgang(b) {
       v.leiter === '1NPE' ? null : zeile('Art', mo.art === '1' ? 'Wechselstrom (L N PE)' : 'Drehstrom (L1 L2 L3 PE)', () => wahlFeld('Art',
         [['3', 'Drehstrom', 'L1 L2 L3 PE, ohne N'], ['1', 'Wechselstrom', 'L N PE']], mo.art, w => mo.art = w)),
       zeile('Leistung', mo.kw ? `${mo.kw} kW` : '—', () => textFeld('Leistung (kW)', mo.kw, w => { mo.kw = w.replace(/\s*kW$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 4' }, Z_KW))),
-      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => { mo.strom = w.replace(/\s*A$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 8,2' }, Z_A)), { titel: 'erscheint im Plan neben dem Motor' })));
+      zeile('Nennstrom', mo.strom ? `${mo.strom} A` : mo.kw && motorStrom(k) ? `≈ ${dezimal(motorStrom(k))} A (aus kW)` : '—', () => textFeld('Nennstrom (A)', mo.strom, w => { mo.strom = w.replace(/\s*A$/i, ''); mssVorschlag(k); }, zahlOpt({ platz: 'z. B. 8,2' }, Z_A)), { titel: 'erscheint im Plan neben dem Motor' })));      // ab v1.77: ohne Angabe die Schätzung aus kW
     if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
       // ab v1.72 (Q06): mit Frequenzumrichter nur Direktstart (ausgegraut mit Grund)
       zeile('Schaltung', SCHALTUNG[mo.schaltung || 'direkt'], () => wahlFeld('Schaltung', [['direkt', 'Direktstart', 'ein Schütz oder ohne'],
@@ -6168,11 +6278,19 @@ function bAbgang(b) {
   const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} · von der Gruppe`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { titel: 'wird an der Gruppe eingestellt' })
     : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} · automatisch` : k.phase),
     () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w), { ohnePfeil: v.leiter === '1NPE' });
-  m.append(kopfMitHilfe('Leitung', ['Außenleiter', 'N', 'PE', 'NYM-J', 'Querschnitt', 'Kennzeichen', 'Klemmleiste -X1']), h('div', { class: 'liste' },
+  // ab v1.77 (X02): Bemessung im Abschnitt „Leitung“ – aufgeklappt, sobald der Verteiler Bemessungsangaben hat oder Belastbarkeit bzw.
+  // Spannungsfall nicht reichen; sonst über den Knopf „Bemessung“ im Abschnittskopf (das dichte Fach bleibt ohne Scrollen, D35)
+  const bemNoetig = !a.ohneLtg && !!a.bem && (bemessungDa(v) || a.bem.ok === false || a.bem.duSumme > duMax() + 1e-9), bemZeigen = bemNoetig || (bemAuf && !a.ohneLtg && !!a.bem);
+  const lkopf = kopfMitHilfe('Leitung', ['Außenleiter', 'N', 'PE', 'NYM-J', 'Querschnitt', 'Verlegeart', 'Häufung', 'Belastbarkeit', 'Spannungsfall', 'Kennzeichen', 'Klemmleiste -X1']);
+  if (!a.ohneLtg && a.bem && !bemNoetig) lkopf.append(h('button', { class: 'bemknopf', 'aria-expanded': String(bemZeigen),
+    title: bemZeigen ? 'Bemessung ausblenden' : 'Länge, Verlegeart, Häufung einblenden',
+    on: { click: () => { bemAuf = !bemZeigen; zeichne(); } } }, 'Bemessung', icon(bemZeigen ? 'hoch' : 'runter')));
+  m.append(lkopf, h('div', { class: 'liste' },
     phasenwahl,
     zeile('Leiter', a.leiter.join(' '), () => {}, { ohnePfeil: true, titel: 'aus Gerät und Anschluss' }),
     zeile('Leitungstyp', a.ohneLtg ? 'ohne (Einbau im Verteiler)' : k.leitung.typ || 'NYM-J', () => wahlFeld('Leitungstyp', LEITUNG_WAHL, k.leitung.typ || 'NYM-J', w => leitungTypSetzen(k, w))),
     a.ohneLtg ? null : zeile('Querschnitt', (k.leitung.quer || '—') + ' mm²', () => wahlFeld('Querschnitt', QUERSCHNITTE.map(x => [x, x + ' mm²']), k.leitung.quer, w => k.leitung.quer = w)),
+    ...(bemZeigen ? bemessungZeilen(v, k, a, r.eltern) : []),
     a.ohneLtg ? null : zeile('Kennzeichen Leitung', a.w.t, () => bmkFeld('Kennzeichen Leitung', k.leitung, a.w.hand ? '' : a.w.t)),
     a.ohneLtg ? null : zeile('Klemmen', (k.klemmen === 'ja' ? 'mit Klemmen' : k.klemmen === 'nein' ? 'ohne Klemmen' : `wie im Verteiler (${KLEMMEN_V[v.klemmen || 'ohne']})`) + (a.klemmen ? ` · ${klemmenText(a)}` : ''),
       () => wahlFeld('Klemmen', KLEMMEN_WAHL(v), k.klemmen || 'verteiler', w => k.klemmen = w))));
@@ -6184,6 +6302,33 @@ function bAbgang(b) {
   app.append(m);
 }
 
+// Bemessung der Leitung im Fach (ab v1.77, X02): Länge, Verlegeart, Häufung; Anzeige I_z und ΔU; „Querschnitt vorschlagen“ (Q45)
+let bemAuf = false;      // ab v1.77: Bemessung im Fach von Hand aufgeklappt (für die Sitzung)
+const Z_PROZ = { min: 0.5, max: 10, einheit: /^%$/, zeigen: '%' };
+const Z_M = { min: 0.1, max: 5000, einheit: /^m$/i, zeigen: 'm' };
+const HAEUF_WAHL = HAEUF_N.map(n => [String(n), String(n)]);
+function bemessungText(b) {
+  if (!b) return null;
+  const iz = `Iz ${dezimal(b.izf)} A`, wie = `${b.art}, ${b.adern} belastete Adern${b.f < 1 ? `, Häufung × ${String(b.f).replace('.', ',')}` : ''}`;
+  return { iz: b.in ? `${iz} · ${b.mss ? 'Ir' : 'In'} ${dezimal(b.in)} A${b.gg ? ` (gG höchstens ${dezimal(b.grenze)} A)` : ''}` : iz, wie,
+    du: b.du == null ? null : `${prozent(b.du)} %${b.duVor ? ` · ab Zähler ${prozent(b.duSumme)} %` : ''}`,
+    duUn: b.du == null ? null : `mit ${dezimal(b.i)} A auf ${dezimal(b.l)} m, Grenze ${dezimal(duMax())} %${b.vorOffen ? ' · Zuleitung davor ohne Länge' : ''}` };
+}
+function bemessungZeilen(v, k, a, eltern) {
+  // „Querschnitt vorschlagen“ nur, wenn Belastbarkeit oder Spannungsfall nicht reichen (kein Vorschlag nach unten)
+  const L = k.leitung, b = a.bem, t = bemessungText(b), mangel = !!b && (b.ok === false || b.duSumme > duMax() + 1e-9), vor = mangel ? querVorschlag(v, k, eltern) : null;
+  return [
+    zeile('Länge', L.laenge ? `${String(L.laenge).replace('.', ',')} m` : '—', () => textFeld('Länge der Leitung (m)', L.laenge, w => L.laenge = w.replace(/\s*m$/i, ''),
+      zahlOpt({ platz: 'z. B. 18', text: 'Einfache Länge bis zum Verbraucher; ohne Angabe kein Spannungsfall.' }, Z_M)), { titel: 'für den Spannungsfall' }),
+    zeile('Verlegeart', L.verlegung && IZ[L.verlegung] ? L.verlegung : 'C', () => wahlFeld('Verlegeart (DIN VDE 0298-4)', VERLEGEARTEN, IZ[L.verlegung] ? L.verlegung : 'C', w => { if (w === 'C') delete L.verlegung; else L.verlegung = w; })),
+    zeile('Häufung', `${Math.max(1, Math.round(zahlVon(L.haeufung)) || 1)} ${zahlVon(L.haeufung) > 1 ? 'Stromkreise' : 'Stromkreis'}`, () => wahlFeld('Häufung (Stromkreise nebeneinander)', HAEUF_WAHL,
+      String(Math.max(1, Math.round(zahlVon(L.haeufung)) || 1)), w => { if (w === '1') delete L.haeufung; else L.haeufung = w; }, { text: 'Anzahl der Stromkreise, die gebündelt bzw. nebeneinander verlegt sind.' })),
+    t ? zeile('Belastbarkeit', t.iz, () => {}, { ohnePfeil: true, un: t.wie, warn: b.ok === false }) : null,
+    t && t.du ? zeile('Spannungsfall', t.du, () => {}, { ohnePfeil: true, un: t.duUn, warn: b.duSumme > duMax() + 1e-9 }) : null,
+    vor && vor !== L.quer ? zeile('Querschnitt vorschlagen', `${vor} mm²`, () => { L.quer = vor; aenderung('Querschnitt vorschlagen'); sichern(); zeichne(); meldung(`Querschnitt ${vor} mm²`); },
+      { un: 'kleinster Querschnitt für Belastbarkeit und Spannungsfall' }) : null,
+    mangel && !vor ? h('p', { class: 'hinweis' }, `Kein Querschnitt bis ${QUERSCHNITTE[QUERSCHNITTE.length - 1]} mm² erfüllt Belastbarkeit und Spannungsfall.`) : null];
+}
 // Anschluss wechseln (ab v1.52): das Schutzorgan folgt der Polzahl (LS 1-polig ↔ 3-polig, FI/LS 1P+N ↔ 3P+N),
 // eine Leuchte bekommt 10 A und 1,5 mm², solange Nennstrom und Querschnitt noch auf der Voreinstellung 16 A / 2,5 mm² stehen
 // Bezeichnung der Palette je Anschluss (ab v1.58, C30): folgt dem Anschluss, solange sie nicht von Hand geändert wurde
@@ -6254,9 +6399,14 @@ function schaltungSetzen(v, k, w) {
 }
 // Einstellbereich des Überlastrelais vorschlagen (ab v1.52): Bereich, der den Motornennstrom enthält (ohne Angabe aus
 // der Leistung geschätzt); bei Stern-Dreieck liegt das Relais im Strang: I_N/√3 = 0,58 × I_N
+// ab v1.77 (X02): Schätzung aus der Wellenleistung I_N = P / (√3 · 400 V · cos φ · η) bzw. P / (230 V · cos φ · η) mit den Richtwerten
+// cos φ = 0,82 und η = 0,86 eines vierpoligen Normmotors (IE3, 1–20 kW): 400 V ≈ 2,05 A/kW, 230 V ≈ 6,2 A/kW (vorher grob 2 bzw. 6 A/kW;
+// für die üblichen Leistungen ergeben sich dieselben Einstellbereiche)
+const MOTOR_COS = 0.82, MOTOR_ETA = 0.86;
+const motorSchaetzung = (kw, art) => kw * 1000 / ((art === '1' ? 230 : Math.sqrt(3) * 400) * MOTOR_COS * MOTOR_ETA);
 function motorStrom(k) {
   const mo = k.motor || {}, i = zahlVon(mo.strom), p = zahlVon(mo.kw);
-  return i || (p ? p * (mo.art === '1' ? 6 : 2) : 0);       // grob: 400 V ≈ 2 A/kW, 230 V ≈ 6 A/kW
+  return i || (p ? motorSchaetzung(p, mo.art) : 0);
 }
 // Motorschutzschalter-Bereich zum Motornennstrom vorschlagen (ab v1.57, C08): der erste Bereich, der I_N enthält (ohne /√3,
 // der MSS in der Zuleitung führt den Netzstrom); gesetzt nur bei Voreinstellung 6,3–10 A oder I_N außerhalb
@@ -7508,6 +7658,10 @@ function editorSammel(v, b) {
   feld('Leitungstyp', mitLeitung, k => k.leitung.typ === 'ohne' ? 'ohne Leitung' : k.leitung.typ || 'NYM-J', LEITUNG_WAHL, (k, w) => leitungTypSetzen(k, w));
   feld('Querschnitt', mitLeitung, k => k.leitung.quer ? k.leitung.quer + ' mm²' : '—', QUERSCHNITTE.map(x => [x, x + ' mm²']), (k, w) => { k.leitung.quer = w; },
     { wert: k => k.leitung.quer || '' });
+  // ab v1.77 (X02): Verlegeart und Häufung gemeinsam (Länge bleibt je Abgang)
+  const mitLtg = mitLeitung.filter(k => k.leitung.typ !== 'ohne');
+  feld('Verlegeart', mitLtg, k => IZ[k.leitung.verlegung] ? k.leitung.verlegung : 'C', VERLEGEARTEN, (k, w) => { if (w === 'C') delete k.leitung.verlegung; else k.leitung.verlegung = w; });
+  feld('Häufung', mitLtg, k => String(Math.max(1, Math.round(zahlVon(k.leitung.haeufung)) || 1)), HAEUF_WAHL, (k, w) => { if (w === '1') delete k.leitung.haeufung; else k.leitung.haeufung = w; });
   feld('Klemmen', mitLeitung, k => ({ ja: 'mit Klemmen', nein: 'ohne Klemmen' })[k.klemmen] || 'wie im Verteiler', KLEMMEN_WAHL(v), (k, w) => { k.klemmen = w; },
     { wert: k => k.klemmen || 'verteiler' });
   if (v.leiter !== '1NPE') feld('Außenleiter', ks.filter(k => { const a = e.abgaenge[k.id]; return a && !a.drei && !a.phase.gruppe && !(k.trafo && k.trafo.prim === '400'); }),
@@ -9258,11 +9412,13 @@ function bListe(b) {
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['zaehler', 'Zähler'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
     if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel} – ${ohneTitel(titel, gName(v[feld].zeichen))} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
   const tb = h('tbody');
-  kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)))));
+  // ab v1.77 (X02): mit Bemessungsangaben (Länge, Verlegeart oder Häufung an einem Abgang) drei Spalten mehr: Länge, Iz, ΔU ab Zähler
+  const mitBem = bemessungDa(v), leer3 = () => mitBem ? [h('td'), h('td'), h('td')] : [];
+  kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)), ...leer3())));
   alleKnoten(v, (k, eltern, l, i, tiefe) => {
     const ein = ' '.repeat(tiefe);
     if (k.typ === 'gruppe') {
-      tb.append(h('tr', { class: 'gr' }, h('td', { class: 'm' }, e.geraete[k.id].t), h('td', {}, ein + `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`), h('td'), h('td'), h('td'), h('td', {}, 'Gruppe')));
+      tb.append(h('tr', { class: 'gr' }, h('td', { class: 'm' }, e.geraete[k.id].t), h('td', {}, ein + `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`), h('td'), h('td'), h('td'), h('td', {}, 'Gruppe'), ...leer3()));
       return;
     }
     const a = e.abgaenge[k.id];
@@ -9274,22 +9430,36 @@ function bListe(b) {
       h('td', { class: 'nw' }, h('span', { class: 'ph' + (a.phase.auto ? ' auto' : '') }, a.phase.t)),
       h('td', { class: 'm' }, klemmenText(a)),
       h('td', { class: 'nw' }, `${a.w.t} ${leitungText(k, a)}`),
-      h('td', {}, ...zielText, a.warn ? [' ', warnIk()] : null)));
+      h('td', {}, ...zielText, a.warn ? [' ', warnIk()] : null),
+      ...(mitBem ? bemZellen(a.bem) : [])));
     // ab v1.52: Überlastrelais und Sekundär-LS des Steuertrafos als eigene Zeilen
-    const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel)));
+    const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel), ...leer3()));
     if (a.ol) unter(a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), `unter ${a.schalt.bmk.t}`);
     if (k.trafo) unter(a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, `Steuerspannung ${k.trafo.sek}\u00a0V`);
   });
   m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
-    h('thead', {}, h('tr', {}, ['Kennzeichen', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Verbraucher'].map(t => h('th', {}, t)))), tb)));
+    h('thead', {}, h('tr', {}, ['Kennzeichen', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Verbraucher'].concat(mitBem ? ['Länge', 'Iz', 'ΔU'] : [])
+      .map((t, i) => h('th', { class: i > 5 ? 'zahl' : null, title: ['Leitungslänge', 'Belastbarkeit der Leitung (Verlegeart, Häufung)', 'Spannungsfall ab dem Zähler'][i - 6] || null }, t)))), tb)));
   m.append(h('div', { class: 'legende' }, h('span', {}, h('span', { class: 'ph auto' }, 'L1'), ' automatisch verteilt'), h('span', {}, h('span', { class: 'bmk hand' }, '-F4'), ' von Hand gesetzt')));
   app.append(m);
+}
+// Bemessungsangaben im Verteiler (ab v1.77): irgendein Abgang mit Länge, Verlegeart oder Häufung
+const bemessungDa = v => { let ja = false; alleKnoten(v, k => { const L = k.typ === 'abgang' && k.leitung;
+  if (L && (zahlVon(L.laenge) || IZ[L.verlegung] || zahlVon(L.haeufung) > 1)) ja = true; }); return ja; };
+// Zellen Länge, Iz, ΔU ab Zähler der Stromkreisliste; überschrittene Werte mit Warnfarbe
+function bemZellen(b) {
+  if (!b) return [h('td'), h('td'), h('td')];
+  return [h('td', { class: 'nw zahl' }, b.l ? `${dezimal(b.l)} m` : ''),
+    h('td', { class: 'nw zahl' + (b.ok === false ? ' ueber' : ''), title: `Verlegeart ${b.art}, ${b.adern} belastete Adern${b.f < 1 ? `, Häufung ${b.n}` : ''}` }, `${dezimal(b.izf)} A`),
+    h('td', { class: 'nw zahl' + (b.duSumme > duMax() + 1e-9 ? ' ueber' : '') }, b.du == null ? '' : `${prozent(b.duSumme)} %`)];
 }
 // Stromkreisliste als CSV (ab v1.56): Semikolon, UTF-8 mit BOM (Excel), je Abgang eine Zeile
 function listeCsv(v) {
   const e = berechne(v), nb = /\u00a0/g;
   // ab v1.58 (C38): Nennstrom als Zahl (Spalte „Nennstrom [A]“), FI-Daten mit Bemessungsstrom, z. B. „40 A 30 mA Typ A (-F2)“
-  const zeilen = [['Kennzeichen', 'Bezeichnung', 'Ort', 'Schutzorgan', 'Kennlinie', 'Nennstrom [A]', 'FI-Daten', 'Außenleiter', 'Leitung', 'Querschnitt', 'Klemmen']];
+  // ab v1.77 (X02): Bemessung am Ende – Länge, Verlegeart, Häufung, Iz (mit Häufung), ΔU der Leitung und ab dem Zähler
+  const zeilen = [['Kennzeichen', 'Bezeichnung', 'Ort', 'Schutzorgan', 'Kennlinie', 'Nennstrom [A]', 'FI-Daten', 'Außenleiter', 'Leitung', 'Querschnitt', 'Klemmen',
+    'Länge [m]', 'Verlegeart', 'Häufung', 'Iz [A]', 'ΔU Leitung [%]', 'ΔU ab Zähler [%]']];
   const fiText = (g, kz) => g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi ? `${g.nenn ? g.nenn + ' A ' : ''}${g.idn || '30'} mA Typ ${g.fityp || 'A'}${kz ? ' (' + kz + ')' : ''}` : '';
   alleKnoten(v, (k, eltern) => {
     if (k.typ !== 'abgang') return;
@@ -9300,7 +9470,9 @@ function listeCsv(v) {
       d && d.bereich ? g.bereich || '' : d && !d.ohneNenn && g.nenn ? String(g.nenn).replace('.', ',') : '',
       fiText(g, '') || (eltern ? fiText(eltern.geraet, (e.geraete[eltern.id] || {}).t) : ''),
       a.phase.t || '', k.steuer ? '' : `${a.w.t} ${leitungText(k, a)}`.trim(),
-      k.steuer ? '' : k.leitung.quer ? `${k.leitung.quer} mm²` : '', klemmenText(a).replace('—', '')]);
+      k.steuer ? '' : k.leitung.quer ? `${k.leitung.quer} mm²` : '', klemmenText(a).replace('—', ''),
+      ...(a.bem ? [a.bem.l ? dezimal(a.bem.l) : '', a.bem.art, String(a.bem.n), dezimal(a.bem.izf), a.bem.du == null ? '' : prozent(a.bem.du),
+        a.bem.du == null ? '' : prozent(a.bem.duSumme)] : ['', '', '', '', '', ''])]);
   });
   // ab v1.71 (Q07): formelsicher für Excel – Kennzeichen (Zellen, die mit „-“ und einem Buchstaben beginnen, z. B. -F4, -W4 …,
   // -X1:1–5) als ="-F4" (bleibt sichtbarer Text), andere Zellen, die mit = + - @, Tab oder CR beginnen, mit vorangestelltem '
@@ -9624,6 +9796,7 @@ function pruefeProjekt(d, datei = false) {
   Object.entries({ projekt: 'Projektname', titel: 'Dokumenttitel', firma: 'Firma', anschrift: 'Anschrift', ersteller: 'Erstellt durch', nummer: 'Zeichnungsnummer',
     rev: 'Revision', datum: 'Ausgabedatum' }).forEach(([f, t]) => text(d.projekt, f, t));
   if (d.projekt.format !== undefined && !['A4', 'A3'].includes(d.projekt.format)) { r.push(`Blattformat „${kurz(d.projekt.format)}“ → A4`); d.projekt.format = 'A4'; }
+  if (d.projekt.duMax !== undefined && zahlFehler(d.projekt.duMax, Z_PROZ)) { r.push(`Spannungsfall höchstens „${kurz(d.projekt.duMax)}“ → 3 %`); delete d.projekt.duMax; }      // ab v1.77
   // Kennzeichen, Bezeichnungen, Orte und Namen in allen Teilen eines Verteilers (ohne Vorgaben von Hand)
   const texte = (o, wo, tiefe = 0) => { if (!o || typeof o !== 'object' || tiefe > 40) return;
     Object.keys(o).forEach(f => { if (f === 'layout') return; if (['bmk', 'bez', 'ort', 'name'].includes(f) && !Array.isArray(o)) text(o, f, `${wo} ${f === 'bmk' ? 'Kennzeichen' : f === 'bez' ? 'Bezeichnung' : f === 'ort' ? 'Ort' : 'Name'}`);
@@ -9694,6 +9867,9 @@ function pruefeProjekt(d, datei = false) {
         if (!obj(k.leitung)) k.leitung = n.leitung;
         text(k.leitung, 'typ', kw + ' Leitungstyp');
         zahl(k.leitung, 'quer', kw + ' Querschnitt', Z_QUER, '2,5');
+        // ab v1.77 (X02): Bemessungsangaben – Ungültiges fällt auf die Voreinstellung zurück
+        zahl(k.leitung, 'laenge', kw + ' Leitungslänge', Z_M); zahl(k.leitung, 'haeufung', kw + ' Häufung', { min: 1, max: 99 });
+        if (k.leitung.verlegung !== undefined && !hat(IZ, k.leitung.verlegung)) { r.push(`${kw}: Verlegeart „${kurz(k.leitung.verlegung)}“ → C`); delete k.leitung.verlegung; }
         if (k.speist && !ids.has(k.speist)) { r.push(`${kw}: speiste einen fehlenden Verteiler`); k.speist = null; }
         if (k.schalt && (!obj(k.schalt) || k.schalt.typ && !hat(SCHALT, k.schalt.typ))) { r.push(`${kw}: unbekanntes Schaltgerät entfernt`); k.schalt = null; }
         if (k.schalt && k.schalt.typ) { if (!obj(k.schalt.zr) || !hat(ZR_FKT, k.schalt.zr.fkt)) k.schalt.zr = neuesSchalt('zeitrelais').zr;

@@ -303,6 +303,28 @@ window.BEISPIELE = {
     const pv = neuerAbgang(); pv.ziel = {bez:'PV-Anlage', ort:'Dach', anschluss:'pv'}; pv.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'25'}; pv.leitung.quer = '4';
     pv.pv = {phasen:'1', kwp:'10', dc:true, zaehler:false}; hv.knoten.push(pv);
     P.verteiler.push(hv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe X-B (v1.77, X02/Q21/Q45): Einfamilienhaus mit Leitungslängen – Belastbarkeit nach Verlegeart/Häufung und Spannungsfall
+  // ab dem Zähler über die Zuleitung zur UV Garage; Fälle: ΔU über 3 % (Steckdosen Garten, 45 m), Sicherung gG 25 A an 2,5 mm²
+  // dreiphasig (Iz 24 A, gG höchstens 21,75 A), Häufung 4 in Verlegeart B2 (Iz 23 × 0,65 = 14,95 A < 16 A); Motor 4 kW ohne Nennstrom
+  bemessung: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'EFH Bemessung', ersteller:'Jean', nummer:'SLP-0077'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sichlasttrenn3', art:'gG', nenn:'63'}; hv.zaehler = {zeichen:'zaehler3'};
+    const g = neueGruppe(); g.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    const sk = neuerAbgang(); sk.ziel = {bez:'Steckdosen', ort:'Küche', anschluss:'steckdose3'}; sk.leitung.laenge = '18'; g.kinder.push(sk);
+    const li = neuerAbgang(); li.ziel = {bez:'Licht', ort:'Wohnen', anschluss:'leuchte'}; li.geraet.nenn = '10'; li.leitung.quer = '1,5'; li.leitung.laenge = '22'; g.kinder.push(li);
+    const ba = neuerAbgang(); ba.ziel = {bez:'Steckdosen', ort:'Bad', anschluss:'steckdose3'}; Object.assign(ba.leitung, {laenge:'12', verlegung:'B2', haeufung:'4'}); g.kinder.push(ba);
+    const ga = neuerAbgang(); ga.ziel = {bez:'Steckdosen', ort:'Garten', anschluss:'steckdose3'}; ga.leitung.laenge = '45'; g.kinder.push(ga);
+    hv.knoten.push(g);
+    const dl = neuerAbgang(); dl.ziel = {bez:'Durchlauferhitzer', ort:'Bad', anschluss:'dose'}; dl.geraet = {zeichen:'sich3', art:'gG', nenn:'25'}; dl.leitung.laenge = '10'; hv.knoten.push(dl);
+    const herd = neuerAbgang(); herd.ziel = {bez:'Herd', ort:'Küche', anschluss:'dose'}; herd.geraet = {zeichen:'ls3', kennlinie:'B', nenn:'16'}; herd.leitung.laenge = '8'; hv.knoten.push(herd);
+    const uvA = neuerAbgang(); uvA.ziel = {bez:'', ort:'Garage', anschluss:'fest'}; uvA.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'32'}; Object.assign(uvA.leitung, {typ:'NYY-J', quer:'10', laenge:'25', verlegung:'E'}); hv.knoten.push(uvA);
+    const uv = neuerVerteiler('UV Garage'); uv.hauptschalter = {zeichen:'lasttrenn3', nenn:'40'}; uvA.speist = uv.id;
+    const g2 = neueGruppe(); g2.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    const ws = neuerAbgang(); ws.ziel = {bez:'Steckdosen', ort:'Werkbank', anschluss:'steckdose3'}; ws.leitung.laenge = '15'; g2.kinder.push(ws);
+    const mo = neuerAbgang(); mo.ziel = {bez:'Kompressor', ort:'Garage', anschluss:'motor'}; mo.motor = {art:'3', kw:'4', strom:''};
+    mo.geraet = {zeichen:'motorschutz3', bereich:'6,3–10'}; mo.leitung.quer = '1,5'; mo.leitung.laenge = '12'; g2.kinder.push(mo);
+    uv.knoten.push(g2);
+    P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

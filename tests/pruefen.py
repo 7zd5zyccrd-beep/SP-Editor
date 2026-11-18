@@ -21,7 +21,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -39,6 +39,13 @@ with sync_playwright() as p:
                            r'-F7: FI in Reihe mit FI -F6', r'10 kWp: über 4,6 kVA']:
                 if not any(re.search(muster, t) for t, _ in hw): fehler.append(f'warnungen: Warnung „{muster}“ fehlt')
             fehler += [f'warnungen: ohne „So beheben“: {t}' for t, ab in hw if not ab.startswith('So beheben')]
+        # ab v1.77 (Etappe X-B): Belastbarkeit und Spannungsfall
+        if name == 'bemessung':
+            hw = pg.evaluate("druckHinweise().map(x => [x.t, x.abhilfe || ''])")
+            for muster in [r'Spannungsfall 4,47 % ab dem Zähler über der Grenze von 3 %', r'Nennstrom 25 A über der Belastbarkeit der Leitung 2,5 mm²: Iz = 24 A .*In höchstens 21,8 A',
+                           r'Nennstrom 16 A über der Belastbarkeit .*Verlegeart B2.*Häufung 4 × 0,65 = 15 A']:
+                if not any(re.search(muster, t) for t, _ in hw): fehler.append(f'bemessung: Warnung „{muster}“ fehlt')
+            fehler += [f'bemessung: ohne „So beheben“: {t}' for t, ab in hw if not ab.startswith('So beheben')]
         pg.evaluate("stapel = [{ s: 'plan' }]; zeichne()"); pg.wait_for_timeout(800)
         n = pg.locator('.blattkarte svg').count()
         for i in range(n): pg.locator('.blattkarte svg').nth(i).screenshot(path=str(AUS / f'{name}_{i + 1}.png'))

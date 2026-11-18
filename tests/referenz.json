@@ -1482,5 +1482,43 @@
    "6 HV abgang",
    "cbdfc1fc7e06b9b057675e07cdcaf5b2"
   ]
+ ],
+ "bemessung": [
+  [
+   "1 Deckblatt deckblatt",
+   "153626006e8d32c6b658dba2cd7f6dc3"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "282071c4b3255478ac05179cb260cab6"
+  ],
+  [
+   "3 HV uebersicht",
+   "e9651f17b9290f7198e5cd51006a32cd"
+  ],
+  [
+   "4 UV Garage uebersicht",
+   "ac2221de5e79251361616eb6ca62aa40"
+  ],
+  [
+   "5 HV einspeisung",
+   "1d861c5b66d585d56df2f3b1c9ba5360"
+  ],
+  [
+   "6 HV abgang",
+   "6f8f2d6042a645b2fefcaca667a2461f"
+  ],
+  [
+   "7 HV abgang",
+   "038d1217cd4dfb0b73585dec37f208f4"
+  ],
+  [
+   "8 UV Garage einspeisung",
+   "957ecafccceab15cf455922e33897885"
+  ],
+  [
+   "9 UV Garage abgang",
+   "c0b3bd9f9c7b6782e374143d32f29821"
+  ]
  ]
 }

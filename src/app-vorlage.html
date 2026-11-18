@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.79: Projektweite Stromkreisliste und Prüfprotokoll (Etappe X-D: X04, X05, Q33): Stromkreisliste mit Wahl „dieser Verteiler /
+           Alle Verteiler“ (von der Startseite gleich alle), je Verteiler eine Tabelle mit denselben Spalten, mit Leistungsangaben Spalte
+           Leistung, mit Zs am obersten Verteiler Spalte Zs (Warnfarbe, wenn die Abschaltbedingung verfehlt ist); CSV listeCsv(vs) für einen
+           oder alle Verteiler mit den Spalten Verteiler, Verbraucher-Kennzeichen, Leistung, Gleichzeitigkeit, Zs und Zs,max; Prüfprotokoll
+           in Anlehnung an DIN VDE 0100-600 je Verteiler als eigener Ausdruck, A4 quer (Kopf, Besichtigen/Erproben zum Ankreuzen, Stromkreise
+           mit Schutzorgan, In, Kennlinie, IΔn/Typ und berechnetem Zs,max = U0/Ia, leere Messspalten Riso, RLO, Zs, Ik, IΔ, tA, i. O.;
+           Ergebnis und Unterschrift; Folgeseiten mit Tabellenkopf); Vorschau mit Lupe; Einstieg über Hauptmenü, Drucken-Menü,
+           Druckvorschau, Startseite, Verteiler und Stromkreisliste; „Eigenschaften ein-/ausblenden“ nur noch als Kopfknopf; Pläne bitgleich
      v1.78: Bemessung II – Abschaltbedingung, Leistung, Phasen (Etappe X-C: X03, Q42, Q26 Speicher): Schleifenimpedanz Zs am obersten
            Verteiler (Einspeisung, v.netz.zs), je Leitung + 1,24 · 2L/(κ·A), Unterverteiler am Ende ihrer Zuleitung; Abschaltbedingung
            Zs · Ia ≤ 230 V (DIN VDE 0100-410) mit Ia aus Kennlinie (B 5, C 10, D 20, K 14, Z 3 × In), Sicherung gG nach Tabelle (0,4 s/5 s),
@@ -525,6 +533,55 @@ table.ueb .zahl{text-align:right;font-variant-numeric:tabular-nums}table.ueb td.
 .tz .fuss{font-size:8.5pt;color:#555;margin-top:8pt;display:flex;justify-content:space-between;gap:12pt}
 .tzwrap{overflow-x:auto}
 .tzwrap .tz{min-width:600px}
+/* Prüfprotokoll (ab v1.79, X05): A4 quer, auf dem Bildschirm als Blatt mit 10 mm Rand, im Druck Rand über @page; Maße in mm,
+   damit Vorschau und Druck gleich umbrechen; alle Schrift schwarz */
+.pp{background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:8pt;width:297mm;min-height:210mm;padding:10mm;box-sizing:border-box;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);border-radius:4px;transform-origin:0 0;cursor:zoom-in;display:flex;flex-direction:column}
+.pp.flach{width:277mm;min-height:0;padding:0;box-shadow:none;border-radius:0}
+.pp sub{font-size:70%;line-height:0}
+.pp .pptitel{display:flex;justify-content:space-between;align-items:baseline;gap:6mm;border-bottom:.5mm solid #000;padding-bottom:1mm;margin-bottom:2mm}
+.pp h1{font-size:13pt;margin:0;font-weight:700}
+.pp .ppvt{font-size:13pt;font-weight:700;white-space:nowrap}
+.pp .ppkopf{display:grid;grid-template-columns:1fr 1fr 1.25fr;border:.3mm solid #000;border-bottom:0;border-right:0}
+.pp .ppf{display:flex;gap:2mm;align-items:baseline;border-bottom:.3mm solid #000;border-right:.3mm solid #000;padding:.8mm 1.5mm;min-height:5.5mm;box-sizing:border-box;min-width:0}
+.pp .ppf.breit{grid-column:1 / -1}
+.pp .ppl{font-size:7pt;white-space:nowrap;flex:0 0 auto}
+.pp .ppw{flex:1 1 auto;font-weight:700}
+.pp .ppart .ppw{font-weight:400;display:flex;gap:3mm;flex-wrap:wrap}
+.pp .ppk{display:inline-flex;align-items:center;gap:1.2mm;white-space:nowrap}
+.pp .kk{display:inline-block;width:2.8mm;height:2.8mm;border:.3mm solid #000;box-sizing:border-box;vertical-align:middle;flex:0 0 auto}
+.pp .ppchecks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm;margin:2mm 0;font-size:7.5pt;align-items:start}
+.pp .ppcheck{width:100%;border-collapse:collapse}
+.pp .ppcheck th{text-align:left;font-size:7.5pt;border-bottom:.3mm solid #000;padding:.4mm 1mm;white-space:nowrap}
+.pp .ppcheck th:not(:first-child),.pp .ppcheck td:not(:first-child){width:9mm;text-align:center}
+.pp .ppcheck td{border-bottom:.2mm solid #999;padding:.4mm 1mm;line-height:1.15}
+.pp .ppallg{display:flex;flex-wrap:wrap;gap:1mm 4mm;margin-top:1.5mm}
+.pp .ppallg .ppk{margin-left:1.5mm}
+.pp .pptab{width:100%;border-collapse:collapse;table-layout:fixed}
+.pp .pptab th{font-size:7pt;font-weight:700;text-align:left;border:.3mm solid #000;padding:.6mm .8mm;vertical-align:bottom;line-height:1.15}
+.pp .pptab tr.ppgr th{text-align:center;vertical-align:middle;font-size:7.5pt}
+.pp .pptab .ppmess{border-left:.6mm solid #000}
+.pp .pptab td{border:.2mm solid #000;padding:.5mm .8mm;height:5.6mm;box-sizing:border-box;vertical-align:middle;overflow-wrap:anywhere;line-height:1.15}
+.pp .pptab td.k{font-weight:700;white-space:nowrap;overflow-wrap:normal}
+.pp .pptab td.nw,.pp .pptab .nw{white-space:nowrap}
+.pp .pptab .z{text-align:right}
+.pp .pptab td.m{text-align:center}
+.pp .pptab td:nth-child(9){border-left:.6mm solid #000}
+.pp .pptab td.aus{background:#d9d9d9}
+.pp .pptab tr.ppeinsp td,.pp .pptab tr.pgruppe td{font-weight:700}
+.pp .pptab tr.ppeinsp td:not(.m),.pp .pptab tr.pgruppe td:not(.m){background:#f0f0f0}
+.pp .pptab tr.pein td:nth-child(2){padding-left:3mm}
+.pp .ppber{display:block;font-size:6.5pt}
+.pp .ppergebnis{margin-top:2mm;border:.3mm solid #000;padding:1.2mm 2mm;display:flex;flex-direction:column;gap:1mm}
+.pp .pperg1{display:flex;flex-wrap:wrap;gap:2mm 7mm;align-items:center}.pp .ppnext{margin-left:auto}
+.pp .ppbem{display:grid;grid-template-columns:auto 1fr;gap:3mm;align-items:end}
+.pp .ppbem .pplinie{border-bottom:.2mm solid #000;height:4.5mm}
+.pp .ppunter{display:grid;grid-template-columns:1fr 1fr;gap:8mm}
+.pp .ppunter .ppf{border-bottom:.2mm solid #000;border-right:0;padding:3mm 0 .5mm}
+.pp .ppnote{font-size:6.5pt;margin:0;line-height:1.3}
+.pp .fuss{font-size:7pt;margin-top:auto;padding-top:2mm;display:flex;justify-content:space-between;gap:12pt}
+.ppwrap{margin-bottom:16px;overflow:hidden}
+.ppwrap .pp{margin:0}
 /* Leisten in der Eigenschaften-Leiste (Platz im Steuerstromkreis) */
 .leiste{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
 .leiste button{border:1px solid var(--linie);background:var(--karte);border-radius:9px;padding:7px 11px;min-height:38px;cursor:pointer;font-size:14px;color:var(--akzent)}
@@ -944,6 +1001,10 @@ main{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, e
   #druck .tz thead{display:table-header-group}
   #druck .tz tr{break-inside:avoid}
   #druck .db:last-child{break-after:auto;page-break-after:auto}
+  #druck .pp{box-shadow:none;border-radius:0;padding:0;margin:0;width:auto;min-height:190mm;break-after:page;page-break-after:always;cursor:auto}      /* ab v1.79 */
+  #druck .pp:last-child{break-after:auto;page-break-after:auto}
+  #druck .pp tr{break-inside:avoid}
+  #druck .pp *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #druck svg{display:block}
 }
 .fehlerband{position:fixed;left:0;right:0;bottom:0;background:var(--rot);color:#fff;font-size:13px;padding:6px 12px;z-index:40;display:none}
@@ -1315,13 +1376,24 @@ function abschaltStrom(g, t04) {
   }
   return null;
 }
+// Schutzorgan für die Abschaltung (eigenes, sonst das der Gruppe) und Abschaltzeit 0,4 s (t04) bzw. 5 s eines Abgangs
+// (ab v1.79 eigene Funktion, auch für Z_s,max im Prüfprotokoll)
+function abschaltSchutz(k, eltern) {
+  const g = istSchutz(k.geraet) || k.geraet.zeichen === 'motorschutz3' ? k.geraet : eltern && istSchutz(eltern.geraet) ? eltern.geraet : null;
+  const steck = k.ziel && /^steckdose/.test(k.ziel.anschluss), n = g ? zahlVon(g.nenn) : 0;
+  return { g, t04: !k.speist && (steck ? n <= 63 : n <= 32) };
+}
+// höchste Schleifenimpedanz Z_s,max = U_0 / I_a des Schutzorgans (ab v1.79, X05): { zs, t04, iaT } oder null (kein Abschaltstrom bekannt)
+function zsMaxVon(k, eltern) {
+  if (!k || k.typ !== 'abgang') return null;
+  const { g, t04 } = abschaltSchutz(k, eltern), ia = g && abschaltStrom(g, t04);
+  return ia ? { zs: U0 / ia.ia, t04, iaT: ia.t } : null;
+}
 // Abschaltbedingung am Ende der Leitung eines Abgangs (b = leitungsBemessung); zsV = Z_s am Verteiler, fis = FI vor dem Abgang
 //   { zs, zsMax, ia, iaT, t04, ik, ok, fi (erfüllt durch FI), ueOk (Überstromschutz allein) } oder null (keine Angaben)
 function abschaltung(v, k, eltern, b, zsV, fis) {
   if (zsV == null || !b || !b.l) return null;
-  const g = istSchutz(k.geraet) || k.geraet.zeichen === 'motorschutz3' ? k.geraet : eltern && istSchutz(eltern.geraet) ? eltern.geraet : null;
-  const steck = k.ziel && /^steckdose/.test(k.ziel.anschluss), n = g ? zahlVon(g.nenn) : 0;
-  const t04 = !k.speist && (steck ? n <= 63 : n <= 32);
+  const { g, t04 } = abschaltSchutz(k, eltern);
   const zs = zsV + schleife(b.l, b.quer), r = { zs, zsVor: zsV, t04, ik: U0 / zs };
   const ia = g && abschaltStrom(g, t04);
   if (ia) { r.ia = ia.ia; r.iaT = ia.t; r.zsMax = U0 / ia.ia; r.ueOk = zs <= r.zsMax + 1e-9; }
@@ -3012,7 +3084,7 @@ function zeichne() {
   ED = null;
   app.innerHTML = '';
   document.body.classList.toggle('imeditor', b.s === 'editor'); document.body.classList.remove('fachoffen');
-  ({ start: bStart, projekte: bProjekte, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer,
+  ({ start: bStart, projekte: bProjekte, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer, pruef: bPruef,
      steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
   // ab v1.67 (I3-04): im Editor fällt der Fokus nach dem Neuzeichnen nie auf body (Palette, Fachzeile, Rückkehr aus der Vorschau)
   if (flFokus || b.s === 'editor') flaecheFokus();
@@ -3077,7 +3149,10 @@ function bStart() {
   if (P.verteiler.length) m.append(h('h2', {}, 'Ausgabe'), h('div', { class: 'liste' },
     // ab v1.66 (F33): Druckbefehle überall mit einem Namen
     zeile('Plan drucken …', null, () => geh({ s: 'plan' }), { un: `alle Verteiler, Format ${pj.format || 'A4'} quer, auch als PDF` }),
-    zeile('Türzettel drucken …', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' })));
+    zeile('Türzettel drucken …', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' }),
+    // ab v1.79 (X04, X05): Prüfprotokoll und projektweite Stromkreisliste
+    zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef' }), { un: 'je Verteiler, A4 quer, Messwerte zum Ausfüllen' }),
+    zeile('Stromkreisliste', null, () => geh({ s: 'liste' }), { un: 'alle Verteiler, auch als CSV' })));
   // Speicherstatus (ab v1.54): wann zuletzt als Datei gesichert; nach 7 Tagen (oder nie) ein Hinweis
   // ab v1.58 (C35) je Projekt: die Mahnung erst 7 Tage nach der ersten Änderung seit dem letzten Sichern bzw. Öffnen aus Datei
   const px = projekte.find(q => q.id === projektId) || {}, dat = t => t ? datumKurz(t) : null;
@@ -3543,6 +3618,7 @@ function bVerteiler(b) {
       zeile('Plan bearbeiten', null, () => geh({ s: 'editor', vid: v.id }), { un: `im Planblatt ${tipp()} und ändern` }),
       zeile('Plan drucken …', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts' }),      // ab v1.66 (F33): ein Name je Druckbefehl
       zeile('Türzettel drucken …', null, () => geh({ s: 'tuer', vid: v.id })),
+      zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef', vid: v.id })),      // ab v1.79 (X05)
       zeile('Stromkreisliste', null, () => geh({ s: 'liste', vid: v.id }))));
     m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen …', null, () => verteilerLoeschen(v), { rot: true, ohnePfeil: true })));
   }
@@ -6077,7 +6153,8 @@ function verteilerMenue(v) {
 // ab v1.62 (D32): zwei Einträge – der Plan wie Strg+P, der Türzettel über seine Vorschau (dort: dieser Verteiler oder alle)
 function druckMenue(v) {
   menue('', [['Plan drucken …', drucken, { taste: 'Strg+P', klein: `alle Blätter des Projekts, ${P.projekt.format || 'A4'} quer – auch als PDF` }],
-    ['Türzettel drucken …', () => geh({ s: 'tuer', vid: v.id }), { klein: 'Sicherungsübersicht, A4 hoch' }]], null, { label: 'Drucken' });
+    ['Türzettel drucken …', () => geh({ s: 'tuer', vid: v.id }), { klein: 'Sicherungsübersicht, A4 hoch' }],
+    ['Prüfprotokoll drucken …', () => geh({ s: 'pruef', vid: v.id }), { klein: 'Messwerte zum Ausfüllen, A4 quer' }]], null, { label: 'Drucken' });      // ab v1.79 (X05)
 }
 // Ein Menü für Start und Editor (ab v1.61, D23): Abschnitte Datei · Bearbeiten · Ansicht · Verteiler · Hilfe, Kürzel rechts,
 // „…“ nur, wenn noch ein Dialog folgt; ohne Überschrift (der Knopf heißt „Menü“). v = Verteiler des Editors, sonst null.
@@ -6096,7 +6173,8 @@ function hauptMenue(v = null) {
       ed ? null : ['Beispielprojekt öffnen', beispielOeffnen],
       ['Projektdaten', () => ed ? waehle('p:', { springen: false }) : geh({ s: 'projekt' })],
       da ? ['Plan drucken …', drucken, { taste: 'Strg+P' }] : null,
-      da ? ['Türzettel drucken …', () => geh({ s: 'tuer', vid: ed ? v.id : undefined })] : null),
+      da ? ['Türzettel drucken …', () => geh({ s: 'tuer', vid: ed ? v.id : undefined })] : null,
+      da ? ['Prüfprotokoll drucken …', () => geh({ s: 'pruef', vid: ed ? v.id : undefined })] : null),      // ab v1.79 (X05)
     ...abschnitt(
       nZ ? [`Rückgängig: ${verlauf.zurueck[nZ - 1].n}`, () => projektRueck(false), { taste: 'Strg+Z' }] : null,
       nV ? [`Wiederholen: ${verlauf.vor[nV - 1].n}`, () => projektRueck(true), { taste: 'Strg+Y' }] : null,
@@ -6104,10 +6182,11 @@ function hauptMenue(v = null) {
       da ? ['Suchen …', suche, { taste: 'Strg+F' }] : null),
     ...(ed ? abschnitt(
       ['Blattbreite', () => zoomSetzen(100), { taste: 'Strg+0' }], ['Ganzes Blatt', () => zoomGanz(), { taste: 'Umschalt+1' }],
-      b.sel ? ['Auswahl einpassen', zoomAufAuswahl, { taste: 'Umschalt+2' }] : null,
-      !schmal() && !fachRechts() ? [ansicht.eigenZu ? 'Eigenschaften einblenden' : 'Eigenschaften ausblenden', eigenUmschalten] : null) : []),
+      // ab v1.79: „Eigenschaften ein-/ausblenden“ nur noch als Knopf der Kopfleiste (er steht bei genau denselben Breiten) –
+      // Platz für „Prüfprotokoll drucken …“ bei höchstens 20 Einträgen
+      b.sel ? ['Auswahl einpassen', zoomAufAuswahl, { taste: 'Umschalt+2' }] : null) : []),
     ...abschnitt(
-      ed ? ['Steuerstromkreise', () => waehle('st:')] : null, ed ? ['Stromkreisliste', () => geh({ s: 'liste', vid: v.id })] : null,
+      ed ? ['Steuerstromkreise', () => waehle('st:')] : null, ed ? ['Stromkreisliste', () => geh({ s: 'liste', vid: v.id })] : null,      // ab v1.79 dort auch „Alle Verteiler“
       ed ? null : ['Neuer Verteiler …', neuerVerteilerFenster]),      // ab v1.76: „Automatik für den ganzen Verteiler …“ im Verteilermenü
     ...abschnitt(['Hilfe', () => hilfe(), { taste: 'F1' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }])].slice(1), null, { label: 'Menü' });
 }
@@ -6950,26 +7029,41 @@ function tastenHilfe() {      // ab v1.61 (D25): Raster mit Tastenkappen, „Sch
   fenster('Tastenkürzel', tastenRaster(), s => [h('button', { class: 'knopf', on: { click: () => s() } }, 'Schließen')], null, { cls: 'tasten' });
 }
 
+// Stromkreisliste (ab v1.79, X04/Q33 projektweit): dieser Verteiler oder alle Verteiler (wie die Türzettel-Vorschau), je Verteiler
+// eine Tabelle mit denselben Spalten; ohne vid (Startseite) gleich alle
 function bListe(b) {
-  const v = vById(b.vid), e = berechne(v);
+  const ein = b.vid && vById(b.vid) && !b.alle, liste = ein ? [vById(b.vid)] : P.verteiler;
   // ab v1.62 (D39): „Stromkreisliste HV“, am Desktop breit, CSV nur im Kopf
   // ab v1.66 (F35): Kopfknopf wie „Drucken“ in den Vorschauen, einzeilig
-  app.append(kopf(`Stromkreisliste ${v.name}`, h('button', { class: 'kopfknopf knopfvoll', title: 'Stromkreise für das Prüfprotokoll als CSV', on: { click: () => listeCsv(v) } }, 'CSV sichern …')));
+  app.append(kopf(ein ? `Stromkreisliste ${liste[0].name}` : 'Stromkreisliste', h('button', { class: 'kopfknopf knopfvoll', title: 'Stromkreise für das Prüfprotokoll als CSV', on: { click: () => listeCsv(liste) } }, 'CSV sichern …')));
   const m = h('main', { class: 'breit' });
-  const sp = speisenderAbgang(v.id);
+  if (b.vid && vById(b.vid) && P.verteiler.length > 1) m.append(h('div', { class: 'segment tzwahl', role: 'tablist', 'aria-label': 'Stromkreisliste' },
+    ...[[true, vById(b.vid).name], [false, 'Alle Verteiler']].map(([e1, t]) => h('button', { role: 'tab', 'aria-selected': String(!!ein === e1), on: { click: () => { b.alle = !e1; zeichne(); } } }, t))));
+  // ab v1.77 (X02): mit Bemessungsangaben (Länge, Verlegeart oder Häufung an einem Abgang) drei Spalten mehr: Länge, Iz, ΔU ab Zähler
+  // ab v1.79 (X04): dazu Leistung (mit Leistungsangaben) und Z_s am Leitungsende (mit Z_s am obersten Verteiler) – gleich für alle Tabellen
+  const sp = { bem: liste.some(bemessungDa), last: liste.some(lastDa), zs: liste.some(v => Object.values(berechne(v).abgaenge).some(a => a.bem && a.bem.ab)) };
+  liste.forEach(v => { if (!ein) m.append(h('h2', { class: 'listekopf' }, v.name)); m.append(listeTabelle(v, sp)); });
+  if (!liste.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
+  m.append(h('div', { class: 'legende' }, h('span', {}, h('span', { class: 'ph auto' }, 'L1'), ' automatisch verteilt'), h('span', {}, h('span', { class: 'bmk hand' }, '-F4'), ' von Hand gesetzt')));
+  if (liste.length) m.append(h('div', { class: 'liste' }, zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef', vid: ein ? liste[0].id : b.vid, alle: !ein }),
+    { un: 'Stromkreise mit Zs,max, Messwerte zum Ausfüllen, A4 quer' })));      // ab v1.79 (X05)
+  app.append(m);
+}
+// Tabelle der Stromkreise eines Verteilers (ab v1.79 aus bListe); sp = { bem, last, zs } zusätzliche Spalten
+function listeTabelle(v, sp) {
+  const e = berechne(v), spv = speisenderAbgang(v.id);
+  const nZus = sp.bem ? 3 + (sp.last ? 1 : 0) + (sp.zs ? 1 : 0) : 0, leerZ = () => Array.from({ length: nZus }, () => h('td'));
   const kopfZ = [];
-  if (sp) kopfZ.push(['', `Einspeisung aus ${sp.v.name}`, '', '', '', '']);
+  if (spv) kopfZ.push(['', `Einspeisung aus ${spv.v.name}`, '', '', '', '']);
   else kopfZ.push(['', `Einspeisung ${v.netzform}, ${leiterText(v)}`, '', '', '', '']);
   for (const [feld, titel] of [['vorsicherung', 'Vorsicherung'], ['zaehler', 'Zähler'], ['hauptschalter', 'Hauptschalter'], ['spd', 'Überspannungsschutz']])
     if (v[feld].zeichen) kopfZ.push([e.kopf[feld].t, `${titel} – ${ohneTitel(titel, gName(v[feld].zeichen))} ${bemessung(v[feld])}`.trim(), '', '', '', '']);
   const tb = h('tbody');
-  // ab v1.77 (X02): mit Bemessungsangaben (Länge, Verlegeart oder Häufung an einem Abgang) drei Spalten mehr: Länge, Iz, ΔU ab Zähler
-  const mitBem = bemessungDa(v), leer3 = () => mitBem ? [h('td'), h('td'), h('td')] : [];
-  kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)), ...leer3())));
+  kopfZ.forEach(r => tb.append(h('tr', { class: 'gr' }, r.map((c, i) => h('td', { class: i === 0 ? 'm' : '' }, c)), ...leerZ())));
   alleKnoten(v, (k, eltern, l, i, tiefe) => {
-    const ein = ' '.repeat(tiefe);
+    const ein = ' '.repeat(tiefe);
     if (k.typ === 'gruppe') {
-      tb.append(h('tr', { class: 'gr' }, h('td', { class: 'm' }, e.geraete[k.id].t), h('td', {}, ein + `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`), h('td'), h('td'), h('td'), h('td', {}, 'Gruppe'), ...leer3()));
+      tb.append(h('tr', { class: 'gr' }, h('td', { class: 'm' }, e.geraete[k.id].t), h('td', {}, ein + `${gName(k.geraet.zeichen)} ${bemessung(k.geraet)}`), h('td'), h('td'), h('td'), h('td', {}, 'Gruppe'), ...leerZ()));
       return;
     }
     const a = e.abgaenge[k.id];
@@ -6982,17 +7076,18 @@ function bListe(b) {
       h('td', { class: 'm' }, klemmenText(a)),
       h('td', { class: 'nw' }, `${a.w.t} ${leitungText(k, a)}`),
       h('td', {}, ...zielText, a.warn ? [' ', warnIk()] : null),
-      ...(mitBem ? bemZellen(a.bem) : [])));
+      ...(sp.bem ? [sp.last ? leistungZelle(v, k) : null, ...bemZellen(a.bem), sp.zs ? zsZelle(a.bem) : null].filter(Boolean) : [])));
     // ab v1.52: Überlastrelais und Sekundär-LS des Steuertrafos als eigene Zeilen
-    const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel), ...leer3()));
+    const unter = (kenn, text, ziel) => tb.append(h('tr', {}, h('td', { class: 'm' }, kenn), h('td', {}, ein + text), h('td'), h('td'), h('td'), h('td', {}, ziel), ...leerZ()));
     if (a.ol) unter(a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), `unter ${a.schalt.bmk.t}`);
     if (k.trafo) unter(a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, `Steuerspannung ${k.trafo.sek}\u00a0V`);
   });
-  m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
-    h('thead', {}, h('tr', {}, ['Kennzeichen', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Verbraucher'].concat(mitBem ? ['Länge', 'Iz', 'ΔU'] : [])
-      .map((t, i) => h('th', { class: i > 5 ? 'zahl' : null, title: ['Leitungslänge', 'Belastbarkeit der Leitung (Verlegeart, Häufung)', 'Spannungsfall ab dem Zähler'][i - 6] || null }, t)))), tb)));
-  m.append(h('div', { class: 'legende' }, h('span', {}, h('span', { class: 'ph auto' }, 'L1'), ' automatisch verteilt'), h('span', {}, h('span', { class: 'bmk hand' }, '-F4'), ' von Hand gesetzt')));
-  app.append(m);
+  const titel = ['Kennzeichen', 'Schutzorgan', 'Leiter', 'Klemmen', 'Leitung', 'Verbraucher'].map(t => [t]);
+  if (sp.bem) titel.push(...[sp.last ? ['Leistung', 'Leistung des Stromkreises (≈ geschätzt: Motor, Wallbox, Unterverteiler)'] : null,
+    ['Länge', 'Leitungslänge'], ['Iz', 'Belastbarkeit der Leitung (Verlegeart, Häufung)'], ['ΔU', 'Spannungsfall ab dem Zähler'],
+    sp.zs ? ['Zs', 'Schleifenimpedanz am Leitungsende (berechnet)'] : null].filter(Boolean));
+  return h('div', { class: 'tabwrap' }, h('table', { class: 'ueb' },
+    h('thead', {}, h('tr', {}, titel.map(([t, tt], i) => h('th', { class: i > 5 ? 'zahl' : null, title: tt || null }, t)))), tb));
 }
 // Bemessungsangaben im Verteiler (ab v1.77): irgendein Abgang mit Länge, Verlegeart oder Häufung
 // ab v1.78 auch mit Leistungsangaben (k.last)
@@ -7005,27 +7100,44 @@ function bemZellen(b) {
     h('td', { class: 'nw zahl' + (b.ok === false ? ' ueber' : ''), title: `Verlegeart ${b.art}, ${b.adern} belastete Adern${b.f < 1 ? `, Häufung ${b.n}` : ''}` }, `${dezimal(b.izf)} A`),
     h('td', { class: 'nw zahl' + (b.duSumme > duMax() + 1e-9 ? ' ueber' : '') }, b.du == null ? '' : `${prozent(b.duSumme)} %`)];
 }
+// Leistung eines Abgangs als Text (ab v1.79): Angabe „3,5 kW“ (mit Gleichzeitigkeit „× 0,5“), geschätzt „≈ 7,4 kVA“, Erzeuger „4 kW Erzeugung“
+function leistungText(v, k) {
+  if (k.typ !== 'abgang' || k.steuer) return '';
+  if (istErzeuger(k)) { const s = erzeugerKw(k); return s ? `${kva(s)}\u00a0kW Erzeugung` : ''; }
+  const l = leistungVon(v, k); if (!l) return '';
+  const gz = gzVon(k);
+  return l.quelle === 'angabe' ? `${kva(l.voll)}\u00a0kW${gz < 1 ? ` ×\u00a0${String(gz).replace('.', ',')}` : ''}` : `≈\u00a0${kva(l.voll)}\u00a0kVA`;
+}
+const leistungZelle = (v, k) => h('td', { class: 'nw zahl' }, leistungText(v, k));
+// Z_s am Leitungsende (ab v1.79): Warnfarbe, wenn die Abschaltbedingung nicht erfüllt ist; Tooltip mit Z_s,max
+const zsZelle = b => !b || !b.ab ? h('td') : h('td', { class: 'nw zahl' + (b.ab.ok === false ? ' ueber' : ''), title: b.ab.zsMax ? `höchstens ${ohm(b.ab.zsMax)} Ω${b.ab.fi ? ` (${b.ab.ueOk ? 'zusätzlich' : 'erfüllt durch'} ${b.ab.fi})` : ''}` : b.ab.fi || null }, `${ohm(b.ab.zs)} Ω`);
 // Stromkreisliste als CSV (ab v1.56): Semikolon, UTF-8 mit BOM (Excel), je Abgang eine Zeile
-function listeCsv(v) {
-  const e = berechne(v), nb = /\u00a0/g;
+// ab v1.79 (X04, Q33): vs = ein Verteiler oder eine Liste (projektweit); Spalten Verteiler, Verbraucher-Kennzeichen, Leistung,
+// Gleichzeitigkeit, Z_s und Z_s,max dazu – dieselben Spalten auch für einen Verteiler
+function listeCsv(vs) {
+  const liste = Array.isArray(vs) ? vs : [vs], nb = /\u00a0/g;
   // ab v1.58 (C38): Nennstrom als Zahl (Spalte „Nennstrom [A]“), FI-Daten mit Bemessungsstrom, z. B. „40 A 30 mA Typ A (-F2)“
   // ab v1.77 (X02): Bemessung am Ende – Länge, Verlegeart, Häufung, Iz (mit Häufung), ΔU der Leitung und ab dem Zähler
-  const zeilen = [['Kennzeichen', 'Bezeichnung', 'Ort', 'Schutzorgan', 'Kennlinie', 'Nennstrom [A]', 'FI-Daten', 'Außenleiter', 'Leitung', 'Querschnitt', 'Klemmen',
-    'Länge [m]', 'Verlegeart', 'Häufung', 'Iz [A]', 'ΔU Leitung [%]', 'ΔU ab Zähler [%]']];
+  const zeilen = [['Verteiler', 'Kennzeichen', 'Bezeichnung', 'Ort', 'Verbraucher-Kennzeichen', 'Schutzorgan', 'Kennlinie', 'Nennstrom [A]', 'FI-Daten', 'Außenleiter', 'Leitung',
+    'Querschnitt', 'Klemmen', 'Leistung [kW]', 'Gleichzeitigkeit', 'Länge [m]', 'Verlegeart', 'Häufung', 'Iz [A]', 'ΔU Leitung [%]', 'ΔU ab Zähler [%]', 'Zs [Ω]', 'Zs,max [Ω]']];
   const fiText = (g, kz) => g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi ? `${g.nenn ? g.nenn + ' A ' : ''}${g.idn || '30'} mA Typ ${g.fityp || 'A'}${kz ? ' (' + kz + ')' : ''}` : '';
-  alleKnoten(v, (k, eltern) => {
-    if (k.typ !== 'abgang') return;
-    const a = e.abgaenge[k.id], g = k.geraet, d = g.zeichen ? GERAETE[g.zeichen] : null;
-    zeilen.push([a.f ? a.f.t : '',
-      k.speist ? `Unterverteiler ${(vById(k.speist) || {}).name || ''}`.trim() : k.ziel.bez || '', k.ziel.ort || '',
-      g.zeichen ? gNameK(k) : 'ohne Schutzorgan', d && d.kennlinie ? g.kennlinie || 'B' : d && d.sicherung ? g.art || 'gG' : '',
-      d && d.bereich ? g.bereich || '' : d && !d.ohneNenn && g.nenn ? String(g.nenn).replace('.', ',') : '',
-      fiText(g, '') || (eltern ? fiText(eltern.geraet, (e.geraete[eltern.id] || {}).t) : ''),
-      a.phase.t || '', k.steuer ? '' : `${a.w.t} ${leitungText(k, a)}`.trim(),
-      k.steuer ? '' : k.leitung.quer ? `${k.leitung.quer} mm²` : '', klemmenText(a).replace('—', ''),
-      ...(a.bem ? [a.bem.l ? dezimal(a.bem.l) : '', a.bem.art, String(a.bem.n), dezimal(a.bem.izf), a.bem.du == null ? '' : prozent(a.bem.du),
-        a.bem.du == null ? '' : prozent(a.bem.duSumme)] : ['', '', '', '', '', ''])]);
-  });
+  liste.forEach(v => { const e = berechne(v);
+    alleKnoten(v, (k, eltern) => {
+      if (k.typ !== 'abgang') return;
+      const a = e.abgaenge[k.id], g = k.geraet, d = g.zeichen ? GERAETE[g.zeichen] : null, b = a.bem;
+      const lv = !istErzeuger(k) && leistungVon(v, k), zm = zsMaxVon(k, eltern);
+      zeilen.push([v.name, a.f ? a.f.t : '',
+        k.speist ? `Unterverteiler ${(vById(k.speist) || {}).name || ''}`.trim() : k.ziel.bez || '', k.ziel.ort || '', a.xd ? a.xd.t : '',
+        g.zeichen ? gNameK(k) : 'ohne Schutzorgan', d && d.kennlinie ? g.kennlinie || 'B' : d && d.sicherung ? g.art || 'gG' : '',
+        d && d.bereich ? g.bereich || '' : d && !d.ohneNenn && g.nenn ? String(g.nenn).replace('.', ',') : '',
+        fiText(g, '') || (eltern ? fiText(eltern.geraet, (e.geraete[eltern.id] || {}).t) : ''),
+        a.phase.t || '', k.steuer ? '' : `${a.w.t} ${leitungText(k, a)}`.trim(),
+        k.steuer ? '' : k.leitung.quer ? `${k.leitung.quer} mm²` : '', klemmenText(a).replace('—', ''),
+        // Leistung: Angabe bzw. Schätzung (Motor, Wallbox, Unterverteiler) in kW bzw. kVA (cos φ = 1), Erzeuger nicht
+        lv ? dezimal(lv.voll) : '', lv && gzVon(k) < 1 ? String(gzVon(k)).replace('.', ',') : '',
+        ...(b ? [b.l ? dezimal(b.l) : '', b.art, String(b.n), dezimal(b.izf), b.du == null ? '' : prozent(b.du), b.du == null ? '' : prozent(b.duSumme)] : ['', '', '', '', '', '']),
+        b && b.ab ? ohm(b.ab.zs) : '', zm ? ohm(zm.zs) : '']);
+    }); });
   // ab v1.71 (Q07): formelsicher für Excel – Kennzeichen (Zellen, die mit „-“ und einem Buchstaben beginnen, z. B. -F4, -W4 …,
   // -X1:1–5) als ="-F4" (bleibt sichtbarer Text), andere Zellen, die mit = + - @, Tab oder CR beginnen, mit vorangestelltem '
   const quote = s => /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -7033,7 +7145,7 @@ function listeCsv(v) {
     if (/^-\p{L}/u.test(s)) { const f = '="' + s.replace(/"/g, '""') + '"'; return /[;\r\n]/.test(f) ? '"' + f.replace(/"/g, '""') + '"' : f; }
     return quote(/^[=+\-@\t\r]/.test(s) ? "'" + s : s); };
   const text = '\ufeff' + zeilen.map(r => r.map(feld).join(';')).join('\r\n') + '\r\n';
-  const name = dateiname().replace(/\.slp\.json$/, '') + ` Stromkreise ${v.name}`.replace(/[\\/:*?"<>|]+/g, ' ') + '.csv';
+  const name = (dateiname().replace(/\.slp\.json$/, '') + (liste.length === 1 ? ` Stromkreise ${liste[0].name}` : ' Stromkreise').replace(/[\\/:*?"<>|]+/g, ' ')) + '.csv';
   herunterladen(new Blob([text], { type: 'text/csv;charset=utf-8' }), name);
   meldung(`Gesichert als „${name}“`);
 }
@@ -7046,7 +7158,9 @@ function bPlan(b) {
   const m = h('main');
   const hl = druckHinweisListe(); if (hl) m.append(hl);      // ab v1.65 (F13)
   m.append(h('div', { class: 'liste' },
-    zeile('Format', `${P.projekt.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w))));
+    zeile('Format', `${P.projekt.format || 'A4'} quer`, () => wahlFeld('Format', [['A4', 'A4 quer'], ['A3', 'A3 quer']], P.projekt.format || 'A4', w => P.projekt.format = w)),
+    // ab v1.79 (X05): das Prüfprotokoll als eigener Ausdruck (nicht unter den Planblättern)
+    P.verteiler.length ? zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef', vid: b.vid }), { un: 'je Verteiler, A4 quer, Messwerte zum Ausfüllen' }) : null));
   m.append(druckHinweisLeiste());
   let res;
   try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }); }
@@ -7292,6 +7406,191 @@ function tuerDrucken(liste) {
   const d = document.getElementById('druck'); d.innerHTML = '';
   liste.forEach(v => tuerSeiten(v).forEach(x => d.append(x)));
   document.getElementById('seite').textContent = '@page{size:A4 portrait;margin:14mm 12mm}';
+  druckBereit = true;
+  setTimeout(() => window.print(), 60);
+}
+
+// ---- Prüfprotokoll (ab v1.79, Etappe X-D: X05) ------------------------------------------------------------------------
+// Vorlage in Anlehnung an DIN VDE 0100-600 je Verteiler, A4 quer, als eigener Ausdruck wie der Türzettel (die Planblätter bleiben
+// unverändert): Kopf (Anlage, Netz, Prüfer, Messgeräte, Datum), Besichtigen und Erproben zum Ankreuzen, Tabelle der Stromkreise aus
+// dem Projekt mit dem berechneten Z_s,max = U_0 / I_a (DIN VDE 0100-410, 411.4.4) und leeren Messspalten; eigenes Layout, kein Nachbau
+// eines Verbandsformulars. Prüfer und Messwerte bleiben leer zum Ausfüllen von Hand (Eingabe der Messwerte zurückgestellt).
+// Messspalten: [Kürzel, Index, Einheit, Erklärung]; „aus“ in einer Zeile = Feld entfällt (grau)
+const PP_MESS = [['R', 'iso', 'MΩ', 'Isolationswiderstand'], ['R', 'LO', 'Ω', 'Durchgängigkeit des Schutzleiters'], ['Z', 's', 'Ω', 'Schleifenimpedanz'],
+  ['I', 'k', 'A', 'Kurzschlussstrom'], ['I', 'Δ', 'mA', 'Auslösestrom des FI'], ['t', 'A', 'ms', 'Auslösezeit des FI'], ['i. O.', '', '', 'in Ordnung']];
+// Zeilen der Stromkreistabelle eines Verteilers: { kl, kenn, bez, ltg, schutz, nenn, kennl, fi, zsMax, zsBer, aus: Set der entfallenden Messspalten }
+function pruefZeilen(v, e) {
+  const z = [], nurIO = new Set([0, 1, 2, 3, 4, 5]), ohneFi = new Set([4, 5]);
+  const fiDaten = g => `${g.idn || '30'}\u00a0mA Typ\u00a0${g.fityp || 'A'}`;
+  const kennl = g => { const d = g && g.zeichen && GERAETE[g.zeichen]; return !d ? '' : d.kennlinie ? g.kennlinie || 'B' : d.sicherung ? g.art || 'gG' : ''; };
+  const nenn = g => { const d = g && g.zeichen && GERAETE[g.zeichen]; return !d ? '' : d.bereich ? `${g.bereich || '?'}\u00a0A` : d.ohneNenn || !g.nenn ? '' : `${String(g.nenn).replace('.', ',')}\u00a0A`; };
+  // Einspeisung: Z_s am Verteiler (berechnet, sofern bekannt); beim Unterverteiler mit Zuleitung und Schutzorgan im speisenden Verteiler
+  const sp = speisenderAbgang(v.id), spA = sp && berechne(sp.v).abgaenge[sp.k.id], spE = sp && knoten(sp.v, sp.k.id);
+  const hs = v.hauptschalter.zeichen ? v.hauptschalter : null, vs = v.vorsicherung.zeichen ? v.vorsicherung : null, zv = zsVor(v);
+  const zEin = { kl: 'ppeinsp', kenn: (hs ? e.kopf.hauptschalter : vs ? e.kopf.vorsicherung : {}).t || '', bez: sp ? `Einspeisung aus ${sp.v.name}` : `Einspeisung ${v.netzform}, ${leiterText(v)}`,
+    ltg: sp && spA ? leitungText(sp.k, spA) : '', zsBer: zv, aus: istFi(hs) ? new Set() : ohneFi };
+  if (sp && spA) { const g = sp.k.geraet; Object.assign(zEin, { schutz: `${g.zeichen ? gNameK(sp.k) : 'ohne'}${spA.f ? ` ${spA.f.t} (${sp.v.name})` : ''}`, nenn: nenn(g), kennl: kennl(g),
+    zsMax: zsMaxVon(sp.k, spE && spE.eltern) }); }
+  else if (vs) Object.assign(zEin, { schutz: `Vorsicherung ${e.kopf.vorsicherung.t}`, nenn: nenn(vs), kennl: kennl(vs) });
+  if (istFi(hs)) zEin.fi = fiDaten(hs);
+  z.push(zEin);
+  alleKnoten(v, (k, eltern) => {
+    if (k.typ === 'gruppe') {
+      const n = k.kinder.filter(c => c.typ === 'abgang').length, g = k.geraet;
+      z.push({ kl: 'pgruppe', kenn: e.geraete[k.id].t, bez: `${k.bez ? k.bez + ', ' : ''}Gruppe mit ${n} Stromkreis${n === 1 ? '' : 'en'}`, schutz: gName(g.zeichen), nenn: nenn(g), kennl: kennl(g),
+        fi: istFi(g) ? fiDaten(g) : '', aus: istFi(g) ? new Set([0, 1, 2, 3]) : nurIO });
+      return;
+    }
+    const a = e.abgaenge[k.id], g = k.geraet, eigenFi = istFi(g), b = a.bem;
+    const fiGr = !eigenFi && eltern && istFi(eltern.geraet), fiV = !eigenFi && !fiGr && fiVor(v)[0];
+    z.push({ kl: eltern ? 'pein' : '', kenn: a.f ? a.f.t : '—', bez: abgangText(k) + (a.xd ? ` (${a.xd.t})` : ''), ltg: k.steuer ? '' : a.ohneLtg ? 'ohne Leitung' : leitungText(k, a),
+      schutz: g.zeichen ? gNameK(k) : 'ohne', nenn: nenn(g), kennl: kennl(g),
+      fi: eigenFi ? fiDaten(g) : fiGr ? `über ${e.geraete[eltern.id].t}` : fiV ? `${fiDaten(fiV.g)}, davor` : '',
+      zsMax: zsMaxVon(k, eltern), zsBer: b && b.ab ? b.ab.zs : null, aus: eigenFi ? new Set() : ohneFi });
+    // Überlastrelais (Einstellung) und Sekundär-LS des Steuertrafos: nur „i. O.“
+    if (a.ol) z.push({ kl: 'pein', kenn: a.ol.bmk.t, bez: `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), aus: nurIO });
+    if (k.trafo) z.push({ kl: 'pein', kenn: a.f2.t, bez: `Steuerspannung ${k.trafo.sek}\u00a0V`, schutz: gName(k.trafo.ls.zeichen), nenn: nenn(k.trafo.ls), kennl: kennl(k.trafo.ls), aus: nurIO });
+  });
+  return z;
+}
+// feste Spaltenbreiten des Prüfprotokolls (gleiche Kanten auf allen Seiten); 8 Spalten aus dem Plan, 7 Messspalten
+function ppSpalten() {
+  return h('colgroup', {}, [6, 18, 10, 8, 5.5, 4, 7.5, 5.5, 6, 5.5, 5.5, 5.5, 5, 5, 3].map(w => h('col', { style: `width:${w}%` })));
+}
+function ppKopfzeilen() {
+  const sub = (a, i) => [a, i ? h('sub', {}, i) : null];
+  return h('thead', {},
+    h('tr', { class: 'ppgr' }, h('th', { colspan: 8 }, 'Stromkreis (aus dem Plan)'), h('th', { colspan: 7, class: 'ppmess' }, 'Messwerte')),
+    h('tr', {}, h('th', {}, 'Kennz.'), h('th', {}, 'Stromkreis'), h('th', {}, 'Leitung'), h('th', {}, 'Schutzorgan'), h('th', {}, 'I', h('sub', {}, 'n')), h('th', {}, 'Kennl.'),
+      h('th', {}, 'I', h('sub', {}, 'Δn'), ' / Typ'), h('th', { class: 'z' }, 'Z', h('sub', {}, 's,max'), h('br'), 'Ω'),
+      ...PP_MESS.map(([a, i, u, t], n) => h('th', { class: 'z' + (n ? '' : ' ppmess'), title: t }, ...sub(a, i), u ? [h('br'), u] : null))));
+}
+// Kästchen zum Ankreuzen (als Rahmen, nicht als Schriftzeichen – sicher in jeder Schrift)
+const kk = () => h('span', { class: 'kk' });
+const ppFeld = (titel, wert, breit) => h('div', { class: 'ppf' + (breit ? ' breit' : '') }, h('span', { class: 'ppl' }, titel), h('span', { class: 'ppw' }, wert || ''));
+function pruefprotokoll(v) {
+  const e = berechne(v), sp = speisenderAbgang(v.id), zv = zsVor(v);
+  const alle = []; alleKnoten(v, k => alle.push(k));
+  const ab = alle.filter(k => k.typ === 'abgang'), hatFi = istFi(v.hauptschalter) || alle.some(k => istFi(k.geraet)) || fiVor(v).length > 0;
+  const hatSchalt = ab.some(k => (e.abgaenge[k.id] || {}).schalt) || Object.keys(e.steuer.aktiv || {}).length > 0;
+  const hatDreh = ab.some(k => !k.speist && ['steckdose5', 'wallbox'].includes(k.ziel.anschluss) || (k.ziel.anschluss === 'motor' && motorVon(k).art !== '1'));
+  const netz = sp ? `${v.netzform}, ${leiterText(v)}, aus ${sp.v.name}` : `${v.netzform}, ${leiterText(v)}, 230/400\u00a0V`, sb = (a, i) => [a, h('sub', {}, i)];
+  // Kopf in drei Spalten, Besichtigen in zwei Spalten neben Erproben – damit ein kleiner Verteiler auf eine Seite passt
+  const kopfF = h('div', { class: 'ppkopf' },
+    ppFeld('Projekt', P.projekt.projekt || ''), ppFeld('Verteiler', v.name), ppFeld('Netz', netz),
+    ppFeld('Anlage, Ort', ''), ppFeld('Errichter', P.projekt.firma || ''),
+    ppFeld([...sb('Z', 's'), ' am Verteiler'], zv != null ? `ber. ${ohm(zv)} Ω · gem. ______ Ω` : 'gemessen ______ Ω'),
+    ppFeld('Prüfer', ''), ppFeld('Datum der Prüfung', ''),
+    h('div', { class: 'ppf ppart' }, h('span', { class: 'ppl' }, 'Art'),
+      h('span', { class: 'ppw' }, ...['Erstprüfung', 'Wiederholung', 'Änderung'].map(t => h('span', { class: 'ppk' }, kk(), t)))),
+    ppFeld('Messgeräte (Fabrikat, Typ, Nr.)', '', true));
+  const liste = (titel, punkte) => h('table', { class: 'ppcheck' }, h('thead', {}, h('tr', {}, h('th', {}, titel), h('th', {}, 'i. O.'), h('th', {}, 'Mangel'))),
+    h('tbody', {}, ...punkte.filter(Boolean).map(t => h('tr', {}, h('td', {}, t), h('td', {}, kk()), h('td', {}, kk())))));
+  const besichtigen = ['Betriebsmittel nach Plan, unbeschädigt, fest montiert', 'Basisschutz: Abdeckungen, Isolierung, Gehäuse',
+    'Leitungen und Schutzorgane nach Belastbarkeit und Spannungsfall', 'Schutzleiter, Potentialausgleich, Erdung angeschlossen',
+    'Leiter gekennzeichnet (N blau, PE grün-gelb), Klemmen fest', 'Stromkreise beschriftet, Türzettel und Pläne vorhanden',
+    'Leitungsverlegung, Brandabschottungen, Zugänglichkeit', v.spd.zeichen ? 'Überspannungs-Schutzeinrichtung angeschlossen' : null].filter(Boolean);
+  const hb = Math.ceil(besichtigen.length / 2);
+  const checks = h('div', { class: 'ppchecks' },
+    liste('Besichtigen', besichtigen.slice(0, hb)), liste('Besichtigen (weiter)', besichtigen.slice(hb)),
+    h('div', {}, liste('Erproben', [hatFi ? 'FI mit der Prüftaste' : null, 'Hauptschalter, Trennvorrichtungen',
+      hatSchalt ? 'Schalt-, Steuer-, Verriegelungseinrichtungen' : null, hatDreh ? 'Drehfeld der Drehstromanschlüsse rechts' : null]),
+      h('div', { class: 'ppallg' }, h('span', {}, 'Messspannung R', h('sub', {}, 'iso'), ':', ...['250', '500', '1000 V'].map(t => h('span', { class: 'ppk' }, kk(), t))),
+        h('span', {}, 'R', h('sub', {}, 'E'), ' ______ Ω'), h('span', {}, 'Potentialausgleich ______ Ω'))));
+  const tb = h('tbody');
+  pruefZeilen(v, e).forEach(r => {
+    const zm = h('td', { class: 'z' }, r.zsMax ? ohm(r.zsMax.zs) : '', r.zsBer != null ? h('span', { class: 'ppber' }, `ber. ${ohm(r.zsBer)}`) : null);
+    tb.append(h('tr', { class: r.kl || null }, h('td', { class: 'k' }, r.kenn || ''), h('td', {}, r.bez || ''), h('td', {}, r.ltg || ''), h('td', {}, ...String(r.schutz || '').split(/(-[A-Z]+\d+)/).map((x, i) => i % 2 ? h('span', { class: 'nw' }, x) : x).filter(x => x !== '')),
+      h('td', { class: 'nw' }, r.nenn || ''), h('td', {}, r.kennl || ''), h('td', {}, r.fi || ''), zm,
+      ...PP_MESS.map((x, n) => h('td', { class: 'm' + (r.aus.has(n) ? ' aus' : '') }, n === 6 && !r.aus.has(n) ? kk() : ''))));
+  });
+  const ergebnis = h('div', { class: 'ppergebnis' },
+    h('div', { class: 'pperg1' }, h('b', {}, 'Ergebnis'), h('span', { class: 'ppk' }, kk(), 'keine Mängel festgestellt'), h('span', { class: 'ppk' }, kk(), 'Mängel festgestellt (siehe Bemerkungen)'),
+      h('span', { class: 'ppnext' }, 'Nächste Prüfung: ______________')),
+    h('div', { class: 'ppbem' }, h('span', { class: 'ppl' }, 'Bemerkungen'), h('span', { class: 'pplinie' })),
+    h('div', { class: 'ppunter' }, ppFeld('Ort, Datum', ''), ppFeld('Unterschrift Prüfer', '')),
+    h('p', { class: 'ppnote' }, sb('Z', 's,max'), ' = ', sb('U', '0'), ' / ', sb('I', 'a'), ' mit ', sb('U', '0'), ' = 230 V und dem Abschaltstrom ', sb('I', 'a'),
+      ' des Schutzorgans für 0,4 s bzw. 5 s (DIN VDE 0100-410, 411.4.4); „ber.“ = berechnet aus ', sb('Z', 's'), ' am Hausanschluss und den Leitungslängen. ',
+      'Gemessene Werte wegen der Leitererwärmung mit Reserve beurteilen (üblich ', sb('Z', 's'), ' ≤ 2/3 · ', sb('Z', 's,max'), '). ', sb('R', 'iso'),
+      ' ≥ 1 MΩ bei 500 V (DIN VDE 0100-600). Graue Felder entfallen; FI in Gruppen werden in der Gruppenzeile gemessen.'));
+  return h('section', { class: 'pp' },
+    h('div', { class: 'pptitel' }, h('h1', {}, 'Prüfprotokoll in Anlehnung an DIN VDE 0100-600'), h('span', { class: 'ppvt' }, v.name)),
+    kopfF, checks,
+    h('table', { class: 'pptab' }, ppSpalten(), ppKopfzeilen(), tb),
+    ergebnis,
+    h('div', { class: 'fuss' }, h('span', {}, [P.projekt.firma, `Stand ${datumDE(P.projekt.datum)}`, P.projekt.nummer ? `Zeichnung ${P.projekt.nummer}` : '', P.projekt.rev ? `Rev. ${P.projekt.rev}` : '']
+      .filter(Boolean).join(' · ')), h('span', { class: 'seitenzahl' })));
+}
+// Prüfprotokoll auf A4-quer-Seiten (wie tuerSeiten): Druckbreite 297 − 2 × 10 mm, Höhe 210 − 2 × 10 mm. Läuft die Tabelle über,
+// beginnt jede Folgeseite mit „Prüfprotokoll … (Fortsetzung)“ und dem Tabellenkopf; Ergebnis und Unterschrift stehen auf der letzten
+// Seite, der Fuß mit „Seite x/y“ auf jeder
+const PP_MM = { b: 277, h: 190 };
+function pruefSeiten(v) {
+  const mm = 96 / 25.4, H = PP_MM.h * mm - 4, pp = pruefprotokoll(v), seiten = [pp];
+  const mess = h('div', { style: `position:absolute;left:-10000px;top:0;width:${PP_MM.b * mm}px` }); document.body.append(mess);
+  const flach = x => { x.classList.add('flach'); mess.append(x); };
+  flach(pp);
+  let cur = pp;
+  while (cur.offsetHeight > H && cur.querySelector('.pptab tbody').children.length > 1) {
+    const tb = h('tbody'), erg = cur.querySelector('.ppergebnis'), fuss = cur.querySelector('.fuss');
+    const f = h('section', { class: 'pp' }, h('div', { class: 'pptitel' }, h('h1', {}, 'Prüfprotokoll in Anlehnung an DIN VDE 0100-600'), h('span', { class: 'ppvt' }, `${v.name} (Fortsetzung)`)),
+      h('table', { class: 'pptab' }, ppSpalten(), cur.querySelector('.pptab thead').cloneNode(true), tb), erg, fuss.cloneNode(true));
+    flach(f);
+    const quelle = cur.querySelector('.pptab tbody');
+    while (cur.offsetHeight > H && quelle.children.length > 1) tb.prepend(quelle.lastElementChild);
+    // eine Gruppenzeile bleibt bei ihren Stromkreisen
+    while (quelle.children.length > 1 && quelle.lastElementChild.classList.contains('pgruppe')) tb.prepend(quelle.lastElementChild);
+    // passt die Fortsetzung samt Ergebnis nicht und ist sie leer geblieben, kommt nur das Ergebnis auf die neue Seite
+    seiten.push(f); cur = f;
+    if (!tb.children.length) break;
+  }
+  seiten.forEach(x => x.classList.remove('flach')); mess.remove();
+  if (seiten.length > 1) seiten.forEach((x, i) => { const z = x.querySelector('.seitenzahl'); if (z) z.textContent = `Seite ${i + 1}/${seiten.length}`; });
+  return seiten;
+}
+// „Prüfprotokoll-Vorschau“ wie die Türzettel-Vorschau: dieser Verteiler oder alle, Knopf „Drucken“; die Seiten wie im Druck,
+// auf die Breite des Bildschirms verkleinert; Antippen öffnet die Lupe (Pinch, Doppeltipp, Wischen)
+function bPruef(b) {
+  const ein = b.vid && vById(b.vid) && !b.alle, liste = ein ? [vById(b.vid)] : P.verteiler;
+  app.append(kopf('Prüfprotokoll-Vorschau', h('button', { class: 'kopfknopf knopfvoll druckknopf', title: 'Prüfprotokoll drucken', on: { click: () => pruefDrucken(liste) } }, 'Drucken')));
+  const m = h('main', { class: 'breit' });
+  if (b.vid && vById(b.vid) && P.verteiler.length > 1) m.append(h('div', { class: 'segment tzwahl', role: 'tablist', 'aria-label': 'Prüfprotokoll' },
+    ...[[true, vById(b.vid).name], [false, 'Alle Verteiler']].map(([e1, t]) => h('button', { role: 'tab', 'aria-selected': String(!!ein === e1), on: { click: () => { b.alle = !e1; zeichne(); } } }, t))));
+  m.append(h('p', { class: 'druckhinweis', title: 'Als PDF: im Druckdialog das Ziel „Als PDF speichern“ wählen' },
+    h('span', {}, 'A4 quer · Druckeinstellung: ', h('b', {}, 'Skalierung 100 %'), ', ', h('b', {}, 'Ränder keine'))));
+  if (!liste.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
+  app.append(m);
+  const alleS = [];
+  liste.forEach(v => pruefSeiten(v).forEach((s, i, l) => alleS.push({ s, v, i, n: l.length })));
+  alleS.forEach(({ s, v, i, n }, j) => { s.setAttribute('role', 'button'); s.setAttribute('aria-label', `Prüfprotokoll ${v.name}${n > 1 ? `, Seite ${i + 1}` : ''} vergrößern`);
+    s.title = `Prüfprotokoll vergrößern (${tipp()})`; s.addEventListener('click', () => pruefLupe(alleS, j)); m.append(h('div', { class: 'ppwrap' }, s)); });
+  ppEinpassen(); vorschauFokus();
+}
+// Seiten in der Vorschau auf die verfügbare Breite verkleinern (nie vergrößern)
+function ppEinpassen() {
+  document.querySelectorAll('#app .ppwrap').forEach(w => {
+    const s = w.firstChild; s.style.transform = ''; w.style.height = '';
+    const W = w.clientWidth, B = s.offsetWidth; if (!B || W >= B) { w.classList.remove('eingepasst'); return; }
+    w.classList.add('eingepasst'); const k = W / B;
+    s.style.transform = `scale(${k})`; w.style.height = Math.ceil(s.offsetHeight * k) + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (stapel[stapel.length - 1].s === 'pruef') ppEinpassen(); });
+// Lupe: jede Seite als SVG mit foreignObject (wie tuerLupe)
+function pruefLupe(alleS, j) {
+  const NS = 'http://www.w3.org/2000/svg', mm = 96 / 25.4, W = Math.round(297 * mm), H = Math.round(210 * mm);
+  planLupe(alleS.map(({ s, v, i, n }, x) => {
+    const c = s.cloneNode(true); c.style.transform = ''; c.style.cursor = 'default'; c.removeAttribute('role'); c.removeAttribute('aria-label'); c.removeAttribute('title');
+    const svg = document.createElementNS(NS, 'svg'), fo = document.createElementNS(NS, 'foreignObject');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); fo.setAttribute('width', String(W)); fo.setAttribute('height', String(H));
+    fo.append(c); svg.append(fo);
+    return { svg, nr: x + 1, titel: v.name, kopf: 'Prüfprotokoll', unter: `${v.name}${n > 1 ? ` · Seite ${i + 1}/${n}` : ''}` };
+  }), j);
+}
+function pruefDrucken(liste) {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  liste.forEach(v => pruefSeiten(v).forEach(x => d.append(x)));
+  document.getElementById('seite').textContent = '@page{size:A4 landscape;margin:10mm}';
   druckBereit = true;
   setTimeout(() => window.print(), 60);
 }

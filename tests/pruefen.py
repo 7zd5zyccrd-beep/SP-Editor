@@ -3,6 +3,7 @@
 - alle Abgänge enden auf einer Höhe (Unterkante der Steckdosen), Leuchten ausgenommen
 - Blätter als PNG und der Druck als PDF nach build/pruefung/
 - Importfälle aus tests/dateien: öffnen repariert statt abgelehnt, danach Export (ab v1.71); CSV formelsicher
+- Prüfprotokoll (ab v1.79) aus bemessung und schaltungen als PDF: A4 quer, Seitenzahl, Spaltenköpfe
 - mit --vergleich: SVG aller Blätter gegen tests/referenz.json (bitgleich);
   mit --referenz: Referenz neu schreiben (nur nach einer gewollten Änderung!)
 Aufruf: python3 tests/pruefen.py [--vergleich | --referenz]"""
@@ -283,6 +284,21 @@ with sync_playwright() as p:
             pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
             if pg.evaluate("P.verteiler[1].layout.zusatz.find(z => z.id === 'z1').a[0]") != 215: fehler.append('zusatz: gemeinsames Verschieben hat den Rahmen nicht mitgenommen')
             pg.evaluate("BEISPIELE.zusatz(); P.projekt.datum = '2026-10-24'")
+        # ab v1.79 (X05): Prüfprotokoll als PDF – A4 quer, Seitenzahl wie gesetzt, Spaltenköpfe, Ergebnis je Verteiler einmal
+        if name in ('bemessung', 'schaltungen'):
+            r = pg.evaluate("""() => { window.print = () => {}; pruefDrucken(P.verteiler); const d = document.getElementById('druck');
+                return [d.querySelectorAll('.pp').length, [...d.querySelector('.pptab thead tr:last-child').children].map(t => t.textContent),
+                  document.getElementById('seite').textContent, d.querySelectorAll('.pp .ppergebnis').length, P.verteiler.length]; }""")
+            pg.emulate_media(media='print'); pdf = pg.pdf(prefer_css_page_size=True); pg.emulate_media(media='screen')
+            (AUS / f'{name}_pruefprotokoll.pdf').write_bytes(pdf)
+            seiten = len(re.findall(rb'/Type\s*/Page[^s]', pdf)); box = re.search(rb'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)', pdf)
+            koepfe = ['Kennz.', 'Stromkreis', 'Leitung', 'Schutzorgan', 'In', 'Kennl.', 'IΔn / Typ', 'Zs,maxΩ', 'RisoMΩ', 'RLOΩ', 'ZsΩ', 'IkA', 'IΔmA', 'tAms', 'i. O.']
+            if r[1] != koepfe: fehler.append(f'{name}: Prüfprotokoll Spaltenköpfe {r[1]}')
+            if 'A4 landscape' not in r[2]: fehler.append(f'{name}: Prüfprotokoll nicht A4 quer ({r[2]})')
+            if r[3] != r[4]: fehler.append(f'{name}: Prüfprotokoll – Ergebnis nicht je Verteiler einmal')
+            if seiten != r[0]: fehler.append(f'{name}: Prüfprotokoll-PDF mit {seiten} Seiten, gesetzt {r[0]}')
+            if not box or abs(float(box.group(1)) - 841.9) > 2 or abs(float(box.group(2)) - 595) > 2: fehler.append(f'{name}: Prüfprotokoll-PDF nicht A4 quer')
+            print(name, ': Prüfprotokoll', seiten, 'Seiten')
         pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()
@@ -310,7 +326,7 @@ with sync_playwright() as p:
         elif fen is None: fehler.append(f'Import {n}: abgelehnt – {mel}')
         else:
             r = pg.evaluate("""() => { const o = [];
-                for (const v of P.verteiler) for (const s of ['editor', 'plan', 'tuer', 'liste', 'verteiler'])
+                for (const v of P.verteiler) for (const s of ['editor', 'plan', 'tuer', 'liste', 'verteiler', 'pruef'])
                   try { stapel = [{ s: 'start' }, { s, vid: v.id }]; zeichne(); } catch (e) { o.push(v.name + ' ' + s + ': ' + e.message); }
                 stapel = [{ s: 'start' }]; zeichne(); return o; }""")
             fehler += [f'Import {n}: {x}' for x in r]
@@ -333,7 +349,7 @@ with sync_playwright() as p:
     pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(250); pg.add_script_tag(content=BSP); pg.evaluate("BEISPIELE.grund()")
     with pg.expect_download(timeout=5000) as dl: pg.evaluate("listeCsv(P.verteiler[0])")
     zeilen = pathlib.Path(dl.value.path()).read_bytes().decode('utf-8-sig').split('\r\n')
-    if not zeilen[1].startswith('="-F4";'): fehler.append(f'CSV: Zeile 2 beginnt mit {zeilen[1][:20]!r}')
+    if not zeilen[1].startswith('HV;="-F4";'): fehler.append(f'CSV: Zeile 2 beginnt mit {zeilen[1][:20]!r}')      # ab v1.79 Spalte Verteiler vorn
     if any(re.match(r'^[-+@]', c) or c.startswith('=') and not re.fullmatch(r'="[^"]*"', c) for z in zeilen for c in z.split(';')):
         fehler.append('CSV: Zelle beginnt mit einem Formelzeichen')
     ctx.close()

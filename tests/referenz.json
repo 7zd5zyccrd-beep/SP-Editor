@@ -1350,5 +1350,111 @@
    "6 Baustrom klemmen",
    "d8058a6d531c0cea248d5c8119309b7f"
   ]
+ ],
+ "breitgruppe_ue": [
+  [
+   "1 Deckblatt deckblatt",
+   "56ffbbbbbfadf1cd9200311bc70a3ab0"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "5eca7719e960d6f3b9f0af5b978a4175"
+  ],
+  [
+   "3 HV uebersicht",
+   "f810ee479358e6bdb2b09e52839378e4"
+  ],
+  [
+   "4 HV uebersicht",
+   "a7aa641587bdea8f6db85184087a545f"
+  ],
+  [
+   "5 HV kombiniert",
+   "cbf1f5576c44827b0403fd2e05923acb"
+  ],
+  [
+   "6 HV abgang",
+   "6eb3591d8786b4fc84b7f02c93e6637e"
+  ],
+  [
+   "7 HV abgang",
+   "27411f4bdc57022e17ff36d6cf4fb5dc"
+  ]
+ ],
+ "pvgruppe": [
+  [
+   "1 Deckblatt deckblatt",
+   "84a1316042cf6b1355dc37d23f73d982"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "4c58d988411e5fceff488cc970c307de"
+  ],
+  [
+   "3 HV uebersicht",
+   "97a47672886618b4d5ce809d91b809c8"
+  ],
+  [
+   "4 HV einspeisung",
+   "59ab54302fcffa8ae7a1caeff81afc11"
+  ],
+  [
+   "5 HV abgang",
+   "3bc4f457e009c7d6fc4185bfa9dc9bf4"
+  ],
+  [
+   "6 HV abgang",
+   "5f68f33a45e60b7d5aa148d55582283e"
+  ],
+  [
+   "7 HV abgang",
+   "0ce0d8e4d667b89274a12ada19a2133a"
+  ],
+  [
+   "8 HV abgang",
+   "c70ade1fd43683492d6d5343f6e3cd0c"
+  ],
+  [
+   "9 HV abgang",
+   "d46c5ce45a3dee9a5f464ed081351586"
+  ],
+  [
+   "10 HV steuerung",
+   "340e3ca94ade2deb49a44b446c75db5d"
+  ],
+  [
+   "11 HV klemmen",
+   "2b982866edd2ca8f8fbc21ee17f8e78d"
+  ]
+ ],
+ "spalte10": [
+  [
+   "1 Deckblatt deckblatt",
+   "3694097c4d5742f25ab5aff4b52a4989"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "fb5d628d29071322acdbc70b5d36ebe1"
+  ],
+  [
+   "3 HV uebersicht",
+   "0ee8efbeff39a1e2bb86b742db677ddd"
+  ],
+  [
+   "4 HV kombiniert",
+   "5cdc70c222de07b0769003814e9af6d6"
+  ],
+  [
+   "5 HV abgang",
+   "a54c4275c486b4c0287ae00f8dec53cc"
+  ],
+  [
+   "6 HV abgang",
+   "549732e5663a118dba2806bf5ba5b593"
+  ],
+  [
+   "7 HV steuerung",
+   "d7babea88af79425724dbbb83d1f0e70"
+  ]
  ]
 }

@@ -16,6 +16,15 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.73: Blattrahmen und Höhenbudget (Etappe Q4: Q08, Q09, Q17): Übersichtsschaltplan teilt eine FI-Gruppe, die auch auf
+           einem leeren Blatt nicht Platz hat, in Teilstücke mit Querverweis; eine Gruppe, deren Abgänge unter der
+           Untersammelschiene zu tief reichen (PV, Stern-Dreieck …), wird geteilt – die hohen Abgänge stehen auf Folgeblättern
+           mit hochgezogenen Untersammelschienen (dort keine Sammelschienen, deren Querverweise springen darüber); zu hohe
+           Einzelabgänge rücken enger (Klemmen, PV-Lücken, Stern-Dreieck, Überlastrelais); kein leeres Blatt mehr; A1/A2 und
+           Melder-Beschriftung in der letzten Spalte des Steuerstromkreises links; Rahmenprüfung auch senkrecht (Schriftfeld),
+           mit senkrechten Texten und Zeichen, für alle Blattarten, Hinweis in der Druckvorschau; Stern-Dreieck im
+           Übersichtsplan mit zweiter Leitungszeile statt Stauchung unter 85 %; Beispiele `breitgruppe_ue`,
+           `pvgruppe`, `spalte10`
      v1.72: Fachfehler im Plan (Etappe Q3: Q04–Q06, Q13, Q14, Q16, Q24, Q25): PE bzw. PEN laufen nie durch ein Schaltglied –
            überzählige Pole bleiben frei, der Schutzleiter läuft rechts vorbei; 1/N/PE-Verteiler mit Lasttrennschalter 2-polig und
            1-poligen Vorsicherungen (Sicherung, Sicherungstrenn-, Sicherungslasttrennschalter, LS), Auswahl nach den Leitern, Wechsel der
@@ -6250,6 +6259,8 @@ function bPlan(b) {
   res.blaetter.forEach(bl => {
     const k = h('div', { class: 'blattkarte', title: `Blatt ${bl.nr} vergrößern (${tipp()})` }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : '')));
     k.append(bl.svg); m.append(k);
+    // ab v1.73 (Q08/Q09): Rahmenprüfung aller Blattarten – auch Übersicht, Deckblatt und Klemmenplan, die der Plan-Editor nicht zeigt
+    (bl.pruef || []).filter(x => x.art === 'rahmen').slice(0, 1).forEach(x => k.append(warnZeile(`Blatt ${bl.nr}: ${x.t}`)));
     bl.svg.removeAttribute('width'); bl.svg.removeAttribute('height');
     const i = res.blaetter.indexOf(bl);
     bl.svg.setAttribute('role', 'button'); bl.svg.setAttribute('aria-label', `Blatt ${bl.nr} vergrößern`);

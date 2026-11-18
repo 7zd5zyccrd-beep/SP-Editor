@@ -249,6 +249,38 @@ window.BEISPIELE = {
     const bl = neuerAbgang(); bl.ziel = {bez:'Bauleuchte', ort:'Treppenhaus', anschluss:'leuchte'}; bl.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'10', idn:'30', fityp:'A'};
     bl.leitung = {typ:'H07RN-F', quer:'1,5'}; bv.knoten.push(bl);
     P.verteiler.push(bv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q4 (v1.73, Q08): FI-Gruppe mit 20 Abgängen auf A4 – der Übersichtsschaltplan teilt sie wie der Stromlaufplan in
+  // Teilstücke mit Querverweis
+  breitgruppe_ue: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Wohnanlage', ersteller:'Jean', nummer:'SLP-0075'});
+    const hv = neuerVerteiler('HV'); const g = neueGruppe(); g.geraet = {zeichen:'fi4', nenn:'63', idn:'30', fityp:'A'};
+    for (let i = 1; i <= 20; i++) { const x = neuerAbgang(); x.ziel.bez = (i % 4 ? 'Steckdosen ' : 'Licht ') + i; if (!(i % 4)) { x.ziel.anschluss = 'leuchte'; x.leitung.quer = '1,5'; x.geraet.nenn = '10'; } g.kinder.push(x); }
+    hv.knoten.push(g); const a = neuerAbgang(); a.ziel = {bez:'Außensteckdose', ort:'Terrasse', anschluss:'steckdose3'}; a.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; hv.knoten.push(a);
+    P.verteiler.push(hv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q4 (v1.73, Q09): PV-Hybrid mit Schütz und Klemmleiste sowie ein Stern-Dreieck-Motor in FI-Gruppen – die hohen
+  // Abgänge stehen auf Folgeblättern mit hochgezogenen Untersammelschienen, nichts reicht ins Schriftfeld
+  pvgruppe: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Hof Weber', ersteller:'Jean', nummer:'SLP-0076'});
+    const hv = neuerVerteiler('HV'); hv.klemmen = 'leiste';
+    const g1 = neueGruppe(); g1.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    const s1 = neuerAbgang(); s1.ziel = {bez:'Steckdosen', ort:'Scheune', anschluss:'steckdose3'}; g1.kinder.push(s1);
+    const pv = neuerAbgang(); pv.ziel = {bez:'PV-Anlage', ort:'Dach', anschluss:'pv'}; pv.pv = {phasen:'3', kwp:'9,9', speicher:{kwh:'10'}}; pv.geraet = {zeichen:'ls3', kennlinie:'B', nenn:'16'};
+    pv.leitung.quer = '4'; pv.schalt = neuesSchalt('schuetz'); g1.kinder.push(pv); hv.knoten.push(g1);
+    const g2 = neueGruppe(); g2.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    const s2 = neuerAbgang(); s2.ziel = {bez:'Steckdosen', ort:'Werkstatt', anschluss:'steckdose3'}; g2.kinder.push(s2);
+    const m = neuerAbgang(); m.ziel = {bez:'Gebläse', ort:'Trocknung', anschluss:'motor'}; m.motor = {art:'3', kw:'7,5', strom:'15'}; m.geraet = {zeichen:'motorschutz3', bereich:'10–16'};
+    m.leitung.quer = '2,5'; m.schalt = neuesSchalt('schuetz'); g2.kinder.push(m); hv.knoten.push(g2);
+    const sls = neuerSteuerLs(); hv.knoten.push(sls);
+    P.verteiler.push(hv); stDaten(hv).spannung = { art: 'durch', quelle: sls.id }; kreisAnlegen(hv, pv); schaltungSetzen(hv, m, 'sd');
+    sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q4 (v1.73, Q17): zehn Leuchten mit Zeitrelais und Schütz im Wechsel – die Schützspule steht in Spalte 10, A1/A2
+  // stehen dort links am Zeichen
+  spalte10: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Halle 5', ersteller:'Jean', nummer:'SLP-0077'});
+    const hv = neuerVerteiler('HV'); P.verteiler.push(hv);
+    for (let i = 1; i <= 10; i++) { const x = neuerAbgang(); x.ziel = {bez:'Licht ' + i, ort:'', anschluss:'leuchte'}; x.leitung.quer = '1,5'; x.geraet.nenn = '10';
+      x.schalt = neuesSchalt(i % 2 ? 'zeitrelais' : 'schuetz'); hv.knoten.push(x); kreisAnlegen(hv, x); }
+    sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

@@ -1650,5 +1650,53 @@
    "8 UV Werkstatt kombiniert",
    "9227cc5a5fc40b5de27230b98384d5e7"
   ]
+ ],
+ "vorlage_wohnung": [
+  [
+   "1 Deckblatt deckblatt",
+   "0a66fd3f4b8147d8a7349cd332d21553"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "852d36adb835ae4b7e673b3e4384677e"
+  ],
+  [
+   "3 Wohnungsverteiler uebersicht",
+   "627ea7addbd8703fbeea3eb99c58cd35"
+  ],
+  [
+   "4 Wohnungsverteiler kombiniert",
+   "b9a00d24958ccc3909c81b7eda7cd5ed"
+  ],
+  [
+   "5 Wohnungsverteiler abgang",
+   "8f8849744000ee5b7cf2ea3854b3317c"
+  ],
+  [
+   "6 Wohnungsverteiler abgang",
+   "8b9b063d8eb6902d8e11a5a69069ce03"
+  ]
+ ],
+ "vorlage_baustrom": [
+  [
+   "1 Deckblatt deckblatt",
+   "af049824b5ce487ad5eecf6764471a6f"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "11c634447ae65fd4cdb370e7db8839c8"
+  ],
+  [
+   "3 Baustromverteiler uebersicht",
+   "b6544d4b6a0af7328e2f8172323d9c28"
+  ],
+  [
+   "4 Baustromverteiler einspeisung",
+   "8e7ddbcb61e6015f7d69234548f85f0f"
+  ],
+  [
+   "5 Baustromverteiler abgang",
+   "f36e5f0d809c7753447271b970992b70"
+  ]
  ]
 }

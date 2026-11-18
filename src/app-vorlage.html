@@ -16,6 +16,15 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.82: Verteilervorlagen und schnelle Eingabe (Etappe X-G: X08, X09, X12-Vorlage): „Neuer Verteiler“ mit Vorlage (VERTEILER_VORLAGEN:
+           leer, Wohnungsverteiler 3 FI, EFH-Hauptverteiler mit Sicherungstrenner 35 A, Zähler und SPD, Baustromverteiler mit Einbausteckdosen ohne
+           Leitung, Werkstatt mit Klemmleiste, Kompressor, Schütz, Ein/Aus und Steuer-LS) und eigenen Vorlagen (slp.vorlagen.v1, „Als Vorlage
+           speichern …“ im Verteilermenü und im Rechtsklick ins Leere, Löschen mit Rückgängig, in der Sammelsicherung enthalten und beim Öffnen
+           einer Sammeldatei übernommen); „Verteiler duplizieren“ (neueKennungen(): neue Kennungen für Abgänge, Steuergeräte, Kreise, Pfade,
+           Zusätze samt Verweisen, Steuerspannungsquelle und Vorgaben von Hand; Unterverteiler werden nicht doppelt gespeist). Eingabevorschläge
+           für Bezeichnung und Ort (vorschlagZeile(): Projektwerte nach Häufigkeit, dann Standardliste; Antippen übernimmt, ↓/↑ und Enter am
+           Desktop; Zeile direkt unter dem Feld, Touch 44 px, über der Bildschirmtastatur). Beispiele vorlage_wohnung, vorlage_baustrom.
+           Datenmodell des Projekts unverändert, Pläne bitgleich.
      v1.81: Revisionen und Projektkopf (Etappe X-F: X06, Q30): P.revisionen = [{ rev, datum, text, name, hash }] – „Revision festschreiben …“
            (Hauptmenü, Projektdaten) merkt je Planblatt einen Kurzhash ohne Schriftfeld (PLAN.blattHash, FNV-1a), schlägt die nächste Revision vor
            (0 → 1, A → B), nennt die seit der letzten Revision geänderten bzw. entfallenen Blätter und setzt Revision und Ausgabedatum des Projekts;
@@ -536,6 +545,19 @@ table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:no
 .knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
 .knopf.rot{background:var(--rot)}
 .fenster .text{font-size:15px;color:var(--leise);margin:0 0 8px}
+/* ab v1.82 (X09): Vorschlagszeile unter Bezeichnung/Ort; (X08) Vorlagenwahl im Fenster „Neuer Verteiler“ */
+.vorschlaege{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.vorschlaege[hidden]{display:none}
+.vorschlaege button{font:inherit;font-size:var(--fs-13);border:1px solid var(--linie2);background:var(--karte);color:var(--tinte);border-radius:999px;padding:3px 11px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vorschlaege button:hover{background:var(--hover)}
+.vorschlaege button.an{border-color:var(--akzent);background:var(--akzent-hell);color:var(--akzent);font-weight:600}
+@media (pointer:coarse){.vorschlaege button{min-height:44px;padding:0 14px}}
+.fenster .text.vorlagentitel{margin-top:14px}
+.vorlagenwahl{max-height:none;overflow:hidden}.vorlagenwahl>*{flex-shrink:0}
+.vorlagenwahl .vlz{display:flex;align-items:stretch;border-top:1px solid var(--linie)}
+.vorlagenwahl .vlz>button[role=radio]{flex:1 1 auto;border-top:0;min-width:0}
+.vorlagenwahl .vlz>.ikon{flex:0 0 auto;border:0;border-left:1px solid var(--linie);border-radius:0;justify-content:center;align-items:center;padding:0 12px;color:var(--leise)}
+.vorlagenwahl .wahlkopf+.vlz{border-top:0}
 /* ab v1.81 (X06): Formular „Revision festschreiben“ – Feldname über dem Feld */
 .revform{display:grid;gap:10px}.revform .revfeld{display:grid;gap:4px}.revform .revfeld>span{font-size:13px;color:var(--leise)}
 .meldung{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinte);color:var(--karte);padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
@@ -2878,22 +2900,75 @@ function textFeld(titel, wert, setzen, opt = {}) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
   const fe = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true });
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
-  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl || opt.warn ? fe : null];
-  const schl = fenster(titel, kids);
-  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); schl(); } });
+  let schl = null;
+  const vz = opt.vorschlag ? vorschlagZeile(i, opt.vorschlag, w => { i.value = w; eingabe(i, titel, setzen, opt, fe); schl(); }) : null;      // ab v1.82 (X09)
+  const kids = [opt.text ? h('p', { class: 'text' }, opt.text) : null, i, opt.zahl || opt.warn ? fe : null, vz];
+  schl = fenster(titel, kids);
+  i.addEventListener('keydown', ev => { if (vz && vz.taste(ev)) return; if (ev.key === 'Enter') { ev.preventDefault(); schl(); } });
   setTimeout(() => i.focus(), 50);
+}
+// ---- Eingabevorschläge (ab v1.82, Etappe X-G: X09) ------------------------------------------------------------------
+// Bezeichnung und Ort: Werte aus dem ganzen Projekt nach Häufigkeit, dahinter eine Standardliste. Die Vorschlagszeile steht direkt
+// unter dem Feld (im Fach über der Bildschirmtastatur mitgehoben); Antippen übernimmt, am Desktop ↓/↑ wählen und Enter übernimmt.
+// Solange nichts getippt ist, zeigt sie die häufigsten Werte (ohne den aktuellen), danach die passenden (Anfang vor Teil).
+const VORSCHLAG_STANDARD = {
+  bez: ['Steckdosen', 'Licht', 'Herd', 'Backofen', 'Kochfeld', 'Spülmaschine', 'Kühlschrank', 'Gefrierschrank', 'Waschmaschine', 'Trockner',
+    'Durchlauferhitzer', 'Heizung', 'Wärmepumpe', 'Lüftung', 'Rollladen', 'Außensteckdose', 'Außenlicht', 'Netzwerk', 'Klingel', 'Garagentor'],
+  ort: ['Wohnen', 'Essen', 'Küche', 'Schlafen', 'Kind', 'Bad', 'WC', 'Flur', 'Diele', 'Treppenhaus', 'Arbeiten', 'Gäste', 'Abstellraum',
+    'Hauswirtschaft', 'Keller', 'Heizraum', 'Technik', 'Dachboden', 'Garage', 'Terrasse', 'Garten', 'Außen', 'Werkstatt', 'Büro', 'Lager'] };
+function vorschlagWerte(art) {
+  const n = new Map(), dazu = t => { t = String(t || '').trim(); if (t) n.set(t, (n.get(t) || 0) + 1); };
+  P.verteiler.forEach(v => { alleKnoten(v, k => { if (k.typ === 'abgang' && k.ziel && !k.steuer && !k.speist) dazu(k.ziel[art]); });
+    if (art === 'ort') ((v.steuerung || {}).geraete || []).forEach(g => dazu(g.ort)); });
+  const proj = [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de')).map(x => x[0]), da = new Set(proj.map(x => x.toLowerCase()));
+  return proj.concat(VORSCHLAG_STANDARD[art].filter(x => !da.has(x.toLowerCase())));
+}
+function vorschlaegeFuer(art, text, aktuell, max = 6) {
+  const t = String(text || '').trim().toLowerCase(), ak = String(aktuell || '').trim().toLowerCase();
+  const alle = vorschlagWerte(art).filter(x => x.toLowerCase() !== ak && x.toLowerCase() !== t);
+  if (!t) return alle.slice(0, max);
+  return alle.filter(x => x.toLowerCase().startsWith(t)).concat(alle.filter(x => !x.toLowerCase().startsWith(t) && x.toLowerCase().includes(t))).slice(0, max);
+}
+// Zeile mit Vorschlägen zum Feld i; nehmen(w) übernimmt. box.taste(ev) behandelt ↓/↑/Enter (true = erledigt), box.waehlt ist
+// gesetzt, solange ein Vorschlag gedrückt wird (das Feld verliert dabei auf Touch den Fokus – das Verlassen übernimmt dann nicht)
+function vorschlagZeile(i, art, nehmen, verlassen = null) {
+  const start = i.value;
+  let wahl = -1, getippt = false, werte = [];
+  const box = h('div', { class: 'vorschlaege', role: 'listbox', id: 'vz' + id(), 'aria-label': art === 'ort' ? 'Vorschläge für den Ort' : 'Vorschläge für die Bezeichnung' });
+  const zeigen = () => {
+    werte = vorschlaegeFuer(art, getippt ? i.value : '', start);
+    wahl = Math.min(wahl, werte.length - 1);
+    box.replaceChildren(...werte.map((w, j) => h('button', { type: 'button', role: 'option', tabindex: '-1', id: box.id + '-' + j, 'aria-selected': String(j === wahl), class: j === wahl ? 'an' : null,
+      on: { mousedown: ev => ev.preventDefault(), pointerdown: () => { box.waehlt = true;
+        document.addEventListener('pointerup', () => setTimeout(() => { if (!box.isConnected || !box.waehlt) return; box.waehlt = false; if (verlassen && document.activeElement !== i) verlassen(); }, 400), { once: true }); },
+        click: () => { box.waehlt = false; nehmen(w); } } }, w)));
+    box.hidden = !werte.length; i.setAttribute('aria-expanded', String(!!werte.length));
+    if (wahl >= 0) i.setAttribute('aria-activedescendant', box.id + '-' + wahl); else i.removeAttribute('aria-activedescendant');
+  };
+  i.setAttribute('role', 'combobox'); i.setAttribute('aria-autocomplete', 'list'); i.setAttribute('aria-controls', box.id);
+  i.addEventListener('input', () => { getippt = true; wahl = -1; zeigen(); });
+  box.taste = ev => {
+    if (box.hidden || ev.altKey || ev.ctrlKey || ev.metaKey) return false;
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { wahl = ev.key === 'ArrowDown' ? (wahl + 1) % werte.length : wahl <= 0 ? -1 : wahl - 1; zeigen(); }
+    else if (ev.key === 'Enter' && wahl >= 0) nehmen(werte[wahl]);
+    else return false;
+    ev.preventDefault(); ev.stopPropagation(); return true;
+  };
+  zeigen(); return box;
 }
 // Text direkt in der Zeile ändern: Eingabe oder Verlassen übernimmt, Esc nimmt zurück
 function textInline(z, titel, wert, setzen, opt) {
   const i = h('input', { type: opt.typ || 'text', value: wert || '', placeholder: opt.platz || '', inputmode: opt.inputmode || null, autocapitalize: 'sentences', 'aria-label': titel });
   const fe = h('span', { class: 'un feldfehler', 'aria-live': 'polite', hidden: true });
-  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl || opt.warn ? fe : null), i);
+  let ende = null;
+  const vz = opt.vorschlag ? vorschlagZeile(i, opt.vorschlag, w => { i.value = w; eingabe(i, titel, setzen, opt, fe); ende(false, 0); }, () => ende(false)) : null;      // ab v1.82 (X09)
+  const box = h('div', { class: 'zeile bearbeiten' }, h('span', { class: 't' }, h('span', { class: 'ob' }, titel), opt.text ? h('span', { class: 'un' }, opt.text) : null, opt.zahl || opt.warn ? fe : null), i, vz);
   // ab v1.60 (D17): nach Eingabe bzw. Esc liegt der Fokus wieder auf der Zeile, Tab/Umschalt+Tab geht zur nächsten bzw. vorigen
   const wurzel = z.closest('.edeigen') ? '.edeigen' : '#app', zeilen = () => [...document.querySelectorAll(wurzel + ' .zeile')];
   z.replaceWith(box);
   const nr = zeilen().indexOf(box);
   let fertig = false;
-  const ende = (zurueckNehmen, weiter = null) => {
+  ende = (zurueckNehmen, weiter = null) => {
     if (fertig) return; fertig = true;
     if (zurueckNehmen) { verlauf.sitzung = i._sitz || null; setzen(wert || ''); sichern(); verlauf.sitzung = null; }
     zeichne();
@@ -2905,12 +2980,14 @@ function textInline(z, titel, wert, setzen, opt) {
   };
   i.addEventListener('input', () => eingabe(i, titel, setzen, opt, fe));
   i.addEventListener('keydown', ev => {
+    if (vz && vz.taste(ev)) return;
     if (ev.key === 'Enter') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false, 0); }
     else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ende(true, 0); }
     else if (ev.key === 'Tab') { ev.preventDefault(); if (i.classList.contains('fehler')) return; ende(false, ev.shiftKey ? -1 : 1); }
   });
-  i.addEventListener('blur', () => setTimeout(() => ende(false), 0));
+  i.addEventListener('blur', () => setTimeout(() => { if (!(vz && vz.waehlt)) ende(false); }, 0));
   i.focus(); i.select();
+  if (vz) requestAnimationFrame(() => { if (box.isConnected) box.scrollIntoView({ block: 'nearest' }); });      // ab v1.82: Feld samt Vorschlägen sichtbar
 }
 function wahlFeld(titel, optionen, wert, setzen, opt = {}) {
   let schl;
@@ -3210,10 +3287,132 @@ function bStart() {
 }
 // ab v1.54: Vorschlag „Hauptverteiler“ bzw. „Unterverteiler n“, Anlegen erst mit Namen, Fokus sofort im Feld
 const freierName = basis => { let n = 1; while (P.verteiler.some(w => w.name === `${basis} ${n}`)) n++; return `${basis} ${n}`; };
+// ab v1.82 (X08): der Name selbst, solange frei, sonst „Name 2“, „Name 3“ …
+const freierVName = basis => { if (!P.verteiler.some(w => w.name === basis)) return basis; let n = 2; while (P.verteiler.some(w => w.name === `${basis} ${n}`)) n++; return `${basis} ${n}`; };
+// ---- Verteilervorlagen (ab v1.82, Etappe X-G: X08, X12) ------------------------------------------------------------
+// Fest eingebaute Vorlagen füllen einen neuen Verteiler (bau(v), v steht schon in P.verteiler); eigene Vorlagen liegen in
+// slp.vorlagen.v1 = [{ id, name, gespeichert, daten }] mit daten = kleines Projekt { format: 'slp-projekt', version, verteiler: [v] },
+// damit pruefeProjekt()/migriere() sie wie eine Datei prüfen. Beim Anlegen bekommt alles neue Kennungen (neueKennungen()).
+function vorlageAbgang(bez, ort, anschluss = 'steckdose3', geraet = null, leitung = null) {
+  const a = neuerAbgang(); Object.assign(a.ziel, { bez, ort, anschluss });
+  if (anschluss === 'leuchte') { a.geraet.nenn = '10'; a.leitung.quer = '1,5'; }
+  if (geraet) a.geraet = geraet; if (leitung) Object.assign(a.leitung, leitung);
+  return a;
+}
+const vorlageGruppe = (kinder, nenn = '40') => Object.assign(neueGruppe(), { geraet: { zeichen: 'fi4', nenn, idn: '30', fityp: 'A' }, kinder });
+const VERTEILER_VORLAGEN = [
+  { id: 'leer', name: 'Leerer Verteiler', text: 'Hauptschalter 63 A, sonst leer', bau: () => {} },
+  { id: 'wohnung', name: 'Wohnungsverteiler', titel: 'Wohnungsverteiler 3 FI', text: 'Hauptschalter, 3 FI 40 A/30 mA mit 12 Abgängen und Herd', bau: v => {
+    const sd = (o) => vorlageAbgang('Steckdosen', o), li = o => vorlageAbgang('Licht', o, 'leuchte'), dose = (b, o) => vorlageAbgang(b, o, 'dose');
+    v.knoten.push(vorlageGruppe([sd('Wohnen'), li('Wohnen'), sd('Schlafen'), li('Schlafen')]),
+      vorlageGruppe([sd('Küche'), li('Küche'), dose('Spülmaschine', 'Küche'), vorlageAbgang('Herd', 'Küche', 'dose', { zeichen: 'ls3', kennlinie: 'B', nenn: '16' })]),
+      vorlageGruppe([sd('Bad'), li('Bad'), dose('Waschmaschine', 'Bad'), sd('Flur'), li('Flur')])); } },
+  { id: 'efh', name: 'Hauptverteiler', titel: 'EFH-Hauptverteiler', text: 'Sicherungstrenner 35 A, Zähler, Hauptschalter, SPD, 2 FI, Herd', bau: v => {
+    Object.assign(v, { vorsicherung: { zeichen: 'sichlasttrenn3', art: 'gG', nenn: '35' }, zaehler: { zeichen: 'zaehler3' }, spd: { zeichen: 'spd4' } });
+    const sd = (o) => vorlageAbgang('Steckdosen', o), li = o => vorlageAbgang('Licht', o, 'leuchte');
+    v.knoten.push(vorlageGruppe([sd('Wohnen'), li('Wohnen'), sd('Küche'), li('Küche'), vorlageAbgang('Herd', 'Küche', 'dose', { zeichen: 'ls3', kennlinie: 'B', nenn: '16' })]),
+      vorlageGruppe([sd('Bad'), li('Bad'), vorlageAbgang('Waschmaschine', 'Bad', 'dose'), sd('Terrasse')])); } },
+  // X12: Einbausteckdosen im Baustromverteiler ohne Leitung (Leitungstyp „ohne“)
+  { id: 'baustrom', name: 'Baustromverteiler', text: 'Vorsicherung 63 A, 2 FI 63 A/30 mA, CEE 32 A und 16 A, 3 Schuko – Einbausteckdosen ohne Leitung', bau: v => {
+    v.vorsicherung = { zeichen: 'sich3', art: 'gG', nenn: '63' };
+    const ohne = { typ: 'ohne', quer: '2,5' }, cee = (n) => vorlageAbgang(`CEE ${n} A`, 'im Verteiler', 'steckdose5', { zeichen: 'ls3', kennlinie: 'C', nenn: n }, ohne);
+    v.knoten.push(vorlageGruppe([cee('32'), cee('16')], '63'), vorlageGruppe([1, 2, 3].map(i => vorlageAbgang('Schuko ' + i, 'im Verteiler', 'steckdose3', null, ohne)), '63')); } },
+  { id: 'werkstatt', name: 'Werkstatt', text: 'Klemmleiste, FI-Gruppe, CEE 16 A, Kompressor mit Schütz und Ein/Aus, Steuer-LS', bau: v => {
+    v.klemmen = 'leiste';
+    const mo = vorlageAbgang('Kompressor', 'Werkstatt', 'motor', { zeichen: 'motorschutz3', bereich: '6,3–10' }, { quer: '2,5' });
+    mo.motor = { art: '3', kw: '4', strom: '8,2' }; mo.schalt = neuesSchalt('schuetz');
+    const sls = neuerSteuerLs();
+    v.knoten.push(vorlageGruppe([vorlageAbgang('Steckdosen', 'Werkbank'), vorlageAbgang('Licht', 'Werkstatt', 'leuchte')]),
+      vorlageAbgang('CEE 16 A', 'Werkstatt', 'steckdose5', { zeichen: 'fils3n', kennlinie: 'C', nenn: '16', idn: '30', fityp: 'A' }), mo, sls);
+    stDaten(v).spannung = { art: 'durch', quelle: sls.id };
+    vorlageEinsetzen(v, kreisAnlegen(v, mo), 'motor', { meldung: true }); } },
+];
+// neuer Verteiler aus der eingebauten Vorlage vid (auch für die Beispiele vorlage_wohnung, vorlage_baustrom)
+function verteilerAusVorlage(vid, name) { const v = neuerVerteiler(name); P.verteiler.push(v); VERTEILER_VORLAGEN.find(x => x.id === vid).bau(v); return v; }
+const VORLAGEN_SPEICHER = 'slp.vorlagen.v1';
+function vorlagenLesen() { const l = jsonVon(lsLesen(VORLAGEN_SPEICHER)); return Array.isArray(l) ? l.filter(x => x && typeof x.name === 'string' && x.daten && typeof x.daten === 'object') : []; }
+function vorlagenSchreiben(l) { if (l.length) localStorage.setItem(VORLAGEN_SPEICHER, JSON.stringify(l)); else localStorage.removeItem(VORLAGEN_SPEICHER); }
+// Neue Kennungen für einen kopierten Verteiler w (Abgänge, Gruppen, Steuergeräte, Kreise, Pfade, Zusätze): Verweise darauf (Plätze
+// mit ~n, Quelle der Steuerspannung, Schlüssel und Anker der Vorgaben von Hand k:…, kr:…, e:<vid>) werden mit umgeschrieben;
+// eine Speisung (speist) entfällt, ein Unterverteiler wird nie doppelt gespeist. Gibt eine neue Kopie zurück.
+function neueKennungen(w) {
+  const um = new Map(), neu = x => { if (x && typeof x.id === 'string' && !um.has(x.id)) um.set(x.id, id()); };
+  neu(w); alleKnoten(w, neu);
+  const st = w.steuerung || {}; (st.geraete || []).forEach(neu); (st.kreise || []).forEach(kr => { neu(kr); (kr.pfade || []).forEach(neu); });
+  ((w.layout || {}).zusatz || []).forEach(neu);
+  const tok = s => s.replace(/[0-9a-z]+/gi, t => um.get(t) || t);
+  const wert = s => um.has(s) ? um.get(s) : /^(k|kr|e|s|t):/.test(s) || /^[0-9a-z]+~\d+$/i.test(s) ? tok(s) : s;
+  const lauf = (x, imLayout) => Array.isArray(x) ? x.map(y => lauf(y, imLayout))
+    : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, y]) => [imLayout ? tok(k) : k, k === 'speist' ? null : lauf(y, imLayout || k === 'layout')]))
+    : typeof x === 'string' ? wert(x) : x;
+  return lauf(w, false);
+}
+// eigene Vorlage x als neuer Verteiler (wirft, wenn sie unbrauchbar ist)
+function eigeneVorlageVerteiler(x, name) {
+  const d = kopie(x.daten); pruefeProjekt(d, true); migriere(d);
+  if (!d.verteiler[0]) throw new Error('leer');
+  const w = neueKennungen(d.verteiler[0]); w.name = name; return w;
+}
+function vorlageSpeichern(v) {
+  nameFenster('Als Vorlage speichern', 'Name der Vorlage – sie steht danach unter „Neuer Verteiler“ in allen Projekten dieses Browsers', v.name, 'z. B. Wohnung Standard', 'Speichern', name => {
+    const l = vorlagenLesen(), alt = l.find(x => x.name === name), d = kopie(v);
+    alleKnoten(d, k => { if (k.speist) k.speist = null; });
+    const x = { id: alt ? alt.id : id(), name, gespeichert: new Date().toISOString(), daten: { format: 'slp-projekt', version: PROJEKT_VERSION, app: APP_FASSUNG, projekt: {}, verteiler: [d] } };
+    try { vorlagenSchreiben(alt ? l.map(y => y === alt ? x : y) : l.concat(x)); }
+    catch (e) { meldung('Vorlage nicht gespeichert – Speicher voll'); return; }
+    meldung(alt ? `Vorlage „${name}“ ersetzt` : `Als Vorlage „${name}“ gespeichert – unter „Neuer Verteiler“ wählbar`);
+  });
+}
+function verteilerDuplizieren(v) {
+  const w = neueKennungen(kopie(v)); w.name = freierVName(`${v.name} (Kopie)`);
+  P.verteiler.splice(P.verteiler.indexOf(v) + 1, 0, w); aenderung(`${v.name} duplizieren`); sichern();
+  let uv = false; alleKnoten(v, k => { if (k.speist) uv = true; });
+  geh({ s: 'editor', vid: w.id });
+  // Rückgängig aus dem Editor der Kopie: erst zurück zum Original (im Editor eines Verteilers, den es danach nicht mehr gibt, geht es nicht)
+  meldung(`„${w.name}“ angelegt` + (uv ? ' – ohne Speisung der Unterverteiler' : ''), ['Rückgängig', () => {
+    const eb = stapel[stapel.length - 1]; if (eb && eb.s === 'editor' && eb.vid === w.id && vById(v.id)) { eb.vid = v.id; eb.sel = null; } projektRueck(false); }]);
+}
+// Neuer Verteiler (ab v1.54 mit Namensvorschlag, ab v1.82 mit Vorlage): solange der Name nicht von Hand geändert ist, folgt er der
+// gewählten Vorlage; Enter bzw. „Anlegen“ legt an, Doppelklick auf eine Vorlage ebenfalls
 function neuerVerteilerFenster() {
-  const vorschlag = !P.verteiler.length ? 'Hauptverteiler' : freierName('Unterverteiler');
-  nameFenster('Neuer Verteiler', 'Name des Verteilers', vorschlag, 'z. B. Hauptverteiler Keller', 'Anlegen', name => {
-    const v = neuerVerteiler(name); P.verteiler.push(v); aenderung(`${v.name} anlegen`); sichern(); geh({ s: 'editor', vid: v.id }); });
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  const auto = !P.verteiler.length ? 'Hauptverteiler' : freierName('Unterverteiler');
+  let wahl = 'leer', vonHand = false, an = null, eigene = vorlagenLesen();
+  const i = h('input', { type: 'text', value: auto, placeholder: 'z. B. Hauptverteiler Keller', autocapitalize: 'sentences', enterkeyhint: 'done', 'aria-label': 'Name des Verteilers' });
+  const hw = h('p', { class: 'feldfehler', 'aria-live': 'polite', hidden: true }, 'Bitte einen Namen eingeben.');
+  const liste = h('div', { class: 'wahl mitklein vorlagenwahl', role: 'radiogroup', 'aria-label': 'Vorlage' });
+  const nameVon = w => w === 'leer' ? auto : w.startsWith('e:') ? freierVName((eigene.find(x => 'e:' + x.id === w) || {}).name || auto)
+    : freierVName(VERTEILER_VORLAGEN.find(x => x.id === w).name);
+  const los = s => {
+    const name = i.value.trim(); if (!name) { i.focus(); return; }
+    let v;
+    if (wahl.startsWith('e:')) {
+      try { v = eigeneVorlageVerteiler(eigene.find(x => 'e:' + x.id === wahl), name); } catch (e) { meldung('Diese Vorlage lässt sich nicht verwenden'); return; }
+      s(false); P.verteiler.push(v);
+    } else { s(false); v = verteilerAusVorlage(wahl, name); }
+    aenderung(`${v.name} anlegen`); sichern(); geh({ s: 'editor', vid: v.id });
+    if (wahl !== 'leer') meldung(`„${v.name}“ aus der Vorlage angelegt – Bezeichnungen und Werte anpassen`);
+  };
+  const knopf = (w, t, klein) => h('button', { role: 'radio', 'aria-checked': String(w === wahl), on: { click: () => waehlen(w), dblclick: () => { waehlen(w); los(schl); } } },
+    h('span', {}, t), klein ? h('small', {}, klein) : null);
+  const zeigen = () => {
+    liste.replaceChildren(...VERTEILER_VORLAGEN.map(x => knopf(x.id, x.titel || x.name, x.text)),
+      ...(eigene.length ? [h('div', { class: 'wahlkopf', role: 'presentation' }, 'Eigene Vorlagen')] : []),
+      ...eigene.map(x => h('div', { class: 'vlz' }, knopf('e:' + x.id, x.name, x.gespeichert ? 'gespeichert am ' + datumKurz(x.gespeichert) : ''),
+        ik('loeschen', `Vorlage „${x.name}“ löschen`, () => { const l = vorlagenLesen(), j = l.findIndex(y => y.id === x.id); if (j < 0) return;
+          try { vorlagenSchreiben(l.filter(y => y.id !== x.id)); } catch (e) { return; }
+          eigene = vorlagenLesen(); if (wahl === 'e:' + x.id) waehlen('leer'); else zeigen();
+          meldung(`Vorlage „${x.name}“ gelöscht`, ['Rückgängig', () => { try { const m = vorlagenLesen(); m.splice(j, 0, x); vorlagenSchreiben(m); } catch (e) {} eigene = vorlagenLesen(); if (liste.isConnected) zeigen(); }]); }))));
+  };
+  const waehlen = w => { wahl = w; if (!vonHand) { i.value = nameVon(w); pruef(); } zeigen(); };
+  const schl = fenster('Neuer Verteiler', [h('p', { class: 'text' }, 'Name des Verteilers'), i, hw, h('p', { class: 'text vorlagentitel' }, 'Vorlage'), liste], s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    an = h('button', { class: 'knopf', on: { click: () => los(s) } }, 'Anlegen')], null, { cls: 'lang' });
+  const pruef = () => { const leer = !i.value.trim(); an.disabled = leer; hw.hidden = !leer; };
+  i.addEventListener('input', () => { vonHand = true; pruef(); });
+  i.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); los(schl); } });
+  zeigen(); pruef(); i.focus(); i.select();
+  requestAnimationFrame(() => { if (document.activeElement !== i && i.isConnected && !schl.el.contains(document.activeElement)) { i.focus(); i.select(); } });
 }
 // Unterverteiler anlegen und aus dem Abgang k speisen (ab v1.54)
 function uvAnlegen(v, k, name) {
@@ -3434,8 +3633,8 @@ async function sammlungSichern() {
     liste.push(e);
   });
   if (!liste.length) { meldung('Keine Projekte zum Sichern'); return false; }
-  const name = `${dateiDatum()} Alle Projekte.slp-sammlung.json`;
-  const datei = new File([JSON.stringify({ format: 'slp-sammlung', version: 1, app: APP_FASSUNG, zeit: jetzt, projekte: liste }, null, 1)], name, { type: 'application/json' });
+  const name = `${dateiDatum()} Alle Projekte.slp-sammlung.json`, vl = vorlagenLesen();      // ab v1.82 (X08): mit den eigenen Verteilervorlagen
+  const datei = new File([JSON.stringify(Object.assign({ format: 'slp-sammlung', version: 1, app: APP_FASSUNG, zeit: jetzt, projekte: liste }, vl.length ? { vorlagen: vl } : {}), null, 1)], name, { type: 'application/json' });
   if (!await dateiAusgeben(datei)) return false;
   if (!schreibschutz) {
     listeAuffrischen();
@@ -3443,7 +3642,7 @@ async function sammlungSichern() {
     try { localStorage.setItem(PLISTE, JSON.stringify(projekte)); } catch (e) {}
   }
   ansicht.export = jetzt; ansichtMerken();
-  meldung(`${liste.length === 1 ? '1 Projekt' : liste.length + ' Projekte'} gesichert als „${name}“`);
+  meldung(`${liste.length === 1 ? '1 Projekt' : liste.length + ' Projekte'}${vl.length ? ` und ${vl.length === 1 ? '1 Vorlage' : vl.length + ' Vorlagen'}` : ''} gesichert als „${name}“`);
   const b = stapel[stapel.length - 1]; if (b && (b.s === 'start' || b.s === 'projekte') && !fensterStapel.length) zeichne();
   if (ED) standAnzeigen();
   return true;
@@ -3462,6 +3661,22 @@ function sammlungOeffnen(d, dateiName) {
       : x.roh ? 'beschädigt – lässt sich nicht öffnen' : 'lässt sich nicht öffnen';
     return { d: dd, name, cb, el: h('label', {}, cb, h('span', {}, name, h('small', {}, un))) };
   });
+  // ab v1.82 (X08): eigene Verteilervorlagen der Datei – nur brauchbare (Prüfung wie eine Projektdatei); gleicher Name und Inhalt gibt es
+  // schon, sonst kommen sie dazu (gleicher Name: „ (2)“) bzw. ersetzen mit „Gleichnamige ersetzen“ die gleichnamigen
+  const dvl = (Array.isArray(d.vorlagen) ? d.vorlagen : []).slice(0, 200).filter(x => { if (!x || typeof x.name !== 'string' || !x.name || !x.daten) return false;
+    try { const dd = kopie(x.daten); pruefeProjekt(dd, true); return Array.isArray(dd.verteiler) && dd.verteiler.length > 0; } catch (e) { return false; } });
+  const vorlagenDazu = ersetzen => {
+    if (!dvl.length) return 0;
+    let l = vorlagenLesen(), n = 0;
+    dvl.forEach(x => { const g = l.find(y => y.name === x.name);
+      if (g && JSON.stringify(g.daten) === JSON.stringify(x.daten)) return;
+      const neu = { id: id(), name: x.name, gespeichert: typeof x.gespeichert === 'string' ? x.gespeichert : null, daten: kopie(x.daten) };
+      if (g && ersetzen) { neu.id = g.id; l = l.map(y => y === g ? neu : y); }
+      else { if (g) { let k = 2; while (l.some(y => y.name === `${x.name} (${k})`)) k++; neu.name = `${x.name} (${k})`; } l.push(neu); }
+      n++; });
+    try { vorlagenSchreiben(l); } catch (e) { return 0; }
+    return n;
+  };
   if (!eintraege.length) { meldung(`„${dateiName}“ enthält keine Projekte`); return; }
   let ersetzKnopf = null, oeffnenKnopf = null;
   const gewaehlt = () => eintraege.filter(x => x.d && x.cb.checked);
@@ -3492,12 +3707,14 @@ function sammlungOeffnen(d, dateiName) {
         break;
       }
     }
+    const nv = voll ? 0 : vorlagenDazu(ersetzen);
     s(false); stapel = [{ s: 'start' }, { s: 'projekte' }]; zeichne();
-    meldung(`${n === 1 ? '1 Projekt' : n + ' Projekte'} übernommen` + (voll ? ' – Speicher voll, die übrigen nicht' : ''), voll ? ['Als Datei sichern', exportieren] : null, voll ? { bleibt: true } : {});
+    meldung(`${n === 1 ? '1 Projekt' : n + ' Projekte'}${nv ? ` und ${nv === 1 ? '1 Vorlage' : nv + ' Vorlagen'}` : ''} übernommen` + (voll ? ' – Speicher voll, die übrigen nicht' : ''), voll ? ['Als Datei sichern', exportieren] : null, voll ? { bleibt: true } : {});
   };
   fenster('Projekte aus Sammeldatei', h('div', { class: 'text' },
     h('p', {}, `„${dateiName}“ enthält ${eintraege.length === 1 ? '1 Projekt' : eintraege.length + ' Projekte'}${d.zeit ? `, gesichert am ${zeitDE(d.zeit)}` : ''}. Welche sollen in diesen Browser?`),
     h('div', { class: 'liste sammelwahl' }, ...eintraege.map(x => x.el)),
+    dvl.length ? h('p', { class: 'hinweis' }, `Dazu ${dvl.length === 1 ? '1 eigene Verteilervorlage' : dvl.length + ' eigene Verteilervorlagen'}; sie kommen zu den Vorlagen dieses Browsers.`) : null,
     h('p', { class: 'hinweis' }, 'Die übrigen Projekte bleiben unverändert.')), s => [
     h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
     ersetzKnopf = h('button', { class: 'knopf zweit', title: 'Projekte mit demselben Namen durch die aus der Datei ersetzen', on: { click: () => uebernehmen(s, true) } }, 'Gleichnamige ersetzen'),
@@ -3892,8 +4109,8 @@ function bAbgang(b) {
       { titel: 'Der Unterverteiler zeigt diesen Abgang als Einspeisung' });
   m.append(h('h2', {}, 'Verbraucher'), h('div', { class: 'liste' },
     k.speist ? speistZeile
-             : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd', warn: t => bezWarnung(v, k, t) })),
-    zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
+             : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd', warn: t => bezWarnung(v, k, t), vorschlag: 'bez' })),
+    zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt', vorschlag: 'ort' })),
     k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => anschlussSetzen(v, k, w))),
     // ab v1.80 (X16): Steckdosen je Stromkreis (Liste, Türzettel, Stückliste; im Plan bleibt ein Zeichen)
     steckdosen(k) ? zeile('Anzahl Steckdosen', String(steckdosen(k)), () => textFeld('Anzahl Steckdosen', k.ziel.anzahl, w => { const n = Math.round(zahlVon(w));
@@ -4418,7 +4635,7 @@ function bSGeraet(b) {
   m.append(h('h2', {}, 'Gerät'), h('div', { class: 'liste' },
     arten.length > 1 ? zeile('Art', ST_ZEICHEN[g.zeichen][0], () => wahlFeld('Art', arten, g.zeichen, w => g.zeichen = w)) : null,
     zeile('Bezeichnung', g.bez || '—', () => textFeld('Bezeichnung', g.bez, w => g.bez = w, { platz: art === 'zg' ? 'z. B. Treppenlicht' : 'z. B. Ein, Aus, Tür, Betrieb' })),
-    zeile('Ort', g.ort || '—', () => textFeld('Ort', g.ort, w => g.ort = w, { platz: 'z. B. Werkstatt, Tür HV' })),
+    zeile('Ort', g.ort || '—', () => textFeld('Ort', g.ort, w => g.ort = w, { platz: 'z. B. Werkstatt, Tür HV', vorschlag: 'ort' })),
     zeile('Kennzeichen', bmk.t, () => bmkFeld('Kennzeichen', g, bmk.hand ? '' : bmk.t)),
     zeile('Verwendet', `${stVerwendet(v, g.id)}×`, () => {}, { ohnePfeil: true })));
   if (art === 'zg') {         // eigenständiges Zeitrelais: Funktion, Zeit, verzögerte Kontakte
@@ -5841,7 +6058,10 @@ function befehle(sel, opt = {}) {
     const bl = opt.bl, festBar = bl && bl.art !== 'steuerung' && bl.art !== 'einspeisung' && (bl.spalten || []).some(x => x.id);
     dazu(einfuegen, abgangsFolge(v).length > 1 ? { id: 'alle', l: 'Alle Abgänge wählen', i: 'abgaenge', taste: 'Strg+A', f: () => alleWaehlen(v) } : null,
       { id: 'ganz', l: 'Ganzes Blatt', i: 'eigen', taste: 'Umschalt+1', f: () => zoomGanz(bl) }, { id: 'breite', l: 'Blattbreite', i: 'breite', taste: 'Strg+0', f: () => zoomSetzen(100) },
-      festBar ? { id: 'fest', l: blattFest(v, bl) ? 'Blatt freigeben' : 'Blatt festhalten', i: 'nadel', f: () => blattFesthalten(v, ED.liste.indexOf(bl), !blattFest(v, bl)) } : null);
+      festBar ? { id: 'fest', l: blattFest(v, bl) ? 'Blatt freigeben' : 'Blatt festhalten', i: 'nadel', f: () => blattFesthalten(v, ED.liste.indexOf(bl), !blattFest(v, bl)) } : null,
+      // ab v1.82 (X08): Befehle des Verteilers
+      { id: 'vduplizieren', l: 'Verteiler duplizieren', i: 'duplizieren', f: () => verteilerDuplizieren(v) },
+      { id: 'vvorlage', l: 'Als Vorlage speichern …', i: 'vorlage', f: () => vorlageSpeichern(v) });
   }
   return kn;
 }
@@ -6210,6 +6430,8 @@ function standAnzeigen() {
 function verteilerMenue(v) {
   menue('', [...P.verteiler.map(w => [w.name, () => geh({ s: 'editor', vid: w.id }), { an: w === v, klein: speisenderAbgang(w.id) ? `aus ${speisenderAbgang(w.id).v.name}` : '' }]),
     '—', ['Neuer Verteiler …', neuerVerteilerFenster], ['Einstellungen des Verteilers', () => waehle(null, { offen: true })],
+    // ab v1.82 (X08): Duplizieren und eigene Vorlage (auch im Rechtsklick ins Leere, befehle())
+    ['Verteiler duplizieren', () => verteilerDuplizieren(v)], ['Als Vorlage speichern …', () => vorlageSpeichern(v)],
     // ab v1.76: aus dem Hauptmenü hierher (dort steht nun „Versionen …“, höchstens 20 Einträge)
     v.layout ? ['Automatik für den ganzen Verteiler …', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
       () => automatik(v, null), 'Anwenden')] : null,
@@ -8284,6 +8506,13 @@ window.addEventListener('unhandledrejection', e => fehler(e.reason && e.reason.m
     if (fach && neu !== gehoben) { fach.style.bottom = neu ? neu + 'px' : ''; fach.style.maxHeight = neu ? Math.max(160, vv.height - 24) + 'px' : ''; }
     gehoben = fach ? neu : 0;
     if (neu && zentrieren) el.scrollIntoView({ block: 'center' });
+    // ab v1.82 (X09): die Vorschlagszeile unter dem Feld bleibt über der Tastatur sichtbar (Fach, Fenster und Seite)
+    const vz = el && el.getAttribute && document.getElementById(el.getAttribute('aria-controls') || '-');
+    if (vz && vz.classList.contains('vorschlaege') && !vz.hidden && innerHeight - vv.height - vv.offsetTop > 60) {
+      const zuViel = vz.getBoundingClientRect().bottom - (vv.offsetTop + vv.height - 8);
+      if (zuViel > 0) { let sc = vz.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+        if (sc) sc.scrollTop += zuViel; else window.scrollBy(0, zuViel); }
+    }
   };
   vv.addEventListener('resize', () => heben(true)); vv.addEventListener('scroll', () => heben(false));
   document.addEventListener('focusin', () => setTimeout(() => heben(true), 60));

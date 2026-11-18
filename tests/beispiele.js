@@ -368,6 +368,13 @@ window.BEISPIELE = {
     hv.knoten.find(k => k.ziel && k.ziel.bez === 'Herd').geraet.nenn = '20';
     P.revisionen.push({ rev: '1', datum: '2026-11-16', text: 'Herd mit 20 A abgesichert', name: 'Jean', hash: revisionHashes() });
     P.projekt.rev = '1'; sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.82 (X08): Verteiler aus den eingebauten Vorlagen – Wohnungsverteiler 3 FI und Baustromverteiler (Einbausteckdosen ohne Leitung)
+  vorlage_wohnung: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Wohnung aus Vorlage', ersteller:'Jean', nummer:'SLP-0082'});
+    verteilerAusVorlage('wohnung', 'Wohnungsverteiler'); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  vorlage_baustrom: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Baustrom aus Vorlage', ersteller:'Jean', nummer:'SLP-0083'});
+    verteilerAusVorlage('baustrom', 'Baustromverteiler'); sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

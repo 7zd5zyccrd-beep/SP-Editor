@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.77 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.78 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,15 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.78: Bemessung II – Abschaltbedingung, Leistung, Phasen (Etappe X-C: X03, Q42, Q26 Speicher): Schleifenimpedanz Zs am obersten
+           Verteiler (Einspeisung, v.netz.zs), je Leitung + 1,24 · 2L/(κ·A), Unterverteiler am Ende ihrer Zuleitung; Abschaltbedingung
+           Zs · Ia ≤ 230 V (DIN VDE 0100-410) mit Ia aus Kennlinie (B 5, C 10, D 20, K 14, Z 3 × In), Sicherung gG nach Tabelle (0,4 s/5 s),
+           Motorschutzschalter 13 × Bereich, FI erfüllt (Vermerk); Leistung und Gleichzeitigkeit je Abgang (k.last), Betriebsstrom für
+           ΔU und I_B ≤ I_n, Leistung je Außenleiter in kVA (Motor, Wallbox, Unterverteiler geschätzt), Summenstrom gegen Vorsicherung/
+           Hauptschalter, Schieflast > 4,6 kVA (VDE-AR-N 4100), einphasige Erzeugung ungleich (VDE-AR-N 4105); Erzeuger (PV, Speicher)
+           zählen nicht als Last und werden getrennt verteilt, mit Leistungsangaben Phasenverteilung nach Leistung; Speicher mit
+           Leistung (kW) und 4,6-kVA-Warnung; Querschnittvorschlag auch für die Abschaltbedingung; Glossar; Sammeländerung
+           Gleichzeitigkeit; PROJEKT_VERSION 5; Beispiel `abschaltung`; Pläne unverändert
      v1.77: Bemessung I – Belastbarkeit und Spannungsfall (Etappe X-B: X02, Q21, Q45 Querschnittvorschlag): I_z nach DIN VDE 0298-4
            Tabelle 3 je Verlegeart A1/A2/B1/B2/C/E und 2 bzw. 3 belasteten Adern, Häufung nach Tabelle 21, Sicherung gG mit
            I_n ≤ 0,9 · I_z (ersetzt IZ_MAX); Spannungsfall mit Leitungslänge (κ = 56, cos φ = 1, I = Motor- bzw. Nennstrom) ab dem
@@ -3791,7 +3800,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.77';
+const FASSUNG = 'v1.78';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -3899,7 +3908,10 @@ function leitungsBemessung(v, k, eltern, quer) {
   else if (d) { r.in = zahlVon(g.nenn); r.gg = !!d.sicherung && (g.art || 'gG') !== 'aM'; r.am = !!d.sicherung && g.art === 'aM'; }
   if (r.in && !r.am) { r.grenze = r.izf * (r.gg ? gGFaktor(r.in) : 1); r.ok = r.in <= r.grenze + 1e-9; }
   // Strom für den Spannungsfall: Motornennstrom (angegeben bzw. aus der Leistung geschätzt), sonst Nennstrom des Schutzorgans (sicher)
-  r.i = (motor && motorStrom(k) * strang) || r.in || 0;
+  // ab v1.78 (X03): mit Leistungsangabe der Betriebsstrom I_B = P / U (cos φ = 1; ohne Gleichzeitigkeit – der Stromkreis selbst unter Volllast)
+  const kw = zahlVon(k.last && k.last.kw);
+  if (kw) r.ib = kw * 1000 / (drei ? Math.sqrt(3) * 400 : 230);
+  r.i = r.ib || (motor && motorStrom(k) * strang) || r.in || 0;
   const l = zahlVon(k.leitung.laenge);
   if (l && r.i) { r.l = l; r.du = (drei ? Math.sqrt(3) : 2) * r.i * l / (KAPPA_CU * zahlVon(q)) / (drei ? 400 : 230) * 100; }
   else r.du = null;
@@ -3912,11 +3924,116 @@ function duVor(v, tiefe = 0) {
   return { du: vor.du + (b && b.du != null ? b.du : 0), offen: vor.offen || !(b && b.du != null), strecken: vor.strecken + 1 };
 }
 // kleinster Querschnitt (aus der Auswahl), der Belastbarkeit und Spannungsfall erfüllt (ab v1.77, Q45); null = keiner
+// ab v1.78 (X03): auch die Abschaltbedingung (Überstromschutz bzw. FI) muss erfüllt sein, soweit sie sich prüfen lässt
 function querVorschlag(v, k, eltern) {
-  const vor = duVor(v);
-  return QUERSCHNITTE.find(q => { const b = leitungsBemessung(v, k, eltern, q);
-    return b && b.ok !== false && (b.du == null || b.du + vor.du <= duMax() + 1e-9); }) || null;
+  const vor = duVor(v), zsV = zsVor(v), fis = fiListe(v, k, eltern);
+  return QUERSCHNITTE.find(q => { const b = leitungsBemessung(v, k, eltern, q), ab = b && abschaltung(v, k, eltern, b, zsV, fis);
+    return b && b.ok !== false && (b.du == null || b.du + vor.du <= duMax() + 1e-9) && !(ab && ab.ok === false); }) || null;
 }
+// FI vor dem Stromkreis (ab v1.78): eigener, der der Gruppe, vor dem Verteiler (Geräte mit idn)
+const fiListe = (v, k, eltern) => [istFi(k.geraet) ? k.geraet : null, eltern && istFi(eltern.geraet) ? eltern.geraet : null, ...fiVor(v).map(x => x.g)].filter(Boolean);
+// ---- Bemessung II (ab v1.78, Etappe X-C: X03, Q42): Abschaltbedingung, Leistung, Phasen ----------------------------
+// Schutz durch automatische Abschaltung im TN-System (DIN VDE 0100-410:2018-10, 411.4.4): Z_s · I_a ≤ U_0, U_0 = 230 V.
+// Z_s am Verteiler: oberster Verteiler aus der Angabe v.netz.zs (Netzbetreiber bzw. Messung am Zählerplatz), Unterverteiler am Ende
+// ihrer Zuleitung. Je Leitung kommt der Schleifenwiderstand von Außenleiter und Schutzleiter (gleicher Querschnitt) dazu:
+// R = 1,24 · 2 · L / (κ · A) mit κ = 56 m/(Ω·mm²) (Cu, 20 °C) und dem Faktor 1,24 für die erhöhte Leitertemperatur im Fehlerfall
+// (übliches Rechenverfahren, vgl. DIN VDE 0100 Beiblatt 5); Blindwiderstand vernachlässigt (bis 16 mm² unerheblich)
+const U0 = 230, ZS_TEMP = 1.24;
+const schleife = (l, quer) => ZS_TEMP * 2 * l / (KAPPA_CU * zahlVon(quer));
+// Abschaltzeit nach DIN VDE 0100-410 Tabelle 41.1 und 411.3.2.2/411.3.2.3 (TN, 230 V): Endstromkreise mit Steckdosen bis 63 A und mit fest
+// angeschlossenen Verbrauchern bis 32 A 0,4 s, Verteilerstromkreise (Zuleitung eines Unterverteilers) und alle anderen 5 s
+// Abschaltstrom I_a der LS (unverzögerte Auslösung, oberer Grenzwert, Abschaltung < 0,1 s): DIN EN 60898-1 Tabelle 7 – B 5 · I_n,
+// C 10 · I_n, D 20 · I_n; K 14 · I_n und Z 3 · I_n (DIN EN 60947-2, obere Grenzen der Herstellerangaben 8–14 bzw. 2–3 · I_n)
+const IA_KENNLINIE = { B: 5, C: 10, D: 20, K: 14, Z: 3 };
+// Sicherungen gG/gL (DIN VDE 0636-2 bzw. IEC 60269-1/-2) je Nennstrom [I_a für 0,4 s, I_a für 5 s] in A: 5 s ab 16 A = I_max des Prüftors
+// bei 5 s (IEC 60269-1 Tabelle 3), darunter und 0,4 s Richtwerte aus den genormten Zeit-Strom-Bereichen (wie in den Tabellen der
+// Fachliteratur zu DIN VDE 0100-410); 0,4 s wird nur bis 63 A gebraucht. Nennströme zwischen den Stufen (13, 35, 224, 355 A) rechnen
+// sicherheitshalber mit der nächstgrößeren Stufe
+const IA_GG = { 2: [16, 9.2], 4: [32, 18.5], 6: [47, 28], 10: [82, 46], 16: [107, 65], 20: [145, 85], 25: [180, 110], 32: [265, 150], 40: [310, 190],
+  50: [460, 250], 63: [550, 320], 80: [null, 425], 100: [null, 580], 125: [null, 715], 160: [null, 950], 200: [null, 1250], 250: [null, 1650],
+  315: [null, 2200], 400: [null, 2840] };
+// Motorschutzschalter: unverzögerter Kurzschlussauslöser fest auf etwa 13 × oberer Wert des Einstellbereichs (Herstellerangaben)
+const MSS_IA = 13;
+// Z_s vor einem Verteiler (Ω): null = unbekannt (keine Angabe am obersten Verteiler oder eine Zuleitung ohne Länge)
+function zsVor(v, tiefe = 0) {
+  const sp = tiefe < 10 && speisenderAbgang(v.id);
+  if (!sp) { const z = zahlVon(v.netz && v.netz.zs); return z > 0 ? z : null; }
+  const vor = zsVor(sp.v, tiefe + 1), l = zahlVon(sp.k.leitung && sp.k.leitung.laenge);
+  return vor == null || !l || !IZ_QUER.includes(sp.k.leitung.quer) ? null : vor + schleife(l, sp.k.leitung.quer);
+}
+// Abschaltstrom des Schutzorgans g (null = keine Prüfung möglich, z. B. aM oder Nennstrom außerhalb der Tabelle)
+function abschaltStrom(g, t04) {
+  const d = g && g.zeichen && GERAETE[g.zeichen]; if (!d) return null;
+  if (d.bereich) { const o = zahlVon(String(g.bereich || '').split('–')[1]); return o ? { ia: MSS_IA * o, t: `Motorschutzschalter ${g.bereich} A: ${MSS_IA} × ${dezimal(o)} A` } : null; }
+  const n = zahlVon(g.nenn); if (!n) return null;
+  if (d.kennlinie) { const kl = IA_KENNLINIE[g.kennlinie] ? g.kennlinie : 'B'; return { ia: IA_KENNLINIE[kl] * n, t: `${kl}${dezimal(n)}: ${IA_KENNLINIE[kl]} × ${dezimal(n)} A` }; }
+  if (d.sicherung && (g.art || 'gG') !== 'aM') {
+    const s = Object.keys(IA_GG).map(Number).find(x => x >= n - 1e-9), ia = s && IA_GG[s][t04 ? 0 : 1];
+    return ia ? { ia, t: `${g.art || 'gG'} ${dezimal(n)} A${s !== n ? ` (wie ${s} A)` : ''}` } : null;
+  }
+  return null;
+}
+// Abschaltbedingung am Ende der Leitung eines Abgangs (b = leitungsBemessung); zsV = Z_s am Verteiler, fis = FI vor dem Abgang
+//   { zs, zsMax, ia, iaT, t04, ik, ok, fi (erfüllt durch FI), ueOk (Überstromschutz allein) } oder null (keine Angaben)
+function abschaltung(v, k, eltern, b, zsV, fis) {
+  if (zsV == null || !b || !b.l) return null;
+  const g = istSchutz(k.geraet) || k.geraet.zeichen === 'motorschutz3' ? k.geraet : eltern && istSchutz(eltern.geraet) ? eltern.geraet : null;
+  const steck = k.ziel && /^steckdose/.test(k.ziel.anschluss), n = g ? zahlVon(g.nenn) : 0;
+  const t04 = !k.speist && (steck ? n <= 63 : n <= 32);
+  const zs = zsV + schleife(b.l, b.quer), r = { zs, zsVor: zsV, t04, ik: U0 / zs };
+  const ia = g && abschaltStrom(g, t04);
+  if (ia) { r.ia = ia.ia; r.iaT = ia.t; r.zsMax = U0 / ia.ia; r.ueOk = zs <= r.zsMax + 1e-9; }
+  // Fehlerstrom-Schutzeinrichtung (411.4.5): I_a = I_Δn – mit jedem FI vor dem Stromkreis erfüllt (Vermerk im Fach)
+  const fi = (fis || []).find(x => zs * zahlVon(x.idn || '30') / 1000 <= U0);
+  if (fi) r.fi = `FI ${fi.idn || '30'} mA`;
+  r.ok = r.ueOk === true || !!r.fi;
+  if (!ia && !fi) return Object.assign(r, { ok: null });
+  return r;
+}
+// Leistung je Abgang (ab v1.78): k.last = { kw, gz } – Leistung in kW (cos φ = 1, also kVA) und Gleichzeitigkeitsfaktor (fehlt = 1);
+// ohne Angabe Motor (Scheinleistung aus dem Nennstrom), Wallbox (Ladeleistung) bzw. Unterverteiler (Summe seiner Abgänge)
+// Erzeuger (PV-Anlage mit kWp, AC-Speicher mit Wechselrichterleistung) zählen getrennt und nie als Last
+const GZ_WAHL = ['1', '0,9', '0,8', '0,7', '0,6', '0,5', '0,4', '0,3', '0,2', '0,1'];
+const gzVon = k => { const g = zahlVon(k.last && k.last.gz); return g > 0 && g <= 1 ? g : 1; };
+const istErzeuger = k => k.typ === 'abgang' && !k.speist && k.ziel && (k.ziel.anschluss === 'pv' || k.ziel.anschluss === 'speicher');
+const erzeugerKw = k => k.ziel.anschluss === 'pv' ? zahlVon(pvVon(k).kwp) : zahlVon(speicherVon(k).kw);
+// Leistung eines Abgangs in kVA: { s (mit Gleichzeitigkeit), voll (ohne), quelle } oder null (unbekannt); Erzeuger: null
+function leistungVon(v, k, tiefe = 0) {
+  if (k.typ !== 'abgang' || k.steuer || istErzeuger(k)) return null;
+  const kw = zahlVon(k.last && k.last.kw), gz = gzVon(k);
+  if (kw) return { s: kw * gz, voll: kw, quelle: 'angabe' };
+  if (k.speist) { const u = tiefe < 10 && vById(k.speist), pb = u && phasenBilanz(u, tiefe + 1); return pb && pb.mit ? { s: pb.summe * gz, voll: pb.summe, quelle: 'uv', pb } : null; }
+  if (k.ziel.anschluss === 'motor' && motorStrom(k)) { const s = (istDrei(k, v) ? Math.sqrt(3) * 400 : U0) * motorStrom(k) / 1000; return { s: s * gz, voll: s, quelle: 'motor' }; }
+  if (k.ziel.anschluss === 'wallbox') { const s = zahlVon((k.wallbox || wallboxNeu()).kw); return s ? { s: s * gz, voll: s, quelle: 'wallbox' } : null; }
+  return null;
+}
+// Leistungsangaben (k.last) im Verteiler bzw. in ihm und seinen Unterverteilern
+const lastDa = v => { let ja = false; alleKnoten(v, k => { if (k.typ === 'abgang' && k.last && zahlVon(k.last.kw)) ja = true; }); return ja; };
+const lastDaUnter = (v, tiefe = 0) => lastDa(v) || (tiefe < 10 && P.verteiler.some(u => { const sp = speisenderAbgang(u.id); return sp && sp.v === v && lastDaUnter(u, tiefe + 1); }));
+// Leistung je Außenleiter (kVA, mit Gleichzeitigkeit) aus den Phasen der Berechnung: 3-phasige Abgänge zu je einem Drittel, Steuertrafo 400 V
+// zu je einer Hälfte auf L1/L2, 1/N/PE-Verteiler alles auf L; Unterverteiler mit ihrer eigenen Bilanz (Drehstrom je Außenleiter)
+//   { last: { L1, L2, L3 }, gen: { L1, L2, L3 }, summe, genSumme, mit (Abgänge mit Leistung), ohne (Lasten ohne Angabe), ein (1/N/PE) }
+function phasenBilanz(v, tiefe = 0, e = null) {
+  e = e || berechne(v);
+  const r = { last: { L1: 0, L2: 0, L3: 0 }, gen: { L1: 0, L2: 0, L3: 0 }, summe: 0, genSumme: 0, mit: 0, ohne: 0, ein: v.leiter === '1NPE' };
+  const verteilen = (ziel, a, s, uvPb) => {
+    const t = a.phase.t || 'L1';
+    if (uvPb && !uvPb.ein && a.drei) ['L1', 'L2', 'L3'].forEach(x => { ziel[x] += uvPb.last[x] * (s / (uvPb.summe || 1)); });
+    else if (a.drei) ['L1', 'L2', 'L3'].forEach(x => { ziel[x] += s / 3; });
+    else if (t === 'L1–L2') { ziel.L1 += s / 2; ziel.L2 += s / 2; }
+    else ziel[/^L[123]$/.test(t) ? t : 'L1'] += s;
+  };
+  alleKnoten(v, k => {
+    const a = k.typ === 'abgang' && e.abgaenge[k.id]; if (!a || k.steuer) return;
+    if (istErzeuger(k)) { const s = erzeugerKw(k); if (s) { verteilen(r.gen, a, s); r.genSumme += s; } return; }
+    const l = leistungVon(v, k, tiefe);
+    if (!l) { r.ohne++; return; }
+    r.mit++; r.summe += l.s; verteilen(r.last, a, l.s, l.pb);
+  });
+  return r;
+}
+const kva = x => dezimal(x);
+const ohm = x => x >= 10 ? dezimal(x) : x.toFixed(2).replace('.', ',');
 const zahlVon = t => parseFloat(String(t || '').replace(',', '.')) || 0;
 // Grenzen der Zahlenfelder (ab v1.52)
 const Z_KW = { min: 0.01, max: 1000, einheit: /^kW$/i, zeigen: 'kW' }, Z_A = { min: 0.01, max: 2000, einheit: /^A$/i, zeigen: 'A' },
@@ -3956,7 +4073,7 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 4, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 5, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -4029,7 +4146,9 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // v3 (ab v1.72): Kopfgeräte lasttrenn2, sichtrenn1, sichlasttrenn1, ls1, sich1; Leitungstyp „ohne“; v.spd.phase
 // v4 (ab v1.77, Bemessung I): optional k.leitung.laenge (m), k.leitung.verlegung (A1 A2 B1 B2 C E, fehlt = C), k.leitung.haeufung
 //    (Anzahl, fehlt = 1), P.projekt.duMax (%, fehlt = 3) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
-const PROJEKT_VERSION = 4;
+// v5 (ab v1.78, Bemessung II): optional v.netz = { zs } (Ω, nur am obersten Verteiler), k.last = { kw, gz } (fehlt = keine Angabe bzw. 1),
+//    k.speicher.kw (Wechselrichterleistung) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
+const PROJEKT_VERSION = 5;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -4455,7 +4574,14 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Gleichfehlerströme können/, 'Vorgeschalteten FI als Typ B wählen oder den Abgang außerhalb der FI-Gruppe anschließen.'],
   [/gegen Überlast geschützt/, 'FI mit größerem Bemessungsstrom wählen oder das Schutzorgan davor höchstens so groß wie den FI.'],
   [/LS hinter LS/, 'Selektivität in der Tabelle des Herstellers nachsehen; sonst davor eine Sicherung bzw. einen selektiven Schalter vorsehen.'],
-  [/4,6 kVA/, 'PV-Anlage dreiphasig anschließen oder die Leistung je Außenleiter auf 4,6 kVA begrenzen.'],
+  [/PV-Anlage einphasig .*4,6 kVA/, 'PV-Anlage dreiphasig anschließen oder die Leistung je Außenleiter auf 4,6 kVA begrenzen.'],
+  // ab v1.78 (Etappe X-C)
+  [/Batteriespeicher einphasig .*4,6 kVA/, 'Speicher dreiphasig anschließen oder die Wechselrichterleistung auf 4,6 kVA begrenzen.'],
+  [/Erzeugung ungleich verteilt/, 'Außenleiter der einphasigen Erzeuger von Hand wählen (je Abgang unter Leitung) oder dreiphasige Wechselrichter vorsehen.'],
+  [/Schieflast .* über 4,6 kVA/, 'Einphasige Verbraucher auf andere Außenleiter legen (Außenleiter „automatisch“ verteilt nach Leistung) oder dreiphasig anschließen.'],
+  [/Summenstrom/, 'Leistung und Gleichzeitigkeit der Abgänge prüfen; sonst Vorsicherung bzw. Hauptschalter größer wählen (Netzbetreiber fragen).'],
+  [/Abschaltbedingung nicht erfüllt/, 'Querschnitt erhöhen („Querschnitt vorschlagen“ unter Leitung), Leitung kürzen, Schutzorgan mit kleinerem Abschaltstrom (z. B. Kennlinie B statt C) oder FI vorsehen.'],
+  [/Betriebsstrom .* über dem/, 'Schutzorgan und Leitung für den Betriebsstrom bemessen oder die Leistung prüfen.'],
   [/nicht lastschaltend/, 'Als Hauptschalter einen Lasttrennschalter wählen.'],
   [/Motor .* ohne Überlastschutz/, 'Motorschutzschalter als Schutzorgan wählen oder ein Schütz mit Überlastrelais vorsehen.'],
   [/Not-Aus mit \d+ Öffnern/, 'Weitere Kreise über einen zweiten Not-Aus-Taster oder ein Hilfsschütz abschalten (zentrale Freigabe).']];
@@ -4500,13 +4626,23 @@ function berechne(v) {
   if (v.hauptschalter.zeichen) e.kopf.hauptschalter = bmk('Q', v.hauptschalter.bmk);
   if (v.spd.zeichen) e.kopf.spd = bmk('F', v.spd.bmk);
   // Phasenlast: zählt einphasige Abgänge je Außenleiter
-  const last = { L1: 0, L2: 0, L3: 0 };
+  // ab v1.78 (X03, Q42): Erzeuger (PV, AC-Speicher) zählen nicht als Last, sondern getrennt in gen; mit Leistungsangaben (k.last.kw) im
+  // Verteiler wird nach Leistung gewichtet (kVA mit Gleichzeitigkeit; Abgänge ohne Angabe mit dem Mittel der angegebenen)
+  const last = { L1: 0, L2: 0, L3: 0 }, gen = { L1: 0, L2: 0, L3: 0 };
+  const gewichtet = lastDa(v), gwKw = {}, lwKw = {};
+  alleKnoten(v, k => { if (k.typ !== 'abgang' || k.steuer) return;
+    if (istErzeuger(k)) { if (erzeugerKw(k)) gwKw[k.id] = erzeugerKw(k); return; }
+    const l = gewichtet && leistungVon(v, k); if (l) lwKw[k.id] = l.s; });
+  const mittel = o => { const w = Object.values(o); return w.length ? w.reduce((x, y) => x + y, 0) / w.length : 1; };
+  const lMittel = mittel(lwKw), gMittel = mittel(gwKw);
+  const lw = k => gewichtet ? (lwKw[k.id] !== undefined ? lwKw[k.id] : lMittel) : 1, gw = k => gwKw[k.id] !== undefined ? gwKw[k.id] : gMittel;
   let klemme = 0;
   // Gruppe mit 1-poligem Gerät (FI 2-polig) im Drehstromverteiler: alle ihre
   // Abgänge hängen an deren einem Außenleiter
   const einLeiterGruppe = g => g && g.typ === 'gruppe' && v.leiter === '3NPE' && GERAETE[g.geraet.zeichen] && GERAETE[g.geraet.zeichen].pole === 1;
   e.gruppenPhase = {};
   const fiV = fiVor(v);      // ab v1.74: FI vor dem Verteiler
+  const zsV = zsVor(v);      // ab v1.78: Schleifenimpedanz am Verteiler (null = keine Prüfung)
   alleKnoten(v, (k, eltern) => {
     if (k.typ === 'gruppe') { e.geraete[k.id] = bmk('F', k.geraet.bmk); return; }
     const a = {};
@@ -4517,7 +4653,7 @@ function berechne(v) {
     else if (v.leiter === '1NPE') a.phase = { t: 'L', auto: false };
     else if (k.trafo && k.trafo.prim === '400') a.phase = { t: 'L1–L2', auto: false };   // Steuertrafo 400 V: fest zwischen L1 und L2
     else if (einLeiterGruppe(eltern)) a.phase = { t: null, auto: false, gruppe: eltern.id };
-    else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; last[k.phase]++; }
+    else if (k.phase && k.phase !== 'auto') { a.phase = { t: k.phase, auto: false }; if (istErzeuger(k)) gen[k.phase] += gw(k); else last[k.phase] += lw(k); }
     else a.phase = { t: null, auto: true };
     a.leiter = a.ohneN ? ['L1', 'L2', 'L3', 'PE'] : a.drei ? ['L1', 'L2', 'L3', 'N', 'PE'] : ['L', 'N', 'PE'];
     if (penZuleitung(k)) { a.pen = true; a.leiter = a.drei ? ['L1', 'L2', 'L3', 'PEN'] : ['L', 'PEN']; }
@@ -4586,6 +4722,11 @@ function berechne(v) {
         if (bem.duSumme > duMax() + 1e-9) warnDazu(a, `Spannungsfall ${prozent(bem.duSumme)} % ab dem Zähler über der Grenze von ${dezimal(duMax())} %`
           + (vor.strecken ? ` (Leitung ${prozent(bem.du)} %, davor ${prozent(vor.du)} %)` : '') + ' (DIN VDE 0100-520, DIN 18015-1).');
       }
+      // ab v1.78 (X03): Betriebsstrom über dem Nennstrom (I_B ≤ I_n ≤ I_z) und Abschaltbedingung am Leitungsende
+      if (bem.ib && bem.in && bem.ib > bem.in + 1e-9) warnDazu(a, `Betriebsstrom ${dezimal(bem.ib)} A (${dezimal(zahlVon(k.last.kw))} kW) über dem ${bem.mss ? 'Einstellstrom' : 'Nennstrom'} ${dezimal(bem.in)} A des Schutzorgans (DIN VDE 0100-430: I_B ≤ I_n ≤ I_z).`);
+      const ab = abschaltung(v, k, eltern, bem, zsV, fiListe(v, k, eltern));
+      if (ab) { bem.ab = ab;
+        if (ab.ok === false) warnDazu(a, `Abschaltbedingung nicht erfüllt: Z_s = ${ohm(ab.zs)} Ω am Leitungsende, höchstens ${ohm(ab.zsMax)} Ω (${ab.iaT} = ${dezimal(ab.ia)} A in ${ab.t04 ? '0,4' : '5'} s; DIN VDE 0100-410).`); }
     }
     // Steckdosen bis 32 A brauchen einen FI ≤ 30 mA (ab v1.52): am Abgang, an der Gruppe oder vor dem Verteiler
     if (!k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
@@ -4618,6 +4759,10 @@ function berechne(v) {
     // ab v1.74 (Q26): einphasige Erzeugung über 4,6 kVA je Außenleiter (VDE-AR-N 4105; kWp als Näherung für die Wechselrichterleistung)
     if (pv && !a.drei && zahlVon(pv.kwp) > 4.6)
       warnDazu(a, `PV-Anlage einphasig mit ${String(pv.kwp).replace('.', ',')} kWp: über 4,6 kVA je Außenleiter verlangt VDE-AR-N 4105 einen dreiphasigen Anschluss (Schieflast).`);
+    // ab v1.78 (Q26): ebenso der AC-gekoppelte Speicher mit seiner Wechselrichterleistung (neu: k.speicher.kw)
+    const spk = !k.speist && k.ziel.anschluss === 'speicher' ? zahlVon(speicherVon(k).kw) : 0;
+    if (spk > 4.6 && !a.drei)
+      warnDazu(a, `Batteriespeicher einphasig mit ${dezimal(spk)} kW: über 4,6 kVA je Außenleiter verlangt VDE-AR-N 4105 einen dreiphasigen Anschluss (Schieflast).`);
     a.w = k.steuer || a.ohneLtg ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
     if (a.sd) { a.w2 = a.ohneLtg ? { t: '', hand: false } : bmk('W', k.motor.w2 && k.motor.w2.bmk); a.leiter = a.leiter.concat(['U2', 'V2', 'W2']); }     // zweite Leitung zu U2 V2 W2
     if (pv) {     // im Feld: Wechselrichter, DC-Freischalter, PV-Generator
@@ -4654,17 +4799,21 @@ function berechne(v) {
   alleKnoten(v, k => {
     if (k.typ === 'gruppe') {
       if (!einLeiterGruppe(k)) return;
-      const n = k.kinder.filter(c => c.typ === 'abgang' && !e.abgaenge[c.id].drei).length;
+      const ki = k.kinder.filter(c => c.typ === 'abgang' && !e.abgaenge[c.id].drei);
       const ph = (k.phase && k.phase !== 'auto') ? k.phase : wenigste();
       e.gruppenPhase[k.id] = { t: ph, auto: !(k.phase && k.phase !== 'auto') };
-      last[ph] += n;
+      ki.forEach(c => { if (istErzeuger(c)) gen[ph] += gw(c); else last[ph] += lw(c); });
       return;
     }
     const a = e.abgaenge[k.id];
     if (a.phase.gruppe) { a.phase.t = e.gruppenPhase[a.phase.gruppe].t; a.phase.auto = e.gruppenPhase[a.phase.gruppe].auto; return; }
-    if (a.phase.auto) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] ? x : m, 'L1'); last[p]++; a.phase.t = p; }
+    if (a.phase.auto && !istErzeuger(k)) { const p = ['L1', 'L2', 'L3'].reduce((m, x) => last[x] < last[m] - 1e-9 ? x : m, 'L1'); last[p] += lw(k); a.phase.t = p; }
   });
-  e.last = last;
+  // ab v1.78: Erzeuger danach – der Außenleiter mit der wenigsten Erzeugung, bei Gleichstand der mit der wenigsten Last
+  alleKnoten(v, k => { const a = k.typ === 'abgang' && e.abgaenge[k.id]; if (!a || !a.phase.auto || a.phase.gruppe || !istErzeuger(k)) return;
+    const p = ['L1', 'L2', 'L3'].reduce((m, x) => gen[x] < gen[m] - 1e-9 || (Math.abs(gen[x] - gen[m]) < 1e-9 && last[x] < last[m] - 1e-9) ? x : m, 'L1');
+    gen[p] += gw(k); a.phase.t = p; });
+  e.last = last; e.gen = gen; e.gewichtet = gewichtet;
   e.steuer = berechneSteuerung(v, e, bmk, klemme);
   e.warn = verteilerWarnungen(v, e);
   // ab v1.59 (D06): doppelte Kennzeichen – Warnung je Kennzeichen; e.doppelt für die Feldwarnung
@@ -4756,6 +4905,26 @@ function verteilerWarnungen(v, e) {
   if (lsT.length) w.push(`Hinweis: LS hinter LS (${lsT.join('; ')}) – Kurzschlussselektivität nur nach Herstellertabelle, meist nur bis zu kleinen Kurzschlussströmen.`);
   alleKnoten(v, k => { if (k.trafo && !k.trafo.erde)
     w.push(`${(e.abgaenge[k.id].t || {}).t || 'Steuertrafo'}: ungeerdeter Steuerkreis – Isolationsüberwachung vorsehen und beide Leiter absichern (EN 60204-1, 9.4.3 und 7.2.4).`); });
+  // ab v1.78 (X03): Leistungsbilanz – nur mit Leistungsangaben (k.last) im Verteiler oder in seinen Unterverteilern
+  if (lastDaUnter(v)) { const pb = e.bilanz = phasenBilanz(v, 0, e);
+    if (pb) {
+      const L = ein ? ['L1'] : ['L1', 'L2', 'L3'], nm = x => ein ? 'L' : x, max = L.reduce((m, x) => pb.last[x] > pb.last[m] ? x : m, L[0]);
+      // Summenstrom des höchstbelasteten Außenleiters (cos φ = 1) gegen Vorsicherung, Hauptschalter bzw. Schutzorgan des speisenden Abgangs
+      const iMax = pb.last[max] * 1000 / U0, grenzen = [[vs, 'der Vorsicherung'], [hs, 'des Hauptschalters'], [!vs ? spN : 0, `des speisenden Abgangs in ${sp ? sp.v.name : ''}`]].filter(x => x[0]);
+      const gr = grenzen.reduce((m, x) => !m || x[0] < m[0] ? x : m, null);
+      if (gr && iMax > gr[0] + 1e-9) w.push(`Summenstrom ${nm(max)} ≈ ${dezimal(iMax)} A (${kva(pb.last[max])} kVA mit Gleichzeitigkeit) über dem Nennstrom ${gr[1]} (${gr[0]} A) – Gleichzeitigkeit prüfen oder größer absichern (DIN VDE 0100-430: I_B ≤ I_n).`);
+      // Schieflast der Lasten am Netzanschluss (oberster Verteiler, Drehstrom): höchstens 4,6 kVA zwischen den Außenleitern (VDE-AR-N 4100)
+      if (!ein && !sp) { const min = L.reduce((m, x) => pb.last[x] < pb.last[m] ? x : m, 'L1'), d = pb.last[max] - pb.last[min];
+        if (d > 4.6 + 1e-9) w.push(`Schieflast ${kva(d)} kVA zwischen ${max} (${kva(pb.last[max])} kVA) und ${min} (${kva(pb.last[min])} kVA): über 4,6 kVA (VDE-AR-N 4100, Symmetrie).`); }
+    }
+  }
+  // ab v1.78 (X03): einphasige Erzeugung ungleich verteilt – höchstens 4,6 kVA Unterschied zwischen den Außenleitern (VDE-AR-N 4105)
+  // (eine einzelne Anlage über 4,6 kVA meldet schon der Abgang selbst, Q26)
+  if (!ein) { const real = { L1: 0, L2: 0, L3: 0 }, L = ['L1', 'L2', 'L3']; let gross = false;
+    alleKnoten(v, k => { const a = istErzeuger(k) && e.abgaenge[k.id]; if (!a || a.drei || !Object.hasOwn(real, a.phase.t)) return;
+      real[a.phase.t] += erzeugerKw(k); if (erzeugerKw(k) > 4.6 + 1e-9) gross = true; });
+    const gx = L.reduce((m, x) => real[x] > real[m] ? x : m, 'L1'), gn = L.reduce((m, x) => real[x] < real[m] ? x : m, 'L1');
+    if (!gross && real[gx] - real[gn] > 4.6 + 1e-9) w.push(`Einphasige Erzeugung ungleich verteilt: ${gx} ${kva(real[gx])} kVA, ${gn} ${kva(real[gn])} kVA – Unterschied über 4,6 kVA (VDE-AR-N 4105).`); }
   return w;
 }
 // Unvollständiges vor dem Drucken (ab v1.43): Kreise ohne Kontakt, Schaltgeräte ohne Spule, alle Warnungen;
@@ -5373,7 +5542,12 @@ const BEGRIFFE = {
   'Verlegeart': 'Wie die Leitung verlegt ist, nach DIN VDE 0298-4: A1/A2 im Rohr in wärmedämmender Wand, B1/B2 im Rohr oder Kanal auf der Wand, C direkt auf oder in der Wand (z. B. NYM unter Putz), E frei in Luft bzw. auf gelochter Kabelwanne.',
   'Häufung': 'Mehrere Stromkreise nebeneinander erwärmen sich gegenseitig; die Belastbarkeit sinkt um einen Faktor (DIN VDE 0298-4, Tabelle 21), z. B. 4 gebündelt: × 0,65.',
   'Belastbarkeit': 'Strom Iz, den die Leitung dauernd führen darf (Kupfer, PVC, 30 °C). Das Schutzorgan darf höchstens Iz haben, eine Sicherung gG etwa 0,9 · Iz (DIN VDE 0100-430).',
-  'Spannungsfall': 'Spannungsverlust auf der Leitung bis zum Verbraucher, ab dem Zähler gerechnet; empfohlen höchstens 3 % (DIN 18015-1, DIN VDE 0100-520). Gerechnet wird mit der Länge, dem Querschnitt und dem Nennstrom des Schutzorgans.',
+  'Spannungsfall': 'Spannungsverlust auf der Leitung bis zum Verbraucher, ab dem Zähler gerechnet; empfohlen höchstens 3 % (DIN 18015-1, DIN VDE 0100-520). Gerechnet wird mit der Länge, dem Querschnitt und dem Nennstrom des Schutzorgans (mit Leistungsangabe dem Betriebsstrom).',
+  // ab v1.78 (X03): Bemessung II
+  'Schleifenimpedanz': 'Widerstand der Fehlerschleife Außenleiter–Schutzleiter (Zs). Am obersten Verteiler vom Netzbetreiber bzw. gemessen (Einspeisung), je Leitung kommt 1,24 · 2 · Länge / (56 · Querschnitt) dazu. Abschaltbedingung: Zs · Ia ≤ 230 V (DIN VDE 0100-410) – Ia ist der Strom, bei dem das Schutzorgan rechtzeitig abschaltet (LS B 5 × In, C 10 × In, D 20 × In; Sicherung gG nach Kennlinie), in 0,4 s für Steckdosen bis 63 A und feste Verbraucher bis 32 A, sonst 5 s. Ein FI erfüllt sie praktisch immer.',
+  'Leistung': 'Anschlussleistung des Stromkreises in kW. Mit Gleichzeitigkeit ergibt sie die Leistung je Außenleiter, den Summenstrom und die Schieflast; mit Leistungsangaben verteilt die App die Außenleiter nach Leistung statt nach Anzahl. PV-Anlagen und Speicher zählen als Erzeuger getrennt.',
+  'Gleichzeitigkeit': 'Faktor 0,1 bis 1: welcher Anteil der Leistung gleichzeitig mit den anderen Stromkreisen anliegt (z. B. Steckdosen 0,3–0,5, Herd 0,5, Durchlauferhitzer 1).',
+  'Schieflast': 'Ungleiche Belastung der drei Außenleiter. Die TAR Niederspannung (VDE-AR-N 4100) erlaubt höchstens 4,6 kVA Unterschied, einphasige Erzeuger höchstens 4,6 kVA je Außenleiter (VDE-AR-N 4105).',
   'Klemmleiste -X1': 'Reihenklemmen im Verteiler, an denen die abgehenden Leitungen angeschlossen werden; sie stehen im Klemmenplan.',
   'Schütz': 'Elektrisch betätigter Schalter: die Spule im Steuerstromkreis schaltet die Hauptkontakte im Abgang.',
   'Steuerstromkreis': 'Stromkreis mit Tastern, Schaltern, Meldern und Spulen, der Schütze, Stromstoßschalter oder Zeitrelais steuert.',
@@ -6024,7 +6198,11 @@ function bVerteiler(b) {
   m.append(l);
   // ab v1.66 (F16/F39): „Mehrere Abgänge ändern …“ entfällt (Mehrfachauswahl: Strg+Klick, Rahmen, „Mehrfach wählen“), die
   // Phasenbelastung steht erst ab einem Abgang
-  if (v.leiter === '3NPE' && Object.keys(e.abgaenge).length) m.append(h('p', { class: 'hinweis' }, `Phasenbelastung (Abgänge): L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));      // ab v1.67 (GZ14)
+  // ab v1.78 (X03): mit Leistungsangaben Leistung je Außenleiter in kVA (mit Gleichzeitigkeit) und Strom, Erzeuger getrennt; sonst wie bisher
+  // die Zahl der einphasigen Lasten je Außenleiter (Erzeuger zählen nicht mit)
+  const pb = Object.keys(e.abgaenge).length && lastDaUnter(v) ? (e.bilanz || phasenBilanz(v, 0, e)) : null;
+  if (pb) m.append(h('p', { class: 'hinweis' }, phasenText(v, pb)));
+  else if (v.leiter === '3NPE' && Object.keys(e.abgaenge).length) m.append(h('p', { class: 'hinweis' }, `Phasenbelastung (Abgänge): L1 ${e.last.L1} · L2 ${e.last.L2} · L3 ${e.last.L3}`));      // ab v1.67 (GZ14)
   const nKreise = Object.keys(e.steuer.aktiv).length;
   m.append(h('h2', {}, 'Steuerung'), h('div', { class: 'liste' },
     zeile('Steuerstromkreise', nKreise ? String(nKreise) : 'keine', () => geh({ s: 'steuerung', vid: v.id }),
@@ -6040,6 +6218,13 @@ function bVerteiler(b) {
     m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen …', null, () => verteilerLoeschen(v), { rot: true, ohnePfeil: true })));
   }
   app.append(m);
+}
+// Leistung je Außenleiter als Text (ab v1.78): „Leistung je Außenleiter: L1 9,2 kVA (40 A) · …; Erzeuger L2 4 kVA; 2 Abgänge ohne Leistung“
+function phasenText(v, pb) {
+  const L = pb.ein ? [['L1', 'L']] : [['L1', 'L1'], ['L2', 'L2'], ['L3', 'L3']];
+  const gen = L.filter(([x]) => pb.gen[x] > 0).map(([x, n]) => `${n} ${kva(pb.gen[x])}`);
+  return `Leistung je Außenleiter (mit Gleichzeitigkeit): ${L.map(([x, n]) => `${n} ${kva(pb.last[x])} kVA (${Math.round(pb.last[x] * 1000 / U0)} A)`).join(' · ')}`
+    + (gen.length ? `; Erzeuger ${gen.join(' · ')} kVA` : '') + (pb.ohne ? `; ${pb.ohne} ${pb.ohne === 1 ? 'Abgang' : 'Abgänge'} ohne Leistung` : '');
 }
 // Verteiler löschen (Rückfrage, „Abbrechen“ vorgewählt); ab v1.66 auch aus dem Verteilermenü des Editors
 function verteilerLoeschen(v) {
@@ -6122,11 +6307,23 @@ function bEinspeisung(b) {
       }, { text: 'Ein Unterverteiler hängt an einem Abgang eines anderen Verteilers. Der Abgang führt dann zum Unterverteiler statt zu einem Verbraucher.' }))));
   m.append(h('h2', {}, 'Netz'), h('div', { class: 'liste' },
     zeile('Netzform', v.netzform, () => wahlFeld('Netzform', [['TN-S', 'TN-S', 'N und PE getrennt'], ['TN-C', 'TN-C', 'PEN – nur, wenn alle Abgänge PEN ≥ 10 mm² führen'], ['TN-C-S', 'TN-C-S', 'PEN wird im Verteiler aufgeteilt']], v.netzform, w => v.netzform = w)),
-    zeile('Leiter', leiterText(v), () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => leiterSetzen(v, w)))));
+    zeile('Leiter', leiterText(v), () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => leiterSetzen(v, w))),
+    ...netzZsZeilen(v, sp)));
   if (v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Bei 1/N/PE werden alle Abgänge einphasig gezählt; 3-polige Geräte passen hier nicht.'));
   app.append(m);
 }
 
+// Schleifenimpedanz am Verteiler (ab v1.78, X03): am obersten Verteiler die Angabe v.netz.zs (Ω), am Unterverteiler berechnet
+const Z_OHM = { min: 0.01, max: 50, einheit: /^(Ω|Ohm)$/i, zeigen: 'Ω' };
+function netzZsZeilen(v, sp) {
+  const zs = zsVor(v), ik = zs ? ` · Ik ≈ ${dezimal(U0 / zs / 1000)} kA` : '';
+  if (sp) return [zeile('Schleifenimpedanz Zs', zs != null ? `${ohm(zs)} Ω${ik}` : '—', () => {}, { ohnePfeil: true,
+    un: zs != null ? `am Ende der Zuleitung aus ${sp.v.name}` : 'erst mit Zs am obersten Verteiler und der Länge der Zuleitung' })];
+  return [zeile('Schleifenimpedanz Zs', zs != null ? `${ohm(zs)} Ω${ik}` : '—', () => textFeld('Schleifenimpedanz Zs am Verteiler (Ω)', v.netz && v.netz.zs,
+    w => { const t = w.replace(/\s*(Ω|Ohm)$/i, ''); if (t) v.netz = Object.assign(v.netz || {}, { zs: t }); else delete v.netz; },
+    zahlOpt({ platz: 'z. B. 0,3', text: 'Fehlerschleife Außenleiter–Schutzleiter am Hausanschluss bzw. Zählerplatz: Angabe des Netzbetreibers oder gemessen. Ohne Angabe keine Prüfung der Abschaltbedingung.' }, Z_OHM)),
+    { titel: 'für die Abschaltbedingung (DIN VDE 0100-410)' })];
+}
 // Leiter des Verteilers wechseln (ab v1.72, Q04): die Kopfgeräte folgen der Polzahl (Lasttrennschalter 3-polig ↔ 2-polig,
 // Sicherungen und LS 3-polig ↔ 1-polig, Zähler und Überspannungsschutz), ein Hinweis nennt die Umstellung
 function leiterSetzen(v, w) {
@@ -6280,10 +6477,10 @@ function bAbgang(b) {
     () => v.leiter === '1NPE' ? null : wahlFeld('Außenleiter', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${a.phase.t}` : '']), k.phase, w => k.phase = w), { ohnePfeil: v.leiter === '1NPE' });
   // ab v1.77 (X02): Bemessung im Abschnitt „Leitung“ – aufgeklappt, sobald der Verteiler Bemessungsangaben hat oder Belastbarkeit bzw.
   // Spannungsfall nicht reichen; sonst über den Knopf „Bemessung“ im Abschnittskopf (das dichte Fach bleibt ohne Scrollen, D35)
-  const bemNoetig = !a.ohneLtg && !!a.bem && (bemessungDa(v) || a.bem.ok === false || a.bem.duSumme > duMax() + 1e-9), bemZeigen = bemNoetig || (bemAuf && !a.ohneLtg && !!a.bem);
-  const lkopf = kopfMitHilfe('Leitung', ['Außenleiter', 'N', 'PE', 'NYM-J', 'Querschnitt', 'Verlegeart', 'Häufung', 'Belastbarkeit', 'Spannungsfall', 'Kennzeichen', 'Klemmleiste -X1']);
+  const bemNoetig = !a.ohneLtg && !!a.bem && (bemessungDa(v) || a.bem.ok === false || a.bem.duSumme > duMax() + 1e-9 || (!!a.bem.ab && a.bem.ab.ok === false) || /Betriebsstrom/.test(a.warn || '')), bemZeigen = bemNoetig || (bemAuf && !a.ohneLtg && !!a.bem);
+  const lkopf = kopfMitHilfe('Leitung', ['Außenleiter', 'N', 'PE', 'NYM-J', 'Querschnitt', 'Verlegeart', 'Häufung', 'Belastbarkeit', 'Spannungsfall', 'Schleifenimpedanz', 'Leistung', 'Gleichzeitigkeit', 'Kennzeichen', 'Klemmleiste -X1']);
   if (!a.ohneLtg && a.bem && !bemNoetig) lkopf.append(h('button', { class: 'bemknopf', 'aria-expanded': String(bemZeigen),
-    title: bemZeigen ? 'Bemessung ausblenden' : 'Länge, Verlegeart, Häufung einblenden',
+    title: bemZeigen ? 'Bemessung ausblenden' : 'Länge, Verlegeart, Häufung, Leistung einblenden',
     on: { click: () => { bemAuf = !bemZeigen; zeichne(); } } }, 'Bemessung', icon(bemZeigen ? 'hoch' : 'runter')));
   m.append(lkopf, h('div', { class: 'liste' },
     phasenwahl,
@@ -6312,11 +6509,15 @@ function bemessungText(b) {
   const iz = `Iz ${dezimal(b.izf)} A`, wie = `${b.art}, ${b.adern} belastete Adern${b.f < 1 ? `, Häufung × ${String(b.f).replace('.', ',')}` : ''}`;
   return { iz: b.in ? `${iz} · ${b.mss ? 'Ir' : 'In'} ${dezimal(b.in)} A${b.gg ? ` (gG höchstens ${dezimal(b.grenze)} A)` : ''}` : iz, wie,
     du: b.du == null ? null : `${prozent(b.du)} %${b.duVor ? ` · ab Zähler ${prozent(b.duSumme)} %` : ''}`,
-    duUn: b.du == null ? null : `mit ${dezimal(b.i)} A auf ${dezimal(b.l)} m, Grenze ${dezimal(duMax())} %${b.vorOffen ? ' · Zuleitung davor ohne Länge' : ''}` };
+    duUn: b.du == null ? null : `mit ${dezimal(b.i)} A${b.ib ? ' (Betriebsstrom)' : ''} auf ${dezimal(b.l)} m, Grenze ${dezimal(duMax())} %${b.vorOffen ? ' · Zuleitung davor ohne Länge' : ''}`,
+    // ab v1.78 (X03): Abschaltbedingung
+    zs: !b.ab ? null : `${ohm(b.ab.zs)} Ω${b.ab.zsMax ? ` · höchstens ${ohm(b.ab.zsMax)} Ω` : ''}`,
+    zsUn: !b.ab ? null : [b.ab.ia ? `${b.ab.iaT} = ${dezimal(b.ab.ia)} A in ${b.ab.t04 ? '0,4' : '5'} s` : 'Schutzorgan ohne Abschaltstrom (z. B. aM)',
+      `Ik ≈ ${dezimal(b.ab.ik)} A`, b.ab.fi ? (b.ab.ueOk ? `zusätzlich ${b.ab.fi}` : `erfüllt durch ${b.ab.fi}`) : null].filter(Boolean).join(' · ') };
 }
 function bemessungZeilen(v, k, a, eltern) {
   // „Querschnitt vorschlagen“ nur, wenn Belastbarkeit oder Spannungsfall nicht reichen (kein Vorschlag nach unten)
-  const L = k.leitung, b = a.bem, t = bemessungText(b), mangel = !!b && (b.ok === false || b.duSumme > duMax() + 1e-9), vor = mangel ? querVorschlag(v, k, eltern) : null;
+  const L = k.leitung, b = a.bem, t = bemessungText(b), mangel = !!b && (b.ok === false || b.duSumme > duMax() + 1e-9 || (!!b.ab && b.ab.ok === false)), vor = mangel ? querVorschlag(v, k, eltern) : null;
   return [
     zeile('Länge', L.laenge ? `${String(L.laenge).replace('.', ',')} m` : '—', () => textFeld('Länge der Leitung (m)', L.laenge, w => L.laenge = w.replace(/\s*m$/i, ''),
       zahlOpt({ platz: 'z. B. 18', text: 'Einfache Länge bis zum Verbraucher; ohne Angabe kein Spannungsfall.' }, Z_M)), { titel: 'für den Spannungsfall' }),
@@ -6325,9 +6526,24 @@ function bemessungZeilen(v, k, a, eltern) {
       String(Math.max(1, Math.round(zahlVon(L.haeufung)) || 1)), w => { if (w === '1') delete L.haeufung; else L.haeufung = w; }, { text: 'Anzahl der Stromkreise, die gebündelt bzw. nebeneinander verlegt sind.' })),
     t ? zeile('Belastbarkeit', t.iz, () => {}, { ohnePfeil: true, un: t.wie, warn: b.ok === false }) : null,
     t && t.du ? zeile('Spannungsfall', t.du, () => {}, { ohnePfeil: true, un: t.duUn, warn: b.duSumme > duMax() + 1e-9 }) : null,
+    // ab v1.78 (X03): Abschaltbedingung (nur mit Zs am obersten Verteiler und Länge), Leistung und Gleichzeitigkeit (nicht bei Erzeugern)
+    t && t.zs ? zeile('Schleifenimpedanz', t.zs, () => {}, { ohnePfeil: true, un: t.zsUn, warn: b.ab.ok === false }) : null,
+    ...(istErzeuger(k) ? [] : leistungZeilen(v, k)),
     vor && vor !== L.quer ? zeile('Querschnitt vorschlagen', `${vor} mm²`, () => { L.quer = vor; aenderung('Querschnitt vorschlagen'); sichern(); zeichne(); meldung(`Querschnitt ${vor} mm²`); },
-      { un: 'kleinster Querschnitt für Belastbarkeit und Spannungsfall' }) : null,
-    mangel && !vor ? h('p', { class: 'hinweis' }, `Kein Querschnitt bis ${QUERSCHNITTE[QUERSCHNITTE.length - 1]} mm² erfüllt Belastbarkeit und Spannungsfall.`) : null];
+      { un: 'kleinster Querschnitt für Belastbarkeit, Spannungsfall und Abschaltbedingung' }) : null,
+    mangel && !vor ? h('p', { class: 'hinweis' }, `Kein Querschnitt bis ${QUERSCHNITTE[QUERSCHNITTE.length - 1]} mm² erfüllt Belastbarkeit, Spannungsfall und Abschaltbedingung.`) : null];
+}
+// Leistung und Gleichzeitigkeit eines Abgangs (ab v1.78, X03): k.last = { kw, gz }; leer = ohne Angabe (Motor, Wallbox, UV geschätzt)
+function leistungZeilen(v, k) {
+  const l = k.last || {}, lv = leistungVon(v, k), gz = gzVon(k);
+  const setze = (f, w) => { const x = k.last = Object.assign({}, k.last); if (w) x[f] = w; else delete x[f]; if (!x.kw && !x.gz) delete k.last; };
+  const geschaetzt = lv && lv.quelle !== 'angabe' ? `≈ ${kva(lv.voll)} kVA (${{ motor: 'Motor', wallbox: 'Wallbox', uv: 'Unterverteiler' }[lv.quelle]})` : '—';
+  return [
+    zeile('Leistung', l.kw ? `${String(l.kw).replace('.', ',')} kW` : geschaetzt, () => textFeld('Leistung (kW)', l.kw, w => setze('kw', w.replace(/\s*kW$/i, '')),
+      zahlOpt({ platz: 'z. B. 2,5', text: 'Anschlussleistung des Stromkreises (cos φ = 1). Sie zählt in die Leistung je Außenleiter und verteilt die Außenleiter nach Leistung.' }, Z_KW)),
+      { titel: 'für Leistungsbilanz und Phasen' }),
+    zeile('Gleichzeitigkeit', gz < 1 ? String(gz).replace('.', ',') : '1', () => wahlFeld('Gleichzeitigkeitsfaktor', GZ_WAHL.map(x => [x, x]), gz < 1 ? String(gz).replace('.', ',') : '1',
+      w => setze('gz', w === '1' ? '' : w), { text: 'Anteil der Leistung, der gleichzeitig mit den anderen Stromkreisen anliegt (1 = immer volle Leistung).' }))];
 }
 // Anschluss wechseln (ab v1.52): das Schutzorgan folgt der Polzahl (LS 1-polig ↔ 3-polig, FI/LS 1P+N ↔ 3P+N),
 // eine Leuchte bekommt 10 A und 1,5 mm², solange Nennstrom und Querschnitt noch auf der Voreinstellung 16 A / 2,5 mm² stehen
@@ -6377,6 +6593,9 @@ function speicherZeilen(v, k, a) {
     v.leiter === '1NPE' ? null : zeile('Wechselrichter', sp.phasen === '1' ? 'einphasig (L N PE)' : 'dreiphasig (L1 L2 L3 N PE)', () => wahlFeld('Wechselrichter',
       [['3', 'dreiphasig', 'L1 L2 L3 N PE'], ['1', 'einphasig', 'L N PE, Außenleiter automatisch']], sp.phasen, w => sp.phasen = w)),
     zeile('Kapazität', sp.kwh ? `${sp.kwh} kWh` : '—', () => textFeld('Kapazität (kWh)', sp.kwh, w => sp.kwh = w.replace(/\s*kWh$/i, ''), zahlOpt({ platz: 'z. B. 10' }, Z_KWH))),
+    // ab v1.78 (Q26, X03): Wechselrichterleistung – für die Grenze 4,6 kVA einphasig und die Erzeugung je Außenleiter
+    zeile('Leistung', sp.kw ? `${String(sp.kw).replace('.', ',')} kW` : '—', () => textFeld('Leistung Wechselrichter (kW)', sp.kw, w => { if (w) sp.kw = w.replace(/\s*kW$/i, ''); else delete sp.kw; },
+      zahlOpt({ platz: 'z. B. 5', text: 'Bemessungsleistung des Batteriewechselrichters (AC).' }, Z_KW)), { titel: 'Wechselrichter AC' }),
     zeile('Kennzeichen Wechselrichter', a.t.t, () => bmkFeld('Kennzeichen', sp.wr || (sp.wr = {}), a.t.hand ? '' : a.t.t)),
     zeile('Kennzeichen Batterie', a.bat.t, () => bmkFeld('Kennzeichen', sp.bat || (sp.bat = {}), a.bat.hand ? '' : a.bat.t))];
 }
@@ -7662,6 +7881,9 @@ function editorSammel(v, b) {
   const mitLtg = mitLeitung.filter(k => k.leitung.typ !== 'ohne');
   feld('Verlegeart', mitLtg, k => IZ[k.leitung.verlegung] ? k.leitung.verlegung : 'C', VERLEGEARTEN, (k, w) => { if (w === 'C') delete k.leitung.verlegung; else k.leitung.verlegung = w; });
   feld('Häufung', mitLtg, k => String(Math.max(1, Math.round(zahlVon(k.leitung.haeufung)) || 1)), HAEUF_WAHL, (k, w) => { if (w === '1') delete k.leitung.haeufung; else k.leitung.haeufung = w; });
+  // ab v1.78 (X03): Gleichzeitigkeit gemeinsam (Leistung bleibt je Abgang)
+  feld('Gleichzeitigkeit', mitLtg.filter(k => !istErzeuger(k)), k => { const g = gzVon(k); return g < 1 ? String(g).replace('.', ',') : '1'; }, GZ_WAHL.map(x => [x, x]),
+    (k, w) => { if (w === '1') { if (k.last) { delete k.last.gz; if (!k.last.kw) delete k.last; } } else k.last = Object.assign({}, k.last, { gz: w }); });
   feld('Klemmen', mitLeitung, k => ({ ja: 'mit Klemmen', nein: 'ohne Klemmen' })[k.klemmen] || 'wie im Verteiler', KLEMMEN_WAHL(v), (k, w) => { k.klemmen = w; },
     { wert: k => k.klemmen || 'verteiler' });
   if (v.leiter !== '1NPE') feld('Außenleiter', ks.filter(k => { const a = e.abgaenge[k.id]; return a && !a.drei && !a.phase.gruppe && !(k.trafo && k.trafo.prim === '400'); }),
@@ -9444,8 +9666,9 @@ function bListe(b) {
   app.append(m);
 }
 // Bemessungsangaben im Verteiler (ab v1.77): irgendein Abgang mit Länge, Verlegeart oder Häufung
+// ab v1.78 auch mit Leistungsangaben (k.last)
 const bemessungDa = v => { let ja = false; alleKnoten(v, k => { const L = k.typ === 'abgang' && k.leitung;
-  if (L && (zahlVon(L.laenge) || IZ[L.verlegung] || zahlVon(L.haeufung) > 1)) ja = true; }); return ja; };
+  if (L && (zahlVon(L.laenge) || IZ[L.verlegung] || zahlVon(L.haeufung) > 1 || (k.last && (zahlVon(k.last.kw) || zahlVon(k.last.gz))))) ja = true; }); return ja; };
 // Zellen Länge, Iz, ΔU ab Zähler der Stromkreisliste; überschrittene Werte mit Warnfarbe
 function bemZellen(b) {
   if (!b) return [h('td'), h('td'), h('td')];
@@ -9840,6 +10063,7 @@ function pruefeProjekt(d, datei = false) {
     const wo = v.name = String(v.name || `Verteiler ${vi + 1}`);
     if (!['TN-S', 'TN-C', 'TN-C-S'].includes(v.netzform)) { r.push(`${wo}: Netzform „${v.netzform}“ → TN-S`); v.netzform = 'TN-S'; }
     if (!['3NPE', '1NPE'].includes(v.leiter)) { r.push(`${wo}: Leiter → 3/N/PE`); v.leiter = '3NPE'; }
+    if (v.netz !== undefined) { if (!obj(v.netz)) { r.push(`${wo}: Netzangaben entfernt`); delete v.netz; } else zahl(v.netz, 'zs', `${wo} Schleifenimpedanz`, Z_OHM, ''); }      // ab v1.78
     ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true, WAHL[f]); });
     if (v.spd.phase !== undefined && !['L1', 'L2', 'L3'].includes(v.spd.phase)) { r.push(`${wo} Überspannungsschutz: Außenleiter „${kurz(String(v.spd.phase))}“ → L1`); delete v.spd.phase; }      // ab v1.72
     if (!Array.isArray(v.knoten)) { v.knoten = []; r.push(`${wo}: Abgangsliste fehlte`); }
@@ -9876,7 +10100,10 @@ function pruefeProjekt(d, datei = false) {
           zahl(k.schalt.zr, 'zeit', kw + ' Zeit', Z_ZEIT, '3 min'); }
         if (obj(k.motor)) { if (!['1', '3'].includes(k.motor.art)) k.motor.art = '3'; zahl(k.motor, 'kw', kw + ' Leistung', Z_KW, ''); zahl(k.motor, 'strom', kw + ' Nennstrom', Z_A, ''); }
         if (obj(k.pv)) { zahl(k.pv, 'kwp', kw + ' Leistung', Z_KWP, ''); if (obj(k.pv.speicher)) zahl(k.pv.speicher, 'kwh', kw + ' Kapazität', Z_KWH, ''); }
-        if (obj(k.speicher)) zahl(k.speicher, 'kwh', kw + ' Kapazität', Z_KWH, '');
+        if (obj(k.speicher)) { zahl(k.speicher, 'kwh', kw + ' Kapazität', Z_KWH, ''); zahl(k.speicher, 'kw', kw + ' Leistung', Z_KW, ''); }      // kw ab v1.78
+        // ab v1.78 (X03): Leistung und Gleichzeitigkeit
+        if (k.last !== undefined) { if (!obj(k.last)) { r.push(`${kw}: Leistungsangabe entfernt`); delete k.last; }
+          else { zahl(k.last, 'kw', kw + ' Leistung', Z_KW, ''); zahl(k.last, 'gz', kw + ' Gleichzeitigkeit', { min: 0.1, max: 1 }, ''); } }
         if (k.trafo) { if (!obj(k.trafo)) k.trafo = neuerSteuerTrafo().trafo; k.trafo.ls = geraet(k.trafo.ls, kw + ' Sekundär-LS', neuerSteuerTrafo().trafo.ls, false, WAHL.abgang); }
         texte(k, kw);
         return true;

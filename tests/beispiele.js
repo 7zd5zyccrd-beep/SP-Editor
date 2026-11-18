@@ -325,6 +325,36 @@ window.BEISPIELE = {
     mo.geraet = {zeichen:'motorschutz3', bereich:'6,3–10'}; mo.leitung.quer = '1,5'; mo.leitung.laenge = '12'; g2.kinder.push(mo);
     uv.knoten.push(g2);
     P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe X-C (v1.78, X03/Q42): Abschaltbedingung mit Zs = 0,3 Ω am Hausanschluss, Leistungsbilanz, Phasen nach Leistung.
+  // Fälle: Pumpe C16 an 2,5 mm² auf 70 m verfehlt die Abschaltbedingung (Zs 1,54 Ω > 1,44 Ω), Durchlauferhitzer gG 32 A in 0,4 s erfüllt sie
+  // (0,41 Ω < 0,87 Ω), Steckdosen im FI erfüllt, Backofen und Klimagerät von Hand auf L1 → Schieflast und Summenstrom über der
+  // Vorsicherung 50 A; UV Garage über C32 10 mm² 25 m (Zs 0,41 Ω) mit PV einphasig 4 kWp und Speicher 3 kW (Erzeuger getrennt),
+  // zwei Abgänge der UV ohne Leistungsangabe
+  abschaltung: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'EFH Abschaltung', ersteller:'Jean', nummer:'SLP-0078'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sichlasttrenn3', art:'gG', nenn:'50'}; hv.zaehler = {zeichen:'zaehler3'}; hv.netz = {zs:'0,3'};
+    const g = neueGruppe(); g.geraet = {zeichen:'fi4', nenn:'63', idn:'30', fityp:'A'};
+    const sk = neuerAbgang(); sk.ziel = {bez:'Steckdosen', ort:'Küche', anschluss:'steckdose3'}; sk.leitung.laenge = '20'; sk.last = {kw:'3,5', gz:'0,5'}; g.kinder.push(sk);
+    const sw = neuerAbgang(); sw.ziel = {bez:'Steckdosen', ort:'Wohnen', anschluss:'steckdose3'}; sw.leitung.laenge = '25'; sw.last = {kw:'2', gz:'0,5'}; g.kinder.push(sw);
+    const li = neuerAbgang(); li.ziel = {bez:'Licht', ort:'Wohnen', anschluss:'leuchte'}; li.geraet.nenn = '10'; li.leitung.quer = '1,5'; li.leitung.laenge = '30'; li.last = {kw:'0,5'}; g.kinder.push(li);
+    const bo = neuerAbgang(); bo.ziel = {bez:'Backofen', ort:'Küche', anschluss:'dose'}; bo.phase = 'L1'; bo.leitung.laenge = '12'; bo.last = {kw:'3,6'}; g.kinder.push(bo);
+    const kl = neuerAbgang(); kl.ziel = {bez:'Klimagerät', ort:'Schlafen', anschluss:'dose'}; kl.phase = 'L1'; kl.leitung.laenge = '18'; kl.last = {kw:'3,5'}; g.kinder.push(kl);
+    hv.knoten.push(g);
+    const pu = neuerAbgang(); pu.ziel = {bez:'Pumpe', ort:'Brunnen', anschluss:'dose'}; pu.geraet = {zeichen:'ls1', kennlinie:'C', nenn:'16'}; pu.leitung.laenge = '70'; pu.last = {kw:'1,5'}; hv.knoten.push(pu);
+    const dl = neuerAbgang(); dl.ziel = {bez:'Durchlauferhitzer', ort:'Bad', anschluss:'dose'}; dl.geraet = {zeichen:'sich3', art:'gG', nenn:'32'}; dl.leitung.quer = '6'; dl.leitung.laenge = '15'; dl.last = {kw:'21'}; hv.knoten.push(dl);
+    const uvA = neuerAbgang(); uvA.ziel = {bez:'', ort:'Garage', anschluss:'fest'}; uvA.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'32'}; Object.assign(uvA.leitung, {typ:'NYY-J', quer:'10', laenge:'25'}); hv.knoten.push(uvA);
+    const uv = neuerVerteiler('UV Garage'); uv.hauptschalter = {zeichen:'lasttrenn3', nenn:'40'}; uvA.speist = uv.id;
+    const g2 = neueGruppe(); g2.geraet = {zeichen:'fi4', nenn:'40', idn:'30', fityp:'A'};
+    const ws = neuerAbgang(); ws.ziel = {bez:'Steckdosen', ort:'Werkbank', anschluss:'steckdose3'}; ws.leitung.laenge = '15'; ws.last = {kw:'2', gz:'0,5'}; g2.kinder.push(ws);
+    const to = neuerAbgang(); to.ziel = {bez:'Tor', ort:'Garage', anschluss:'dose'}; to.leitung.laenge = '40'; to.last = {kw:'0,8'}; g2.kinder.push(to);
+    const lg = neuerAbgang(); lg.ziel = {bez:'Licht', ort:'Garage', anschluss:'leuchte'}; lg.geraet.nenn = '10'; lg.leitung.quer = '1,5'; g2.kinder.push(lg);
+    const sa = neuerAbgang(); sa.ziel = {bez:'Steckdosen', ort:'Außen', anschluss:'steckdose3'}; g2.kinder.push(sa);
+    uv.knoten.push(g2);
+    const pv = neuerAbgang(); pv.ziel = {bez:'PV-Anlage', ort:'Garagendach', anschluss:'pv'}; pv.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'20'}; pv.leitung.quer = '4'; pv.leitung.laenge = '10';
+    pv.pv = {phasen:'1', kwp:'4', dc:true, zaehler:false}; uv.knoten.push(pv);
+    const sp = neuerAbgang(); sp.ziel = {bez:'Speicher', ort:'Garage', anschluss:'speicher'}; sp.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'16'}; sp.leitung.laenge = '5';
+    sp.speicher = {phasen:'1', kwh:'5', kw:'3'}; uv.knoten.push(sp);
+    P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

@@ -21,7 +21,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -46,6 +46,13 @@ with sync_playwright() as p:
                            r'Nennstrom 16 A über der Belastbarkeit .*Verlegeart B2.*Häufung 4 × 0,65 = 15 A']:
                 if not any(re.search(muster, t) for t, _ in hw): fehler.append(f'bemessung: Warnung „{muster}“ fehlt')
             fehler += [f'bemessung: ohne „So beheben“: {t}' for t, ab in hw if not ab.startswith('So beheben')]
+        # ab v1.78 (Etappe X-C): Abschaltbedingung, Summenstrom, Schieflast
+        if name == 'abschaltung':
+            hw = pg.evaluate("druckHinweise().map(x => [x.t, x.abhilfe || ''])")
+            for muster in [r'Abschaltbedingung nicht erfüllt: Z_s = 1,54 Ω am Leitungsende, höchstens 1,44 Ω \(C16', r'Summenstrom L1 ≈ 65,7 A .*Vorsicherung \(50 A\)',
+                           r'Schieflast 5,6 kVA zwischen L1 \(15,1 kVA\) und L2']:
+                if not any(re.search(muster, t) for t, _ in hw): fehler.append(f'abschaltung: Warnung „{muster}“ fehlt')
+            fehler += [f'abschaltung: ohne „So beheben“: {t}' for t, ab in hw if not ab.startswith('So beheben')]
         pg.evaluate("stapel = [{ s: 'plan' }]; zeichne()"); pg.wait_for_timeout(800)
         n = pg.locator('.blattkarte svg').count()
         for i in range(n): pg.locator('.blattkarte svg').nth(i).screenshot(path=str(AUS / f'{name}_{i + 1}.png'))

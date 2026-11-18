@@ -1554,5 +1554,67 @@
    "8 UV Garage kombiniert",
    "342179001748a4d2bc1e628a9ed18450"
   ]
+ ],
+ "stueckliste": [
+  [
+   "1 Deckblatt deckblatt",
+   "b10f0722345b8444dae4408136b55699"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "a1a24b149eb5e33c9ca7ef7c52a69b07"
+  ],
+  [
+   "3 HV uebersicht",
+   "2d0cdb55f97d67b2daeaa0b2ba1b95cd"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "9e7972775af0c491a0df55c2ec0e2c47"
+  ],
+  [
+   "5 HV einspeisung",
+   "965756ea6ccd17c43106ea729db1645b"
+  ],
+  [
+   "6 HV abgang",
+   "f1a83570247c220e2fa97697d790e9a6"
+  ],
+  [
+   "7 HV abgang",
+   "53f1ba5e044e7cfa4004748884b252a5"
+  ],
+  [
+   "8 UV Werkstatt kombiniert",
+   "30b07e733b65d4c44cb22382706fa436"
+  ],
+  [
+   "9 HV klemmen",
+   "cb91b6e9f8a5d48b5d9a91c6bd1be9c1"
+  ],
+  [
+   "10 HV klemmen",
+   "33d805cbe45bcb1a2dd8827fe0bd4866"
+  ],
+  [
+   "11 HV stueckliste",
+   "f5e230211ff2432e9d0f1da054f7a28d"
+  ],
+  [
+   "12 HV stueckliste",
+   "894c2638fe9fae5145930513d53e00f6"
+  ],
+  [
+   "13 UV Werkstatt stueckliste",
+   "bb6f85b86c31c5ed7496714c378bfade"
+  ],
+  [
+   "14 Alle Verteiler stueckliste",
+   "f60fb73b73bd58f0f69bd435df48ef85"
+  ],
+  [
+   "15 Alle Verteiler stueckliste",
+   "f52d713938a6b790a8d6395b156bff0b"
+  ]
  ]
 }

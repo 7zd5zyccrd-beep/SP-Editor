@@ -1831,6 +1831,57 @@ const PLAN = (() => {
     });
   }
 
+  // ---- Stückliste (ab v1.80, Etappe X-E: X07) --------------------------------
+  // Geräte- und Materialliste je Verteiler und (bei mehreren Verteilern) für das Projekt, aus dem Datenmodell abgeleitet
+  // (Daten von der App: hilf.stueckliste bzw. stuecklisteDaten); abschaltbares Blatt hinter dem Klemmenplan, Voreinstellung aus.
+  // Zeilen wie der Klemmenplan; je Abschnitt eine fette Kopfzeile; am Ende die TE-Summe mit Reserve und Reihenschätzung.
+  const SL_SP = [['Pos.', 0.05], ['Anzahl', 0.07], ['Gerät / Material', 0.27], ['Bemessung', 0.13], ['Kennlinie / Typ', 0.14], ['Pole', 0.05], ['TE', 0.05], ['Kennzeichen', 0.24]];
+  const SL_FUSS = 4;        // Zeilen für die Summe am Ende (Abstand, zwei Zeilen, Luft)
+  // Zeilen einer Liste: { kopf: Abschnitt } bzw. { pos }; auf Blätter verteilt, ein Abschnittskopf nie allein am Blattende
+  function slBlaetter(liste, F) {
+    const max = Math.floor((F.h - RAND - SF_H - 4 - KL_Y0 - KL_ZH) / KL_ZH);
+    const zeilen = []; let ab = null;
+    liste.pos.forEach(p => { if (p.abT !== ab) { ab = p.abT; zeilen.push({ kopf: ab }); } zeilen.push({ pos: p }); });
+    const bl = []; let cur = null;
+    zeilen.forEach((z, i) => {
+      const rest = cur ? max - cur.length : 0;
+      if (!cur || rest < 1 || (z.kopf && rest < 2)) { cur = []; bl.push(cur); }
+      cur.push(z);
+    });
+    if (!bl.length || max - bl[bl.length - 1].length < SL_FUSS) bl.push([]);       // Summe passt nicht mehr: eigenes Folgeblatt
+    return bl;
+  }
+  // Text auf eine Breite kürzen (mit „…“), damit lange Kennzeichenlisten nicht gestaucht werden
+  function slKurz(t, gr, max) {
+    t = String(t || ''); if (textBreite(t, gr) <= max) return t;
+    while (t.length > 1 && textBreite(t + ' …', gr) > max) t = t.slice(0, -1);
+    return t.replace(/[,\s]+$/, '') + ' …';
+  }
+  function zeichneStueckliste(g, F, liste, zeilen, teil, teile, letztes) {
+    const x0 = RAND_L, x1 = F.w - RAND, w = x1 - x0 - 20, xa = x0 + 10;
+    text(g, xa, RAND + 13, `Stückliste · ${liste.titel}` + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
+    const sp = SL_SP.map((s, i) => i === 7 && liste.projekt ? ['Verteiler', s[1]] : s);
+    const xs = []; let x = xa; sp.forEach(([, a]) => { xs.push(x); x += w * a; });
+    const rechts = i => i === 1 || i === 6;          // Anzahl und TE rechtsbündig
+    const zeile = (yy, werte, kopf) => werte.forEach((t, i) => {
+      const max = w * sp[i][1] - 2.5, gr = kopf ? 2.5 : 3;
+      passend(text(g, rechts(i) ? xs[i] + w * sp[i][1] - 1.5 : xs[i] + 1, yy - 1.5, i === 7 && !kopf ? slKurz(t, gr, max) : t, gr, rechts(i) ? 'end' : 'start'), max);
+    });
+    zeile(KL_Y0 + KL_ZH, sp.map(s => s[0]), true);
+    linie(g, xa, KL_Y0 + KL_ZH, xa + w, KL_Y0 + KL_ZH, 0.5);
+    let y = KL_Y0 + KL_ZH;
+    zeilen.forEach((z, i) => {
+      y += KL_ZH;
+      if (z.kopf) passend(text(g, xa + 1, y - 1.5, z.kopf, 3, 'start', { 'font-weight': 'bold' }), w - 2);
+      else { const p = z.pos; zeile(y, [String(p.nr), p.anzahl, p.name, p.bem, p.typ, p.pole, p.teT, p.kennT], false); }
+      const naechstKopf = !zeilen[i + 1] || zeilen[i + 1].kopf;
+      linie(g, xa, y, xa + w, y, naechstKopf ? 0.35 : 0.18, naechstKopf ? '#000' : '#aaa');
+    });
+    if (!letztes) return;
+    y += KL_ZH + 1.5;
+    (liste.fuss || []).forEach((t, i) => { passend(text(g, xa + 1, y, t, i ? 2.5 : 3, 'start', i ? {} : { 'font-weight': 'bold' }), w - 2); y += i ? 3.4 : 4.2; });
+  }
+
   // ---- Steuerstromkreise (Etappe C) ---------------------------------------
   // Je Schaltgerät ein Kreis, jeder Pfad belegt eine Spalte des Rahmens. Oben L,
   // unten N als Schienen über die Pfade des Kreises, links mit kommendem
@@ -2264,7 +2315,11 @@ const PLAN = (() => {
         .forEach((bl, i, arr) => p.kl.push({ leiste, bloecke: bl, teil: i, teile: arr.length })));
     });
     const klZahl = plaene.reduce((s, p) => s + p.kl.length, 0);
-    const planZahl = ueZahl + klZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
+    // Stückliste (ab v1.80): nur mit P.projekt.stueckliste === true – sonst bleibt jeder Plan bitgleich
+    const slQuelle = P.projekt.stueckliste === true && plaene.length ? (hilf.stueckliste || globalThis.stuecklisteDaten) : null;
+    const sl = slQuelle ? slQuelle(P.verteiler).map(liste => ({ liste, bl: slBlaetter(liste, F) })) : [];
+    const slZahl = sl.reduce((s, x) => s + x.bl.length, 0);
+    const planZahl = ueZahl + klZahl + slZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
     const zProBlatt = Math.floor((F.h - RAND - SF_H - 4 - INH_Y0 - INH_ZH) / INH_ZH);
     let nInhalt = 0;
     if (mitVorn) { nInhalt = 1; while (Math.ceil((planZahl + 1 + nInhalt) / zProBlatt) > nInhalt) nInhalt++; }
@@ -2288,6 +2343,7 @@ const PLAN = (() => {
       p.stStart = nr + 1; nr += p.st.length;     // Steuerstromkreise direkt hinter dem Stromlaufplan des Verteilers
     }
     for (const p of plaene) { p.klStart = nr + 1; nr += p.kl.length; }
+    sl.forEach(x => { x.start = nr + 1; nr += x.bl.length; });      // ab v1.80: Stückliste hinter allen Klemmenplänen
     ankerAlle = new Set(); plaene.forEach(p => { p.blaetter.forEach(b => ankerAlle.add(blattAnker(p.v, b))); p.st.forEach(b => ankerAlle.add('kr:' + b.kreise[0].kr.id)); });
     const gesamt = nr;
     // Lage der Abgänge (für Querverweise vom Unterverteiler zurück)
@@ -2336,6 +2392,8 @@ const PLAN = (() => {
       }));
       plaene.forEach(p => p.kl.forEach((b, i) => eintraege.push({ nr: p.klStart + i, verteiler: p.v.name,
         inhalt: 'Klemmenplan ' + b.leiste + (b.teil ? ' (Fortsetzung)' : '') })));
+      sl.forEach(x => x.bl.forEach((b, i) => eintraege.push({ nr: x.start + i, verteiler: x.liste.projekt ? '' : x.liste.titel,
+        inhalt: (x.liste.projekt ? 'Stückliste aller Verteiler' : 'Stückliste') + (i ? ' (Fortsetzung)' : '') })));
       eintraege.sort((x, y) => x.nr - y.nr);
       const { svg, g } = neuesBlatt(), nR = g.children.length, yU = F.h - RAND - SF_H - 2;
       zeichneDeckblatt(g, F, P, plaene.map(p => p.v.name));
@@ -2470,6 +2528,13 @@ const PLAN = (() => {
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));
       aus.push({ svg, verteiler: p.v.name, titel: p.v.name, nr: blattNr, art: 'klemmen', pruef });
     });
+    if (!opt.nur) sl.forEach(x => x.bl.forEach((zeilen, i) => {
+      const blattNr = x.start + i, { svg, g } = neuesBlatt(), nR = g.children.length, vn = x.liste.projekt ? '' : x.liste.titel;
+      zeichneStueckliste(g, F, x.liste, zeilen, i, x.bl.length, i === x.bl.length - 1);
+      const pruef = rahmenPruefen(g, R, nR, F.h - RAND - SF_H - 2);
+      schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Stückliste', verteiler: vn, blatt: blattNr, blaetter: gesamt }));
+      aus.push({ svg, verteiler: vn, titel: x.liste.titel, nr: blattNr, art: 'stueckliste', pruef });
+    }));
     return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen, raster: { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H } };
   }
   // Stauchung der Bezeichnung im Pfadtext des Stromlaufplans (ab v1.64, F03; für die Feldwarnung der App):
@@ -2482,5 +2547,7 @@ const PLAN = (() => {
     if (faktor >= 0.85) return null;
     return { faktor, zeichen: Math.floor(max / 0.85 / (textBreite(bez, 2.5, true) / bez.length)) * z.length };
   }
-  return { blaetter, pfadtext };
+  // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
+  function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(v, e); }
+  return { blaetter, pfadtext, klemmen, adern };
 })();

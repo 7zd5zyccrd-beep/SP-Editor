@@ -77,7 +77,10 @@ Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
   durchgehend. Eigenes Einspeisungsblatt, außer bei sehr kurzer Einspeisung (höchstens
   Vorsicherung ODER Hauptschalter, kein Zähler) – dann aufs erste Abgangsblatt.
 - Türzettel (Sicherungsübersicht) je Verteiler als eigener Ausdruck, A4 hoch.
-- Stückliste und TE-Aufbauplan sind vorerst ausgeklammert.
+- Stückliste (seit v1.80, Auftrag Jean 17.11.2026): Geräte- und Materialliste je Verteiler und fürs Projekt aus dem
+  Datenmodell (Schutzorgane, FI, Schaltgeräte, Zähler, Klemmen, Leitungen mit Längen, Geräte im Feld), TE-Summe mit 20 %
+  Reserve und Reihen zu 12 TE (Richtwerte `GERAETE[…].te`); Bildschirm, CSV und abschaltbares Planblatt hinter den
+  Klemmenplänen (`P.projekt.stueckliste`, Voreinstellung aus). Der TE-Aufbauplan bleibt ausgeklammert (herstellerabhängig).
 
 **Darstellung**
 - Farben: N blau, PE grün, durchgezogen; Zeichen auf N-/PE-Leitern mit eingefärbt, auch
@@ -382,7 +385,7 @@ Desktop, iPad und iPhone; zwei Runden. Runde 1 (v1.51): 111 Befunde (hoch 21) �
   Namensfenster für neue Projekte, Sicherungsmahnung je Projekt, „So beheben“ an Warnungen.
 Treppenlicht-Kontakt im Abgang 1–2 (Hauptkontakt nach EN 50005), nicht 17–18. Offen für Jean: Auswahlblätter
 Drehstromzähler mit N und Wandlermessung, E4 Schritt 3, Prüfung am echten iPad/iPhone (Tastatur, Safe Areas,
-Pencil), Stückliste/TE-Plan, Fachetappe Bemessung, Revisionen/Kennzeichen festschreiben, Spulenspannung am Spiegel.
+Pencil), TE-Aufbauplan (Stückliste seit v1.80), Fachetappe Bemessung, Revisionen/Kennzeichen festschreiben, Spulenspannung am Spiegel.
 
 ## Etappe D – Desktop-Perfektion (Jean 05.11.2026: vollautomatisch bis „perfekt“, Fortsetzung bei Limit 20:30)
 

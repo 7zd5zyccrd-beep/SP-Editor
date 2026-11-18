@@ -355,6 +355,12 @@ window.BEISPIELE = {
     const sp = neuerAbgang(); sp.ziel = {bez:'Speicher', ort:'Garage', anschluss:'speicher'}; sp.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'16'}; sp.leitung.laenge = '5';
     sp.speicher = {phasen:'1', kwh:'5', kw:'3'}; uv.knoten.push(sp);
     P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.80 (X07, X16): wie grund mit Stückliste im Plan, Klemmleiste in der HV, Steckdosen je Stromkreis, Leitungslängen
+  stueckliste: () => { BEISPIELE.grund(); const [hv, uv] = P.verteiler; P.projekt.stueckliste = true; hv.klemmen = 'leiste';
+    const sd = []; alleKnoten(hv, k => { if (k.typ === 'abgang' && k.ziel.anschluss === 'steckdose3') sd.push(k); });
+    sd.forEach((k, i) => { k.ziel.anzahl = String([3, 2, 4, 1, 2, 6][i] || 1); k.leitung.laenge = String(10 + 5 * i); });
+    uv.knoten.find(k => k.ziel && k.ziel.bez === 'Kreissäge').ziel.anzahl = '2';
+    sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

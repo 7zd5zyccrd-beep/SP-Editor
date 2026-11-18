@@ -22,7 +22,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung', 'stueckliste']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -65,7 +65,7 @@ with sync_playwright() as p:
               if (y > 120 && y < 178 && x > 30 && x < 285) ys[x] = Math.max(ys[x] || 0, y); });
             return [k.querySelector('.bt').innerText.replace(/\\n/g, ' '), Object.values(ys).map(y => +y.toFixed(2))]; })""")
         for t, ys in unten:
-            if ys and ('Übersicht' in t or t.count('·') and 'Klemmen' not in t and 'Steuer' not in t and 'Deckblatt' not in t and 'Inhalt' not in t):
+            if ys and ('Übersicht' in t or t.count('·') and 'Klemmen' not in t and 'Steuer' not in t and 'Deckblatt' not in t and 'Inhalt' not in t and 'Stückliste' not in t):
                 werte = sorted(set(ys)); haupt = max(set(ys), key=ys.count)
                 # Steckdosenunterkante auf A4 (163,5 mm) ist der Maßstab, wenn sie vorkommt – Blätter nur mit Motoren
                 # haben sonst eine andere häufigste Höhe (ab v1.40)
@@ -87,7 +87,7 @@ with sync_playwright() as p:
             return [k.querySelector('.bt').innerText.replace(/\\n/g, ' '), w]; }).filter(x => x[1])""")]
         # alle Eingabebildschirme des ersten Verteilers einmal aufbauen (Skriptfehler fallen auf)
         fehler += [f'{name}: Bildschirm {x}' for x in pg.evaluate("""() => { const v = P.verteiler[0], st = v.steuerung || {}, aus = [];
-            const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }, { s: 'editor', vid: v.id }];
+            const seiten = [{ s: 'verteiler', vid: v.id }, { s: 'steuerung', vid: v.id }, { s: 'editor', vid: v.id }, { s: 'stueck', vid: v.id }, { s: 'stueck' }];      // stueck ab v1.80
             // Plan-Editor: jedes Teil einmal gewählt
             const zs = new Set(); PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }).blaetter.forEach(bl =>
               bl.svg.querySelectorAll('[data-ziel]').forEach(r => zs.add(r.dataset.ziel)));
@@ -299,6 +299,15 @@ with sync_playwright() as p:
             if seiten != r[0]: fehler.append(f'{name}: Prüfprotokoll-PDF mit {seiten} Seiten, gesetzt {r[0]}')
             if not box or abs(float(box.group(1)) - 841.9) > 2 or abs(float(box.group(2)) - 595) > 2: fehler.append(f'{name}: Prüfprotokoll-PDF nicht A4 quer')
             print(name, ': Prüfprotokoll', seiten, 'Seiten')
+        # ab v1.80 (X07): Stückliste – Blätter hinter dem Klemmenplan, im Inhaltsverzeichnis, Summen gegen die Daten
+        if name == 'stueckliste':
+            r = pg.evaluate("""() => { const bl = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter, sl = bl.filter(b => b.art === 'stueckliste');
+                const inh = bl.filter(b => b.art === 'inhalt').map(b => b.svg.textContent).join(' ');
+                return [sl.map(b => b.nr), bl.length, sl.every(b => b.nr > Math.max(...bl.filter(x => x.art !== 'stueckliste').map(x => x.nr))), (inh.match(/Stückliste/g) || []).length,
+                  stuecklisteDaten(P.verteiler).map(l => [l.titel, l.te, l.teRes, l.reihen])]; }""")
+            if not r[0] or not r[2]: fehler.append(f'stueckliste: Blätter {r[0]} nicht am Ende')
+            if r[3] != len(r[0]): fehler.append(f'stueckliste: Inhaltsverzeichnis nennt {r[3]} statt {len(r[0])} Stücklistenblätter')
+            print(name, ': Stückliste', r[4])
         pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()
@@ -326,7 +335,7 @@ with sync_playwright() as p:
         elif fen is None: fehler.append(f'Import {n}: abgelehnt – {mel}')
         else:
             r = pg.evaluate("""() => { const o = [];
-                for (const v of P.verteiler) for (const s of ['editor', 'plan', 'tuer', 'liste', 'verteiler', 'pruef'])
+                for (const v of P.verteiler) for (const s of ['editor', 'plan', 'tuer', 'liste', 'verteiler', 'pruef', 'stueck'])
                   try { stapel = [{ s: 'start' }, { s, vid: v.id }]; zeichne(); } catch (e) { o.push(v.name + ' ' + s + ': ' + e.message); }
                 stapel = [{ s: 'start' }]; zeichne(); return o; }""")
             fehler += [f'Import {n}: {x}' for x in r]

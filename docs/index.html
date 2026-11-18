@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.79 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.80 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,19 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.80: Stückliste (Etappe X-E: X07, X16): Geräte- und Materialliste je Verteiler und für das Projekt aus berechne() (stueckliste,
+           stuecklisteProjekt, stuecklisteDaten): Reiheneinbaugeräte (Kopfgeräte, Gruppen, Schutzorgane, FI, Schütze/Stromstoßschalter/Zeitrelais mit
+           Hilfskontakten, Erzeugungszähler, Steuertrafo, Sekundär-LS, Meldeleuchten/Befehlsgeber im Verteiler) mit TE-Richtwert (GERAETE[…].te,
+           SCHALT_TE, trafoTe), weitere Einbauten ohne TE (NH-Sicherungslasttrennschalter, Leistungsschalter, Zähler am Zählerplatz des obersten
+           Verteilers, Überlastrelais, FU, MSS-Hilfsschalter), Klemmen je Leiste, Art und Querschnitt aus derselben Quelle wie der Klemmenplan
+           (PLAN.klemmen, Querbrücken der gebrückten Reihen), Leitungen je Typ/Adern/Querschnitt mit Summe der Längen, Geräte im Feld (Steckdosen mit
+           Anzahl, Leuchten, Dosen, Motoren, Wallbox, PV, Speicher, Befehlsgeber); gleiche Geräte und Bemessung = eine Position, Kennzeichen
+           zusammengefasst (-F11…-F14, X1:1, 7, 18…20); TE-Summe, +20 % Reserve, Reihen zu 12 TE. Bildschirm „Stückliste“ (bStueck, dieser
+           Verteiler/alle, Projektliste mit Anzahl je Verteiler), CSV stuecklisteCsv(vs) (formelsicher, gemeinsamer csvText() mit der Stromkreisliste),
+           Planblatt „Stückliste“ hinter allen Klemmenplänen mit Inhaltsverzeichnis, abschaltbar in den Projektdaten und im Bildschirm
+           (P.projekt.stueckliste, Voreinstellung aus). Steckdosen je Stromkreis k.ziel.anzahl (Fach „Anzahl Steckdosen“, Stromkreisliste, Türzettel,
+           Stückliste; Plan unverändert). Einstieg: Startseite, Verteiler, Stromkreisliste (damit auch aus dem Editor). PROJEKT_VERSION 6; Beispiel
+           stueckliste. Pläne ohne Stückliste bitgleich.
      v1.79: Projektweite Stromkreisliste und Prüfprotokoll (Etappe X-D: X04, X05, Q33): Stromkreisliste mit Wahl „dieser Verteiler /
            Alle Verteiler“ (von der Startseite gleich alle), je Verteiler eine Tabelle mit denselben Spalten, mit Leistungsangaben Spalte
            Leistung, mit Zs am obersten Verteiler Spalte Zs (Warnfarbe, wenn die Abschaltbedingung verfehlt ist); CSV listeCsv(vs) für einen
@@ -491,6 +504,9 @@ table.ueb td{padding:7px 8px;border-top:1px solid var(--linie);vertical-align:to
 table.ueb td.m{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}
 table.ueb tr.gr td{background:var(--karte2);font-weight:600}
 table.ueb .zahl{text-align:right;font-variant-numeric:tabular-nums}table.ueb td.ueber{color:var(--warn);font-weight:600}      /* ab v1.77: Bemessung */
+/* ab v1.80 (X07): Stückliste – Kennzeichenlisten dürfen umbrechen, Abschnittszeilen, Summe unter der Tabelle */
+table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:normal}table.ueb.sl td{overflow-wrap:anywhere}table.ueb tr.slab td{font-size:12px}
+.slsumme{margin:8px 2px 18px;font-weight:600}
 .tabwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ph{display:inline-block;font:600 12px ui-monospace,Menlo,monospace;padding:1px 5px;border-radius:5px;background:var(--hover)}
 .ph.auto{background:var(--akzent-hell);color:var(--akzent)}
@@ -3204,6 +3220,57 @@ const PLAN = (() => {
     });
   }
 
+  // ---- Stückliste (ab v1.80, Etappe X-E: X07) --------------------------------
+  // Geräte- und Materialliste je Verteiler und (bei mehreren Verteilern) für das Projekt, aus dem Datenmodell abgeleitet
+  // (Daten von der App: hilf.stueckliste bzw. stuecklisteDaten); abschaltbares Blatt hinter dem Klemmenplan, Voreinstellung aus.
+  // Zeilen wie der Klemmenplan; je Abschnitt eine fette Kopfzeile; am Ende die TE-Summe mit Reserve und Reihenschätzung.
+  const SL_SP = [['Pos.', 0.05], ['Anzahl', 0.07], ['Gerät / Material', 0.27], ['Bemessung', 0.13], ['Kennlinie / Typ', 0.14], ['Pole', 0.05], ['TE', 0.05], ['Kennzeichen', 0.24]];
+  const SL_FUSS = 4;        // Zeilen für die Summe am Ende (Abstand, zwei Zeilen, Luft)
+  // Zeilen einer Liste: { kopf: Abschnitt } bzw. { pos }; auf Blätter verteilt, ein Abschnittskopf nie allein am Blattende
+  function slBlaetter(liste, F) {
+    const max = Math.floor((F.h - RAND - SF_H - 4 - KL_Y0 - KL_ZH) / KL_ZH);
+    const zeilen = []; let ab = null;
+    liste.pos.forEach(p => { if (p.abT !== ab) { ab = p.abT; zeilen.push({ kopf: ab }); } zeilen.push({ pos: p }); });
+    const bl = []; let cur = null;
+    zeilen.forEach((z, i) => {
+      const rest = cur ? max - cur.length : 0;
+      if (!cur || rest < 1 || (z.kopf && rest < 2)) { cur = []; bl.push(cur); }
+      cur.push(z);
+    });
+    if (!bl.length || max - bl[bl.length - 1].length < SL_FUSS) bl.push([]);       // Summe passt nicht mehr: eigenes Folgeblatt
+    return bl;
+  }
+  // Text auf eine Breite kürzen (mit „…“), damit lange Kennzeichenlisten nicht gestaucht werden
+  function slKurz(t, gr, max) {
+    t = String(t || ''); if (textBreite(t, gr) <= max) return t;
+    while (t.length > 1 && textBreite(t + ' …', gr) > max) t = t.slice(0, -1);
+    return t.replace(/[,\s]+$/, '') + ' …';
+  }
+  function zeichneStueckliste(g, F, liste, zeilen, teil, teile, letztes) {
+    const x0 = RAND_L, x1 = F.w - RAND, w = x1 - x0 - 20, xa = x0 + 10;
+    text(g, xa, RAND + 13, `Stückliste · ${liste.titel}` + (teile > 1 ? ` (${teil + 1}/${teile})` : ''), 6, 'start', { 'font-weight': 'bold' });
+    const sp = SL_SP.map((s, i) => i === 7 && liste.projekt ? ['Verteiler', s[1]] : s);
+    const xs = []; let x = xa; sp.forEach(([, a]) => { xs.push(x); x += w * a; });
+    const rechts = i => i === 1 || i === 6;          // Anzahl und TE rechtsbündig
+    const zeile = (yy, werte, kopf) => werte.forEach((t, i) => {
+      const max = w * sp[i][1] - 2.5, gr = kopf ? 2.5 : 3;
+      passend(text(g, rechts(i) ? xs[i] + w * sp[i][1] - 1.5 : xs[i] + 1, yy - 1.5, i === 7 && !kopf ? slKurz(t, gr, max) : t, gr, rechts(i) ? 'end' : 'start'), max);
+    });
+    zeile(KL_Y0 + KL_ZH, sp.map(s => s[0]), true);
+    linie(g, xa, KL_Y0 + KL_ZH, xa + w, KL_Y0 + KL_ZH, 0.5);
+    let y = KL_Y0 + KL_ZH;
+    zeilen.forEach((z, i) => {
+      y += KL_ZH;
+      if (z.kopf) passend(text(g, xa + 1, y - 1.5, z.kopf, 3, 'start', { 'font-weight': 'bold' }), w - 2);
+      else { const p = z.pos; zeile(y, [String(p.nr), p.anzahl, p.name, p.bem, p.typ, p.pole, p.teT, p.kennT], false); }
+      const naechstKopf = !zeilen[i + 1] || zeilen[i + 1].kopf;
+      linie(g, xa, y, xa + w, y, naechstKopf ? 0.35 : 0.18, naechstKopf ? '#000' : '#aaa');
+    });
+    if (!letztes) return;
+    y += KL_ZH + 1.5;
+    (liste.fuss || []).forEach((t, i) => { passend(text(g, xa + 1, y, t, i ? 2.5 : 3, 'start', i ? {} : { 'font-weight': 'bold' }), w - 2); y += i ? 3.4 : 4.2; });
+  }
+
   // ---- Steuerstromkreise (Etappe C) ---------------------------------------
   // Je Schaltgerät ein Kreis, jeder Pfad belegt eine Spalte des Rahmens. Oben L,
   // unten N als Schienen über die Pfade des Kreises, links mit kommendem
@@ -3637,7 +3704,11 @@ const PLAN = (() => {
         .forEach((bl, i, arr) => p.kl.push({ leiste, bloecke: bl, teil: i, teile: arr.length })));
     });
     const klZahl = plaene.reduce((s, p) => s + p.kl.length, 0);
-    const planZahl = ueZahl + klZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
+    // Stückliste (ab v1.80): nur mit P.projekt.stueckliste === true – sonst bleibt jeder Plan bitgleich
+    const slQuelle = P.projekt.stueckliste === true && plaene.length ? (hilf.stueckliste || globalThis.stuecklisteDaten) : null;
+    const sl = slQuelle ? slQuelle(P.verteiler).map(liste => ({ liste, bl: slBlaetter(liste, F) })) : [];
+    const slZahl = sl.reduce((s, x) => s + x.bl.length, 0);
+    const planZahl = ueZahl + klZahl + slZahl + plaene.reduce((s, p) => s + p.blaetter.length + p.st.length, 0);
     const zProBlatt = Math.floor((F.h - RAND - SF_H - 4 - INH_Y0 - INH_ZH) / INH_ZH);
     let nInhalt = 0;
     if (mitVorn) { nInhalt = 1; while (Math.ceil((planZahl + 1 + nInhalt) / zProBlatt) > nInhalt) nInhalt++; }
@@ -3661,6 +3732,7 @@ const PLAN = (() => {
       p.stStart = nr + 1; nr += p.st.length;     // Steuerstromkreise direkt hinter dem Stromlaufplan des Verteilers
     }
     for (const p of plaene) { p.klStart = nr + 1; nr += p.kl.length; }
+    sl.forEach(x => { x.start = nr + 1; nr += x.bl.length; });      // ab v1.80: Stückliste hinter allen Klemmenplänen
     ankerAlle = new Set(); plaene.forEach(p => { p.blaetter.forEach(b => ankerAlle.add(blattAnker(p.v, b))); p.st.forEach(b => ankerAlle.add('kr:' + b.kreise[0].kr.id)); });
     const gesamt = nr;
     // Lage der Abgänge (für Querverweise vom Unterverteiler zurück)
@@ -3709,6 +3781,8 @@ const PLAN = (() => {
       }));
       plaene.forEach(p => p.kl.forEach((b, i) => eintraege.push({ nr: p.klStart + i, verteiler: p.v.name,
         inhalt: 'Klemmenplan ' + b.leiste + (b.teil ? ' (Fortsetzung)' : '') })));
+      sl.forEach(x => x.bl.forEach((b, i) => eintraege.push({ nr: x.start + i, verteiler: x.liste.projekt ? '' : x.liste.titel,
+        inhalt: (x.liste.projekt ? 'Stückliste aller Verteiler' : 'Stückliste') + (i ? ' (Fortsetzung)' : '') })));
       eintraege.sort((x, y) => x.nr - y.nr);
       const { svg, g } = neuesBlatt(), nR = g.children.length, yU = F.h - RAND - SF_H - 2;
       zeichneDeckblatt(g, F, P, plaene.map(p => p.v.name));
@@ -3843,6 +3917,13 @@ const PLAN = (() => {
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));
       aus.push({ svg, verteiler: p.v.name, titel: p.v.name, nr: blattNr, art: 'klemmen', pruef });
     });
+    if (!opt.nur) sl.forEach(x => x.bl.forEach((zeilen, i) => {
+      const blattNr = x.start + i, { svg, g } = neuesBlatt(), nR = g.children.length, vn = x.liste.projekt ? '' : x.liste.titel;
+      zeichneStueckliste(g, F, x.liste, zeilen, i, x.bl.length, i === x.bl.length - 1);
+      const pruef = rahmenPruefen(g, R, nR, F.h - RAND - SF_H - 2);
+      schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Stückliste', verteiler: vn, blatt: blattNr, blaetter: gesamt }));
+      aus.push({ svg, verteiler: vn, titel: x.liste.titel, nr: blattNr, art: 'stueckliste', pruef });
+    }));
     return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen, raster: { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H } };
   }
   // Stauchung der Bezeichnung im Pfadtext des Stromlaufplans (ab v1.64, F03; für die Feldwarnung der App):
@@ -3855,42 +3936,47 @@ const PLAN = (() => {
     if (faktor >= 0.85) return null;
     return { faktor, zeichen: Math.floor(max / 0.85 / (textBreite(bez, 2.5, true) / bez.length)) * z.length };
   }
-  return { blaetter, pfadtext };
+  // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
+  function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(v, e); }
+  return { blaetter, pfadtext, klemmen, adern };
 })();
 
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.79';
+const FASSUNG = 'v1.80';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
 // Gerätearten (Kennungen = Bibliothek v1.1)
 // pole: Zahl der Außenleiter, die das Gerät schaltet (1 oder 3); n: N mitgeführt
+// te (ab v1.80, Etappe X-E: X07): Breite in Teilungseinheiten (1 TE = 18 mm) als Richtwert für die Stückliste und die Gehäusewahl;
+// null = kein Reiheneinbaugerät (NH-Sicherungslasttrennschalter, Leistungsschalter), außerhalb der TE-Summe. Maßgeblich sind die
+// Herstellerangaben – Sicherungen als NEOZED D02 (1,5 TE je Pol), Motorschutzschalter 45 mm, Zähler als Hutschienenzähler
 const GERAETE = {
-  ls1:            { name: 'LS 1-polig',            pole: 1, kennlinie: true },
-  ls3:            { name: 'LS 3-polig',            pole: 3, kennlinie: true },
-  fils1n:         { name: 'FI/LS 1P+N',            pole: 1, kennlinie: true, fi: true },
-  fils3n:         { name: 'FI/LS 3P+N',            pole: 3, kennlinie: true, fi: true },
-  sich1:          { name: 'Sicherung 1-polig',     pole: 1, sicherung: true },
-  sich3:          { name: 'Drei Sicherungen',      pole: 3, sicherung: true },
-  fi2:            { name: 'FI 2-polig',            pole: 1, fi: true, ohneKennlinie: true },
-  fi4:            { name: 'FI 4-polig',            pole: 3, fi: true, ohneKennlinie: true },
-  sichtrenn3:     { name: 'Sicherungstrennschalter 3-polig', pole: 3, sicherung: true },
-  sichlasttrenn3: { name: 'NH-Sicherungslasttrennschalter 3-polig', pole: 3, sicherung: true },
-  lasttrenn3:     { name: 'Lasttrennschalter 3-polig', pole: 3 },
-  trenn3:         { name: 'Trennschalter 3-polig', pole: 3 },
-  leistung3:      { name: 'Leistungsschalter 3-polig', pole: 3 },
-  zaehler3:       { name: 'Zähler 3-phasig',       pole: 3, ohneNenn: true },
-  zaehler1:       { name: 'Zähler 1-phasig',       pole: 1, ohneNenn: true },
-  spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true },
-  spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true },
+  ls1:            { name: 'LS 1-polig',            pole: 1, kennlinie: true, te: 1 },
+  ls3:            { name: 'LS 3-polig',            pole: 3, kennlinie: true, te: 3 },
+  fils1n:         { name: 'FI/LS 1P+N',            pole: 1, kennlinie: true, fi: true, te: 2 },
+  fils3n:         { name: 'FI/LS 3P+N',            pole: 3, kennlinie: true, fi: true, te: 4 },
+  sich1:          { name: 'Sicherung 1-polig',     pole: 1, sicherung: true, te: 1.5 },
+  sich3:          { name: 'Drei Sicherungen',      pole: 3, sicherung: true, te: 4.5 },
+  fi2:            { name: 'FI 2-polig',            pole: 1, fi: true, ohneKennlinie: true, te: 2 },
+  fi4:            { name: 'FI 4-polig',            pole: 3, fi: true, ohneKennlinie: true, te: 4 },
+  sichtrenn3:     { name: 'Sicherungstrennschalter 3-polig', pole: 3, sicherung: true, te: 4.5 },
+  sichlasttrenn3: { name: 'NH-Sicherungslasttrennschalter 3-polig', pole: 3, sicherung: true, te: null },
+  lasttrenn3:     { name: 'Lasttrennschalter 3-polig', pole: 3, te: 3 },
+  trenn3:         { name: 'Trennschalter 3-polig', pole: 3, te: 3 },
+  leistung3:      { name: 'Leistungsschalter 3-polig', pole: 3, te: null },
+  zaehler3:       { name: 'Zähler 3-phasig',       pole: 3, ohneNenn: true, te: 4 },
+  zaehler1:       { name: 'Zähler 1-phasig',       pole: 1, ohneNenn: true, te: 1 },
+  spd4:           { name: 'Überspannungsschutz 3/N', pole: 3, ohneNenn: true, te: 4 },
+  spd2:           { name: 'Überspannungsschutz 1/N', pole: 1, ohneNenn: true, te: 2 },
   // Motorschutzschalter (ab v1.37): Kennzeichen -Q nach 81346-2 (Jean, 04.11.2026), Einstellbereich statt Nennstrom
-  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9 },
+  motorschutz3:   { name: 'Motorschutzschalter 3-polig', pole: 3, ohneNenn: true, bereich: true, kz: 'Q', bmkDx: 9, te: 2.5 },
   // Kopfgeräte des 1/N/PE-Verteilers (ab v1.72, Q04): schalten L (Lasttrennschalter auch N), nie den PE
-  lasttrenn2:     { name: 'Lasttrennschalter 2-polig', pole: 1, n: true },
-  sichtrenn1:     { name: 'Sicherungstrennschalter 1-polig', pole: 1, sicherung: true },
-  sichlasttrenn1: { name: 'Sicherungslasttrennschalter 1-polig', pole: 1, sicherung: true },
+  lasttrenn2:     { name: 'Lasttrennschalter 2-polig', pole: 1, n: true, te: 2 },
+  sichtrenn1:     { name: 'Sicherungstrennschalter 1-polig', pole: 1, sicherung: true, te: 1.5 },
+  sichlasttrenn1: { name: 'Sicherungslasttrennschalter 1-polig', pole: 1, sicherung: true, te: 1.5 },
 };
 const WAHL = {
   abgang:       ['ls1', 'ls3', 'fils1n', 'fils3n', 'sich1', 'sich3', 'motorschutz3', ''],
@@ -4144,8 +4230,9 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // ---------------------------------------------------------------------------
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
+// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.80: 6)
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 5, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 6, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -4220,7 +4307,7 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 //    (Anzahl, fehlt = 1), P.projekt.duMax (%, fehlt = 3) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
 // v5 (ab v1.78, Bemessung II): optional v.netz = { zs } (Ω, nur am obersten Verteiler), k.last = { kw, gz } (fehlt = keine Angabe bzw. 1),
 //    k.speicher.kw (Wechselrichterleistung) – ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
-const PROJEKT_VERSION = 5;
+const PROJEKT_VERSION = 6;      // ab v1.80 (X07, X16): P.projekt.stueckliste, k.ziel.anzahl
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -5742,7 +5829,7 @@ function zeichne() {
   ED = null;
   app.innerHTML = '';
   document.body.classList.toggle('imeditor', b.s === 'editor'); document.body.classList.remove('fachoffen');
-  ({ start: bStart, projekte: bProjekte, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, plan: bPlan, tuer: bTuer, pruef: bPruef,
+  ({ start: bStart, projekte: bProjekte, projekt: bProjekt, verteiler: bVerteiler, einspeisung: bEinspeisung, kopf: bKopf, gruppe: bGruppe, abgang: bAbgang, liste: bListe, stueck: bStueck, plan: bPlan, tuer: bTuer, pruef: bPruef,
      steuerung: bSteuerung, kreis: bKreis, sgeraet: bSGeraet, editor: bEditor }[b.s])(b);
   // ab v1.67 (I3-04): im Editor fällt der Fokus nach dem Neuzeichnen nie auf body (Palette, Fachzeile, Rückkehr aus der Vorschau)
   if (flFokus || b.s === 'editor') flaecheFokus();
@@ -5810,7 +5897,8 @@ function bStart() {
     zeile('Türzettel drucken …', null, () => geh({ s: 'tuer' }), { un: 'Sicherungsübersicht je Verteiler, A4 hoch' }),
     // ab v1.79 (X04, X05): Prüfprotokoll und projektweite Stromkreisliste
     zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef' }), { un: 'je Verteiler, A4 quer, Messwerte zum Ausfüllen' }),
-    zeile('Stromkreisliste', null, () => geh({ s: 'liste' }), { un: 'alle Verteiler, auch als CSV' })));
+    zeile('Stromkreisliste', null, () => geh({ s: 'liste' }), { un: 'alle Verteiler, auch als CSV' }),
+    zeile('Stückliste', null, () => geh({ s: 'stueck' }), { un: 'Geräte, Klemmen, Leitungen, TE je Verteiler, auch als CSV' })));      // ab v1.80 (X07)
   // Speicherstatus (ab v1.54): wann zuletzt als Datei gesichert; nach 7 Tagen (oder nie) ein Hinweis
   // ab v1.58 (C35) je Projekt: die Mahnung erst 7 Tage nach der ersten Änderung seit dem letzten Sichern bzw. Öffnen aus Datei
   const px = projekte.find(q => q.id === projektId) || {}, dat = t => t ? datumKurz(t) : null;
@@ -6226,7 +6314,9 @@ function bProjekt() {
     // ab v1.62 (D35): Schalter statt „mit/ohne“
     schalterZeile('Deckblatt und Inhaltsverzeichnis', p.deckblatt !== false, an => p.deckblatt = an, { titel: 'Blatt 1 Deckblatt, Blatt 2 Inhaltsverzeichnis' }),
     schalterZeile('Übersichtsschaltplan', p.uebersicht !== false, an => p.uebersicht = an, { titel: 'einpolig, je Verteiler vor dem Stromlaufplan' }),
-    schalterZeile('Klemmenplan', p.klemmenplan !== false, an => p.klemmenplan = an, { titel: 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan' })));
+    schalterZeile('Klemmenplan', p.klemmenplan !== false, an => p.klemmenplan = an, { titel: 'je Verteiler mit Klemmleiste, hinter dem Stromlaufplan' }),
+    // ab v1.80 (X07): Stückliste als Planblatt, Voreinstellung aus (fehlt = aus, der Plan bleibt wie bisher)
+    schalterZeile('Stückliste', p.stueckliste === true, an => { if (an) p.stueckliste = true; else delete p.stueckliste; }, { titel: 'Geräte, Klemmen und Leitungen je Verteiler, hinter dem Klemmenplan' })));
   // ab v1.77 (X02): Grenze des Spannungsfalls ab dem Zähler (leer = 3 %)
   m.append(h('h2', {}, 'Bemessung'), h('div', { class: 'liste' },
     zeile('Spannungsfall höchstens', `${dezimal(duMax())} %${p.duMax ? '' : ' (Voreinstellung)'}`, () => textFeld('Spannungsfall höchstens (%)', p.duMax,
@@ -6290,7 +6380,8 @@ function bVerteiler(b) {
       zeile('Plan drucken …', null, () => geh({ s: 'plan', vid: v.id }), { un: 'alle Blätter des Projekts' }),      // ab v1.66 (F33): ein Name je Druckbefehl
       zeile('Türzettel drucken …', null, () => geh({ s: 'tuer', vid: v.id })),
       zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef', vid: v.id })),      // ab v1.79 (X05)
-      zeile('Stromkreisliste', null, () => geh({ s: 'liste', vid: v.id }))));
+      zeile('Stromkreisliste', null, () => geh({ s: 'liste', vid: v.id })),
+      zeile('Stückliste', null, () => geh({ s: 'stueck', vid: v.id }), { un: 'Geräte, Klemmen, Leitungen, TE-Summe' })));      // ab v1.80 (X07)
     m.append(h('h2', {}, ''), h('div', { class: 'liste' }, zeile('Verteiler löschen …', null, () => verteilerLoeschen(v), { rot: true, ohnePfeil: true })));
   }
   app.append(m);
@@ -6506,6 +6597,10 @@ function bAbgang(b) {
              : zeile('Bezeichnung', k.ziel.bez || '—', () => textFeld('Bezeichnung', k.ziel.bez, w => k.ziel.bez = w, { platz: 'z. B. Steckdosen, Licht, Herd', warn: t => bezWarnung(v, k, t) })),
     zeile('Ort', k.ziel.ort || '—', () => textFeld('Ort', k.ziel.ort, w => k.ziel.ort = w, { platz: 'z. B. Werkstatt' })),
     k.speist ? null : zeile('Anschluss', ANSCHLUSS[k.ziel.anschluss], () => wahlFeld('Anschluss', Object.entries(ANSCHLUSS), k.ziel.anschluss, w => anschlussSetzen(v, k, w))),
+    // ab v1.80 (X16): Steckdosen je Stromkreis (Liste, Türzettel, Stückliste; im Plan bleibt ein Zeichen)
+    steckdosen(k) ? zeile('Anzahl Steckdosen', String(steckdosen(k)), () => textFeld('Anzahl Steckdosen', k.ziel.anzahl, w => { const n = Math.round(zahlVon(w));
+      if (n > 1) k.ziel.anzahl = String(n); else delete k.ziel.anzahl; }, zahlOpt({ platz: '1', text: 'Steckdosen an diesem Stromkreis, z. B. 3 für eine Dreifachsteckdose bzw. drei Einzelsteckdosen.' }, Z_ANZ)),
+      { titel: 'für Stromkreisliste, Türzettel und Stückliste' }) : null,
     a.xd && !a.t ? zeile(`Kennzeichen ${({ dose: 'Anschlussdose', leuchte: 'Leuchte', wallbox: 'Wallbox', motor: 'Motor' })[k.ziel.anschluss] || 'Steckdose'}`, a.xd.t,
       () => bmkFeld('Kennzeichen', k.ziel, a.xd.hand ? '' : a.xd.t)) : null));
   if (k.ziel.anschluss === 'leuchte' && a.drei) m.append(h('p', { class: 'warnung' }, 'Eine Leuchte wird einphasig angeschlossen.'));
@@ -6579,6 +6674,7 @@ function bAbgang(b) {
 let bemAuf = false;      // ab v1.77: Bemessung im Fach von Hand aufgeklappt (für die Sitzung)
 const Z_PROZ = { min: 0.5, max: 10, einheit: /^%$/, zeigen: '%' };
 const Z_M = { min: 0.1, max: 5000, einheit: /^m$/i, zeigen: 'm' };
+const Z_ANZ = { min: 1, max: 99 };      // ab v1.80 (X16): Steckdosen je Stromkreis
 const HAEUF_WAHL = HAEUF_N.map(n => [String(n), String(n)]);
 function bemessungText(b) {
   if (!b) return null;
@@ -8728,7 +8824,7 @@ function fussNeu() {
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
     // ab v1.67 (DS3-09): die Zweitzeile nennt die echten Blätter („Deckblatt, Inhalt, Übersicht HV, Übersicht UV Werkstatt“)
     let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, {}).blaetter; } catch (er) { alle = []; }
-    const ART_KURZ = { deckblatt: 'Deckblatt', inhalt: 'Inhalt', uebersicht: 'Übersicht', einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis', klemmen: 'Klemmenplan' };
+    const ART_KURZ = { deckblatt: 'Deckblatt', inhalt: 'Inhalt', uebersicht: 'Übersicht', einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis', klemmen: 'Klemmenplan', stueckliste: 'Stückliste' };
     const namen = (a, z) => { const n = [...new Set(alle.filter(bl => bl.nr >= a && bl.nr <= z).map(bl => [ART_KURZ[bl.art] || bl.titel, bl.verteiler].filter(Boolean).join(' ')))];
       return n.length > 4 ? n.slice(0, 4).join(', ') + ' …' : n.join(', '); };
     const druck = (a, z) => a <= z ? [`${a === z ? 'Blatt ' + a : 'Blätter ' + a + '–' + z} in der Druckvorschau`, () => geh({ s: 'plan', vid: ED.v.id, nr: a }), { klein: namen(a, z) || null }] : null;
@@ -9717,7 +9813,9 @@ function bListe(b) {
   if (!liste.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
   m.append(h('div', { class: 'legende' }, h('span', {}, h('span', { class: 'ph auto' }, 'L1'), ' automatisch verteilt'), h('span', {}, h('span', { class: 'bmk hand' }, '-F4'), ' von Hand gesetzt')));
   if (liste.length) m.append(h('div', { class: 'liste' }, zeile('Prüfprotokoll drucken …', null, () => geh({ s: 'pruef', vid: ein ? liste[0].id : b.vid, alle: !ein }),
-    { un: 'Stromkreise mit Zs,max, Messwerte zum Ausfüllen, A4 quer' })));      // ab v1.79 (X05)
+    { un: 'Stromkreise mit Zs,max, Messwerte zum Ausfüllen, A4 quer' }),      // ab v1.79 (X05)
+    // ab v1.80 (X07): von hier auch aus dem Plan-Editor (Hauptmenü → Stromkreisliste) erreichbar
+    zeile('Stückliste', null, () => geh({ s: 'stueck', vid: ein ? liste[0].id : b.vid, alle: !ein }), { un: 'Geräte, Klemmen, Leitungen, TE-Summe' })));
   app.append(m);
 }
 // Tabelle der Stromkreise eines Verteilers (ab v1.79 aus bListe); sp = { bem, last, zs } zusätzliche Spalten
@@ -9739,7 +9837,8 @@ function listeTabelle(v, sp) {
     }
     const a = e.abgaenge[k.id];
     // ab v1.58 (C38): Kennzeichen am Ziel nicht umbrechen
-    const zielText = k.speist ? [speistText(k)] : [bezOrt(k.ziel), a.xd ? h('span', { style: 'white-space:nowrap' }, ` (${a.xd.t})`) : null];
+    const zielText = k.speist ? [speistText(k)] : [bezOrt(k.ziel), a.xd ? h('span', { style: 'white-space:nowrap' }, ` (${a.xd.t})`) : null,
+      anzahlText(k) ? ` · ${anzahlText(k)}` : null];      // ab v1.80 (X16)
     tb.append(h('tr', {},
       h('td', { class: 'm' }, a.f ? (a.f.hand ? h('span', { class: 'bmk hand' }, a.f.t) : a.f.t) : '—'),
       h('td', {}, ein + (k.geraet.zeichen ? `${gNameK(k)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan')),
@@ -9786,7 +9885,7 @@ const zsZelle = b => !b || !b.ab ? h('td') : h('td', { class: 'nw zahl' + (b.ab.
 // ab v1.79 (X04, Q33): vs = ein Verteiler oder eine Liste (projektweit); Spalten Verteiler, Verbraucher-Kennzeichen, Leistung,
 // Gleichzeitigkeit, Z_s und Z_s,max dazu – dieselben Spalten auch für einen Verteiler
 function listeCsv(vs) {
-  const liste = Array.isArray(vs) ? vs : [vs], nb = /\u00a0/g;
+  const liste = Array.isArray(vs) ? vs : [vs];
   // ab v1.58 (C38): Nennstrom als Zahl (Spalte „Nennstrom [A]“), FI-Daten mit Bemessungsstrom, z. B. „40 A 30 mA Typ A (-F2)“
   // ab v1.77 (X02): Bemessung am Ende – Länge, Verlegeart, Häufung, Iz (mit Häufung), ΔU der Leitung und ab dem Zähler
   const zeilen = [['Verteiler', 'Kennzeichen', 'Bezeichnung', 'Ort', 'Verbraucher-Kennzeichen', 'Schutzorgan', 'Kennlinie', 'Nennstrom [A]', 'FI-Daten', 'Außenleiter', 'Leitung',
@@ -9809,16 +9908,225 @@ function listeCsv(vs) {
         ...(b ? [b.l ? dezimal(b.l) : '', b.art, String(b.n), dezimal(b.izf), b.du == null ? '' : prozent(b.du), b.du == null ? '' : prozent(b.duSumme)] : ['', '', '', '', '', '']),
         b && b.ab ? ohm(b.ab.zs) : '', zm ? ohm(zm.zs) : '']);
     }); });
-  // ab v1.71 (Q07): formelsicher für Excel – Kennzeichen (Zellen, die mit „-“ und einem Buchstaben beginnen, z. B. -F4, -W4 …,
-  // -X1:1–5) als ="-F4" (bleibt sichtbarer Text), andere Zellen, die mit = + - @, Tab oder CR beginnen, mit vorangestelltem '
-  const quote = s => /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  const feld = x => { const s = String(x == null ? '' : x).replace(nb, ' ');
-    if (/^-\p{L}/u.test(s)) { const f = '="' + s.replace(/"/g, '""') + '"'; return /[;\r\n]/.test(f) ? '"' + f.replace(/"/g, '""') + '"' : f; }
-    return quote(/^[=+\-@\t\r]/.test(s) ? "'" + s : s); };
-  const text = '\ufeff' + zeilen.map(r => r.map(feld).join(';')).join('\r\n') + '\r\n';
+  const text = csvText(zeilen);
   const name = (dateiname().replace(/\.slp\.json$/, '') + (liste.length === 1 ? ` Stromkreise ${liste[0].name}` : ' Stromkreise').replace(/[\\/:*?"<>|]+/g, ' ')) + '.csv';
   herunterladen(new Blob([text], { type: 'text/csv;charset=utf-8' }), name);
   meldung(`Gesichert als „${name}“`);
+}
+
+// CSV-Text (ab v1.80 aus listeCsv, auch für die Stückliste): Semikolon, UTF-8 mit BOM (Excel), Zeilenende CR LF
+// ab v1.71 (Q07): formelsicher für Excel – Kennzeichen (Zellen, die mit „-“ und einem Buchstaben beginnen, z. B. -F4, -W4 …,
+// -X1:1–5) als ="-F4" (bleibt sichtbarer Text), andere Zellen, die mit = + - @, Tab oder CR beginnen, mit vorangestelltem '
+function csvText(zeilen) {
+  const nb = /\u00a0/g, quote = s => /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  const feld = x => { const s = String(x == null ? '' : x).replace(nb, ' ');
+    if (/^-\p{L}/u.test(s)) { const f = '="' + s.replace(/"/g, '""') + '"'; return /[;\r\n]/.test(f) ? '"' + f.replace(/"/g, '""') + '"' : f; }
+    return quote(/^[=+\-@\t\r]/.test(s) ? "'" + s : s); };
+  return '\ufeff' + zeilen.map(r => r.map(feld).join(';')).join('\r\n') + '\r\n';
+}
+// ---- Stückliste (ab v1.80, Etappe X-E: X07, X16) ------------------------------------------------------------------------
+// Geräte- und Materialliste je Verteiler aus berechne(): Reiheneinbaugeräte (Schutzorgane, FI, Schaltgeräte, Zähler,
+// Überspannungsschutz, Steuertrafo, Meldeleuchten und Befehlsgeber im Verteiler) mit TE-Richtwert, weitere Einbauten ohne
+// TE-Richtwert, Klemmen (dieselbe Quelle wie der Klemmenplan), Leitungen mit Längen und die Geräte im Feld (Steckdosen mit
+// ihrer Anzahl je Stromkreis, Leuchten, Motoren, Befehlsgeber …). Gleiche Geräte mit gleicher Bemessung bilden eine Position.
+// TE-Summe mit 20 % Reserve und Reihen zu 12 TE als Hilfe für die Gehäusewahl. Projekt: alle Verteiler zusammengefasst.
+// Der TE-Aufbauplan bleibt zurückgestellt (herstellerabhängig).
+const SL_ABSCHNITT = [['geraete', 'Reiheneinbaugeräte im Verteiler'], ['einbau', 'Weitere Einbauten im Verteiler (ohne TE-Richtwert)'],
+  ['klemmen', 'Klemmen'], ['leitungen', 'Leitungen'], ['feld', 'Im Feld']];
+const SL_TE_REIHE = 12, SL_RESERVE = 0.2;
+// TE-Richtwerte der Schaltgeräte: Installationsschütz bis 4 Pole 2 TE, Stromstoßschalter und Zeitrelais 1 TE
+const SCHALT_TE = { schuetz: 2, stromstoss: 1, zeitrelais: 1 };
+// Steuertrafo als Reiheneinbaugerät nach der Leistung (Richtwert), darüber Einbau nach Herstellerangabe
+const trafoTe = va => { const x = zahlVon(va); return !x ? null : x <= 10 ? 2 : x <= 30 ? 3 : x <= 63 ? 4 : x <= 100 ? 5 : null; };
+// Steckdosen je Stromkreis (ab v1.80, X16): k.ziel.anzahl, fehlt = 1
+const steckdosen = k => !k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') ? Math.max(1, Math.round(zahlVon(k.ziel.anzahl)) || 1) : 0;
+const anzahlText = k => { const n = steckdosen(k); return n > 1 ? `${n}\u00a0Steckdosen` : ''; };
+const teText = x => x == null ? '' : String(Math.round(x * 10) / 10).replace('.', ',');
+// Kennzeichen zusammenfassen: -F3, -F4, -F5 → -F3…-F5 (lückenlos fortlaufend)
+function kennKurz(liste) {
+  const r = [], nat = t => { const x = /^(.*?)(\d+)$/.exec(t); return x ? [x[1], +x[2]] : [t, NaN]; };
+  [...new Set(liste)].map(t => [t, ...nat(t)]).sort((a, b) => a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : (a[2] || 0) - (b[2] || 0))
+    .forEach(([t, pre, n]) => { const l = r[r.length - 1];
+      if (l && l.pre === pre && !isNaN(n) && n === l.bis + 1) { l.bis = n; l.n++; } else r.push({ t, pre, von: n, bis: n, n: 1 }); });
+  // Klemmen derselben Leiste ohne wiederholten Leistennamen: X1:1, 7, 18…20
+  return r.map((x, i) => { const t = i && /:$/.test(x.pre) && r[i - 1].pre === x.pre ? String(x.von) : x.t, b = /:$/.test(x.pre) ? x.bis : x.pre + x.bis;
+    return x.n === 1 ? t : x.n === 2 ? `${t}, ${b}` : `${t}…${b}`; }).join(', ');
+}
+function stueckliste(v) {
+  const e = berechne(v), oben = !speisenderAbgang(v.id), pos = new Map();
+  const dazu = (ab, name, o = {}) => {
+    const te = o.te === undefined ? null : o.te, key = [ab, name, o.bem || '', o.typ || '', o.pole || '', te].join('|');
+    let p = pos.get(key);
+    if (!p) pos.set(key, p = { ab, name, bem: o.bem || '', typ: o.typ || '', pole: o.pole || '', te, n: 0, kenn: [], l: 0, ohneL: 0, leitung: !!o.leitung });
+    p.n += o.n === undefined ? 1 : o.n; if (o.kenn) p.kenn.push(o.kenn);
+    if (o.leitung) { if (o.l) p.l += o.l; else p.ohneL++; }
+  };
+  // Reiheneinbaugerät aus GERAETE (Schutzorgan, FI, Kopfgerät): Bemessung, Kennlinie bzw. Typ, Pole, TE
+  const geraet = (g, kenn, extra = {}) => {
+    if (!g || !g.zeichen || !GERAETE[g.zeichen]) return;
+    const d = GERAETE[g.zeichen], nb = '\u00a0', fi = d.fi ? `${g.idn || '30'}${nb}mA Typ${nb}${g.fityp || 'A'}` : '';
+    const bem = d.bereich ? (g.bereich ? `${g.bereich}${nb}A` : '') : !d.ohneNenn && g.nenn ? `${g.nenn}${nb}A` : '';
+    const typ = [d.kennlinie ? g.kennlinie || 'B' : d.sicherung ? g.art || 'gG' : '', fi].filter(Boolean).join(', ');
+    const pole = extra.pole || (d.fi || d.n || /^spd/.test(g.zeichen) ? `${d.pole}+N` : String(d.pole));
+    const te = extra.te !== undefined ? extra.te : d.te;
+    dazu(te == null ? 'einbau' : 'geraete', extra.name || d.name, { bem, typ, pole, te, kenn });
+  };
+  for (const f of ['vorsicherung', 'zaehler', 'hauptschalter', 'spd']) {
+    const g = v[f]; if (!g.zeichen) continue;
+    // Zähler im obersten Verteiler: Zählerplatz des Netzbetreibers (eHZ) – kein Reiheneinbaugerät
+    if (f === 'zaehler' && oben) dazu('einbau', `${GERAETE[g.zeichen].name} (Zählerplatz)`, { pole: String(GERAETE[g.zeichen].pole), kenn: e.kopf.zaehler.t });
+    else geraet(g, e.kopf[f].t);
+  }
+  const lt = (typ, adern, quer, kenn, l) => dazu('leitungen', `Leitung ${typ || 'NYM-J'} ${adern}×${quer || '?'}`, { kenn, leitung: true, l: zahlVon(l) });
+  alleKnoten(v, k => {
+    if (k.typ === 'gruppe') { geraet(k.geraet, e.geraete[k.id].t); return; }
+    const a = e.abgaenge[k.id]; if (!a) return;
+    // Primär-LS des Steuertrafos 400 V als LS 2-polig
+    if (k.geraet.zeichen) geraet(k.geraet, a.f && a.f.t, gNameK(k) === 'LS 2-polig' ? { name: 'LS 2-polig', pole: '2', te: 2 } : {});
+    const schalt = s => { const zr = s.typ === 'zeitrelais' && s.zr ? ZR_FKT[s.zr.fkt] : '';
+      const hk = [s.hs ? `${s.hs}\u00a0S` : '', s.ho ? `${s.ho}\u00a0Ö` : ''].filter(Boolean).join(', ');
+      dazu('geraete', SCHALT[s.typ] + (zr ? ' ' + zr : ''), { pole: String(s.pole.length), typ: hk ? 'Hilfskontakte ' + hk : '', te: SCHALT_TE[s.typ], kenn: s.bmk.t,
+        bem: zr && s.zr.zeit ? `t\u00a0=\u00a0${s.zr.zeit}` : '' }); };
+    if (a.schalt) schalt(a.schalt);
+    (a.zusatz || []).forEach(z => schalt(z.schalt));
+    if (a.ol) dazu('einbau', 'Überlastrelais', { bem: a.ol.bereich ? `${a.ol.bereich}\u00a0A` : '', typ: 'Anbau am Schütz', pole: '3', kenn: a.ol.bmk.t });
+    if (a.mssHk && (a.mssHk.s || a.mssHk.o)) dazu('einbau', 'Hilfsschalter zum Motorschutzschalter', { typ: [a.mssHk.s ? `${a.mssHk.s}\u00a0S` : '', a.mssHk.o ? `${a.mssHk.o}\u00a0Ö` : ''].filter(Boolean).join(', '), kenn: a.f && a.f.t });
+    if (a.fu) dazu('einbau', 'Frequenzumrichter', { bem: zahlVon(motorVon(k).kw) ? `${String(motorVon(k).kw).replace('.', ',')}\u00a0kW` : '', pole: '3', kenn: a.fu.t });
+    if (a.p) geraet({ zeichen: a.drei ? 'zaehler3' : 'zaehler1' }, a.p.t, { name: `Zähler ${a.drei ? '3' : '1'}-phasig (Erzeugung)` });
+    if (k.trafo) { const t = k.trafo, te = trafoTe(t.va);
+      dazu(te == null ? 'einbau' : 'geraete', 'Steuertransformator', { bem: t.va ? `${t.va}\u00a0VA` : '', typ: `${t.prim}/${t.sek}\u00a0V`, te, kenn: a.t.t });
+      geraet(t.ls, a.f2.t); }
+    // Leitungen: Abgang (Stern-Dreieck mit zweiter Leitung), Länge je Leitung
+    if (!k.steuer && !a.ohneLtg) {
+      const typ = k.leitung.typ || 'NYM-J';
+      if (a.sd) { lt(typ, 4, k.leitung.quer, a.w.t, k.leitung.laenge); lt(typ, /-J$/.test(typ) ? 4 : 3, k.leitung.quer, a.w2.t, k.leitung.laenge); }
+      else lt(typ, a.leiter.length, k.leitung.quer, a.w.t, k.leitung.laenge);
+    }
+    // im Feld
+    if (k.speist || k.steuer) return;
+    const an = k.ziel.anschluss, xd = a.xd && a.xd.t;
+    if (an === 'steckdose3') dazu('feld', 'Steckdose 1/N/PE', { n: steckdosen(k), kenn: xd });
+    else if (an === 'steckdose5') dazu('feld', 'CEE-Steckdose 3/N/PE', { bem: k.geraet.nenn ? `${k.geraet.nenn}\u00a0A` : '', n: steckdosen(k), kenn: xd });
+    else if (an === 'dose') dazu('feld', 'Geräteanschlussdose', { kenn: xd });
+    else if (an === 'leuchte') dazu('feld', 'Leuchte', { kenn: xd });
+    else if (an === 'wallbox') { const wb = k.wallbox || wallboxNeu();
+      dazu('feld', 'Wallbox', { bem: `${wb.kw}\u00a0kW`, typ: wb.rdc ? 'mit DC-Fehlerstromerkennung' : '', pole: '3+N', kenn: xd }); }
+    else if (an === 'motor') { const mo = motorVon(k);
+      dazu('feld', mo.art === '1' ? 'Wechselstrommotor' : 'Drehstrommotor', { bem: zahlVon(mo.kw) ? `${String(mo.kw).replace('.', ',')}\u00a0kW` : '', kenn: xd }); }
+    else if (an === 'pv') { const pv = pvVon(k);
+      dazu('feld', pv.speicher ? 'Hybrid-Wechselrichter' : 'Wechselrichter', { pole: pv.phasen === '1' ? '1+N' : '3+N', kenn: a.t && a.t.t });
+      if (a.dcq) dazu('feld', 'DC-Freischalter', { kenn: a.dcq.t });
+      dazu('feld', 'PV-Generator', { bem: zahlVon(pv.kwp) ? `${String(pv.kwp).replace('.', ',')}\u00a0kWp` : '', kenn: a.g.t });
+      if (pv.speicher) dazu('feld', 'Batterie', { bem: zahlVon(pv.speicher.kwh) ? `${String(pv.speicher.kwh).replace('.', ',')}\u00a0kWh` : '', kenn: a.bat.t }); }
+    else if (an === 'speicher') { const sp = speicherVon(k);
+      dazu('feld', 'Batteriewechselrichter', { bem: zahlVon(sp.kw) ? `${String(sp.kw).replace('.', ',')}\u00a0kW` : '', pole: sp.phasen === '1' ? '1+N' : '3+N', kenn: a.t.t });
+      dazu('feld', 'Batterie', { bem: zahlVon(sp.kwh) ? `${String(sp.kwh).replace('.', ',')}\u00a0kWh` : '', kenn: a.bat.t }); }
+  });
+  // Steuerstromkreise: Befehlsgeber, Melder, Meldeleuchten, eigenständige Zeitrelais; im Verteiler als Reiheneinbaugerät (1 TE)
+  const st = v.steuerung, sf = e.steuer;
+  ((st && st.geraete) || []).forEach(g => {
+    const kz = sf.geraete[g.id]; if (!kz) return;
+    const name = g.zeichen === 'zeitrelais' ? `Zeitrelais ${ZR_FKT[g.fkt] || ''}`.trim() : (ST_ZEICHEN[g.zeichen] || [g.zeichen])[0];
+    if (g.zeichen === 'zeitrelais' || !stFeld(g)) dazu('geraete', name, { te: 1, kenn: kz.t, bem: g.zeichen === 'zeitrelais' && g.zeit ? `t\u00a0=\u00a0${g.zeit}` : '' });
+    else dazu('feld', name, { kenn: kz.t });
+    const l = sf.leitung[g.id];
+    if (l && l.w) lt((g.leitung || {}).typ, PLAN.adern((g.leitung || {}).typ, l.adern).gesamt, (g.leitung || {}).quer || '1,5', l.w.t, (g.leitung || {}).laenge);
+  });
+  // Klemmen aus dem Klemmenplan: je Leiste, Klemmenart und Querschnitt (aus der Leitung); gebrückte Reihen mit einer Brücke
+  const gesehen = new Set();
+  PLAN.klemmen(v, e, vid => (vById(vid) || {}).name).forEach(b => {
+    const gebr = b.zeilen.some(z => /gebrückt/.test(z[2]));
+    b.zeilen.forEach(z => {
+      const s = b.leiste + ':' + z[0]; if (gesehen.has(s)) return; gesehen.add(s);
+      const q = /×([\d,]+)$/.exec(z[4] || '');
+      dazu('klemmen', z[2].replace(/, gebrückt$/, ''), { bem: q ? `${q[1]}\u00a0mm²` : '', typ: b.leiste, kenn: `${b.leiste.replace(/^-/, '')}:${z[0]}` });
+    });
+    if (gebr && b.zeilen.length > 1) dazu('klemmen', 'Querbrücke', { bem: `${b.zeilen.length}-polig`, typ: b.leiste });
+  });
+  return slFertig(v.name, [...pos.values()], false);
+}
+// Liste fertigstellen: Reihenfolge nach Abschnitten, Nummern, Texte für Blatt, Bildschirm und CSV, TE-Summe und Fuß
+function slFertig(titel, liste, projekt, teJe) {
+  const ord = Object.fromEntries(SL_ABSCHNITT.map(([a], i) => [a, i]));
+  const pos = liste.slice().sort((x, y) => ord[x.ab] - ord[y.ab]);
+  pos.forEach((p, i) => {
+    p.nr = i + 1; p.abT = SL_ABSCHNITT[ord[p.ab]][1];
+    p.anzahl = String(p.n);
+    if (p.leitung) p.bem = p.l ? `${dezimal(p.l)}\u00a0m${p.ohneL ? ` + ${p.ohneL}\u00a0ohne Länge` : ''}` : 'Länge offen';
+    p.teGes = p.te == null ? null : p.te * p.n; p.teT = teText(p.teGes);
+    p.kennT = projekt ? Object.entries(p.vt).map(([n, z]) => `${n} ${z}`).join(', ') : kennKurz(p.kenn.filter(Boolean));
+  });
+  const te = pos.reduce((s, p) => s + (p.ab === 'geraete' ? p.teGes || 0 : 0), 0), teRes = Math.ceil(te * (1 + SL_RESERVE) - 1e-9);
+  const reihen = Math.ceil(teRes / SL_TE_REIHE), ohne = pos.filter(p => p.ab === 'einbau').reduce((s, p) => s + p.n, 0);
+  const fuss = projekt
+    ? [`TE je Verteiler: ${teJe.map(x => `${x.titel} ${teText(x.te)}\u00a0TE (${x.reihen}\u00a0${x.reihen === 1 ? 'Reihe' : 'Reihen'})`).join(' · ')}`]
+    : [`Summe Reiheneinbaugeräte ${teText(te)}\u00a0TE · mit ${SL_RESERVE * 100}\u00a0% Reserve ${teRes}\u00a0TE · ${reihen}\u00a0${reihen === 1 ? 'Reihe' : 'Reihen'} zu ${SL_TE_REIHE}\u00a0TE`
+      + (ohne ? ` · ${ohne} ${ohne === 1 ? 'Einbau' : 'Einbauten'} ohne TE-Richtwert` : '')];
+  fuss.push('TE-Werte sind Richtwerte (1 TE = 18 mm), maßgeblich sind die Herstellerangaben. Klemmen, Leitungen und Geräte im Feld zählen nicht zur TE-Summe.');
+  return { titel, projekt, pos, te, teRes, reihen, fuss };
+}
+// Projekt: alle Verteiler zusammengefasst; Spalte „Verteiler“ mit der Anzahl je Verteiler statt der Kennzeichen
+function stuecklisteProjekt(listen) {
+  const pos = new Map();
+  listen.forEach(l => l.pos.forEach(p => {
+    const key = [p.ab, p.name, p.leitung ? '' : p.bem, p.typ, p.pole, p.te].join('|');
+    let q = pos.get(key);
+    if (!q) pos.set(key, q = { ab: p.ab, name: p.name, bem: p.bem, typ: p.typ, pole: p.pole, te: p.te, n: 0, l: 0, ohneL: 0, leitung: p.leitung, kenn: [], vt: {} });
+    q.n += p.n; q.l += p.l; q.ohneL += p.ohneL; q.vt[l.titel] = (q.vt[l.titel] || 0) + p.n;
+  }));
+  // innerhalb eines Abschnitts nach Gerät und Bemessung (Zahlen der Größe nach)
+  const ord = Object.fromEntries(SL_ABSCHNITT.map(([a], i) => [a, i])), cmp = (a, b) => String(a).localeCompare(String(b), 'de', { numeric: true });
+  const alle = [...pos.values()].sort((x, y) => ord[x.ab] - ord[y.ab] || cmp(x.name, y.name) || cmp(x.bem, y.bem) || cmp(x.typ, y.typ));
+  return slFertig('Alle Verteiler', alle, true, listen);
+}
+// Listen für Blatt, Bildschirm und CSV: je Verteiler eine, bei mehreren Verteilern dazu die Projektliste
+// (plan.js ruft sie über hilf.stueckliste bzw. global auf, nur mit P.projekt.stueckliste === true)
+function stuecklisteDaten(vs) {
+  const l = vs.map(stueckliste);
+  return l.length > 1 ? l.concat(stuecklisteProjekt(l)) : l;
+}
+// CSV der Stückliste (ab v1.80): je Verteiler die Positionen, bei mehreren Verteilern danach „Alle Verteiler“; TE-Summe je Liste
+function stuecklisteCsv(vs) {
+  const liste = Array.isArray(vs) ? vs : [vs], listen = stuecklisteDaten(liste);
+  const zeilen = [['Liste', 'Abschnitt', 'Pos.', 'Anzahl', 'Gerät / Material', 'Bemessung', 'Kennlinie / Typ', 'Pole', 'TE je Stück', 'TE gesamt', 'Länge [m]', 'Kennzeichen bzw. Verteiler']];
+  listen.forEach(l => {
+    l.pos.forEach(p => zeilen.push([l.titel, p.abT, String(p.nr), String(p.n), p.name, p.leitung ? (p.ohneL ? `${p.ohneL} ohne Länge` : '') : p.bem, p.typ, p.pole,
+      teText(p.te), p.teT, p.leitung && p.l ? dezimal(p.l) : '', p.kennT]));
+    if (!l.projekt) zeilen.push([l.titel, 'Summe', '', '', 'Reiheneinbaugeräte', `mit ${SL_RESERVE * 100} % Reserve ${l.teRes} TE, ${l.reihen} Reihen zu ${SL_TE_REIHE} TE`, '', '', '', teText(l.te), '', '']);
+  });
+  const name = (dateiname().replace(/\.slp\.json$/, '') + (liste.length === 1 ? ` Stückliste ${liste[0].name}` : ' Stückliste').replace(/[\\/:*?"<>|]+/g, ' ')) + '.csv';
+  herunterladen(new Blob([csvText(zeilen)], { type: 'text/csv;charset=utf-8' }), name);
+  meldung(`Gesichert als „${name}“`);
+}
+// Bildschirm „Stückliste“ (ab v1.80): dieser Verteiler oder alle (dann mit der Projektliste), CSV, Schalter fürs Planblatt
+function bStueck(b) {
+  const ein = b.vid && vById(b.vid) && !b.alle, liste = ein ? [vById(b.vid)] : P.verteiler;
+  app.append(kopf(ein ? `Stückliste ${liste[0].name}` : 'Stückliste', h('button', { class: 'kopfknopf knopfvoll', title: 'Stückliste als CSV (Excel)', on: { click: () => stuecklisteCsv(liste) } }, 'CSV sichern …')));
+  const m = h('main', { class: 'breit' });
+  if (b.vid && vById(b.vid) && P.verteiler.length > 1) m.append(h('div', { class: 'segment tzwahl', role: 'tablist', 'aria-label': 'Stückliste' },
+    ...[[true, vById(b.vid).name], [false, 'Alle Verteiler']].map(([e1, t]) => h('button', { role: 'tab', 'aria-selected': String(!!ein === e1), on: { click: () => { b.alle = !e1; zeichne(); } } }, t))));
+  const listen = liste.length ? stuecklisteDaten(liste) : [];
+  listen.forEach(l => {
+    if (!ein) m.append(h('h2', { class: 'listekopf' }, l.titel));
+    const tb = h('tbody'); let ab = null;
+    l.pos.forEach(p => {
+      if (p.abT !== ab) { ab = p.abT; tb.append(h('tr', { class: 'gr slab' }, h('td', { colspan: '8' }, ab))); }
+      tb.append(h('tr', {}, h('td', { class: 'zahl' }, String(p.nr)), h('td', { class: 'zahl nw' }, p.anzahl), h('td', {}, p.name), h('td', { class: 'nw' }, p.bem),
+        h('td', {}, p.typ), h('td', { class: 'nw' }, p.pole), h('td', { class: 'zahl nw' }, p.teT), h('td', { class: l.projekt ? null : 'm' }, p.kennT)));
+    });
+    m.append(h('div', { class: 'tabwrap' }, h('table', { class: 'ueb sl' },
+      h('colgroup', {}, [5, 6, 25, 12, 15, 6, 5, 26].map(w => h('col', { style: `width:${w}%` }))),      // gleiche Spalten in allen Tabellen
+      h('thead', {}, h('tr', {}, ['Pos.', 'Anzahl', 'Gerät / Material', 'Bemessung', 'Kennlinie / Typ', 'Pole', 'TE', l.projekt ? 'Verteiler' : 'Kennzeichen']
+        .map((t, i) => h('th', { class: i === 0 || i === 1 || i === 6 ? 'zahl' : null, title: t === 'TE' ? 'Teilungseinheiten gesamt (Richtwert, 1 TE = 18 mm)' : null }, t)))), tb)));
+    m.append(h('p', { class: 'slsumme' }, l.fuss[0]));
+  });
+  if (!liste.length) m.append(h('p', { class: 'hinweis' }, 'Noch keine Verteiler angelegt.'));
+  else m.append(h('p', { class: 'hinweis' }, listen[0].fuss[1]),
+    h('div', { class: 'liste' },
+      schalterZeile('Stückliste im Plan', P.projekt.stueckliste === true, an => { if (an) P.projekt.stueckliste = true; else delete P.projekt.stueckliste; },
+        { un: 'als Blatt hinter dem Klemmenplan, mit Inhaltsverzeichnis' }),
+      zeile('Plan drucken …', null, () => geh({ s: 'plan', vid: b.vid }), { un: 'alle Blätter des Projekts' })));
+  app.append(m);
 }
 
 // ---- Plan -------------------------------------------------------------------
@@ -9838,7 +10146,7 @@ function bPlan(b) {
   catch (e) { m.append(h('p', { class: 'warnung' }, 'Der Plan ließ sich nicht erzeugen: ' + e.message)); app.append(m); return; }
   let ziel = null;
   res.blaetter.forEach(bl => {
-    const k = h('div', { class: 'blattkarte', title: `Blatt ${bl.nr} vergrößern (${tipp()})` }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : '')));
+    const k = h('div', { class: 'blattkarte', title: `Blatt ${bl.nr} vergrößern (${tipp()})` }, h('div', { class: 'bt' }, h('span', {}, `Blatt ${bl.nr} · ${bl.titel}`), h('span', {}, bl.art === 'einspeisung' ? 'Einspeisung' : bl.art === 'uebersicht' ? 'Übersichtsschaltplan' : bl.art === 'klemmen' ? 'Klemmenplan' : bl.art === 'steuerung' ? 'Steuerstromkreis' : bl.art === 'stueckliste' ? 'Stückliste' : '')));
     k.append(bl.svg); m.append(k);
     // ab v1.73 (Q08/Q09): Rahmenprüfung aller Blattarten – auch Übersicht, Deckblatt und Klemmenplan, die der Plan-Editor nicht zeigt
     (bl.pruef || []).filter(x => x.art === 'rahmen').slice(0, 1).forEach(x => k.append(warnZeile(`Blatt ${bl.nr}: ${x.t}`)));
@@ -9884,7 +10192,7 @@ function planLupe(liste, i) {
     idx = j; const bl = liste[j], svg = bl.svg.cloneNode(true);
     svg.removeAttribute('role'); svg.removeAttribute('aria-label');
     // ab v1.58 (C19): Titel zweizeilig – Blatt bzw. Türzettel oben, Blattart und Verteiler darunter
-    innen.replaceChildren(svg); titel.replaceChildren(h('span', { class: 'lt1' }, bl.kopf || `Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}`), h('span', { class: 'lt2' }, bl.kopf ? bl.unter || '' : [{ ...BLATT_ART, uebersicht: 'Übersichtsschaltplan', klemmen: 'Klemmenplan' }[bl.art], bl.titel].filter(Boolean).join(' ')));
+    innen.replaceChildren(svg); titel.replaceChildren(h('span', { class: 'lt1' }, bl.kopf || `Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}`), h('span', { class: 'lt2' }, bl.kopf ? bl.unter || '' : [{ ...BLATT_ART, uebersicht: 'Übersichtsschaltplan', klemmen: 'Klemmenplan', stueckliste: 'Stückliste' }[bl.art], bl.titel].filter(Boolean).join(' ')));
     setze(1); fl.scrollTop = 0; fl.scrollLeft = 0;
   };
   const abst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
@@ -9980,7 +10288,7 @@ function tuerzettel(v) {
     }
     const a = e.abgaenge[k.id];
     zeileT(tiefe ? 'ein' : '', a.f ? a.f.t : '—', k.geraet.zeichen ? `${gNameK(k)} ${bemessung(k.geraet)}` : 'ohne Schutzorgan',
-      a.phase.t, zielText(k, a) + (a.schalt ? ` (über ${schaltText(a)})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
+      a.phase.t, zielText(k, a) + (anzahlText(k) ? ` (${anzahlText(k)})` : '') + (a.schalt ? ` (über ${schaltText(a)})` : '') + (k.trafo ? ` ${a.t.t} ${k.trafo.prim}/${k.trafo.sek} V` : ''), k.ziel.ort, `${a.w.t} ${leitungText(k, a)}`);
     // ab v1.52: Sekundär-LS ohne eigenen Einzug (wie sein Abgang), Überlastrelais als eigene Zeile
     if (a.ol) zeileT(tiefe ? 'ein' : '', a.ol.bmk.t, `Überlastrelais ${a.ol.bereich ? a.ol.bereich + '\u00a0A' : ''}`.trim(), '', `${zielText(k, a)} (Motorschutz)`, k.ziel.ort, '');
     if (k.trafo) zeileT(tiefe ? 'ein' : '', a.f2.t, `${gName(k.trafo.ls.zeichen)} ${bemessung(k.trafo.ls)}`, '', `Steuerspannung ${k.trafo.sek}\u00a0V`, '', '');
@@ -10392,6 +10700,7 @@ function pruefeProjekt(d, datei = false) {
         zahl(k.leitung, 'quer', kw + ' Querschnitt', Z_QUER, '2,5');
         // ab v1.77 (X02): Bemessungsangaben – Ungültiges fällt auf die Voreinstellung zurück
         zahl(k.leitung, 'laenge', kw + ' Leitungslänge', Z_M); zahl(k.leitung, 'haeufung', kw + ' Häufung', { min: 1, max: 99 });
+        zahl(k.ziel, 'anzahl', kw + ' Anzahl Steckdosen', Z_ANZ);      // ab v1.80 (X16)
         if (k.leitung.verlegung !== undefined && !hat(IZ, k.leitung.verlegung)) { r.push(`${kw}: Verlegeart „${kurz(k.leitung.verlegung)}“ → C`); delete k.leitung.verlegung; }
         if (k.speist && !ids.has(k.speist)) { r.push(`${kw}: speiste einen fehlenden Verteiler`); k.speist = null; }
         if (k.schalt && (!obj(k.schalt) || k.schalt.typ && !hat(SCHALT, k.schalt.typ))) { r.push(`${kw}: unbekanntes Schaltgerät entfernt`); k.schalt = null; }

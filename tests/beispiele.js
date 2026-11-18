@@ -281,6 +281,28 @@ window.BEISPIELE = {
     for (let i = 1; i <= 10; i++) { const x = neuerAbgang(); x.ziel = {bez:'Licht ' + i, ort:'', anschluss:'leuchte'}; x.leitung.quer = '1,5'; x.geraet.nenn = '10';
       x.schalt = neuesSchalt(i % 2 ? 'zeitrelais' : 'schuetz'); hv.knoten.push(x); kreisAnlegen(hv, x); }
     sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Etappe Q5 (v1.74): Fachwarnungen – FI 25 A hinter gG 50 A mit B32, Wallbox mit FI/LS Typ B in der Typ-A-Gruppe, Motor 4 kW am LS,
+  // Abgang ohne Schutzorgan; FI Typ AC mit FI/LS dahinter (in Reihe); LS-Gruppe mit LS; PV einphasig 10 kWp; Trennschalter als Hauptschalter
+  warnungen: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Werkhalle Süd', ersteller:'Jean', nummer:'SLP-0076'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sich3', art:'gG', nenn:'50'}; hv.hauptschalter = {zeichen:'trenn3', nenn:'63'};
+    const g1 = neueGruppe(); g1.geraet = {zeichen:'fi4', nenn:'25', idn:'30', fityp:'A'};
+    const sd = neuerAbgang(); sd.ziel = {bez:'Steckdosen', ort:'Werkbank', anschluss:'steckdose3'}; sd.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'32'}; sd.leitung.quer = '6'; g1.kinder.push(sd);
+    const wb = neuerAbgang(); wb.ziel = {bez:'Wallbox', ort:'Hof', anschluss:'wallbox'}; wb.wallbox = {kw:'11', rdc:false};
+    wb.geraet = {zeichen:'fils3n', kennlinie:'B', nenn:'16', idn:'30', fityp:'B'}; wb.leitung.quer = '4'; g1.kinder.push(wb);
+    const mo = neuerAbgang(); mo.ziel = {bez:'Kompressor', ort:'Halle', anschluss:'motor'}; mo.motor = {art:'3', kw:'4', strom:'8,2'};
+    mo.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'16'}; mo.leitung.quer = '2,5'; g1.kinder.push(mo);
+    const oh = neuerAbgang(); oh.ziel = {bez:'Tor', ort:'Halle', anschluss:'dose'}; oh.geraet = {zeichen:''}; g1.kinder.push(oh);
+    hv.knoten.push(g1);
+    const g2 = neueGruppe(); g2.geraet = {zeichen:'fi2', nenn:'40', idn:'30', fityp:'AC'};
+    const au = neuerAbgang(); au.ziel = {bez:'Außensteckdose', ort:'Hof', anschluss:'steckdose3'}; au.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; g2.kinder.push(au);
+    hv.knoten.push(g2);
+    const g3 = neueGruppe(); g3.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'32'};
+    const li = neuerAbgang(); li.ziel = {bez:'Heizung', ort:'Büro', anschluss:'dose'}; li.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'10'}; li.leitung.quer = '1,5'; g3.kinder.push(li);
+    hv.knoten.push(g3);
+    const pv = neuerAbgang(); pv.ziel = {bez:'PV-Anlage', ort:'Dach', anschluss:'pv'}; pv.geraet = {zeichen:'ls1', kennlinie:'B', nenn:'25'}; pv.leitung.quer = '4';
+    pv.pv = {phasen:'1', kwp:'10', dc:true, zaehler:false}; hv.knoten.push(pv);
+    P.verteiler.push(hv); sichern(); stapel=[{s:'start'}]; zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

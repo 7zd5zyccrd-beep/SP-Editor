@@ -16,6 +16,11 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.74: Fachwarnungen (Etappe Q5: Q10, Q11, Q12, Q15 Zählgrenze, Q22, Q23 Hinweise, Q26, Q36, Q40, Q41): Überlastschutz
+           des FI (Schutzorgan davor bzw. Summe/größter Abgang dahinter), Abgang ohne Schutzorgan, Typ B/Wallbox ohne RDC-DD/FU
+           hinter FI Typ A/F/AC, FI Typ AC, FI in Reihe, LS hinter LS, PV einphasig über 4,6 kVA, Trennschalter als Hauptschalter,
+           Motor über 0,5 kW ohne Überlastschutz, Not-Aus mit mehr als zwei Öffnern; Artikel in den Selektivitätswarnungen;
+           jede mit „So beheben“, Glossar Selektivität, Typ S, Überlastschutz, Trennschalter; Beispiel `warnungen`; Pläne unverändert
      v1.73: Blattrahmen und Höhenbudget (Etappe Q4: Q08, Q09, Q17): Übersichtsschaltplan teilt eine FI-Gruppe, die auch auf
            einem leeren Blatt nicht Platz hat, in Teilstücke mit Querverweis; eine Gruppe, deren Abgänge unter der
            Untersammelschiene zu tief reichen (PV, Stern-Dreieck …), wird geteilt – die hohen Abgänge stehen auf Folgeblättern
@@ -1616,7 +1621,18 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/ersetzt die Schaltung/, 'Schaltung „Direktstart“ wählen oder den Frequenzumrichter abschalten.'],
   [/führt keinen N/, 'Steuer-LS oder Steuertrafo als Quelle wählen.'],
   [/Steckdose 3\/N\/PE im 1\/N\/PE/, 'Anschluss Steckdose 1/N/PE wählen.'],
-  [/speist einen 1\/N\/PE-Unterverteiler/, 'Schutzorgan 1-polig wählen oder den Unterverteiler auf 3/N/PE stellen.']];
+  [/speist einen 1\/N\/PE-Unterverteiler/, 'Schutzorgan 1-polig wählen oder den Unterverteiler auf 3/N/PE stellen.'],
+  // ab v1.74 (Etappe Q5)
+  [/Ohne Schutzorgan|ohne Schutzorgan;/, 'LS bzw. Sicherung als Schutzorgan wählen oder den Abgang in eine Gruppe hinter einem LS ziehen.'],
+  [/Typ AC/, 'FI Typ A wählen (bei einphasigen Umrichtern Typ F).'],
+  [/FI in Reihe/, 'Vorgeschalteten FI als selektiven Typ S mit größerem Nennfehlerstrom (100 oder 300 mA) wählen oder einen der beiden weglassen.'],
+  [/Gleichfehlerströme können/, 'Vorgeschalteten FI als Typ B wählen oder den Abgang außerhalb der FI-Gruppe anschließen.'],
+  [/gegen Überlast geschützt/, 'FI mit größerem Bemessungsstrom wählen oder das Schutzorgan davor höchstens so groß wie den FI.'],
+  [/LS hinter LS/, 'Selektivität in der Tabelle des Herstellers nachsehen; sonst davor eine Sicherung bzw. einen selektiven Schalter vorsehen.'],
+  [/4,6 kVA/, 'PV-Anlage dreiphasig anschließen oder die Leistung je Außenleiter auf 4,6 kVA begrenzen.'],
+  [/nicht lastschaltend/, 'Als Hauptschalter einen Lasttrennschalter wählen.'],
+  [/Motor .* ohne Überlastschutz/, 'Motorschutzschalter als Schutzorgan wählen oder ein Schütz mit Überlastrelais vorsehen.'],
+  [/Not-Aus mit \d+ Öffnern/, 'Weitere Kreise über einen zweiten Not-Aus-Taster oder ein Hilfsschütz abschalten (zentrale Freigabe).']];
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
 const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), ohnePunkt(t), ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
@@ -1626,6 +1642,24 @@ function fiVorVerteiler(v, tiefe = 0) {
   const r = knoten(sp.v, sp.k.id);
   return fiAm(sp.k.geraet) || !!(r && r.eltern && fiAm(r.eltern.geraet)) || fiVorVerteiler(sp.v, tiefe + 1);
 }
+// ab v1.74 (Etappe Q5): FI überhaupt (jeder Nennfehlerstrom), Schutzorgan gegen Überstrom (LS, FI/LS, Sicherung)
+const istFi = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi);
+const istSchutz = g => !!(g && g.zeichen && GERAETE[g.zeichen] && (GERAETE[g.zeichen].kennlinie || GERAETE[g.zeichen].sicherung));
+const istLs = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].kennlinie);
+const fiTyp = g => g.fityp || 'A', fiIdn = g => zahlVon(g.idn || '30');
+// FI vor dem Verteiler (ab v1.74): im speisenden Abgang und in dessen Gruppe, von nah nach fern, mit Ortsangabe
+function fiVor(v, tiefe = 0) {
+  const sp = tiefe < 10 && speisenderAbgang(v.id); if (!sp) return [];
+  const r = knoten(sp.v, sp.k.id), l = [];
+  if (istFi(sp.k.geraet)) l.push({ g: sp.k.geraet, t: `FI im speisenden Abgang in ${sp.v.name}` });
+  if (r && r.eltern && istFi(r.eltern.geraet)) l.push({ g: r.eltern.geraet, t: `FI der Gruppe in ${sp.v.name}` });
+  return l.concat(fiVor(sp.v, tiefe + 1));
+}
+// FI in Reihe (ab v1.74, Q23): selektiv nur, wenn der vorgeschaltete ein selektiver (Typ S, ≥ 100 mA) mit größerem Nennfehlerstrom ist
+const fiReihe = (eigen, vor) => fiIdn(vor) <= Math.max(30, fiIdn(eigen));
+const FI_REIHE = 'keine Selektivität, beide können bei einem Fehler auslösen';
+// Quelle glatter Gleichfehlerströme hinter einem FI Typ A/F/AC (ab v1.74, Q12)
+const gleichText = (grund, vor) => `${grund} hinter ${vor.t} Typ ${fiTyp(vor.g)}: glatte Gleichfehlerströme können den vorgeschalteten FI unwirksam machen (DIN VDE 0100-530).`;
 // Zuleitung eines Unterverteilers mit PEN (ab v1.52): TN-C und TN-C-S bekommen L1 L2 L3 PEN (bzw. L PEN)
 const penZuleitung = k => { const u = k.speist && vById(k.speist); return !!u && u.netzform !== 'TN-S'; };
 function berechne(v) {
@@ -1646,6 +1680,7 @@ function berechne(v) {
   // Abgänge hängen an deren einem Außenleiter
   const einLeiterGruppe = g => g && g.typ === 'gruppe' && v.leiter === '3NPE' && GERAETE[g.geraet.zeichen] && GERAETE[g.geraet.zeichen].pole === 1;
   e.gruppenPhase = {};
+  const fiV = fiVor(v);      // ab v1.74: FI vor dem Verteiler
   alleKnoten(v, (k, eltern) => {
     if (k.typ === 'gruppe') { e.geraete[k.id] = bmk('F', k.geraet.bmk); return; }
     const a = {};
@@ -1719,6 +1754,22 @@ function berechne(v) {
     if (!k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
       && !fiAm(k.geraet) && !(eltern && fiAm(eltern.geraet)) && !fiVorVerteiler(v))
       warnDazu(a, 'Steckdose ohne Fehlerstrom-Schutz ≤ 30 mA (DIN VDE 0100-410, 411.3.3).');
+    // ab v1.74 (Q11): Abgang ohne Schutzorgan – außer in einer Gruppe hinter LS bzw. Sicherung
+    if (!k.geraet.zeichen && !k.steuer && !(eltern && istSchutz(eltern.geraet)))
+      warnDazu(a, 'Ohne Schutzorgan – Leitung und Verbraucher sind weder gegen Überlast noch gegen Kurzschluss geschützt (DIN VDE 0100-430).');
+    // ab v1.74 (Q22, Q23, Q12): FI des Abgangs – Typ AC, FI in Reihe, Gleichfehlerströme hinter FI Typ A/F/AC
+    const fiDavor = (eltern && istFi(eltern.geraet) ? [{ g: eltern.geraet, t: `FI ${e.geraete[eltern.id].t}` }] : []).concat(fiV);
+    const eigenFi = istFi(k.geraet) ? k.geraet : null;
+    if (eigenFi && fiTyp(eigenFi) === 'AC') warnDazu(a, 'FI Typ AC erfasst nur Wechselfehlerströme – in Deutschland nicht mehr zulässig (DIN VDE 0100-530).');
+    if (eigenFi && fiDavor.length && fiReihe(eigenFi, fiDavor[0].g)) warnDazu(a, `FI in Reihe mit ${fiDavor[0].t} (${fiIdn(fiDavor[0].g)} mA): ${FI_REIHE}.`);
+    const gleich = eigenFi && /^B/.test(fiTyp(eigenFi)) ? `FI Typ ${fiTyp(eigenFi)}` : k.speist ? null
+      : k.ziel.anschluss === 'wallbox' && !(k.wallbox || wallboxNeu()).rdc ? 'Wallbox ohne DC-Fehlerstromerkennung' : a.fu ? 'Frequenzumrichter' : null;
+    const vorA = gleich && (a.fu && eigenFi ? [{ g: eigenFi, t: 'FI des Abgangs' }] : []).concat(fiDavor).find(x => !/^B/.test(fiTyp(x.g)));
+    if (vorA) warnDazu(a, gleichText(gleich, vorA));
+    // ab v1.74 (Q41): Motor über 0,5 kW nur hinter LS bzw. Sicherung – Hinweis, keine Pflicht
+    const mkw = !k.speist && k.ziel.anschluss === 'motor' ? zahlVon(motorVon(k).kw) : 0;
+    if (mkw > 0.5 && istSchutz(k.geraet) && !a.ol && !a.fu)
+      warnDazu(a, `Hinweis: Motor ${String(motorVon(k).kw).replace('.', ',')} kW ohne Überlastschutz – LS bzw. Sicherung schützen nur die Leitung (EN 60204-1, 7.3).`);
     // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
     a.mitKlemmen = !k.steuer && !a.ohneLtg && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
     const nKl = a.leiter.length + (a.sd ? 3 : 0);      // ab v1.72: nur bei gezeichneter Stern-Dreieck-Schaltung (nicht mit FU)
@@ -1727,6 +1778,9 @@ function berechne(v) {
     // PV-Anlage: Erzeugungszähler im Verteiler vor der Leitung
     const pv = !k.speist && k.ziel.anschluss === 'pv' ? pvVon(k) : null;
     if (pv && pv.zaehler) a.p = bmk('P', pv.p && pv.p.bmk);
+    // ab v1.74 (Q26): einphasige Erzeugung über 4,6 kVA je Außenleiter (VDE-AR-N 4105; kWp als Näherung für die Wechselrichterleistung)
+    if (pv && !a.drei && zahlVon(pv.kwp) > 4.6)
+      warnDazu(a, `PV-Anlage einphasig mit ${String(pv.kwp).replace('.', ',')} kWp: über 4,6 kVA je Außenleiter verlangt VDE-AR-N 4105 einen dreiphasigen Anschluss (Schieflast).`);
     a.w = k.steuer || a.ohneLtg ? { t: '', hand: false } : bmk('W', k.leitung.bmk);
     if (a.sd) { a.w2 = a.ohneLtg ? { t: '', hand: false } : bmk('W', k.motor.w2 && k.motor.w2.bmk); a.leiter = a.leiter.concat(['U2', 'V2', 'W2']); }     // zweite Leitung zu U2 V2 W2
     if (pv) {     // im Feld: Wechselrichter, DC-Freischalter, PV-Generator
@@ -1816,20 +1870,53 @@ function verteilerWarnungen(v, e) {
   // Schutzorgan davor (Vorsicherung bzw. Schutzorgan des speisenden Abgangs), Vorsicherung der UV kleiner als ihr
   // speisender Abgang; der Hauptschalter (Lasttrennschalter) mindestens so groß wie das Schutzorgan davor und nicht
   // kleiner als ein Abgang dahinter
-  const schutz = g => !!(g && g.zeichen && GERAETE[g.zeichen] && (GERAETE[g.zeichen].kennlinie || GERAETE[g.zeichen].sicherung));
+  const schutz = istSchutz;
   const nenn = g => g && g.zeichen && GERAETE[g.zeichen] && !GERAETE[g.zeichen].ohneNenn ? zahlVon(g.nenn) : 0;
   const vs = schutz(v.vorsicherung) ? nenn(v.vorsicherung) : 0, hs = nenn(v.hauptschalter), spN = sp && schutz(sp.k.geraet) ? nenn(sp.k.geraet) : 0;
-  const davor = vs || spN, davorT = vs ? 'Vorsicherung' : `Schutzorgan des speisenden Abgangs in ${sp ? sp.v.name : ''}`;
+  // ab v1.74 (Q36): mit Artikel („die Vorsicherung“, „das Schutzorgan“)
+  const davor = vs || spN, davorT = vs ? 'die Vorsicherung' : `das Schutzorgan des speisenden Abgangs in ${sp ? sp.v.name : ''}`;
   if (vs && spN && vs >= spN) w.push(`Vorsicherung ${vs} A nicht kleiner als das Schutzorgan ${spN} A des speisenden Abgangs in ${sp.v.name} – nicht selektiv.`);
-  if (hs && davor && hs < davor) w.push(`Hauptschalter ${hs} A kleiner als das ${davorT} (${davor} A) – der Hauptschalter ist nicht geschützt.`);
+  if (hs && davor && hs < davor) w.push(`Hauptschalter ${hs} A kleiner als ${davorT} (${davor} A) – der Hauptschalter ist nicht geschützt.`);
   const kette = new Set();
   alleKnoten(v, (k, eltern) => { if (k.steuer || !schutz(k.geraet)) return;
     const n = nenn(k.geraet), t = (k.typ === 'gruppe' ? e.geraete[k.id] : e.abgaenge[k.id].f || {}).t || 'Abgang';
     const grp = eltern && schutz(eltern.geraet) ? nenn(eltern.geraet) : 0;
     if (grp && n >= grp) kette.add(`${t}: ${n} A nicht kleiner als das Schutzorgan der Gruppe (${grp} A) – nicht selektiv.`);
-    else if (davor && n >= davor) kette.add(`${t}: ${n} A nicht kleiner als die ${davorT} (${davor} A) – nicht selektiv.`);
+    else if (davor && n >= davor) kette.add(`${t}: ${n} A nicht kleiner als ${davorT} (${davor} A) – nicht selektiv.`);
     if (hs && n > hs) kette.add(`${t}: ${n} A größer als der Hauptschalter (${hs} A).`); });
   w.push(...kette);
+  // ab v1.74 (Q40): Trennschalter (nicht lastschaltend) als Hauptschalter
+  if (v.hauptschalter.zeichen === 'trenn3') w.push(`Hauptschalter ${gName('trenn3')}: nicht lastschaltend – nur im lastfreien Zustand schalten.`);
+  // ab v1.74 (Q10, Q12, Q22, Q23): FI als Gruppengerät – Überlastschutz, Typ AC, FI in Reihe, Typ B hinter Typ A/F/AC
+  // die Stelle (Gruppe) merkt w.sel: Druckhinweis und Hinweisliste springen dorthin, das Fach der Gruppe zeigt sie
+  const fiV = fiVor(v), wo = w.sel = {};
+  alleKnoten(v, k => { if (k.typ !== 'gruppe' || !istFi(k.geraet)) return;
+    const t = (e.geraete[k.id] || {}).t || 'FI', iN = zahlVon(k.geraet.nenn), n0 = w.length;
+    try { gruppeFi(k, t, iN); } finally { w.slice(n0).forEach(x => { wo[x] = 'k:' + k.id; }); } });
+  function gruppeFi(k, t, iN) {
+    if (fiTyp(k.geraet) === 'AC') w.push(`${t}: FI Typ AC erfasst nur Wechselfehlerströme – in Deutschland nicht mehr zulässig (DIN VDE 0100-530).`);
+    if (fiV.length && fiReihe(k.geraet, fiV[0].g)) w.push(`${t}: FI in Reihe mit ${fiV[0].t} (${fiIdn(fiV[0].g)} mA): ${FI_REIHE}.`);
+    const vorA = /^B/.test(fiTyp(k.geraet)) && fiV.find(x => !/^B/.test(fiTyp(x.g)));
+    if (vorA) w.push(`${t}: ${gleichText(`FI Typ ${fiTyp(k.geraet)}`, vorA)}`);
+    // Überlastschutz des FI (DIN VDE 0100-530): Schutzorgan davor höchstens I_n des FI, sonst die Summe der Abgänge dahinter
+    if (!iN || (davor && davor <= iN)) return;
+    let summe = 0, gross = null;
+    // Motorschutzschalter mit dem oberen Ende des Einstellbereichs; ohne Schutzorgan unbegrenzt
+    k.kinder.forEach(c => { if (c.typ !== 'abgang' || c.steuer) return;
+      const n = schutz(c.geraet) ? nenn(c.geraet) : c.geraet.zeichen === 'motorschutz3' ? zahlVon(String(c.geraet.bereich || '').split('–')[1]) || 0 : Infinity; summe += n;
+      // genannt wird der größte Abgang über I_n (vor einem ohne Schutzorgan), sonst die Summe
+      if (n > iN && (!gross || (n !== Infinity && (gross.n === Infinity || n > gross.n)))) gross = { n, t: (e.abgaenge[c.id].f || {}).t || abgangName(c) }; });
+    if (summe > iN) w.push(`${t} (${iN} A): FI nicht sicher gegen Überlast geschützt – ${davor ? `${vs ? 'Vorsicherung' : `Schutzorgan in ${sp.v.name}`} ${davor} A` : 'kein Schutzorgan davor angegeben'}, `
+      + `${gross ? (gross.n === Infinity ? `${gross.t} ohne Schutzorgan` : `${gross.t} allein ${gross.n} A`) : `Summe der Abgänge ${summe} A`}; Gleichzeitigkeit nach Herstellerangabe nachweisen.`); }
+  // ab v1.74 (Q23): LS hinter LS – Kurzschlussselektivität nur nach Herstellertabelle (Hinweis je Verteiler)
+  const lsVor = istLs(v.vorsicherung) ? 'der Vorsicherung' : !vs && sp && istLs(sp.k.geraet) ? `dem speisenden Abgang in ${sp.v.name}` : null, lsl = {};
+  const lsDazu = (vor, t) => (lsl[vor] = lsl[vor] || []).push(t);
+  alleKnoten(v, (k, eltern) => { if (k.steuer || !istLs(k.geraet)) return;
+    const t = (k.typ === 'gruppe' ? e.geraete[k.id] : e.abgaenge[k.id].f || {}).t, n = nenn(k.geraet);
+    if (eltern && istLs(eltern.geraet) && n < nenn(eltern.geraet)) lsDazu(e.geraete[eltern.id].t, t);
+    else if (!(eltern && schutz(eltern.geraet)) && lsVor && n < davor) lsDazu(lsVor, t); });
+  const lsT = Object.entries(lsl).map(([vor, l]) => `${l.slice(0, 4).join(', ')}${l.length > 4 ? ' …' : ''} hinter ${vor}`);
+  if (lsT.length) w.push(`Hinweis: LS hinter LS (${lsT.join('; ')}) – Kurzschlussselektivität nur nach Herstellertabelle, meist nur bis zu kleinen Kurzschlussströmen.`);
   alleKnoten(v, k => { if (k.trafo && !k.trafo.erde)
     w.push(`${(e.abgaenge[k.id].t || {}).t || 'Steuertrafo'}: ungeerdeter Steuerkreis – Isolationsüberwachung vorsehen und beide Leiter absichern (EN 60204-1, 9.4.3 und 7.2.4).`); });
   return w;
@@ -1843,9 +1930,11 @@ function druckHinweise() {
   P.verteiler.forEach(v => { const e = berechne(v);
     // ab v1.59 (D06): gleiche Texte an verschiedenen Stellen (z. B. zweimal -F3) bleiben getrennte Einträge
     const dazu = (t, sel) => { const ab = abhilfeVon(t); t = `${v.name}: ${t}`; const s = t + '\u0000' + (sel || ''); if (!da.has(s)) { da.add(s); r.push({ t, vid: v.id, sel, abhilfe: ab }); } };
-    e.warn.forEach(t => dazu(t, null));
+    e.warn.forEach(t => dazu(t, (e.warn.sel || {})[t] || null));      // ab v1.74: Warnungen zu einer Gruppe zeigen die Gruppe
     e.steuer.warn.forEach(t => dazu(t, 'st:'));
-    Object.entries(e.abgaenge).forEach(([kid, a]) => { if (a.warn) dazu(`${(a.f || {}).t || 'Abgang'}: ${a.warn}`, 'k:' + kid.split('~')[0]); });
+    // ab v1.74: ohne Schutzorgan (kein Kennzeichen) steht die Bezeichnung des Abgangs vorn
+    Object.entries(e.abgaenge).forEach(([kid, a]) => { const kn = !a.f && knoten(v, kid.split('~')[0]);
+      if (a.warn) dazu(`${(a.f || {}).t || (kn ? abgangText(kn.k) : 'Abgang')}: ${a.warn}`, 'k:' + kid.split('~')[0]); });
     // ab v1.57 (C06): Abgang ohne Bezeichnung – auf dem Türzettel bliebe die Spalte „Stromkreis“ leer
     alleKnoten(v, k => { if (k.typ === 'abgang' && !k.steuer && !k.speist && !String((k.ziel || {}).bez || '').trim())
       dazu(`${((e.abgaenge[k.id] || {}).f || {}).t || 'Abgang'}: ohne Bezeichnung – Türzettel bleibt leer`, 'k:' + k.id); }); });
@@ -1919,6 +2008,10 @@ function berechneSteuerung(v, e, bmk, klemme) {
     const n0 = r.warn.length;
     try { kreisPruefen(kr); } finally { r.warn.slice(n0).forEach(t => vonKreis(t, kr.id)); }
   });
+  // ab v1.74 (Q15): ein Not-Aus-Taster hat üblich höchstens zwei Öffner (11–12, 21–22)
+  (st.geraete || []).forEach(g => { const nb = r.genutzt[g.id]; if (g.zeichen !== 'notaus' || !nb || nb.o.length <= 2) return;
+    const t = `${r.geraete[g.id].t}: Not-Aus mit ${nb.o.length} Öffnern – übliche Not-Aus-Taster haben höchstens zwei.`; r.warn.push(t);
+    kreise.forEach(kr => { if (kr.pfade.some(p => p.plaetze.some(pl => pl && pl.g === g.id))) vonKreis(t, kr.id); }); });
   function kreisPruefen(kr) {
     const vp = kr.pfade.find(verbraucherDa), t = kr.name || (vp ? name(vp.verbraucher.g) : 'ohne Verbraucher');
     if (!gemeinsam(kr)) {
@@ -2442,6 +2535,11 @@ const BEGRIFFE = {
   'Klemmleiste -X1': 'Reihenklemmen im Verteiler, an denen die abgehenden Leitungen angeschlossen werden; sie stehen im Klemmenplan.',
   'Schütz': 'Elektrisch betätigter Schalter: die Spule im Steuerstromkreis schaltet die Hauptkontakte im Abgang.',
   'Steuerstromkreis': 'Stromkreis mit Tastern, Schaltern, Meldern und Spulen, der Schütze, Stromstoßschalter oder Zeitrelais steuert.',
+  // ab v1.74 (Etappe Q5): Begriffe der neuen Fachwarnungen
+  'Selektivität': 'Bei einem Fehler löst nur das Schutzorgan direkt davor aus, die vorgeschalteten bleiben eingeschaltet. Bei LS hinter LS gilt sie nur nach den Tabellen des Herstellers.',
+  'Typ S': 'Selektiver FI mit Auslöseverzögerung (meist 100 oder 300 mA) – vor weiteren FI geschaltet, löst er bei einem Fehler dahinter nicht mit aus.',
+  'Überlastschutz': 'Schutz gegen zu großen Dauerstrom. Ein FI ohne LS-Teil hat keinen eigenen: ihn schützt ein Schutzorgan davor oder die Summe der LS dahinter (Herstellerangabe). Motoren schützt ein Motorschutzschalter oder ein Überlastrelais.',
+  'Trennschalter': 'Schalter zum Freischalten, der nicht unter Last geschaltet werden darf – anders als der Lasttrennschalter.',
 };
 // Erklärungen als Fenster (Abschnittsköpfe mit „?“)
 function begriffFenster(titel, namen) {
@@ -2971,6 +3069,7 @@ function bGruppe(b) {
       () => wahlFeld('Außenleiter der Gruppe', PHASEN.map(x => [x, x === 'auto' ? 'automatisch' : x, x === 'auto' ? `zurzeit ${e.gruppenPhase[g.id].t}` : '']), g.phase || 'auto', w => g.phase = w),
       { titel: 'gilt für alle Abgänge der Gruppe' }) : null,
     zeile('Kennzeichen', e.geraete[g.id].t, () => bmkFeld('Kennzeichen', ge, e.geraete[g.id].hand ? '' : e.geraete[g.id].t), { bmk: null })));
+  e.warn.filter(t => (e.warn.sel || {})[t] === 'k:' + g.id).forEach(t => m.append(warnZeile(t)));      // ab v1.74 (Etappe Q5)
   m.append(h('h2', {}, 'Abgänge der Gruppe'));
   const l = h('div', { class: 'liste' });
   baumZeilen(v, e, g.kinder, l, 0);
@@ -3087,13 +3186,13 @@ function bAbgang(b) {
         wb.rdc ? 'ja' : 'nein', w => wb.rdc = w === 'ja')))); }
   if (a.t && k.ziel.anschluss === 'pv') m.append(h('h2', {}, 'PV-Anlage'), h('div', { class: 'liste' }, ...pvZeilen(v, k, a)));
   if (a.t && k.ziel.anschluss === 'speicher') m.append(h('h2', {}, 'Batteriespeicher'), h('div', { class: 'liste' }, ...speicherZeilen(v, k, a)));
-  m.append(kopfMitHilfe('Schutzorgan', ['LS', 'FI', 'FI/LS', 'Sicherung', 'Motorschutzschalter', 'Kennlinie', 'Nennstrom', 'Nennfehlerstrom', 'Typ A / F / B', 'Kennzeichen']), h('div', { class: 'liste' },
+  m.append(kopfMitHilfe('Schutzorgan', ['LS', 'FI', 'FI/LS', 'Sicherung', 'Motorschutzschalter', 'Kennlinie', 'Nennstrom', 'Nennfehlerstrom', 'Typ A / F / B', 'Typ S', 'Selektivität', 'Überlastschutz', 'Kennzeichen']), h('div', { class: 'liste' },
     zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : GERAET_KLEIN[x]]), ge.zeichen, w => abgangGeraetSetzen(ge, w))),
     ...geraetZeilen(ge),
     a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null));
   if (a.warn) m.append(warnZeile(a.warn));
   m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(v, k, a)));
-  if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi)
+  if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi && !/FI in Reihe/.test(a.warn || ''))      // ab v1.74 sonst in a.warn
     m.append(h('p', { class: 'warnung' }, 'Hinweis: FI/LS hinter einem FI – zwei Fehlerstromschutzeinrichtungen hintereinander.'));
   const phasenwahl = a.drei ? null : a.phase.gruppe ? zeile('Außenleiter', `${a.phase.t} · von der Gruppe`, () => geh({ s: 'gruppe', vid: v.id, kid: a.phase.gruppe }), { titel: 'wird an der Gruppe eingestellt' })
     : zeile('Außenleiter', v.leiter === '1NPE' ? 'L' : (k.phase === 'auto' ? `${a.phase.t} · automatisch` : k.phase),

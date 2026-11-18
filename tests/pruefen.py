@@ -6,7 +6,7 @@
 - mit --vergleich: SVG aller Blätter gegen tests/referenz.json (bitgleich);
   mit --referenz: Referenz neu schreiben (nur nach einer gewollten Änderung!)
 Aufruf: python3 tests/pruefen.py [--vergleich | --referenz]"""
-import sys, json, hashlib, pathlib
+import sys, re, json, hashlib, pathlib
 from playwright.sync_api import sync_playwright
 W = pathlib.Path(__file__).resolve().parent.parent
 APP = W / 'docs' / 'index.html'; AUS = W / 'build' / 'pruefung'; REF = W / 'tests' / 'referenz.json'
@@ -21,7 +21,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -31,6 +31,14 @@ with sync_playwright() as p:
         svgs = pg.evaluate("PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter.map(b => [b.nr + ' ' + b.titel + ' ' + b.art, b.svg.outerHTML])")
         hashes[name] = [[t, hashlib.md5(s.encode()).hexdigest()] for t, s in svgs]
         print(name, ':', ', '.join(t for t, _ in svgs))
+        # ab v1.74 (Etappe Q5): erwartete Fachwarnungen, jede mit „So beheben“
+        if name == 'warnungen':
+            hw = pg.evaluate("druckHinweise().map(x => [x.t, x.abhilfe || ''])")
+            for muster in ['nicht lastschaltend', r'-F2 \(25 A\): FI nicht sicher gegen Überlast.*-F3 allein 32 A', 'Typ AC', r'LS hinter LS \(-F9 hinter -F8\)',
+                           r'-F4: FI in Reihe mit FI -F2', 'FI Typ B hinter FI -F2 Typ A', r'Motor 4 kW ohne Überlastschutz', r'Tor, Halle: Ohne Schutzorgan',
+                           r'-F7: FI in Reihe mit FI -F6', r'10 kWp: über 4,6 kVA']:
+                if not any(re.search(muster, t) for t, _ in hw): fehler.append(f'warnungen: Warnung „{muster}“ fehlt')
+            fehler += [f'warnungen: ohne „So beheben“: {t}' for t, ab in hw if not ab.startswith('So beheben')]
         pg.evaluate("stapel = [{ s: 'plan' }]; zeichne()"); pg.wait_for_timeout(800)
         n = pg.locator('.blattkarte svg').count()
         for i in range(n): pg.locator('.blattkarte svg').nth(i).screenshot(path=str(AUS / f'{name}_{i + 1}.png'))

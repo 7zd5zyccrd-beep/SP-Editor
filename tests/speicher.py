@@ -8,6 +8,12 @@ Vier Fälle am Desktop (1440×900), je in einem frischen Browserkontext:
      nach Freigabe wieder „Gespeichert“
   3. zwei Seiten im selben Kontext → die zweite wird schreibgeschützt, keine Änderung geht verloren
   4. Esc ohne Änderung → Zeitstempel `geaendert` unverändert
+Ab v1.76 (Etappe X-A „Versionsstände, Papierkorb, Sammelsicherung“):
+  5. Versionsstände: Stand beim Öffnen jeder Sitzung und letzter Stand des Tages in IndexedDB („staende“), höchstens 10;
+     Wiederherstellen ergibt das bitgleiche Projekt und ist ein Rückgängig-Schritt
+  6. Papierkorb: Löschen verschiebt (Daten bleiben), Wiederherstellen holt zurück, nach 30 Tagen endgültig; ein anderes
+     Fenster mit dem gelöschten Projekt wird schreibgeschützt
+  7. Sammeldatei: „Alle als Datei sichern“ → .slp-sammlung.json, im frischen Browser öffnen, einzeln wählbar, bitgleich
 
 Aufruf: python3 tests/speicher.py   (Rückgabe 1 bei einem Fehler)
 """
@@ -164,9 +170,141 @@ def fall4(b):
     ctx.close()
 
 
+STAENDE = "pid => staendeLesen(pid).then(l => l.map(x => ({ art: x.art, zeit: x.zeit, text: x.text })))"
+
+
+def fall5(b):
+    ctx = b.new_context(viewport={'width': 1440, 'height': 900}); errs = []
+    pg = seite(ctx, errs)
+    pg.evaluate('beispielOeffnen()'); pg.wait_for_timeout(600)
+    pid = pg.evaluate('projektId')
+    erst = pg.evaluate('verlauf.stand')
+    l = pg.evaluate(STAENDE, pid)
+    pruefe(len(l) == 1 and l[0]['art'] == 'sitzung', f'Fall 5: neues Projekt – erster Stand gemerkt {[x["art"] for x in l]}')
+    aendern(pg, 'Sitzung 1 GmbH')
+    stand1 = pg.evaluate('verlauf.stand')
+    pg.reload(); pg.wait_for_timeout(600)                       # pagehide schreibt den Tagesstand sofort
+    aendern(pg, 'Sitzung 2 GmbH')
+    pg.evaluate('gutJetzt()'); pg.wait_for_timeout(300)
+    l = pg.evaluate(STAENDE, pid)
+    texte = [x['text'] for x in l]
+    pruefe(stand1 in texte and any(x['art'] == 'sitzung' and x['text'] == stand1 for x in l), 'Fall 5: Stand beim Öffnen der zweiten Sitzung gemerkt')
+    pruefe(pg.evaluate('verlauf.stand') in texte, 'Fall 5: letzter Stand des Tages gemerkt')
+    pruefe(len(set(texte)) == len(texte), 'Fall 5: kein Stand doppelt')
+    # höchstens 10 Stände
+    pg.evaluate("""async pid => { for (let i = 0; i < 14; i++) await staendeMerken(pid, JSON.stringify(Object.assign(JSON.parse(verlauf.stand), { nr: i })), 'sitzung',
+      new Date(Date.now() - (20 - i) * 86400000).toISOString()); }""", pid)
+    n = len(pg.evaluate(STAENDE, pid))
+    pruefe(n == 10, f'Fall 5: höchstens 10 Stände ({n})')
+    # Versionen-Fenster aus dem Hauptmenü, Wiederherstellen bitgleich und als Rückgängig-Schritt
+    pg.evaluate("geh({ s: 'start' })"); pg.wait_for_timeout(200)
+    pg.locator('button', has_text='Menü').first.click(); pg.wait_for_timeout(250)
+    pg.locator('.fenster .menue button', has_text='Versionen').click(); pg.wait_for_timeout(1200)
+    zeilen = pg.locator('.fenster .vzeile').count()
+    pruefe(zeilen == 10, f'Fall 5: Versionen-Fenster mit 10 Ständen ({zeilen})')
+    pruefe(pg.locator('.fenster .vbl', has_text='Blätter').count() >= 1 and 'Blätter …' not in pg.inner_text('.fenster'), 'Fall 5: Blattzahl je Stand')
+    pg.screenshot(path=str(W / 'build' / 'speicher_5.png'))
+    pg.evaluate("while (fensterStapel.length) fensterStapel.at(-1)(false)")
+    l = pg.evaluate(STAENDE, pid); ziel = next(x for x in l if x['text'] == stand1)
+    vorher = pg.evaluate('verlauf.stand'); nz = pg.evaluate('verlauf.zurueck.length')
+    pg.evaluate("([pid, z]) => staendeLesen(pid).then(l => versionWiederherstellen(pid, l.find(x => x.zeit === z)))", [pid, ziel['zeit']]); pg.wait_for_timeout(300)
+    pruefe(pg.evaluate('JSON.stringify(P)') == stand1, 'Fall 5: Wiederherstellen ergibt das bitgleiche Projekt')
+    pruefe(pg.evaluate("localStorage.getItem('slp.projekt.' + projektId)") == stand1, 'Fall 5: wiederhergestellter Stand gespeichert')
+    pruefe(pg.evaluate('verlauf.zurueck.length') == nz + 1, 'Fall 5: Wiederherstellen ist ein Rückgängig-Schritt')
+    pg.evaluate('projektRueck(false)'); pg.wait_for_timeout(200)
+    pruefe(pg.evaluate('JSON.stringify(P)') == vorher, 'Fall 5: Rückgängig holt den Stand davor zurück')
+    pruefe(erst != stand1, 'Fall 5: (Probe) Stände unterscheiden sich')
+    pruefe(not errs, f'Fall 5: keine Skriptfehler {errs}')
+    ctx.close()
+
+
+def fall6(b):
+    ctx = b.new_context(viewport={'width': 1440, 'height': 900}); errs = []
+    pg = seite(ctx, errs)
+    pg.evaluate('beispielOeffnen()'); pg.wait_for_timeout(500)
+    pg.evaluate("() => { const d = neuesProjekt(); d.projekt.projekt = 'Zweites'; projektAnlegen(d, 'Neues Projekt'); }"); pg.wait_for_timeout(300)
+    zweit = pg.evaluate('projektId'); text = pg.evaluate('verlauf.stand')
+    pg.evaluate("projektOeffnen(projekte.find(x => x.name !== 'Zweites').id)"); pg.wait_for_timeout(300)
+    andere = seite(ctx, errs)                                    # zweites Fenster mit dem Projekt, das gleich gelöscht wird
+    andere.evaluate("projektOeffnen(projekte.find(x => x.name === 'Zweites').id)"); andere.wait_for_timeout(300)
+    pg.evaluate("geh({ s: 'projekte' })"); pg.wait_for_timeout(300)
+    pg.locator('.pzeile', has_text='Zweites').locator('.pmehr').click(); pg.wait_for_timeout(200)
+    pg.locator('.fenster .menue button', has_text='Löschen').click(); pg.wait_for_timeout(200)
+    pg.locator('.fenster .knopf.rot', has_text='Löschen').click(); pg.wait_for_timeout(400)
+    pruefe(pg.evaluate('projekte.length') == 1 and pg.evaluate("papierkorbLesen().map(x => x.id)") == [zweit], 'Fall 6: Löschen verschiebt in den Papierkorb')
+    pruefe(pg.evaluate("k => localStorage.getItem(k)", 'slp.projekt.' + zweit) == text, 'Fall 6: Daten bleiben im Papierkorb unverändert')
+    pruefe(pg.locator('h2', has_text='Papierkorb (1)').count() == 1 and pg.locator('.korb .pzeile', has_text='Zweites').count() == 1, 'Fall 6: Projektliste zeigt den Papierkorb')
+    pg.screenshot(path=str(W / 'build' / 'speicher_6.png'))
+    pruefe(andere.evaluate('!!(schreibschutz && schreibschutz.geloescht)') and andere.locator('#leseband').is_visible(), 'Fall 6: anderes Fenster schreibgeschützt („gelöscht“)')
+    pg.locator('.korb .pwieder').click(); pg.wait_for_timeout(300)
+    pruefe(pg.evaluate("projekte.some(x => x.id === '%s')" % zweit) and not pg.evaluate('papierkorbLesen().length'), 'Fall 6: Wiederherstellen holt das Projekt zurück')
+    pg.evaluate("projektOeffnen('%s')" % zweit); pg.wait_for_timeout(200)
+    pruefe(pg.evaluate('verlauf.stand') == text, 'Fall 6: wiederhergestelltes Projekt bitgleich')
+    # „Hier weiterarbeiten“ im anderen Fenster nach dem Löschen holt es ebenfalls zurück
+    pg.evaluate("projektOeffnen(projekte.find(x => x.id !== '%s').id)" % zweit); pg.wait_for_timeout(200)
+    pg.evaluate("geh({ s: 'projekte' })"); pg.wait_for_timeout(200)
+    pg.evaluate("projektLoeschen('%s', 'Zweites')" % zweit); pg.wait_for_timeout(100)
+    pg.locator('.fenster .knopf.rot', has_text='Löschen').click(); pg.wait_for_timeout(400)
+    andere.locator('#leseband button', has_text='Hier weiterarbeiten').click(); andere.wait_for_timeout(400)
+    pruefe(andere.evaluate("JSON.parse(localStorage.getItem('slp.projekte.v1')).some(x => x.id === '%s')" % zweit) and not andere.evaluate('papierkorbLesen().length'),
+           'Fall 6: „Hier weiterarbeiten“ holt das gelöschte Projekt in die Liste zurück')
+    andere.close()
+    # nach 30 Tagen endgültig
+    pg.evaluate("projektLoeschen('%s', 'Zweites')" % zweit); pg.wait_for_timeout(100)
+    pg.locator('.fenster .knopf.rot', has_text='Löschen').click(); pg.wait_for_timeout(300)
+    pg.evaluate("() => { const l = papierkorbLesen(); l[0].geloescht = new Date(Date.now() - 31 * 86400000).toISOString(); papierkorbSchreiben(l); }")
+    pg.reload(); pg.wait_for_timeout(600)
+    pruefe(not pg.evaluate('papierkorbLesen().length') and pg.evaluate("k => localStorage.getItem(k)", 'slp.projekt.' + zweit) is None, 'Fall 6: nach 30 Tagen endgültig gelöscht')
+    pruefe(pg.evaluate(STAENDE, zweit) == [], 'Fall 6: Versionsstände mit gelöscht')
+    pruefe(not errs, f'Fall 6: keine Skriptfehler {errs}')
+    ctx.close()
+
+
+def fall7(b):
+    ctx = b.new_context(viewport={'width': 1440, 'height': 900}, accept_downloads=True); errs = []
+    pg = seite(ctx, errs)
+    pg.add_script_tag(content=BSP)
+    texte = {}
+    for n in ('grund', 'steuerung', 'motor'):
+        pg.evaluate("n => { const d = neuesProjekt(); d.projekt.projekt = n; projektAnlegen(d, 'Neu'); BEISPIELE[n](); P.projekt.projekt = 'Sammel ' + n; aenderung('x'); sichern(); }", n)
+        pg.wait_for_timeout(200)
+        texte[pg.evaluate('projektName(P)')] = pg.evaluate('verlauf.stand')
+    pg.evaluate("geh({ s: 'projekte' })"); pg.wait_for_timeout(300)
+    with pg.expect_download() as dl:
+        pg.locator('button', has_text='Alle als Datei sichern').click()
+    d = dl.value; name = d.suggested_filename
+    pfad = W / 'build' / 'sammlung.slp-sammlung.json'; d.save_as(str(pfad))
+    import json, re
+    s = json.loads(pfad.read_text())
+    pruefe(re.match(r'^\d\d-\d\d-\d\d Alle Projekte\.slp-sammlung\.json$', name) is not None, f'Fall 7: Dateiname „{name}“')
+    pruefe(s.get('format') == 'slp-sammlung' and len(s['projekte']) == len(texte), f'Fall 7: Sammeldatei mit {len(s.get("projekte", []))} Projekten')
+    pruefe(all(pg.evaluate('projekte.every(x => x.export)') for _ in [0]), 'Fall 7: alle Projekte gelten als gesichert')
+    # frischer Browser: öffnen, eines abwählen
+    ctx2 = b.new_context(viewport={'width': 1440, 'height': 900}); err2 = []
+    q = seite(ctx2, err2)
+    q.set_input_files('#datei', str(pfad)); q.wait_for_timeout(1500)
+    pruefe(q.locator('.fenster .sammelwahl input[type=checkbox]').count() == 3, 'Fall 7: Projekte einzeln wählbar')
+    q.screenshot(path=str(W / 'build' / 'speicher_7.png'))
+    q.locator('.fenster .sammelwahl label', has_text='Sammel motor').locator('input').uncheck()
+    q.locator('.fenster .knopf', has_text='Als weitere Projekte').click(); q.wait_for_timeout(500)
+    namen = q.evaluate("projekte.map(x => x.name)")
+    pruefe(sorted(namen) == ['Sammel grund', 'Sammel steuerung'], f'Fall 7: gewählte Projekte übernommen {namen}')
+    gleich = all(q.evaluate("n => localStorage.getItem('slp.projekt.' + projekte.find(x => x.name === n).id)", n) == texte[n] for n in ['Sammel grund', 'Sammel steuerung'])
+    pruefe(gleich, 'Fall 7: hin und zurück bitgleich')
+    # noch einmal: Gleichnamige ersetzen bzw. als weitere
+    q.set_input_files('#datei', str(pfad)); q.wait_for_timeout(1500)
+    q.locator('.fenster .knopf', has_text='Gleichnamige ersetzen').click(); q.wait_for_timeout(500)
+    pruefe(sorted(q.evaluate("projekte.map(x => x.name)")) == ['Sammel grund', 'Sammel motor', 'Sammel steuerung'], 'Fall 7: Gleichnamige ersetzt, neues dazu')
+    q.set_input_files('#datei', str(pfad)); q.wait_for_timeout(1500)
+    q.locator('.fenster .knopf', has_text='Als weitere Projekte').click(); q.wait_for_timeout(500)
+    pruefe(q.evaluate("projekte.length") == 6 and q.evaluate("projekte.some(x => x.name === 'Sammel grund (2)')"), 'Fall 7: als weitere mit „ (2)“')
+    pruefe(not errs and not err2, f'Fall 7: keine Skriptfehler {errs + err2}')
+    ctx2.close(); ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for f in (fall1, fall2, fall3, fall4):
+    for f in (fall1, fall2, fall3, fall4, fall5, fall6, fall7):
         try:
             f(b)
         except Exception as e:

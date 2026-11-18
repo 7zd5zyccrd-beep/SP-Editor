@@ -16,6 +16,11 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.76: Versionsstände, Papierkorb, Sammelsicherung (Etappe X-A: X01, Q35 teilweise): IndexedDB „slp“ Fassung 2 mit Store
+           „staende“ (Stand beim Öffnen jeder Sitzung, letzter Stand je Tag, höchstens 10), „Versionen …“ im Hauptmenü und je
+           Projekt (Wiederherstellen als Rückgängig-Schritt, Als Datei sichern), Löschen verschiebt in den Papierkorb
+           (slp.papierkorb.v1, 30 Tage), „Alle als Datei sichern“ (.slp-sammlung.json, beim Öffnen einzeln wählbar),
+           navigator.storage.persist(), Größe je Projekt; „Automatik für den ganzen Verteiler …“ ins Verteilermenü
      v1.75: Planfehler mittel, Darstellung, Türzettel (Etappe Q6: Q27, Q28, Q37 Brücke, Q38, Q39, Q43): Klemmenplan TN-C
            mit N/PE statt „PEN“, Hybrid-Speicher in der Übersicht, Brücke zwischen Feldgeräten in Reihe, PEN-Schiene
            gestrichelt, 1~-UV „L (L2)“ im Kopf und auf dem Türzettel, Türzettel ohne Umbruch im Kennzeichen, alle Schütze
@@ -534,6 +539,14 @@ main.start{max-width:1040px}
 .pzeile.aktiv{box-shadow:inset 3px 0 0 var(--akzent)}
 .pzeile.aktiv .zeile .w{color:var(--leise);font-weight:400;font-size:13px;background:var(--grund);border:1px solid var(--linie);border-radius:7px;padding:2px 8px;flex:0 0 auto}      /* ab v1.58 (C36): Etikett, kein Link */
 .projektknoepfe{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+/* ab v1.76 (X01): Papierkorb, Versionen, Sammeldatei */
+.korb .pzeile{align-items:center}.korb .zeile .ob{color:var(--leise)}
+.pwieder{flex:0 0 auto;margin:0 10px 0 4px}
+.knopf.rottext{color:var(--rot,#c62828)}
+.vliste .zeile .un{white-space:normal}
+.vliste .vaktion{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 10px}
+.sammelwahl label{display:flex;gap:10px;align-items:center;padding:8px 4px;min-height:44px;border-top:1px solid var(--linie)}
+.sammelwahl label:first-child{border-top:0}.sammelwahl input{width:20px;height:20px;flex:0 0 auto}.sammelwahl small{color:var(--leise);display:block}
 .pmehr{flex:0 0 48px;border:0;border-left:1px solid var(--linie);background:none;font-size:20px;line-height:1;color:var(--akzent);cursor:pointer}
 .pmehr:hover,.pmehr:active{background:var(--hover)}
 /* Meldung mit Knopf (ab v1.56), z. B. „Rückgängig“ nach geänderten Kennzeichen */
@@ -1015,6 +1028,7 @@ table.ueb td.nw,table.ueb th{white-space:nowrap}
   .projtab .pkopf{display:flex;gap:10px;padding:8px 89px 6px 14px;font-size:var(--fs-12);font-weight:var(--fw-600);color:var(--leise);border-bottom:1px solid var(--linie);background:var(--karte2)}
   .projtab .pkopf span,.projtab .psp{flex:0 0 150px;text-align:left}.projtab .pkopf span:first-child{flex:1 1 auto}
   .projtab .psp{display:block;color:var(--leise);font-size:var(--fs-13);white-space:nowrap}
+  .projtab .pkopf span.pgr,.projtab .psp.pgr{flex:0 0 70px}      /* ab v1.76: Größe */
 }
 @media (max-width:1023px){.projtab .psp{display:none}}
 .textinline{position:fixed;z-index:30;min-width:180px;font:inherit;font-size:var(--fs-13);padding:5px 8px;border:1.5px solid var(--ov);border-radius:7px;background:var(--karte);color:var(--tinte);box-shadow:0 6px 18px rgba(0,0,0,.18)}
@@ -1325,6 +1339,8 @@ function ablegen(text) {
   const war = speicherFehler, jetzt = new Date().toISOString();
   let x = projekte.find(q => q.id === projektId);
   const neuX = !x;
+  // ab v1.76 (X01): vor der ersten Änderung einer Sitzung den gespeicherten Stand als Versionsstand merken
+  const vorher = sitzungGemerkt[projektId] ? null : lsLesen(pSchluessel(projektId)), vorherZeit = x && x.geaendert;
   try {
     localStorage.setItem(pSchluessel(projektId), text);
     if (neuX) x = { id: projektId };
@@ -1343,7 +1359,12 @@ function ablegen(text) {
     if (lsLesen(SPEICHER) !== null && projekte.every(q => lsLesen(pSchluessel(q.id)) !== null)) localStorage.removeItem(SPEICHER);
     speicherFehler = false;
     fensterMelden({ art: 'gespeichert', id: projektId, zeit: jetzt });
+    if (!sitzungGemerkt[projektId]) { sitzungGemerkt[projektId] = true;
+      if (vorher && vorher !== text && !projektDefekt(jsonVon(vorher))) staendeMerken(projektId, vorher, 'sitzung', vorherZeit || jetzt);
+      else if (vorher === null) staendeMerken(projektId, text, 'sitzung', jetzt); }      // neues Projekt: sein erster Stand
+    if (neuX) papierkorbOhne(projektId);      // ab v1.76: im anderen Fenster gelöscht und hier wieder gespeichert
     gutMerken(projektId, text);
+    dauerhaftAnfordern();
     if (war) meldung('Wieder im Gerät gespeichert');
   } catch (e) {
     speicherFehler = true;
@@ -1360,18 +1381,22 @@ function listeAuffrischen() {
 }
 // Letzter guter Stand je Projekt (ab v1.70, Q01; Grundlage für X01): IndexedDB „slp“, Store „gut“, Schlüssel = Projektkennung,
 // Wert { zeit, text }. Asynchron und fehlertolerant – fehlt IndexedDB (privates Fenster), gibt es eben keinen.
+// ab v1.76 (X01): Datenbankfassung 2 mit dem Store „staende“ (Versionsstände, siehe staendeMerken()); ein älteres Fenster mit
+// Fassung 1 wird über onversionchange nicht blockiert (wir schließen bei einer neueren Fassung selbst); scheitert das Öffnen,
+// wird es beim nächsten Zugriff erneut versucht
 let idbVersprechen = null;
 function idb() {
   if (!idbVersprechen) idbVersprechen = new Promise((ok, nein) => {
-    try { const r = indexedDB.open('slp', 1);
-      r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('gut')) r.result.createObjectStore('gut'); };
-      r.onsuccess = () => ok(r.result); r.onerror = () => nein(r.error); r.onblocked = () => nein(new Error('blockiert')); }
-    catch (e) { nein(e); } });
+    try { const r = indexedDB.open('slp', 2);
+      r.onupgradeneeded = () => { ['gut', 'staende'].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); };
+      r.onsuccess = () => { const db = r.result; db.onversionchange = () => { db.close(); idbVersprechen = null; }; ok(db); };
+      r.onerror = () => nein(r.error); r.onblocked = () => nein(new Error('blockiert')); }
+    catch (e) { nein(e); } }).catch(e => { idbVersprechen = null; throw e; });
   return idbVersprechen;
 }
-function idbTun(art, pid, wert) {
+function idbTun(art, pid, wert, store = 'gut') {
   return idb().then(db => new Promise((ok, nein) => {
-    const t = db.transaction('gut', art === 'lesen' ? 'readonly' : 'readwrite'), st = t.objectStore('gut');
+    const t = db.transaction(store, art === 'lesen' ? 'readonly' : 'readwrite'), st = t.objectStore(store);
     const r = art === 'lesen' ? st.get(pid) : art === 'loeschen' ? st.delete(pid) : st.put(wert, pid);
     r.onsuccess = () => ok(r.result); r.onerror = () => nein(r.error);
   }));
@@ -1379,13 +1404,56 @@ function idbTun(art, pid, wert) {
 // höchstens 1,5 s warten; null, wenn es keinen guten Stand gibt
 const gutLesen = pid => Promise.race([idbTun('lesen', pid).catch(() => null), new Promise(ok => setTimeout(() => ok(null), 1500))])
   .then(g => g && typeof g.text === 'string' ? g : null);
+// ab v1.76: gutWarte[pid] = { t: Zeitgeber, f: Schreiben } – beim Verlassen der Seite wird Ausstehendes sofort geschrieben
 const gutZeit = {}, gutWarte = {};
 function gutMerken(pid, text) {          // höchstens alle 60 s; was dazwischen kommt, folgt am Ende der Frist
-  const jetzt = Date.now(), seit = jetzt - (gutZeit[pid] || 0), schreib = () => { gutZeit[pid] = Date.now(); idbTun('setzen', pid, { zeit: new Date().toISOString(), text }).catch(() => {}); };
-  clearTimeout(gutWarte[pid]);
-  if (seit >= 60000) schreib(); else gutWarte[pid] = setTimeout(schreib, 60000 - seit);
+  const jetzt = Date.now(), seit = jetzt - (gutZeit[pid] || 0), schreib = () => { delete gutWarte[pid]; gutZeit[pid] = Date.now();
+    idbTun('setzen', pid, { zeit: new Date().toISOString(), text }).catch(() => {}); staendeMerken(pid, text, 'tag'); };
+  if (gutWarte[pid]) clearTimeout(gutWarte[pid].t);
+  if (seit >= 60000) schreib(); else gutWarte[pid] = { t: setTimeout(schreib, 60000 - seit), f: schreib };
 }
-function gutLoeschen(pid) { clearTimeout(gutWarte[pid]); delete gutWarte[pid]; idbTun('loeschen', pid).catch(() => {}); }
+function gutJetzt() { Object.values(gutWarte).forEach(w => { clearTimeout(w.t); w.f(); }); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') gutJetzt(); });
+window.addEventListener('pagehide', gutJetzt);
+function gutLoeschen(pid) { if (gutWarte[pid]) clearTimeout(gutWarte[pid].t); delete gutWarte[pid]; idbTun('loeschen', pid).catch(() => {}); }
+// Versionsstände je Projekt (ab v1.76, X01): Store „staende“, Schlüssel = Projektkennung, Wert = Liste von
+// { zeit, text, art: 'sitzung' | 'tag', tag: JJJJ-MM-TT, sitzung, blaetter? }, neueste zuerst, höchstens STAENDE_MAX.
+//   sitzung: der gespeicherte Stand vor der ersten Änderung einer Sitzung (Seite laden = neue Sitzung), Zeit = seine letzte Änderung
+//   tag:     der letzte Stand eines Tages (mit dem guten Stand höchstens alle 60 s, beim Verlassen der Seite sofort)
+// Gleiche Texte stehen nur einmal da (der neuere bleibt). Die Blattzahl wird erst in der Versionsliste ermittelt und gemerkt.
+const STAENDE_MAX = 10, SITZUNG = id(), sitzungGemerkt = {};
+const tagVon = iso => { const d = new Date(iso), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
+function staendeAendern(pid, f) {          // Lesen und Schreiben in einer Transaktion (zwei Aufrufe kurz hintereinander verlieren nichts)
+  return idb().then(db => new Promise((ok, nein) => {
+    const t = db.transaction('staende', 'readwrite'), st = t.objectStore('staende'), r = st.get(pid);
+    let neu = null;
+    r.onsuccess = () => { const l = Array.isArray(r.result) ? r.result.filter(x => x && typeof x.text === 'string') : [];
+      neu = f(l); if (neu) st.put(neu, pid); };
+    t.oncomplete = () => ok(neu); t.onerror = () => nein(t.error); t.onabort = () => nein(t.error);
+  }));
+}
+function staendeMerken(pid, text, art, zeit = new Date().toISOString()) {
+  return staendeAendern(pid, l => {
+    // derselbe Text als „letzter Stand des Tages“: er wird zum Stand beim Öffnen (sonst ersetzte ihn der nächste Tagesstand)
+    if (art === 'sitzung') { const x = l.find(y => y.text === text); if (x) { if (x.art === 'sitzung') return null; x.art = 'sitzung'; x.sitzung = SITZUNG; return l; } }
+    const e = { zeit, text, art, tag: tagVon(zeit), sitzung: SITZUNG };
+    // ein Tagesstand ersetzt den vorigen desselben Tages; steht derselbe Text schon da (z. B. als Stand beim Öffnen), genügt der
+    const vor = l.length;
+    if (art === 'tag') l = l.filter(x => !(x.art === 'tag' && x.tag === e.tag && x.text !== text));
+    if (l.some(x => x.text === text)) return l.length === vor ? null : l;
+    l.push(e); l.sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));
+    return l.slice(0, STAENDE_MAX);
+  }).catch(() => null);
+}
+const staendeLesen = pid => Promise.race([idbTun('lesen', pid, null, 'staende').catch(() => null), new Promise(ok => setTimeout(() => ok(null), 1500))])
+  .then(l => Array.isArray(l) ? l.filter(x => x && typeof x.text === 'string') : []);
+function staendeLoeschen(pid) { idbTun('loeschen', pid, null, 'staende').catch(() => {}); }
+// Speicher dauerhaft anfordern (ab v1.76, X01): einmal je Sitzung beim ersten Speichern; der Browser entscheidet selbst
+let dauerGefragt = false;
+function dauerhaftAnfordern() {
+  if (dauerGefragt) return; dauerGefragt = true;
+  try { const sm = navigator.storage; if (sm && sm.persist) (sm.persisted ? sm.persisted() : Promise.resolve(false)).then(p => p || sm.persist()).catch(() => {}); } catch (e) {}
+}
 // Mehrere Fenster (ab v1.70, Q02): nach jedem Schreiben geht { art, id, zeit } über BroadcastChannel('slp'); zusätzlich (und wo es
 // den Kanal nicht gibt) meldet das storage-Ereignis geänderte Schlüssel. Ändert ein anderes Fenster das hier geöffnete Projekt, wird
 // dieses Fenster schreibgeschützt (sichern() verwirft Änderungen) und zeigt das Leseband.
@@ -1396,11 +1464,15 @@ function fremdGeaendert(pid, geloescht) {
   if (schreibschutz) { if (geloescht !== schreibschutz.geloescht) { schreibschutz.geloescht = geloescht; leseBand(); } return; }
   schreibschutz = { geloescht }; leseBand();
 }
-if (fensterKanal) fensterKanal.onmessage = ev => { const n = ev.data || {}; if (n.art === 'gespeichert' && typeof n.id === 'string') fremdGeaendert(n.id, false); };
+if (fensterKanal) fensterKanal.onmessage = ev => { const n = ev.data || {}; if (typeof n.id !== 'string') return;
+  if (n.art === 'gespeichert') fremdGeaendert(n.id, false);
+  else if (n.art === 'geloescht') { listeAuffrischen(); fremdGeaendert(n.id, true); } };      // ab v1.76: in den Papierkorb verschoben
 window.addEventListener('storage', ev => {
   if (!ev.key) return;
-  if (ev.key === PLISTE) {
+  if (ev.key === PLISTE || ev.key === PKORB) {
     listeAuffrischen();
+    // ab v1.76: das hier geöffnete Projekt wurde in den Papierkorb verschoben (die Daten bleiben, nur der Listeneintrag wandert)
+    if (ev.key === PLISTE && !projekte.some(q => q.id === projektId) && papierkorbLesen().some(q => q.id === projektId)) fremdGeaendert(projektId, true);
     const ob = typeof stapel !== 'undefined' && stapel[stapel.length - 1];
     if (ob && ob.s === 'projekte' && !fensterStapel.length) zeichne();      // die Liste zeigt neue bzw. gelöschte Projekte
   } else if (ev.key === pSchluessel(projektId) && ev.newValue !== verlauf.stand) fremdGeaendert(projektId, ev.newValue === null);
@@ -1426,18 +1498,23 @@ function leseBand(erinnern) {
 window.addEventListener('resize', () => { const x = document.getElementById('leseband'); if (x) document.documentElement.style.setProperty('--bandh', Math.ceil(x.getBoundingClientRect().height) + 'px'); });
 // „Hier weiterarbeiten“: den gespeicherten Stand des anderen Fensters laden (Rückgängig beginnt neu, sonst holte er den alten Stand
 // zurück) und den Schreibschutz aufheben; ist das Projekt anderswo gelöscht, wird es aus diesem Fenster wieder gespeichert
+// Seiten, deren Verteiler es nicht mehr gibt, entfallen; eine Auswahl, die es nicht mehr gibt, wird aufgehoben (ab v1.76 eigene Funktion)
+function stapelBereinigen() {
+  const vids = new Set(P.verteiler.map(v => v.id)), text = JSON.stringify(P);
+  stapel = stapel.filter(e => !e.vid || vids.has(e.vid)); if (!stapel.length || stapel[0].s !== 'start') stapel.unshift({ s: 'start' });
+  stapel.forEach(e => { if (e.s === 'editor') { const da = x => { const i = String(x || '').split(':')[1]; return !i || text.includes(`"${i}"`); };
+    if (e.sel && !(e.sel === 'm:' ? (e.mehr || []).every(da) : da(e.sel))) { e.sel = null; e.mehr = []; } e.pz = []; } });
+}
 function hierWeiterarbeiten() {
-  const d = jsonVon(lsLesen(pSchluessel(projektId)));
+  const d = jsonVon(lsLesen(pSchluessel(projektId))), gel = !!(schreibschutz && schreibschutz.geloescht);
   let ok = null;
   if (!projektDefekt(d)) { try { pruefeProjekt(d); migriere(d); probeProjekt(d); ok = d; } catch (e) { ok = null; } }
   schreibschutz = null; leseBand();
   if (ok) {
     P = ok; Object.assign(verlauf, { zurueck: [], vor: [], stand: JSON.stringify(P), zeit: 0, name: null, sitzung: null });
-    // Seiten, deren Verteiler es nicht mehr gibt, entfallen; eine Auswahl, die es nicht mehr gibt, wird aufgehoben
-    const vids = new Set(P.verteiler.map(v => v.id));
-    stapel = stapel.filter(e => !e.vid || vids.has(e.vid)); if (!stapel.length || stapel[0].s !== 'start') stapel.unshift({ s: 'start' });
-    stapel.forEach(e => { if (e.s === 'editor') { const da = x => { const i = String(x || '').split(':')[1]; return !i || verlauf.stand.includes(`"${i}"`); };
-      if (e.sel && !(e.sel === 'm:' ? (e.mehr || []).every(da) : da(e.sel))) { e.sel = null; e.mehr = []; } e.pz = []; } });
+    stapelBereinigen();
+    // ab v1.76: im anderen Fenster in den Papierkorb verschoben – hier weiterarbeiten holt es in die Projektliste zurück
+    if (gel) { ablegen(verlauf.stand); zeichne(); meldung('Projekt wieder in der Projektliste'); return; }
     zeichne(); meldung('Stand aus dem anderen Fenster geladen');
   } else { verlauf.stand = null; aenderung('Projekt wieder speichern'); sichern(); zeichne(); meldung('Projekt wieder im Gerät gespeichert'); }
 }
@@ -2824,48 +2901,268 @@ function projektDuplizieren(pid) {
     meldung('Speicher voll – ältere Projekte als Datei sichern und löschen'); return; }
   zeichne(); meldung(`„${x.name}“ angelegt`);
 }
+// Papierkorb (ab v1.76, X01): „Löschen“ verschiebt ein Projekt in den Papierkorb – der Listeneintrag wandert mit dem Zeitpunkt
+// geloescht (ISO) von slp.projekte.v1 nach slp.papierkorb.v1, die Daten bleiben unter slp.projekt.<id>. Nach 30 Tagen (beim Start
+// bzw. beim Anzeigen der Projektliste) oder mit „Endgültig löschen“ entfallen Daten, letzter guter Stand und Versionsstände.
+// Eine eigene Liste statt eines Merkmals in slp.projekte.v1, damit ältere Fassungen der App gelöschte Projekte nicht wieder zeigen.
+const PKORB = 'slp.papierkorb.v1', PKORB_TAGE = 30;
+function papierkorbLesen() { const l = jsonVon(lsLesen(PKORB)); return Array.isArray(l) ? l.filter(x => x && typeof x.id === 'string') : []; }
+function papierkorbSchreiben(l) { if (l.length) localStorage.setItem(PKORB, JSON.stringify(l)); else localStorage.removeItem(PKORB); }
+function papierkorbOhne(pid) { const l = papierkorbLesen(); if (l.some(x => x.id === pid)) try { papierkorbSchreiben(l.filter(x => x.id !== pid)); } catch (e) {} }
+const papierkorbRest = x => Math.max(0, Math.ceil(PKORB_TAGE - (Date.now() - new Date(x.geloescht).getTime()) / 86400000));
+function endgueltigLoeschen(pid) {
+  try { localStorage.removeItem(pSchluessel(pid)); } catch (e) {}
+  gutLoeschen(pid); staendeLoeschen(pid); papierkorbOhne(pid); delete verlaeufe[pid];
+}
+function papierkorbAufraeumen() {
+  papierkorbLesen().forEach(x => { const t = new Date(x.geloescht).getTime(); if (!isNaN(t) && Date.now() - t > PKORB_TAGE * 86400000) endgueltigLoeschen(x.id); });
+}
+papierkorbAufraeumen();      // beim Start: Projekte, die länger als 30 Tage im Papierkorb liegen, endgültig löschen
 function projektLoeschen(pid, name) {
   const akt = pid === projektId;
-  fenster('Projekt löschen', h('p', { class: 'text' }, `„${name}“ von diesem Gerät löschen? Das lässt sich nicht rückgängig machen.` + (akt ? ' Vorher als Datei sichern?' : '')), s => [
+  fenster('Projekt löschen', h('p', { class: 'text' }, `„${name}“ in den Papierkorb verschieben? Dort bleibt es ${PKORB_TAGE} Tage und lässt sich unter „Alle Projekte“ wiederherstellen.`), s => [
     h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
     akt ? h('button', { class: 'knopf zweit', on: { click: () => { s(false); exportieren(); } } }, 'Als Datei sichern') : null,
     h('button', { class: 'knopf rot', on: { click: () => {
-      listeAuffrischen(); projekte = projekte.filter(x => x.id !== pid); gutLoeschen(pid);      // ab v1.70: auch der letzte gute Stand
-      try { localStorage.removeItem(pSchluessel(pid)); localStorage.setItem(PLISTE, JSON.stringify(projekte)); } catch (e) {}
+      listeAuffrischen();
+      const x = projekte.find(q => q.id === pid) || { id: pid, name, geaendert: new Date().toISOString() };
+      if (akt && lsLesen(pSchluessel(pid)) === null) { try { localStorage.setItem(pSchluessel(pid), JSON.stringify(P)); } catch (e) {} }      // noch nie gespeichert
+      try {
+        papierkorbSchreiben(papierkorbLesen().filter(q => q.id !== pid).concat([Object.assign({}, x, { name: akt ? projektName(P) : x.name || name, geloescht: new Date().toISOString() })]));
+        projekte = projekte.filter(q => q.id !== pid); localStorage.setItem(PLISTE, JSON.stringify(projekte));
+      } catch (e) { listeAuffrischen(); s(false); meldung('Nicht gelöscht – Speichern im Gerät nicht möglich'); return; }
+      fensterMelden({ art: 'geloescht', id: pid });
       if (akt) {                     // das nächste öffnen bzw. ein leeres anlegen
-        const n = projektListeAnzeige().find(x => x.id !== pid);
+        clearTimeout((gutWarte[pid] || {}).t); delete gutWarte[pid];
+        const n = projektListeAnzeige().find(q => q.id !== pid);
         let d = null; if (n) try { d = projektLesen(n.id); probeProjekt(d); } catch (e) { d = null; }
         projektAktiv(d ? n.id : id(), d || neuesProjekt());
       }
-      delete verlaeufe[pid];
       s(false); stapel = stapel.length > 1 && stapel[stapel.length - 1].s === 'projekte' ? [{ s: 'start' }, { s: 'projekte' }] : [{ s: 'start' }]; zeichne();
-      meldung(`„${name}“ gelöscht`);
+      meldung(`„${name}“ in den Papierkorb verschoben`, ['Wiederherstellen', () => papierkorbZurueck(pid)]);
     } } }, 'Löschen')], null, { gefahr: true });      // ab v1.65 (F12): Enter bricht ab
+}
+function papierkorbZurueck(pid) {
+  const l = papierkorbLesen(), x = l.find(q => q.id === pid); if (!x) return;
+  if (lsLesen(pSchluessel(pid)) === null) { meldung('Die Daten dieses Projekts fehlen'); return; }
+  listeAuffrischen();
+  const e = Object.assign({}, x); delete e.geloescht;
+  try { projekte = projekte.filter(q => q.id !== pid).concat([e]); localStorage.setItem(PLISTE, JSON.stringify(projekte)); papierkorbSchreiben(l.filter(q => q.id !== pid)); }
+  catch (er) { listeAuffrischen(); meldung('Nicht wiederhergestellt – Speichern im Gerät nicht möglich'); return; }
+  zeichne(); meldung(`„${e.name || 'Unbenanntes Projekt'}“ wiederhergestellt`, ['Öffnen', () => projektOeffnen(pid)]);
+}
+function papierkorbEndgueltig(liste) {
+  const n = liste.length, t = n === 1 ? `„${liste[0].name || 'Unbenanntes Projekt'}“ endgültig löschen? Das lässt sich nicht rückgängig machen.`
+    : `Alle ${n} Projekte im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.`;
+  fenster(n === 1 ? 'Endgültig löschen' : 'Papierkorb leeren', h('p', { class: 'text' }, t), s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    h('button', { class: 'knopf rot', on: { click: () => { liste.forEach(x => endgueltigLoeschen(x.id)); s(); meldung(n === 1 ? 'Endgültig gelöscht' : 'Papierkorb geleert'); } } }, 'Endgültig löschen')],
+    null, { gefahr: true });
+}
+// Speicherbelegung (ab v1.76): Zeichen von Schlüssel und Wert, im Browser je zwei Byte
+const belegung = pid => { const t = lsLesen(pSchluessel(pid)); return t === null ? 0 : (pSchluessel(pid).length + t.length) * 2; };
+const groesse = b => b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} kB`;
+// ---- Versionen und Sammelsicherung (ab v1.76, X01) ----------------------------
+const dateiDatum = iso => { const d = new Date(iso || Date.now()), z = n => String(n).padStart(2, '0'); return `${String(d.getFullYear()).slice(2)}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
+const dateiTeil = t => String(t || '').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Projekt';
+// Datei ausgeben wie „Als Datei sichern“: Teilen, wo es das gibt (iPad/iPhone), sonst herunterladen; false bei Abbruch
+async function dateiAusgeben(datei) {
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try { await navigator.share({ files: [datei], title: datei.name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  herunterladen(datei, datei.name); return true;
+}
+// Blattzahl eines Stands wie im Druck (auf einer Kopie, P bleibt unverändert); null, wenn er sich nicht zeichnen lässt
+function blattZahl(text) {
+  const alt = P;
+  try { const d = JSON.parse(text); pruefeProjekt(d); migriere(d); P = d; return PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter.length; }
+  catch (e) { return null; } finally { P = alt; }
+}
+const STAND_ART = { sitzung: 'Stand beim Öffnen einer Sitzung', tag: 'Letzter Stand des Tages' };
+function versionenFenster(pid, name) {
+  staendeLesen(pid).then(l => {
+    const jetzt = pid === projektId ? JSON.stringify(P) : lsLesen(pSchluessel(pid)), liste = h('div', { class: 'liste vliste' }), offen = [];
+    l.forEach(e => {
+      const d = jsonVon(e.text), nv = d && Array.isArray(d.verteiler) ? d.verteiler.length : 0, gleich = e.text === jetzt;
+      const bl = h('span', { class: 'vbl' }, typeof e.blaetter === 'number' ? `${e.blaetter} Blätter` : 'Blätter …');
+      if (typeof e.blaetter !== 'number') offen.push([e, bl]);
+      liste.append(h('div', { class: 'vzeile' + (gleich ? ' aktiv' : '') },
+        h('div', { class: 'zeile', role: 'group', 'aria-label': `Stand vom ${zeitDE(e.zeit)}` }, h('span', { class: 'tw' }, h('span', { class: 't' },
+          h('span', { class: 'ob' }, zeitDE(e.zeit)),
+          h('span', { class: 'un' }, `${STAND_ART[e.art] || 'Stand'} · ${nv} Verteiler · `, bl, gleich ? ' · entspricht dem jetzigen Stand' : '')))),
+        h('div', { class: 'vaktion' },
+          h('button', { class: 'knopf zweit', on: { click: () => versionSichern(e, d ? projektName(d) : name) } }, 'Als Datei sichern'),
+          gleich ? null : h('button', { class: 'knopf',
+            on: { click: () => { while (fensterStapel.length) fensterStapel[fensterStapel.length - 1](false); versionWiederherstellen(pid, e); } } }, 'Wiederherstellen'))));
+    });
+    fenster(`Versionen von „${name}“`, h('div', { class: 'text' },
+      h('p', {}, l.length ? `Dieser Browser merkt sich je Projekt den Stand beim Öffnen jeder Sitzung und den letzten Stand jedes Tages, höchstens ${STAENDE_MAX}. `
+        + (pid === projektId ? 'Wiederherstellen lässt sich mit Rückgängig zurücknehmen.' : 'Wiederherstellen öffnet das Projekt; Rückgängig nimmt es zurück.')
+        : 'Für dieses Projekt liegen in diesem Browser noch keine Versionsstände vor. Sie entstehen beim Arbeiten: der Stand beim Öffnen jeder Sitzung und der letzte Stand jedes Tages.'),
+      l.length ? liste : null), s => [h('button', { class: 'knopf', on: { click: () => s(false) } }, 'Schließen')], null, { label: 'Versionen', cls: 'lang' });
+    // Blattzahl nachträglich, ein Stand je Durchgang (die Seite bleibt bedienbar), und merken
+    const weiter = () => { const x = offen.shift(); if (!x) return; const [e, bl] = x, n = blattZahl(e.text);
+      if (bl.isConnected) bl.textContent = n === null ? 'Blätter unbekannt' : `${n} Blätter`;
+      if (n !== null) staendeAendern(pid, l2 => { const y = l2.find(q => q.text === e.text && q.zeit === e.zeit); if (!y) return null; y.blaetter = n; return l2; }).catch(() => {});
+      setTimeout(weiter, 0); };
+    setTimeout(weiter, 30);
+  });
+}
+function versionSichern(e, name) {
+  let t; try { t = JSON.stringify(JSON.parse(e.text), null, 1); } catch (er) { t = e.text; }
+  const d = new Date(e.zeit), z = n => String(n).padStart(2, '0');
+  const datei = new File([t], `${dateiDatum(e.zeit)} ${dateiTeil(name)} (Stand ${z(d.getHours())}-${z(d.getMinutes())}).slp.json`, { type: 'application/json' });
+  dateiAusgeben(datei).then(ok => { if (ok) meldung(`Gesichert als „${datei.name}“`); });
+}
+// Stand e wiederherstellen: im geöffneten Projekt als Rückgängig-Schritt; ein anderes Projekt wird erst geöffnet; liegt es im Papierkorb
+// bzw. ist es beschädigt, kommt der Stand als neues Projekt
+function versionWiederherstellen(pid, e) {
+  if (schreibschutz && pid === projektId) { leseBand(true); return; }
+  let d; try { d = JSON.parse(e.text); pruefeProjekt(d); migriere(d); probeProjekt(d); } catch (er) { meldung('Dieser Stand lässt sich nicht öffnen'); return; }
+  const wann = zeitDE(e.zeit);
+  if (pid !== projektId) {
+    listeAuffrischen();
+    let akt = null; const roh = lsLesen(pSchluessel(pid));
+    if (projekte.some(q => q.id === pid) && roh !== null && !projektDefekt(jsonVon(roh))) { try { akt = projektLesen(pid); probeProjekt(akt); } catch (er) { akt = null; } }
+    if (!akt) {
+      if (!projektAnlegen(d, `Stand vom ${wann}`)) { meldung('Nicht angelegt – Speicher voll. Ältere Projekte als Datei sichern und löschen', null, { bleibt: true }); return; }
+      stapel = [{ s: 'start' }]; zeichne(); meldung(`Stand vom ${wann} als Projekt „${projektName(P)}“ geöffnet`); return;
+    }
+    projektAktiv(pid, akt);
+  }
+  P = d; aenderung(`Stand vom ${wann} wiederherstellen`); sichern();
+  stapelBereinigen(); zeichne();
+  meldung(`Stand vom ${wann} wiederhergestellt`, ['Rückgängig', () => projektRueck(false)]);
+}
+// Sammelsicherung: alle Projekte der Liste (nicht der Papierkorb) in einer Datei „JJ-MM-TT Alle Projekte.slp-sammlung.json“;
+// format 'slp-sammlung', projekte: [{ id, name, geaendert, daten }] – ein beschädigter Stand steht als Rohtext (roh) darin
+async function sammlungSichern() {
+  listeAuffrischen();
+  const jetzt = new Date().toISOString(), liste = [];
+  projektListeAnzeige().forEach(x => {
+    const akt = x.id === projektId, roh = akt ? JSON.stringify(P) : lsLesen(pSchluessel(x.id)); if (roh === null) return;
+    const d = jsonVon(roh), e = { id: x.id, name: akt ? projektName(P) : x.name || 'Unbenanntes Projekt', geaendert: x.geaendert || null };
+    if (projektDefekt(d)) e.roh = roh; else e.daten = d;
+    liste.push(e);
+  });
+  if (!liste.length) { meldung('Keine Projekte zum Sichern'); return false; }
+  const name = `${dateiDatum()} Alle Projekte.slp-sammlung.json`;
+  const datei = new File([JSON.stringify({ format: 'slp-sammlung', version: 1, app: APP_FASSUNG, zeit: jetzt, projekte: liste }, null, 1)], name, { type: 'application/json' });
+  if (!await dateiAusgeben(datei)) return false;
+  if (!schreibschutz) {
+    listeAuffrischen();
+    projekte.forEach(q => { if (liste.some(e => e.id === q.id && e.daten)) { q.export = jetzt; q.geaendertSeitExport = null; } });
+    try { localStorage.setItem(PLISTE, JSON.stringify(projekte)); } catch (e) {}
+  }
+  ansicht.export = jetzt; ansichtMerken();
+  meldung(`${liste.length === 1 ? '1 Projekt' : liste.length + ' Projekte'} gesichert als „${name}“`);
+  const b = stapel[stapel.length - 1]; if (b && (b.s === 'start' || b.s === 'projekte') && !fensterStapel.length) zeichne();
+  if (ED) standAnzeigen();
+  return true;
+}
+// Sammeldatei öffnen: Projekte einzeln wählbar (alle lesbaren vorgewählt); als weitere Projekte (gleiche Namen mit „ (2)“) oder
+// gleichnamige ersetzen. Jedes wird wie eine einzelne Datei geprüft (pruefeProjekt, Probezeichnen).
+function sammlungOeffnen(d, dateiName) {
+  const roh = Array.isArray(d.projekte) ? d.projekte.filter(x => x && typeof x === 'object').slice(0, 500) : [];
+  const da = new Set(projektListeAnzeige().map(x => x.id === projektId ? projektName(P) : x.name));
+  const eintraege = roh.map(x => {
+    let dd = null, rep = [];
+    if (x.daten) { try { dd = kopie(x.daten); rep = pruefeProjekt(dd, true); migriere(dd); probeProjekt(dd); } catch (e) { dd = null; } }
+    const name = dd ? projektName(dd) : (typeof x.name === 'string' && x.name) || 'Unbenanntes Projekt';
+    const cb = h('input', { type: 'checkbox', checked: !!dd || null, disabled: !dd || null, on: { change: () => knopfStand() } });
+    const un = dd ? [`${dd.verteiler.length} Verteiler`, x.geaendert ? 'geändert ' + zeitDE(x.geaendert) : null, da.has(name) ? 'gibt es schon' : null, rep.length ? `${rep.length} Angaben ersetzt` : null].filter(Boolean).join(' · ')
+      : x.roh ? 'beschädigt – lässt sich nicht öffnen' : 'lässt sich nicht öffnen';
+    return { d: dd, name, cb, el: h('label', {}, cb, h('span', {}, name, h('small', {}, un))) };
+  });
+  if (!eintraege.length) { meldung(`„${dateiName}“ enthält keine Projekte`); return; }
+  let ersetzKnopf = null, oeffnenKnopf = null;
+  const gewaehlt = () => eintraege.filter(x => x.d && x.cb.checked);
+  function knopfStand() { const g = gewaehlt(); if (oeffnenKnopf) oeffnenKnopf.disabled = !g.length;
+    if (ersetzKnopf) ersetzKnopf.style.display = g.some(x => da.has(x.name)) ? '' : 'none'; }
+  const uebernehmen = (s, ersetzen) => {
+    listeAuffrischen();
+    const jetzt = new Date().toISOString(); let n = 0, voll = false;
+    for (const x of gewaehlt()) {
+      const dd = x.d, nm = new Map(projektListeAnzeige().map(q => [q.id === projektId ? projektName(P) : q.name, q.id])), gleich = nm.get(projektName(dd));
+      let pid;
+      if (ersetzen && gleich) pid = gleich;
+      else { pid = id(); if (gleich) { let k = 2; while (nm.has(`${projektName(dd)} (${k})`)) k++; dd.projekt.projekt = `${projektName(dd)} (${k})`; } }
+      if (pid === projektId) {      // das geöffnete Projekt: als Rückgängig-Schritt
+        if (schreibschutz) continue;
+        P = dd; aenderung('Projekt ersetzen'); sichern(); if (speicherFehler) { voll = true; break; } exportStand('importiert'); n++; continue;
+      }
+      let q = projekte.find(y => y.id === pid); const neuQ = !q;
+      try {
+        localStorage.setItem(pSchluessel(pid), JSON.stringify(dd));
+        if (neuQ) { q = { id: pid }; projekte.push(q); }
+        Object.assign(q, { name: projektName(dd), geaendert: jetzt, importiert: jetzt, geaendertSeitExport: null });
+        localStorage.setItem(PLISTE, JSON.stringify(projekte));
+        delete verlaeufe[pid]; fensterMelden({ art: 'gespeichert', id: pid, zeit: jetzt }); n++;
+      } catch (e) {
+        voll = true;
+        if (neuQ) { projekte = projekte.filter(y => y.id !== pid); try { localStorage.removeItem(pSchluessel(pid)); } catch (er) {} }
+        break;
+      }
+    }
+    s(false); stapel = [{ s: 'start' }, { s: 'projekte' }]; zeichne();
+    meldung(`${n === 1 ? '1 Projekt' : n + ' Projekte'} übernommen` + (voll ? ' – Speicher voll, die übrigen nicht' : ''), voll ? ['Als Datei sichern', exportieren] : null, voll ? { bleibt: true } : {});
+  };
+  fenster('Projekte aus Sammeldatei', h('div', { class: 'text' },
+    h('p', {}, `„${dateiName}“ enthält ${eintraege.length === 1 ? '1 Projekt' : eintraege.length + ' Projekte'}${d.zeit ? `, gesichert am ${zeitDE(d.zeit)}` : ''}. Welche sollen in diesen Browser?`),
+    h('div', { class: 'liste sammelwahl' }, ...eintraege.map(x => x.el)),
+    h('p', { class: 'hinweis' }, 'Die übrigen Projekte bleiben unverändert.')), s => [
+    h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen'),
+    ersetzKnopf = h('button', { class: 'knopf zweit', title: 'Projekte mit demselben Namen durch die aus der Datei ersetzen', on: { click: () => uebernehmen(s, true) } }, 'Gleichnamige ersetzen'),
+    oeffnenKnopf = h('button', { class: 'knopf', on: { click: () => uebernehmen(s, false) } }, 'Als weitere Projekte')], null, { cls: 'lang', label: 'Sammeldatei öffnen' });
+  knopfStand();
 }
 function bProjekte() {
   app.append(kopf('Projekte'));
+  papierkorbAufraeumen();      // ab v1.76: nach 30 Tagen endgültig
   // ab v1.62 (D39): ab 1024 px als Tabelle mit Spalten Verteiler, Geändert, Als Datei gesichert; Datum TT.MM.JJJJ
+  // ab v1.76 (X01): Spalte „Größe“ (Speicherbelegung im Browser), „Versionen …“ je Projekt, Papierkorb, Sammelsicherung
   const m = h('main', { class: 'breit' }), l = h('div', { class: 'liste projtab' },
-    h('div', { class: 'pkopf', 'aria-hidden': 'true' }, h('span', {}, 'Projekt'), h('span', {}, 'Verteiler'), h('span', {}, 'Geändert'), h('span', {}, 'Als Datei gesichert')));
+    h('div', { class: 'pkopf', 'aria-hidden': 'true' }, h('span', {}, 'Projekt'), h('span', {}, 'Verteiler'), h('span', {}, 'Geändert'), h('span', {}, 'Als Datei gesichert'), h('span', { class: 'pgr' }, 'Größe')));
+  let summe = 0;
   projektListeAnzeige().forEach(x => {
     const akt = x.id === projektId, d = akt ? P : jsonVon(lsLesen(pSchluessel(x.id))), n = d && Array.isArray(d.verteiler) ? d.verteiler.length : null;
-    const name = akt ? projektName(P) : x.name || 'Unbenanntes Projekt';
+    const name = akt ? projektName(P) : x.name || 'Unbenanntes Projekt', bel = belegung(x.id); summe += bel;
     const nv = n === null ? (lsLesen(pSchluessel(x.id)) !== null ? 'beschädigt' : 'Daten fehlen') : `${n} Verteiler`, ge = x.geaendert ? zeitDE(x.geaendert) : '—', da = x.export ? datumKurz(x.export) : 'nie';
+    const gr = bel ? groesse(bel) : '—';
     const z = zeile(name, akt ? 'geöffnet' : null, () => projektOeffnen(x.id),
-      { un: [nv, x.geaendert ? 'geändert ' + ge : null, x.export ? 'als Datei gesichert ' + da : 'nie als Datei gesichert'].filter(Boolean).join(' · ') });
-    [nv, ge, da].forEach(t => z.insertBefore(h('span', { class: 'psp' }, t), z.querySelector('.pfeil')));
+      { un: [nv, x.geaendert ? 'geändert ' + ge : null, x.export ? 'als Datei gesichert ' + da : 'nie als Datei gesichert', bel ? gr : null].filter(Boolean).join(' · ') });
+    [[nv], [ge], [da], [gr, 'pgr']].forEach(([t, k]) => z.insertBefore(h('span', { class: 'psp' + (k ? ' ' + k : '') }, t), z.querySelector('.pfeil')));
     l.append(h('div', { class: 'pzeile' + (akt ? ' aktiv' : '') },
       z,
       h('button', { class: 'pmehr', 'aria-label': `Aktionen für ${name}`, title: 'Aktionen', on: { click: () => menue(name, [
         akt ? null : ['Öffnen', () => projektOeffnen(x.id)],
         akt ? ['Als Datei sichern …', exportieren] : null,
+        ['Versionen …', () => versionenFenster(x.id, name), { klein: 'frühere Stände wiederherstellen' }],
         ['Duplizieren', () => projektDuplizieren(x.id), { klein: 'Kopie als weiteres Projekt' }], '—',
-        ['Löschen', () => projektLoeschen(x.id, name), { rot: true }]]) } }, '…')));
+        ['Löschen', () => projektLoeschen(x.id, name), { rot: true, klein: `in den Papierkorb, ${PKORB_TAGE} Tage wiederherstellbar` }]]) } }, '…')));
   });
   // ab v1.58 (C36/C34): „+ Neues Projekt“ als Knopf im Akzent; „Beispielprojekt öffnen“ auch hier
   m.append(l, h('div', { class: 'projektknoepfe' }, h('button', { class: 'knopf', on: { click: neuesProjektAnlegen } }, 'Neues Projekt …'),
-    h('button', { class: 'knopf zweit', title: 'Öffnen (Strg+O)', on: { click: () => document.getElementById('datei').click() } }, 'Öffnen …'),
-    h('button', { class: 'knopf zweit', on: { click: beispielOeffnen } }, 'Beispielprojekt öffnen')), h('p', { class: 'hinweis' }, 'Projekte liegen nur in diesem Browser. Sichern Sie sie regelmäßig als Datei.'));
+    h('button', { class: 'knopf zweit', title: 'Öffnen (Strg+O) – auch eine Sammeldatei aller Projekte', on: { click: () => document.getElementById('datei').click() } }, 'Öffnen …'),
+    h('button', { class: 'knopf zweit', title: 'Alle Projekte in einer Datei sichern („… Alle Projekte.slp-sammlung.json“)', on: { click: sammlungSichern } }, 'Alle als Datei sichern'),
+    h('button', { class: 'knopf zweit', on: { click: beispielOeffnen } }, 'Beispielprojekt öffnen')),
+    h('p', { class: 'hinweis' }, `Projekte liegen nur in diesem Browser (zurzeit ${groesse(summe)}). Sichern Sie sie regelmäßig als Datei – „Alle als Datei sichern“ fasst alle in einer Datei zusammen.`));
+  // Papierkorb (ab v1.76): neueste zuerst, je Zeile Wiederherstellen; im Menü auch endgültig löschen
+  const korb = papierkorbLesen().sort((a, b) => String(b.geloescht).localeCompare(String(a.geloescht)));
+  if (korb.length) {
+    const kl = h('div', { class: 'liste korb' });
+    korb.forEach(x => {
+      const name = x.name || 'Unbenanntes Projekt', rest = papierkorbRest(x);
+      const wieder = () => papierkorbZurueck(x.id);
+      const z = zeile(name, null, () => menue(name, [['Wiederherstellen', wieder], ['Versionen …', () => versionenFenster(x.id, name)], '—',
+        ['Endgültig löschen …', () => papierkorbEndgueltig([x]), { rot: true }]]),
+        { un: `gelöscht ${zeitDE(x.geloescht)} · ${rest === 1 ? 'noch 1 Tag' : `noch ${rest} Tage`}`, ohnePfeil: true });
+      kl.append(h('div', { class: 'pzeile' }, z, h('button', { class: 'knopf zweit pwieder', title: `„${name}“ wieder in die Projektliste`, on: { click: wieder } }, 'Wiederherstellen')));
+    });
+    m.append(h('h2', {}, `Papierkorb (${korb.length})`), kl,
+      h('div', { class: 'projektknoepfe' }, h('button', { class: 'knopf zweit rottext', on: { click: () => papierkorbEndgueltig(korb) } }, 'Papierkorb leeren')),
+      h('p', { class: 'hinweis' }, `Gelöschte Projekte bleiben ${PKORB_TAGE} Tage im Papierkorb, dann werden sie endgültig gelöscht.`));
+  }
   app.append(m);
 }
 // Beispielprojekt (ab v1.54, „grund“ aus tests/beispiele.js, beim Bau eingebettet); ab v1.56 als eigenes Projekt
@@ -5396,6 +5693,9 @@ function standAnzeigen() {
 function verteilerMenue(v) {
   menue('', [...P.verteiler.map(w => [w.name, () => geh({ s: 'editor', vid: w.id }), { an: w === v, klein: speisenderAbgang(w.id) ? `aus ${speisenderAbgang(w.id).v.name}` : '' }]),
     '—', ['Neuer Verteiler …', neuerVerteilerFenster], ['Einstellungen des Verteilers', () => waehle(null, { offen: true })],
+    // ab v1.76: aus dem Hauptmenü hierher (dort steht nun „Versionen …“, höchstens 20 Einträge)
+    v.layout ? ['Automatik für den ganzen Verteiler …', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
+      () => automatik(v, null), 'Anwenden')] : null,
     '—', ['Verteiler löschen …', () => verteilerLoeschen(v), { rot: true }]], null, { label: 'Verteiler' });
 }
 // ab v1.62 (D32): zwei Einträge – der Plan wie Strg+P, der Türzettel über seine Vorschau (dort: dieser Verteiler oder alle)
@@ -5416,7 +5716,8 @@ function hauptMenue(v = null) {
     ...abschnitt(
       ['Neues Projekt …', neuesProjektAnlegen], ['Alle Projekte', () => geh({ s: 'projekte' })],
       ['Öffnen …', () => document.getElementById('datei').click(), { taste: 'Strg+O' }],
-      ['Als Datei sichern …', exportieren, { taste: 'Strg+S' }], ed ? null : ['Beispielprojekt öffnen', beispielOeffnen],
+      ['Als Datei sichern …', exportieren, { taste: 'Strg+S' }], ['Versionen …', () => versionenFenster(projektId, projektName(P))],      // ab v1.76 (X01)
+      ed ? null : ['Beispielprojekt öffnen', beispielOeffnen],
       ['Projektdaten', () => ed ? waehle('p:', { springen: false }) : geh({ s: 'projekt' })],
       da ? ['Plan drucken …', drucken, { taste: 'Strg+P' }] : null,
       da ? ['Türzettel drucken …', () => geh({ s: 'tuer', vid: ed ? v.id : undefined })] : null),
@@ -5431,9 +5732,7 @@ function hauptMenue(v = null) {
       !schmal() && !fachRechts() ? [ansicht.eigenZu ? 'Eigenschaften einblenden' : 'Eigenschaften ausblenden', eigenUmschalten] : null) : []),
     ...abschnitt(
       ed ? ['Steuerstromkreise', () => waehle('st:')] : null, ed ? ['Stromkreisliste', () => geh({ s: 'liste', vid: v.id })] : null,
-      ed && v.layout ? ['Automatik für den ganzen Verteiler …', () => frage('Automatik anwenden', `Alle Vorgaben von Hand in „${v.name}“ (Spalten, neue Blätter, verschobene Geräte) entfallen.`,
-        () => automatik(v, null), 'Anwenden')] : null,
-      ed ? null : ['Neuer Verteiler …', neuerVerteilerFenster]),
+      ed ? null : ['Neuer Verteiler …', neuerVerteilerFenster]),      // ab v1.76: „Automatik für den ganzen Verteiler …“ im Verteilermenü
     ...abschnitt(['Hilfe', () => hilfe(), { taste: 'F1' }], ['Tastenkürzel', tastenHilfe, { taste: '?' }])].slice(1), null, { label: 'Menü' });
 }
 // Suche (ab v1.61, D22): Kennzeichen, Bezeichnung und Ort aller Abgänge, Gruppen, Einspeisungen und Befehlsgeber des Projekts;
@@ -6819,6 +7118,7 @@ document.getElementById('datei').addEventListener('change', async ev => {
   const nichtOeffnen = t => meldung(`„${f.name}“ lässt sich nicht öffnen: ${t}`);
   try { d = JSON.parse((await f.text()).replace(/^\ufeff/, '')); }
   catch (e) { nichtOeffnen('Die Datei ist leer, abgeschnitten oder keine Projektdatei (Endung .slp.json)'); return; }
+  if (d && typeof d === 'object' && d.format === 'slp-sammlung') { sammlungOeffnen(d, f.name); return; }      // ab v1.76 (X01)
   if (d && typeof d === 'object') { datVersion = Number(d.version) || 1; datApp = typeof d.app === 'string' ? d.app : ''; }
   try { rep = pruefeProjekt(d, true); migriere(d); }
   catch (e) { nichtOeffnen(e.message === 'keine Stromlaufplan-Datei' ? 'Das ist keine Projektdatei dieser App (Endung .slp.json)' : 'Die Projektdaten sind unvollständig'); return; }

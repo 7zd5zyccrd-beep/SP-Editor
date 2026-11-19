@@ -52,13 +52,15 @@ Befehle:
 ```
 python3 tools/app_bauen.py v1.8          # App bauen → docs/index.html, build/stromlaufplan-v1.8.html
 python3 tests/pruefen.py --vergleich     # prüfen
+python3 tests/zufall.py --seeds 1-20     # Zufalls- und Kombinationstests (ab v1.86)
 tools/sammlung_holen.sh                  # Sammlung holen (nur für Bibliothek/Auswahl)
 python3 tools/bibliothek.py              # Bibliothek neu bauen (FASSUNG/STAND im Skript)
 python3 tools/auswahl_bauen.py kandidaten-steuerung.json build/steuerung-auswahl-v0.3.html 'Steuerung v0.3' 'Untertitel' 'slp.steuerung.auswahl.v3'
 ```
 
 Voraussetzungen: Python 3, Playwright mit Chromium (`pip install playwright`,
-`playwright install chromium`).
+`playwright install chromium`); für den axe-Lauf in `tests/pruefen.py` optional
+`npm install --prefix quelle axe-core@4.10.2`.
 
 ## Fachliche Festlegungen (Stand v1.7)
 
@@ -404,6 +406,53 @@ Doppelklick), v1.66 (Hauptmenü ≤ 20 Einträge, keine Befehle in den Fächern,
 Runde D3 → v1.67 (Blatt festhalten ohne Planänderung, jeder Befehl ein Rückgängig-Schritt, Suche findet Schaltgeräte,
 Fokus immer auf der Arbeitsfläche), v1.68 Feinschliff. Unabhängige Schlussprüfung: alle Kriterien A–K erfüllt.
 v1.69 Schriftskala auch außerhalb des Editors (DS3-05). Zurückgestellt: „-F12“ 2,4 statt 2,5 mm im Übersichtsplan von `schaltungen`.
+
+## Etappe Q – Prüfung und Erweiterungen (Jean 17.11.2026: selbstständig, ohne Rückfrage)
+
+Prüfung von v1.69 durch vier Prüfer (fach, robust, ablauf, code; 56 Befunde Q01–Q56, 32 Erweiterungen X01–X32), danach Umsetzung
+in 17 Etappen; Planänderungen nur im erlaubten Umfang, je mit Vorher/Nachher. Keine neuen Schaltzeichen.
+- v1.70 Datensicherheit: unlesbaren Stand nie überschreiben (`slp.defekt.<id>.<Zeit>`, guter Stand in IndexedDB `slp`/`gut`), zwei Tabs
+  (Speicherwächter), voller Speicher sichtbar, `version`/`app` beim Speichern.
+- v1.71 Import/Export härten: CSV formelsicher (`="-F4"`), `revokeObjectURL`, `pruefeProjekt()` repariert statt abzulehnen, Importfälle
+  `tests/dateien/`, „Ohne Vorgaben von Hand öffnen“.
+- v1.72 Fachfehler: PE/PEN nie durch ein Schaltglied, Kopfgeräte 1/N/PE (`lasttrenn2`, `sichtrenn1` …), 1~-Motor am MSS, FU schließt
+  Wende/SD aus, Motorvorlagen ohne OL am MSS, Leitungstyp `'ohne'`, Quelle ohne N, `v.zaehler.phase`/`v.spd.phase`; PROJEKT_VERSION 3.
+- v1.73 Blattrahmen und Höhenbudget: breite FI-Gruppen im Übersichtsplan geteilt, hohe Abgänge mit Rahmenprüfung, A1/A2 links in der
+  letzten Spalte.
+- v1.74 Fachwarnungen: FI-Überlast, ohne Schutzorgan, RCD-Kaskade/Typ, LS hinter LS, Trennschalter, Motor ohne Überlastschutz,
+  PV/Speicher 1~ > 4,6 kVA; Beispiel `warnungen`.
+- v1.75 Planfehler mittel: Klemmenplan TN-C, Hybrid-WR mit Speicher in der Übersicht, Brücken im Steuer-Klemmenplan, PEN-Schiene,
+  „L (L2)“ an 1~-UV, Türzettel.
+- v1.76 Versionsstände (IndexedDB `staende`), Papierkorb 30 Tage, Sammelsicherung „Alle Projekte als Datei“, `navigator.storage.persist()`.
+- v1.77 Bemessung I: `IZ[verlegeart]`, Häufung, `k.leitung.laenge/verlegung/haeufung`, Spannungsfall (`P.projekt.duMax`),
+  Querschnittvorschlag; PROJEKT_VERSION 4; Beispiel `bemessung`.
+- v1.78 Bemessung II: `v.netz.zs`, Abschaltbedingung Zs · Ia ≤ U0, `k.last = { kw, gz }`, Summenstrom, Schieflast, Phasenverteilung nach
+  Leistung; PROJEKT_VERSION 5; Beispiel `abschaltung`.
+- v1.79 Projektweite Stromkreisliste (CSV mit Spalte Verteiler, Leistung, Zs) und Prüfprotokoll-Vorlage A4 quer (`pruefDrucken()`).
+- v1.80 Stückliste (`stueckliste()`, `stuecklisteDaten()`, CSV, Blatt `P.projekt.stueckliste`), Steckdosenanzahl `k.ziel.anzahl`;
+  PROJEKT_VERSION 6; Beispiel `stueckliste`.
+- v1.81 Revisionen `P.revisionen` (Kurzhash je Blatt, `PLAN.blattHash`, „Revision festschreiben …“), Projektkopf (Bauherr, Anlage,
+  `anschrift2`, Prüfer); PROJEKT_VERSION 7; Beispiel `revision`.
+- v1.82 Verteilervorlagen (`VERTEILER_VORLAGEN`, eigene in `slp.vorlagen.v1`), „Verteiler duplizieren“ (`neueKennungen()`),
+  Eingabevorschläge für Bezeichnung/Ort; Beispiele `vorlage_wohnung`, `vorlage_baustrom`.
+- v1.83 Zentraler Not-Aus `spannung.freigabe` (`freigabeBauen()`, Hilfsschütz -K, Freigabekontakt 23–24 in der gemeinsamen L);
+  PROJEKT_VERSION 8; Beispiel `notaus`.
+- v1.84 Netzform TT, `v.erder.ra`, Haupterdungsschiene mit Anlagenerder (`ttErder()`), Warnungen RA · IΔn, SPD 3+1; PROJEKT_VERSION 9;
+  Beispiel `tt`.
+- v1.85 Leistung: Planung je Verteiler zwischengespeichert (`PLANUNG`, `PLAN.planung()`), `{ liste: true }`, `{ stueckweise: true }`
+  + `res.weiter(n)`, Druck in Stücken; `tests/leistung.py`.
+- v1.86 Kleinigkeiten, Qualität, Tests: Strg+V an der Gruppe hinein (`inGruppeEinfuegen()`, Umschalt+Strg+V dahinter), einzige
+  Steuerspannungsquelle automatisch, `ceeFolgen()`, Reiter Steuerung ab 1280 px beschriftet, Hinweis im leeren Kreis, axe ohne
+  „serious“ (Fach als `<article>`, Kopf `<header>`), CSP-`<meta>`, optionale Angaben `v.spd.typ`, `v.zaehler.art`, `k.schalt.spule`/
+  `g.spule` (PROJEKT_VERSION 10, Beispiel `angaben`), keine Speisung im Kreis (`gespeistAus()`), Build-Prüfungen in `app_bauen.py`,
+  `tests/zufall.py --seeds 1-20` (mit `tests/zufall_seite.js`), iPad-, Türzettel- und axe-Lauf in `tests/pruefen.py`
+  (axe: `npm install --prefix quelle axe-core@4.10.2`).
+
+**Offen für Jean:** Auswahlblatt für neue Schaltzeichen – Drehstromzähler mit N (Vierleiter), Wandlermessung, SLS (selektiver
+Hauptleitungsschutzschalter), AFDD/Brandschutzschalter, Steuerbox bzw. Steuerkontakt nach § 14a EnWG, Isolationsüberwachung, NA-Schutz,
+CEE-Einspeisestecker, Rollladenmotor (auf/ab), Sicherheitsrelais/Not-Aus-Schaltgerät, Batterie bzw. Hybrid-Wechselrichter einpolig;
+Teil-Neuzeichnen großer Projekte (V7; Leistung auf dem iPad bei sehr großen Projekten); Prüfung am echten iPad/iPhone (Tastatur,
+Safe Areas, Pencil).
 
 ## Technische Eckwerte
 

@@ -385,6 +385,12 @@ window.BEISPIELE = {
     const fg = freigabeAnlegen(hv); freigabeNotaus(hv, 2);
     const st = hv.steuerung, g = id => st.geraete.find(x => x.id === id);
     g(fg.notaus[0]).ort = 'Halle'; g(fg.notaus[1]).ort = 'Tor'; sichern(); zeichne(); },
+  // ab v1.86 (X14, X15, X32): wie trafo (Steuertrafo 230/24 V), dazu Überspannungsschutz Typ 1+2, Zweirichtungszähler und
+  // Spulenspannung 24 V AC an allen Schaltgeräten der Abgänge
+  angaben: () => { BEISPIELE.trafo(); const [hv] = P.verteiler;
+    hv.spd.typ = '1+2'; hv.zaehler.art = 'Zweirichtung';
+    alleKnoten(hv, k => { if (k.schalt && k.schalt.typ) k.schalt.spule = '24 V AC'; });
+    sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

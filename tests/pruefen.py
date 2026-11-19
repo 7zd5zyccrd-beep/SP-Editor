@@ -4,6 +4,9 @@
 - Blätter als PNG und der Druck als PDF nach build/pruefung/
 - Importfälle aus tests/dateien: öffnen repariert statt abgelehnt, danach Export (ab v1.71); CSV formelsicher
 - Prüfprotokoll (ab v1.79) aus bemessung und schaltungen als PDF: A4 quer, Seitenzahl, Spaltenköpfe
+- ab v1.86: Türzettel-PDF (A4 hoch), optionale Angaben (Beispiel angaben), iPad-Lauf (Antippen, Kontextleiste, Palette) und,
+  falls axe-core installiert ist (npm install --prefix quelle axe-core@4.10.2), Barrierefreiheit ohne „serious“/„critical“
+- Zufalls- und Kombinationstests getrennt: python3 tests/zufall.py --seeds 1-20
 - mit --vergleich: SVG aller Blätter gegen tests/referenz.json (bitgleich);
   mit --referenz: Referenz neu schreiben (nur nach einer gewollten Änderung!)
 Aufruf: python3 tests/pruefen.py [--vergleich | --referenz]"""
@@ -22,7 +25,7 @@ modus = sys.argv[1] if len(sys.argv) > 1 else ''
 hashes, fehler = {}, []
 with sync_playwright() as p:
     b = p.chromium.launch()
-    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung', 'stueckliste', 'revision', 'vorlage_wohnung', 'vorlage_baustrom', 'notaus', 'tt']:
+    for name in ['grund', 'klemmen', 'schalt', 'steuerung', 'gemeinsam', 'bruecke', 'bruecke0', 'eingabe', 'zeitrelais', 'vorlagen', 'trafo', 'trafo400', 'layout', 'zusatz', 'steuerfrei', 'pv', 'speicher', 'wallbox', 'motor', 'motorsteuerung', 'umrichter', 'schaltungen', 'pumpe', 'tncs', 'tncuv', 'treppenlicht', 'breitgruppe', 'einphasig', 'motor1mss', 'baustrom', 'breitgruppe_ue', 'pvgruppe', 'spalte10', 'warnungen', 'bemessung', 'abschaltung', 'stueckliste', 'revision', 'vorlage_wohnung', 'vorlage_baustrom', 'notaus', 'tt', 'angaben']:
         pg = b.new_page(viewport={'width': 1100, 'height': 900}, device_scale_factor=2)
         pg.on('pageerror', lambda e, n=name: fehler.append(f'{n}: {e}'))
         pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
@@ -321,6 +324,23 @@ with sync_playwright() as p:
             if sf != soll: fehler.append(f'revision: Schriftfeld-Revisionen {sf}, erwartet {soll}')
             if not r[4]: fehler.append('revision: Revisionstabelle fehlt auf dem Deckblatt')
             print(name, ': Revision 1 ändert Blätter', ge)
+        # ab v1.86 (X14, X15, X32): optionale Angaben stehen im Plan; abweichende Spulenspannung wird gemeldet
+        if name == 'angaben':
+            r = pg.evaluate("""() => { const t = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }).blaetter.map(b => b.svg.textContent).join(' ');
+                const vor = berechne(P.verteiler[0]).steuer.warn.length;
+                const k = abgangsFolge(P.verteiler[0]).map(x => knoten(P.verteiler[0], x.slice(2)).k).find(k => k.schalt && k.schalt.typ === 'schuetz'); k.schalt.spule = '230 V AC';
+                const w = berechne(P.verteiler[0]).steuer.warn.filter(x => /Spulenspannung 230 V AC passt nicht zur Steuerspannung 24 V AC/.test(x)).length; k.schalt.spule = '24 V AC';
+                return [t.includes('Typ 1+2'), t.includes('Zweirichtung'), (t.match(/24 V AC/g) || []).length, vor, w]; }""")
+            if not (r[0] and r[1] and r[2] >= 4 and r[3] == 0 and r[4] == 1): fehler.append(f'angaben: SPD-Typ/Zählerart/Spulenspannung im Plan bzw. Prüfung {r}')
+        # ab v1.86 (Q53): Türzettel als PDF (A4 hoch, je Verteiler mindestens eine Seite)
+        if name == 'grund':
+            n = pg.evaluate("() => { window.print = () => {}; tuerDrucken(P.verteiler); return document.querySelectorAll('#druck .tz').length; }")
+            pg.emulate_media(media='print'); pdf = pg.pdf(prefer_css_page_size=True); pg.emulate_media(media='screen')
+            (AUS / f'{name}_tuerzettel.pdf').write_bytes(pdf)
+            seiten = len(re.findall(rb'/Type\s*/Page[^s]', pdf)); box = re.search(rb'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)', pdf)
+            if not box or abs(float(box.group(1)) - 595) > 2 or abs(float(box.group(2)) - 841.9) > 2: fehler.append('grund: Türzettel-PDF nicht A4 hoch')
+            if seiten < 2 or n < 2: fehler.append(f'grund: Türzettel-PDF mit {seiten} Seiten, {n} Türzetteln (2 Verteiler)')
+            print(name, ': Türzettel', seiten, 'Seiten')
         pg.evaluate("window.print = () => {}; drucken(true)"); pg.wait_for_timeout(300)
         pg.emulate_media(media='print'); pg.pdf(path=str(AUS / f'{name}.pdf'), prefer_css_page_size=True); pg.emulate_media(media='screen')
         pg.close()
@@ -375,6 +395,51 @@ with sync_playwright() as p:
     if any(re.match(r'^[-+@]', c) or c.startswith('=') and not re.fullmatch(r'="[^"]*"', c) for z in zeilen for c in z.split(';')):
         fehler.append('CSV: Zelle beginnt mit einem Formelzeichen')
     ctx.close()
+    # ab v1.86 (Q53, X26): iPad-Lauf – Editor antippen, Palette, Kontextleiste ohne Tastatur (Kopieren, „Einfügen in Gruppe“), Fach von unten
+    ctx = b.new_context(**{k: w for k, w in p.devices['iPad Pro 11'].items() if k != 'default_browser_type'}); pg = ctx.new_page()
+    perr = []; pg.on('pageerror', lambda e: perr.append(str(e)))
+    pg.goto(APP.as_uri()); pg.wait_for_timeout(300); pg.add_script_tag(content=BSP)
+    pg.evaluate("BEISPIELE.grund(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"); pg.wait_for_timeout(500)
+    gid = pg.evaluate("P.verteiler[0].knoten.find(k => k.typ === 'gruppe').id"); aid = pg.evaluate("P.verteiler[0].knoten.find(k => k.typ === 'abgang').id")
+    nG = f"knoten(P.verteiler[0], '{gid}').k.kinder.length"; n0 = pg.evaluate(nG)
+    def tippe(sel):
+        loc = pg.locator(sel).first; loc.scroll_into_view_if_needed(); bb = loc.bounding_box(); pg.touchscreen.tap(bb['x'] + bb['width'] / 2, bb['y'] + min(bb['height'] / 2, 12)); pg.wait_for_timeout(350)
+    pg.evaluate(f"waehle('k:{aid}')"); pg.wait_for_timeout(300)
+    pg.evaluate("befehle(ED.b.sel).find(x => x.id === 'kopieren').f()"); pg.wait_for_timeout(200)
+    pg.evaluate(f"waehle('k:{gid}')"); pg.wait_for_timeout(400)
+    kn = pg.locator('.kontext button', has_text='Einfügen in Gruppe')
+    if not kn.count():      # in der Leiste nur Kernbefehle – sonst über „Mehr“
+        tippe('.kontext button.mehr'); kn = pg.locator('.fenster button', has_text='Einfügen in Gruppe')
+    if not kn.count(): fehler.append('iPad: „Einfügen in Gruppe“ fehlt in der Kontextleiste')
+    else:
+        bb = kn.first.bounding_box(); pg.touchscreen.tap(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); pg.wait_for_timeout(500)
+        if pg.evaluate(nG) != n0 + 1: fehler.append(f'iPad: „Einfügen in Gruppe“ ergab {n0} → {pg.evaluate(nG)} Abgänge in der Gruppe')
+    n1 = pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()")
+    tippe('.edpal .werkzeug:has-text("Leuchte")')
+    if pg.evaluate("(() => { let n = 0; alleKnoten(P.verteiler[0], () => n++); return n; })()") != n1 + 1: fehler.append('iPad: Palette antippen fügt nicht ein')
+    r = pg.evaluate("[!!document.querySelector('.edeigen'), getComputedStyle(document.querySelector('.edeigen')).display !== 'none', Math.min(...[...document.querySelectorAll('.kontext button')].map(x => x.getBoundingClientRect().height))]")
+    if not (r[0] and r[1]) or r[2] < 44: fehler.append(f'iPad: Fach bzw. Kontextleiste (Tippfläche ≥ 44 px) {r}')
+    pg.screenshot(path=str(AUS / 'ipad_editor.png'))
+    fehler += [f'iPad: {x}' for x in perr]
+    print('iPad-Lauf:', 'in Ordnung' if not perr else perr[:2])
+    ctx.close()
+    # ab v1.86 (Q50, X26): Barrierefreiheit mit axe-core (falls installiert: npm install --prefix quelle axe-core@4.10.2) – keine
+    # Befunde „serious“ oder „critical“ auf Start, Editor (mit Auswahl, Steuerung) und Verteiler
+    import os
+    axe = next((x for x in [os.environ.get('AXE_CORE', ''), W / 'quelle' / 'node_modules' / 'axe-core' / 'axe.min.js'] if x and pathlib.Path(x).is_file()), None)
+    if not axe: print('axe-core nicht gefunden – Barrierefreiheit übersprungen (npm install --prefix quelle axe-core@4.10.2)')
+    else:
+        pg = b.new_page(viewport={'width': 1440, 'height': 900}); pg.goto(APP.as_uri()); pg.wait_for_timeout(300)
+        pg.add_script_tag(content=BSP); pg.add_script_tag(path=str(axe))
+        for n, js in [('Start', "BEISPIELE.grund(); stapel = [{ s: 'start' }]; zeichne()"), ('Editor', "stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id }]; zeichne()"),
+                      ('Editor Auswahl', "waehle('k:' + P.verteiler[0].knoten[1].id)"), ('Verteiler', "stapel = [{ s: 'start' }, { s: 'verteiler', vid: P.verteiler[0].id }]; zeichne()"),
+                      ('Steuerung', "BEISPIELE.steuerung(); stapel = [{ s: 'start' }, { s: 'editor', vid: P.verteiler[0].id, palette: 'st' }]; zeichne(); waehle('kr:' + P.verteiler[0].steuerung.kreise[0].id)")]:
+            pg.evaluate(js); pg.wait_for_timeout(400)
+            v = pg.evaluate("async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => [v.impact, v.id, v.nodes.length])")
+            schwer = [x for x in v if x[0] in ('serious', 'critical')]
+            if schwer: fehler.append(f'axe {n}: {schwer}')
+            print('axe', n, ':', v or 'ohne Befund')
+        pg.close()
     b.close()
 if modus == '--referenz':
     REF.write_text(json.dumps(hashes, ensure_ascii=False, indent=1)); print('Referenz geschrieben:', REF)

@@ -692,11 +692,13 @@ const PLAN = (() => {
     // am oberen Anschluss des Schaltgeräts, N 3 mm tiefer (noch in dessen Anschlussstrich),
     // je mit gehendem Querverweis nach rechts zum Steuerstromkreis
     if (a.abgriff) {
-      const y1 = Math.max(yS, cursor + 2), iN = arten.indexOf('N'), xr = xs[xs.length - 1] + 4;
+      // ab v1.86 (X26, Zufallstest): Zuleitung mit PEN (zum TN-C-Unterverteiler) – der PEN übernimmt die Aufgabe des N; ohne beides
+      // nur L (vorher Leiter mit x undefiniert)
+      const y1 = Math.max(yS, cursor + 2), iN = arten.indexOf('N') >= 0 ? arten.indexOf('N') : arten.indexOf('PEN'), xr = xs[xs.length - 1] + 4;
       const ref = abgriffRef(ctx, a);
       // Steuer-LS: L und N enden im Abgriff (Ecke, kein Verbindungspunkt)
       if (k.steuer) { leiter(g, xs[0], enden[0], xs[0], y1, arten[0]); leiter(g, xs[iN], enden[iN], xs[iN], y1 + 3, 'N'); }
-      [[0, y1], [iN, y1 + 3]].forEach(([i, y]) => {
+      [[0, y1], [iN, y1 + 3]].filter(([i]) => i >= 0).forEach(([i, y]) => {
         if (!k.steuer) punkt(g, xs[i], y, arten[i]);
         leiter(g, xs[i], y, xr, y, arten[i]);
         setze(g, 'qv_gehend', xr, y, t => t.richtung === 'w', arten[i]);
@@ -1233,7 +1235,7 @@ const PLAN = (() => {
     const xr = xs[xs.length - 1] + ABSTAND, yPe = bars[quelle('PE', bars)];
     leiter(g, pe.x, pe.y, pe.x, pe.y + 4, 'PE'); leiter(g, pe.x, pe.y + 4, xr, pe.y + 4, 'PE');
     leiter(g, xr, pe.y + 4, xr, yPe, 'PE'); punkt(g, xr, yPe, 'PE');
-    teil(`s:${v.id}`); bmk(g, R3(z, x0), R1(z, yG), e.kopf.spd.t, []); teil(null);
+    teil(`s:${v.id}`); bmk(g, R3(z, x0), R1(z, yG), e.kopf.spd.t, spdTypText(v) ? [spdTypText(v)] : []); teil(null);
     return pe.y + 8;
   }
 
@@ -1297,7 +1299,7 @@ const PLAN = (() => {
       const tp = setze(g, gz, xg, top, null, arten), t = unten(tp), pole = idx.length;
       if (!zaehler) anschlussNr(g, tp, ...polNr(arten));
       t.forEach((p, i) => { if (i < pole) enden[idx[i]] = p.y; });
-      bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]));
+      bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? (zaehlerArtText(v) ? [zaehlerArtText(v)] : []) : bemZeilen(v[feld]));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
@@ -1638,9 +1640,12 @@ const PLAN = (() => {
     });
     return tief;
   }
+  // ab v1.86 (X14, X32): optionale Angaben am Überspannungsschutz bzw. Zähler – nur wenn eingetragen
+  function spdTypText(v) { return v.spd && ['1', '1+2', '2', '3'].includes(v.spd.typ) ? 'Typ ' + v.spd.typ : ''; }
+  function zaehlerArtText(v) { return String((v.zaehler && v.zaehler.art) || '').trim().slice(0, 30); }
   function ueSpd(g, e, v, x, ySrc, yG, P) {
     punkt(g, x, ySrc); linie(g, x, ySrc, x, yG, 0.25);
-    return ueGeraet(g, v.spd.zeichen, x, yG, e.kopf.spd.t, [], P).unten + 4;
+    return ueGeraet(g, v.spd.zeichen, x, yG, e.kopf.spd.t, spdTypText(v) ? [spdTypText(v)] : [], P).unten + 4;
   }
   function ueBreite(it) { return it.art === 'gruppe' ? Math.max(1, it.teil ? it.teil.bis - it.teil.von : it.k.kinder.filter(k => k.typ === 'abgang').length) : 1; }
   // Einspeisung einpolig von oben bis zur Schiene; gibt die Schienenhöhe zurück
@@ -1655,7 +1660,7 @@ const PLAN = (() => {
       const z = v[feld].zeichen; if (!z) continue;
       const top = y + 2.5;
       if (g) { linie(g, x, y, x, top, 0.25);
-        y = ueGeraet(g, z, x, top, e.kopf[feld].t, feld === 'zaehler' ? [] : bemZeilen(v[feld]), UE_FEED_X).unten; }
+        y = ueGeraet(g, z, x, top, e.kopf[feld].t, feld === 'zaehler' ? (zaehlerArtText(v) ? [zaehlerArtText(v)] : []) : bemZeilen(v[feld]), UE_FEED_X).unten; }
       else y = top + hoehe(UE[z]);
     }
     if (v.netzform === 'TN-C-S') {
@@ -2245,10 +2250,11 @@ const PLAN = (() => {
           const xr = R3(z, x) - (nrLinks ? textBreite(anNr[0], 1.8) + 0.8 : 0);
           if (sa) {
             const sg = sa.schalt;
-            bmkSt(g, x, xr, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || '']);
+            // ab v1.86 (X15): Spulenspannung als weitere Zeile, nur wenn eingetragen
+            bmkSt(g, x, xr, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || ''].concat(sg.spule ? [sg.spule] : []));
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4); teil(vk);      // der Kontaktspiegel bleibt unter N
           } else if (zr || hk) {
-            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [zr && ger.zeit ? zeitText(ger.zeit) : '']);
+            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [zr && ger.zeit ? zeitText(ger.zeit) : ''].concat(zr && String(ger.spule || '').trim() ? [String(ger.spule).trim().slice(0, 20)] : []));
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger); teil(vk);
           } else bmkSt(g, x, xr, R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
           if (nrLinks) { const xl = R3(z, x) + 0.7; text(g, xl, ST_YV + 2.2, anNr[0], 1.8, 'end'); text(g, xl, y - 0.6, anNr[1], 1.8, 'end'); }

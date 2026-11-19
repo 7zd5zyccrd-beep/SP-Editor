@@ -1782,5 +1782,59 @@
    "5 Baustromverteiler abgang",
    "59addb24c5f0717a5a7cd5e6d1ff7ea4"
   ]
+ ],
+ "angaben": [
+  [
+   "1 Deckblatt deckblatt",
+   "4fa36c5ccdeba8c98b3be696875c2ad0"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "8a1df02ef36d9e3c6fe61211bb687276"
+  ],
+  [
+   "3 HV uebersicht",
+   "6f6de63141c29e1b3f0b17423778707c"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "342bfd642cdeb420a37ad420eee7d341"
+  ],
+  [
+   "5 HV einspeisung",
+   "749da0027ebbaab425a9853dca981e43"
+  ],
+  [
+   "6 HV abgang",
+   "b776d68c142afb459599202a456b1f9d"
+  ],
+  [
+   "7 HV abgang",
+   "c470b53af85d4773fbd39e3ba1c8716e"
+  ],
+  [
+   "8 HV abgang",
+   "27c42daf2d120565630f468356fa10a9"
+  ],
+  [
+   "9 HV steuerung",
+   "7c30603793743aab38e85fc666d4e2e4"
+  ],
+  [
+   "10 UV Werkstatt kombiniert",
+   "d7e0a47ce3e7180e13e6fb216640c446"
+  ],
+  [
+   "11 HV klemmen",
+   "d0a5ff9362e2bc0048a2de528f2ba3cc"
+  ],
+  [
+   "12 HV klemmen",
+   "3a4c48ca300ce77cd994fd42eba40978"
+  ],
+  [
+   "13 HV klemmen",
+   "55977ef6264ab6cff7d5d3431a1c2f91"
+  ]
  ]
 }

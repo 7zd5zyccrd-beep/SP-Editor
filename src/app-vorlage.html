@@ -16,6 +16,17 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.83: Zentraler Not-Aus (Etappe X-H: X10, Q15): bei gemeinsamer Steuerspannung mit Quelle wahlweise eine Not-Aus-Freigabe
+           (stDaten(v).spannung.freigabe = { notaus: [gid …], ein: gid, k: { bmk } }, Fach „Steuerstromkreise“ → „Zentraler Not-Aus“: ohne /
+           zentrale Freigabe, 1–5 Not-Aus-Taster in Reihe, Kennzeichen des Hilfsschützes). freigabeBauen() bildet daraus beim Berechnen den
+           ersten Kreis „Not-Aus-Freigabe“ (nicht gespeichert): Not-Aus-Öffner in Reihe, Ein-Taster, Spule -K (Hilfsschütz, 2 Schließer),
+           Selbsthaltung über 13–14, Freigabekontakt 23–24 in der gemeinsamen L – die L ist dort unterbrochen und läuft über eine Schleife
+           unter dem Kontakt weiter, alle Kreise an der gemeinsamen Steuerspannung hängen dahinter; Kontaktspiegel und Querverweise wie bei
+           Schützen, Not-Aus-Taster rechts beschriftet; gebrückte Klemmen: die erste Klemme hinter der Freigabe kommt von -K:24 (Klemmenplan „intern“). Hinweis „Vereinfachte
+           Darstellung – Sicherheitsfunktion nach EN ISO 13849 mit Sicherheitsschaltgerät“ im Fach und im Plan. Vorlagen „Motor Ein/Aus“,
+           „Wendeschaltung“ und „Stern-Dreieck“ fragen „über zentrale Freigabe“ (legt sie bei Bedarf an). Warnungen mit „So beheben“: Freigabe
+           ohne gemeinsame Steuerspannung, ohne Not-Aus- bzw. Ein-Taster, Kreis mit eigenem Abgriff an der Freigabe vorbei. PROJEKT_VERSION 8;
+           Beispiel `notaus`; ohne Freigabe bitgleich.
      v1.82: Verteilervorlagen und schnelle Eingabe (Etappe X-G: X08, X09, X12-Vorlage): „Neuer Verteiler“ mit Vorlage (VERTEILER_VORLAGEN:
            leer, Wohnungsverteiler 3 FI, EFH-Hauptverteiler mit Sicherungstrenner 35 A, Zähler und SPD, Baustromverteiler mit Einbausteckdosen ohne
            Leitung, Werkstatt mit Klemmleiste, Kompressor, Schütz, Ein/Aus und Steuer-LS) und eigenen Vorlagen (slp.vorlagen.v1, „Als Vorlage
@@ -1537,9 +1548,9 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // ---------------------------------------------------------------------------
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
-// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.81: 7)
+// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.83: 8)
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 7, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 8, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -1618,7 +1629,7 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // v7 (ab v1.81, X06, Q30): optional P.revisionen = [{ rev, datum, text, name, hash: { blattNr: kurzHash } }] und im Projektkopf
 //    P.projekt.bauherr, .anlage (Anlagenanschrift), .anschrift2 (zweite Zeile der Firmenanschrift), .pruefer („Geprüft durch“) –
 //    ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
-const PROJEKT_VERSION = 7;
+const PROJEKT_VERSION = 8;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -2054,7 +2065,12 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Betriebsstrom .* über dem/, 'Schutzorgan und Leitung für den Betriebsstrom bemessen oder die Leistung prüfen.'],
   [/nicht lastschaltend/, 'Als Hauptschalter einen Lasttrennschalter wählen.'],
   [/Motor .* ohne Überlastschutz/, 'Motorschutzschalter als Schutzorgan wählen oder ein Schütz mit Überlastrelais vorsehen.'],
-  [/Not-Aus mit \d+ Öffnern/, 'Weitere Kreise über einen zweiten Not-Aus-Taster oder ein Hilfsschütz abschalten (zentrale Freigabe).']];
+  [/Not-Aus mit \d+ Öffnern/, 'Weitere Kreise über einen zweiten Not-Aus-Taster oder ein Hilfsschütz abschalten (zentrale Freigabe).'],
+  // ab v1.83 (X10): zentrale Not-Aus-Freigabe
+  [/Not-Aus-Freigabe braucht eine gemeinsame Steuerspannung/, 'Unter „Steuerstromkreise“ die Steuerspannung gemeinsam einstellen und eine Quelle wählen (Steuer-LS oder Steuertrafo) – oder die Freigabe auf „ohne“ stellen.'],
+  [/Not-Aus-Freigabe: kein Not-Aus-Taster/, 'Unter „Steuerstromkreise“ bei „Not-Aus-Taster“ die Zahl wählen.'],
+  [/Not-Aus-Freigabe: kein Ein-Taster/, 'Freigabe unter „Steuerstromkreise“ auf „ohne“ und wieder auf „zentrale Freigabe“ stellen – das legt den Ein-Taster neu an.'],
+  [/nicht über die Not-Aus-Freigabe geschaltet/, 'Im Kreis die Steuerspannung auf „gemeinsam“ stellen, damit der Not-Aus auch ihn abschaltet.']];
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
 const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), ohnePunkt(t), ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
@@ -2424,7 +2440,8 @@ function druckHinweise() {
 //            Zeitrelais (zeichen 'zeitrelais'): { fkt, zeit, hs, ho } mit verzögerten Kontakten
 //   spannung: { art: 'abgang' (je Kreis eigener Abgriff) | 'durch' (gemeinsam, durchgeschliffen)
 //              | 'bruecke' (gemeinsam über gebrückte Klemmen), quelle: Abgang oder Steuer-LS,
-//              leiste: 'X1' (hinter den Abgangsklemmen) | 'eigen' (eigene Leiste, bmk, sonst -X0) }
+//              leiste: 'X1' (hinter den Abgangsklemmen) | 'eigen' (eigene Leiste, bmk, sonst -X0),
+//              freigabe (ab v1.83): { notaus: [gid …], ein: gid, k: { bmk } } – zentraler Not-Aus, siehe freigabeBauen() }
 //   kreise:  { id, name, quelle: { art: 'abgang', kid }, eigen, pfade }; je Schaltgerät einer,
 //            dazu Kreise ohne Schaltgerät (Verbraucher Meldeleuchte oder eigenständiges Zeitrelais)
 //            eigen: true – eigener Abgriff trotz gemeinsamer Steuerspannung
@@ -2436,28 +2453,55 @@ function druckHinweise() {
 // verzögerte Kontakte Schließer n7/n8, Öffner n5/n6), Abgriff im Abgang, Klemmen und Leitungen
 // der Feldgeräte (ab v1.13), Warnungen
 // Melder und Endschalter nach DIN EN IEC 81346-2:2019 als Sensoren -B (Jean, 04.11.2026); Taster, Schalter, Not-Aus -S
-const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B',
+const ST_KZ = { meldeleuchte: 'H', zeitrelais: 'K', hilfsschuetz: 'K', daemmerung: 'B', bewegung: 'B', praesenz: 'B',
   endschalter_s: 'B', endschalter_oe: 'B', s_schwimmer: 'B', oe_schwimmer: 'B', w_schwimmer: 'B' };   // Endschalter als Positionssensoren (Jean, 04.11.2026)
 const istOeffner = z => /(^|_)oe(_|$)/.test(z);     // auch oe_thermisch (ab v1.38)
 const istVerzoegert = z => /^k_/.test(z);
-const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais');
+const stFeld = g => g.feld !== undefined ? !!g.feld : !(g.zeichen === 'meldeleuchte' || g.zeichen === 'zeitrelais' || g.zeichen === 'hilfsschuetz');
+// Zentraler Not-Aus (ab v1.83, Etappe X-H: X10, Q15): spannung.freigabe = { notaus: [gid …], ein: gid, k: { bmk } }, nur bei gemeinsamer
+// Steuerspannung mit Quelle. Daraus entsteht beim Berechnen (nicht gespeichert) der Kreis „Not-Aus-Freigabe“ vor allen anderen:
+// Pfad 1 die Not-Aus-Öffner in Reihe, der Ein-Taster (Entriegeln/Ein, Schließer) und die Spule des Hilfsschützes -K; Pfad 2 die
+// Selbsthaltung über den Schließer 13–14 von -K parallel zum Ein-Taster; Pfad 3 der Schließer 23–24 von -K, der die gemeinsame L
+// freigibt (fgL) – alle Kreise an der gemeinsamen Steuerspannung hängen dahinter. -K ist ein Gerät nur der Berechnung
+// (zeichen 'hilfsschuetz', 2 Schließer); Kennungen 'fg-<vid>…' sind je Verteiler eindeutig. Vereinfachte Darstellung – die
+// Sicherheitsfunktion nach EN ISO 13849 führt ein Sicherheitsschaltgerät aus (Hinweis im Fach und im Plan).
+const FG_NOTAUS_MAX = 5;
+function freigabeBauen(v, fg) {
+  const st = v.steuerung, da = gid => typeof gid === 'string' && (st.geraete || []).some(g => g.id === gid && g.zeichen !== 'meldeleuchte' && g.zeichen !== 'zeitrelais');
+  const not = [...new Set(Array.isArray(fg.notaus) ? fg.notaus : [])].filter(da).slice(0, FG_NOTAUS_MAX), ein = da(fg.ein) && !not.includes(fg.ein) ? fg.ein : null;
+  const b = 'fg-' + v.id, k = { id: b + '-k', zeichen: 'hilfsschuetz', bez: '', ort: '', feld: false, hs: 2, ho: 0, bmk: (fg.k && fg.k.bmk) || undefined };
+  const haupt = { id: b + '-1', zweig: null, plaetze: leerePlaetze(), verbraucher: { g: k.id } };
+  not.forEach((gid, i) => haupt.plaetze[i] = { g: gid });
+  const pfade = [haupt];
+  if (ein) { const i = not.length; haupt.plaetze[i] = { g: ein };
+    const zw = { id: b + '-2', zweig: { von: i, bis: i }, plaetze: leerePlaetze(), verbraucher: null }; zw.plaetze[i] = { g: k.id, z: 'hilfs_s' }; pfade.push(zw); }
+  const frei = { id: b + '-3', zweig: null, plaetze: leerePlaetze(), verbraucher: null, fgL: true }; frei.plaetze[0] = { g: k.id, z: 'hilfs_s' }; pfade.push(frei);
+  return { kreis: { id: b, name: 'Not-Aus-Freigabe', quelle: null, pfade, fg: true }, geraet: k, notaus: not, ein };
+}
 function berechneSteuerung(v, e, bmk, klemme) {
   const r = { geraete: {}, kontakte: {}, genutzt: {}, warn: [], warnKr: {}, gemeinsam: null, aktiv: {}, feld: {}, feldListe: [], leitung: {} }, st = v.steuerung;
   if (!st) return r;
-  const geraet = id => (st.geraete || []).find(g => g.id === id);
-  // Kontaktgeber eines Platzes: Schaltgerät eines Abgangs oder eigenständiges Zeitrelais
-  const relais = id => { const a = e.abgaenge[id]; if (a && a.schalt) return { bmk: a.schalt.bmk, hs: a.schalt.hs, ho: a.schalt.ho, zr: a.schalt.typ === 'zeitrelais' };
-    const g = geraet(id); return g && g.zeichen === 'zeitrelais' ? { bmk: null, hs: g.hs === undefined ? 1 : g.hs, ho: g.ho || 0, zr: true, g } : null; };
-  // gezeichnet werden Kreise, deren Verbraucher es gibt (Spule eines Schaltgeräts, Meldeleuchte, Zeitrelais)
-  const verbraucherDa = p => p.verbraucher && ((e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt) || geraet(p.verbraucher.g));
-  (st.kreise || []).forEach(kr => { if (kr.pfade.some(verbraucherDa)) r.aktiv[kr.id] = true; });
-  const kreise = (st.kreise || []).filter(kr => r.aktiv[kr.id]);
-  (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
   // gemeinsame Steuerspannung (durchgeschliffen oder über gebrückte Klemmen) aus einer Quelle
   const sp = st.spannung || { art: 'abgang' };
   // ab v1.72 (Q16): eine Quelle ohne N (nachträglich zum Drehstrommotor gemacht) gilt als nicht gewählt
   const qOhneN = sp.art !== 'abgang' && e.abgaenge[sp.quelle] && e.abgaenge[sp.quelle].ohneN;
-  if (sp.art !== 'abgang' && e.abgaenge[sp.quelle] && !qOhneN) {
+  const gemOk = sp.art !== 'abgang' && e.abgaenge[sp.quelle] && !qOhneN;
+  // ab v1.83 (X10): zentrale Not-Aus-Freigabe als erster Kreis, -K als Gerät nur der Berechnung
+  const fg = gemOk && sp.freigabe && typeof sp.freigabe === 'object' ? freigabeBauen(v, sp.freigabe) : null;
+  if (sp.freigabe && !fg) r.warn.push('Zentrale Not-Aus-Freigabe braucht eine gemeinsame Steuerspannung mit Quelle – sie wird nicht gezeichnet.');
+  const alleKr = fg ? [fg.kreis].concat(st.kreise || []) : (st.kreise || []);
+  const geraet = id => fg && id === fg.geraet.id ? fg.geraet : (st.geraete || []).find(g => g.id === id);
+  // Kontaktgeber eines Platzes: Schaltgerät eines Abgangs, eigenständiges Zeitrelais oder Hilfsschütz der Freigabe (ab v1.83)
+  const relais = id => { const a = e.abgaenge[id]; if (a && a.schalt) return { bmk: a.schalt.bmk, hs: a.schalt.hs, ho: a.schalt.ho, zr: a.schalt.typ === 'zeitrelais' };
+    const g = geraet(id); if (g && g.zeichen === 'hilfsschuetz') return { bmk: null, hs: g.hs, ho: g.ho, zr: false };
+    return g && g.zeichen === 'zeitrelais' ? { bmk: null, hs: g.hs === undefined ? 1 : g.hs, ho: g.ho || 0, zr: true, g } : null; };
+  // gezeichnet werden Kreise, deren Verbraucher es gibt (Spule eines Schaltgeräts, Meldeleuchte, Zeitrelais)
+  const verbraucherDa = p => p.verbraucher && ((e.abgaenge[p.verbraucher.g] && e.abgaenge[p.verbraucher.g].schalt) || geraet(p.verbraucher.g));
+  alleKr.forEach(kr => { if (kr.pfade.some(verbraucherDa)) r.aktiv[kr.id] = true; });
+  const kreise = alleKr.filter(kr => r.aktiv[kr.id]);
+  (st.geraete || []).forEach(g => { r.geraete[g.id] = bmk(ST_KZ[g.zeichen] || 'S', g.bmk); });
+  if (fg) { r.geraete[fg.geraet.id] = bmk('K', fg.geraet.bmk); r.fg = fg; }
+  if (gemOk) {
     r.gemeinsam = { art: sp.art, quelle: sp.quelle, kreise: kreise.filter(kr => !kr.eigen).map(kr => kr.id) };
     e.abgaenge[sp.quelle].abgriff = '*';
   } else if (qOhneN) r.warn.push(`Quelle der Steuerspannung ${e.abgaenge[sp.quelle].f ? e.abgaenge[sp.quelle].f.t + ' ' : ''}führt keinen N – jeder Kreis greift in seinem Abgang ab.`);
@@ -2471,7 +2515,8 @@ function berechneSteuerung(v, e, bmk, klemme) {
     let nr = eigen ? 0 : klemme;
     const ks = kreise.filter(gemeinsam);
     ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig)) kl.l[p.id] = ++nr; }));
-    ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!(j > 0 && p.zweig) || p.zweig.bis >= 6) kl.n[p.id] = ++nr; }));
+    ks.forEach(kr => kr.pfade.forEach((p, j) => { if (!p.fgL && (!(j > 0 && p.zweig) || p.zweig.bis >= 6)) kl.n[p.id] = ++nr; }));
+    if (fg) kl.frei = (ks.filter(kr => !kr.fg).map(kr => kl.l[kr.pfade[0].id])[0]) || null;     // ab v1.83: erste freigegebene L-Klemme
     if (!eigen) nrX1 = nr;
   }
   // Reihenfolge wie im Plan: Kreise an der gemeinsamen Spannung zuerst
@@ -2484,6 +2529,12 @@ function berechneSteuerung(v, e, bmk, klemme) {
     const n0 = r.warn.length;
     try { kreisPruefen(kr); } finally { r.warn.slice(n0).forEach(t => vonKreis(t, kr.id)); }
   });
+  if (fg) {        // ab v1.83: Hinweise zur Freigabe
+    const t0 = 'Not-Aus-Freigabe';
+    if (!fg.notaus.length) { r.warn.push(`${t0}: kein Not-Aus-Taster.`); vonKreis(`${t0}: kein Not-Aus-Taster.`, fg.kreis.id); }
+    if (!fg.ein) { r.warn.push(`${t0}: kein Ein-Taster – das Hilfsschütz hält sich nicht selbst.`); vonKreis(`${t0}: kein Ein-Taster – das Hilfsschütz hält sich nicht selbst.`, fg.kreis.id); }
+    kreise.filter(kr => kr.eigen).forEach(kr => { const kk = kr.pfade.find(verbraucherDa); r.warn.push(`${kr.name || (kk ? name(kk.verbraucher.g) : 'Kreis')}: eigener Abgriff – nicht über die Not-Aus-Freigabe geschaltet.`); });
+  }
   // ab v1.74 (Q15): ein Not-Aus-Taster hat üblich höchstens zwei Öffner (11–12, 21–22)
   (st.geraete || []).forEach(g => { const nb = r.genutzt[g.id]; if (g.zeichen !== 'notaus' || !nb || nb.o.length <= 2) return;
     const t = `${r.geraete[g.id].t}: Not-Aus mit ${nb.o.length} Öffnern – übliche Not-Aus-Taster haben höchstens zwei.`; r.warn.push(t);
@@ -2507,7 +2558,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
         kontakte++;
         const key = p.id + ':' + i, g = geraet(pl.g), rl = relais(pl.g);
         if (!e.abgaenge[pl.g] && !g) { r.warn.push(`Ein Platz verweist auf ein gelöschtes Gerät.`); return; }
-        if (g && g.zeichen !== 'zeitrelais') {
+        if (g && g.zeichen !== 'zeitrelais' && g.zeichen !== 'hilfsschuetz') {
           if (ST_ZEICHEN[g.zeichen] && ST_ZEICHEN[g.zeichen][1] === 'bg') taster++;
           // Befehlsgeber: Anschlüsse je Gerät fortlaufend – Schließer 13/14, 23/24 …, Öffner (auch Not-Aus) 11/12, 21/22 …
           const nb = r.genutzt[g.id] = r.genutzt[g.id] || { s: [], o: [] }, oeB = istOeffner(g.zeichen) || g.zeichen === 'notaus';
@@ -2553,7 +2604,7 @@ function berechneSteuerung(v, e, bmk, klemme) {
         if (!ord) r.warn.push(`${name(pl.g)}: mehr ${oe ? 'Öffner' : 'Schließer'} genutzt als vorhanden (${frei}).`);
       });
       // Verbraucher
-      const bisN = !zw || zw.bis >= 6;
+      const bisN = (!zw || zw.bis >= 6) && !p.fgL;      // fgL (ab v1.83): Freigabekontakt in der gemeinsamen L, endet nicht an N
       if (bisN && !p.verbraucher) r.warn.push(`${t}: ein Pfad ohne Verbraucher verbindet L direkt mit N.`);
       if (bisN && p.verbraucher) {
         const g = geraet(p.verbraucher.g), a = e.abgaenge[p.verbraucher.g];
@@ -4414,6 +4465,7 @@ function bSteuerung(b) {
     }
   }
   m.append(h('h2', {}, 'Steuerspannung'), h('div', { class: 'liste' }, ...z));
+  if (sp.art !== 'abgang') m.append(...freigabeZeilen(v, e));       // ab v1.83 (X10)
   if (sp.art !== 'abgang' && !q) m.append(h('p', { class: 'warnung' }, 'Bitte die Quelle wählen; bis dahin greift jeder Kreis in seinem Abgang ab.'));
   else if (sp.art !== 'abgang' && e.abgaenge[q.k.id] && e.abgaenge[q.k.id].ohneN) m.append(warnZeile(e.steuer.warn.find(t => /führt keinen N/.test(t)) || 'Quelle der Steuerspannung führt keinen N.'));      // ab v1.72 (Q16)
   // Kreise, je Schaltgerät einer
@@ -4439,6 +4491,54 @@ function bSteuerung(b) {
   m.append(h('h2', {}, 'Befehlsgeber, Meldeleuchten, Zeitrelais'), gl);
   app.append(m);
 }
+// ---- Zentraler Not-Aus (ab v1.83, Etappe X-H: X10, Q15) -------------------------
+// Daten in stDaten(v).spannung.freigabe (siehe freigabeBauen()); Not-Aus- und Ein-Taster sind gewöhnliche Steuergeräte (Bezeichnung,
+// Ort, Einbauort, Leitung in der Geräteliste), -K entsteht beim Berechnen
+const FG_HINWEIS = 'Vereinfachte Darstellung – die Sicherheitsfunktion nach EN ISO 13849 mit einem Sicherheitsschaltgerät ausführen.';
+const freigabeVon = v => { const sp = v.steuerung && v.steuerung.spannung; return sp && sp.freigabe && typeof sp.freigabe === 'object' ? sp.freigabe : null; };
+function freigabeAnlegen(v) {
+  const sp = stDaten(v).spannung; if (freigabeVon(v)) return sp.freigabe;
+  const n = neuesSteuerGeraet(v, 'notaus'); n.bez = 'Not-Aus';
+  const ein = neuesSteuerGeraet(v, 'taster_s'); ein.bez = 'Ein';
+  return sp.freigabe = { notaus: [n.id], ein: ein.id, k: {} };
+}
+// Freigabe entfernen; ihre Taster entfallen, wenn sie sonst nirgends verwendet sind
+function freigabeEntfernen(v) {
+  const fg = freigabeVon(v); if (!fg) return;
+  delete v.steuerung.spannung.freigabe;
+  const ids = (fg.notaus || []).concat(fg.ein || []);
+  v.steuerung.geraete = v.steuerung.geraete.filter(g => !ids.includes(g.id) || stVerwendet(v, g.id) > 0);
+}
+// Zahl der Not-Aus-Taster in Reihe (1 … FG_NOTAUS_MAX): neue heißen „Not-Aus“ (unterschieden über den Ort; kurz, weil die Freigabe in
+// der ersten, schmalen Spalte steht), überzählige entfallen (wenn sonst unbenutzt)
+function freigabeNotaus(v, n) {
+  const fg = freigabeVon(v), st = stDaten(v); if (!fg) return;
+  let l = (fg.notaus || []).filter(gid => st.geraete.some(g => g.id === gid));
+  while (l.length < n) { const g = neuesSteuerGeraet(v, 'notaus'); g.bez = 'Not-Aus';
+    // hinter den letzten Not-Aus der Freigabe einreihen – die Kennzeichen (-S…) laufen dann fortlaufend
+    const j = l.length ? st.geraete.findIndex(x => x.id === l[l.length - 1]) : -1;
+    if (j >= 0) { st.geraete.pop(); st.geraete.splice(j + 1, 0, g); }
+    l.push(g.id); }
+  const weg = l.slice(n); fg.notaus = l = l.slice(0, n);
+  st.geraete = st.geraete.filter(g => !weg.includes(g.id) || stVerwendet(v, g.id) > 0);
+}
+// Abschnitt „Zentraler Not-Aus“ im Fach Steuerstromkreise (nur bei gemeinsamer Steuerspannung)
+function freigabeZeilen(v, e) {
+  const fg = freigabeVon(v), fe = e.steuer.fg, kz = fe ? e.steuer.geraete[fe.geraet.id] : null;
+  const z = [zeile('Not-Aus-Freigabe', fg ? (kz ? `zentral über ${kz.t}` : 'zentral (nicht gezeichnet)') : 'ohne', () => wahlFeld('Zentraler Not-Aus', [
+    ['ohne', 'ohne', 'Not-Aus, falls nötig, in jedem Kreis'],
+    ['ein', 'zentrale Freigabe', 'Not-Aus-Taster in Reihe, Ein-Taster, Hilfsschütz -K mit Selbsthaltung; sein Schließer gibt die gemeinsame L frei']],
+    fg ? 'ein' : 'ohne', w => { if (w === 'ein') freigabeAnlegen(v); else freigabeEntfernen(v); }), { titel: 'Not-Aus-Taster und Hilfsschütz für alle Kreise an der gemeinsamen Steuerspannung' })];
+  if (fg) {
+    const n = fe ? fe.notaus.length : (fg.notaus || []).length;
+    z.push(zeile('Not-Aus-Taster', `${n} in Reihe`, () => wahlFeld('Not-Aus-Taster in Reihe', Array.from({ length: FG_NOTAUS_MAX }, (_, i) => [String(i + 1), String(i + 1)]), String(n),
+      w => freigabeNotaus(v, +w), { text: 'Bezeichnung, Ort und Leitung je Taster unter „Befehlsgeber“.' }), { rot: !n }));
+    if (kz) z.push(zeile('Kennzeichen Hilfsschütz', kz.t, () => { fg.k = fg.k && typeof fg.k === 'object' ? fg.k : {}; bmkFeld('Kennzeichen Hilfsschütz', fg.k, kz.hand ? '' : kz.t); }));
+  }
+  const r = [h('h2', {}, 'Zentraler Not-Aus'), h('div', { class: 'liste' }, ...z)];
+  if (fg) r.push(h('p', { class: 'hinweis' }, FG_HINWEIS));
+  return r;
+}
 // Befehle der Steuerstromkreise eines Verteilers (ab v1.67, DS3-07): Kreis für ein Schaltgerät ohne Kreis, Kreis ohne Schaltgerät,
 // Gerät vorab anlegen
 function befehleSt(v, e) {
@@ -4457,6 +4557,8 @@ function stVerwendet(v, gid) {
   let n = 0;
   ((v.steuerung && v.steuerung.kreise) || []).forEach(kr => kr.pfade.forEach(p => {
     p.plaetze.forEach(pl => { if (pl && pl.g === gid) n++; }); if (p.verbraucher && p.verbraucher.g === gid) n++; }));
+  const fg = freigabeVon(v);      // ab v1.83: Not-Aus- und Ein-Taster der zentralen Freigabe
+  if (fg) { if ((fg.notaus || []).includes(gid)) n++; if (fg.ein === gid) n++; }
   return n;
 }
 
@@ -4662,6 +4764,7 @@ function bSGeraet(b) {
       st.geraete = st.geraete.filter(x => x !== g);
       st.kreise.forEach(kr => kr.pfade.forEach(p => { p.plaetze = p.plaetze.map(pl => pl && pl.g === g.id ? null : pl);
         if (p.verbraucher && p.verbraucher.g === g.id) p.verbraucher = null; }));
+      const fg = freigabeVon(v); if (fg) { fg.notaus = (fg.notaus || []).filter(x => x !== g.id); if (fg.ein === g.id) delete fg.ein; }     // ab v1.83
       fertig(); }), { rot: true, ohnePfeil: true })));
   app.append(m);
 }
@@ -4751,6 +4854,11 @@ function vorlageWahl(v, kr) {
     : art === 'wende' && !(sa && sa.wende) ? 'nur bei Motor mit Schaltung „Wendeschaltung“'
     : art === 'sterndreieck' && !(sa && sa.sd) ? 'nur bei Motor mit Schaltung „Stern-Dreieck“'
     : (art === 'selbst' || art === 'selbstnot' || art === 'motor') && !(sa && sa.schalt) ? 'braucht ein Schaltgerät mit Hilfsschließer' : null;
+  // ab v1.83 (X10): Motor Ein/Aus, Wende und Stern-Dreieck mit der Wahl „über zentrale Freigabe“ (gemeinsame Steuerspannung nötig)
+  const fgFrage = (o, weiter) => { const gemOk = !!e.steuer.gemeinsam, fe = e.steuer.fg;
+    wahlFeld('Zentraler Not-Aus?', [['frei', 'über zentrale Freigabe', !gemOk ? 'braucht eine gemeinsame Steuerspannung (Steuer-LS oder Steuertrafo)'
+      : fe ? `an der von ${e.steuer.geraete[fe.geraet.id].t} freigegebenen Steuerspannung` : 'legt die Not-Aus-Freigabe an: Not-Aus, Ein-Taster, Hilfsschütz -K', !gemOk],
+      ['ohne', 'ohne zentrale Freigabe', 'Steuerspannung bleibt wie eingestellt']], '', w => setTimeout(() => weiter(Object.assign(o, { freigabe: w === 'frei' })), 0)); };
   wahlFeld('Vorlage', VORLAGEN.map(([art, name, klein]) => [art, name, grund(art) || klein, !!grund(art)]), '', art => setTimeout(() => {
     const name = (VORLAGEN.find(x => x[0] === art) || [, art])[1];
     const los = o => { const voll = kr.pfade.some(p => p.plaetze.some(Boolean) || (p.zweig && true));
@@ -4764,11 +4872,11 @@ function vorlageWahl(v, kr) {
     else if (art === 'hand0auto') wahlFeld('Melder für „Automatik“', ['daemmerung', 'bewegung', 'praesenz', 'endschalter_s'].map(z => [z, ST_ZEICHEN[z][0]]), '',
       z => setTimeout(() => los({ melder: z }), 0));
     else if ((art === 'wende' || art === 'sterndreieck') && !(sa && sa[art === 'wende' ? 'wende' : 'sd'])) meldung(`Zuerst am Motor die Schaltung „${art === 'wende' ? 'Wendeschaltung' : 'Stern-Dreieck'}“ wählen`);
-    else if (art === 'wende' || art === 'sterndreieck') los({});
+    else if (art === 'wende' || art === 'sterndreieck') fgFrage({}, los);
     else if (!sa || !sa.schalt) meldung('Selbsthaltung braucht ein Schaltgerät mit Hilfsschließer');
     else if (art === 'motor') wahlFeld('Störmeldung?', [['ja', 'mit Meldeleuchte „Störung“', kn && kn.k.geraet.zeichen === 'motorschutz3' && !(kn.k.schalt && kn.k.schalt.ol)
       ? 'über den Hilfsöffner des Motorschutzschalters' : 'über den Schließer 97–98 des Überlastrelais'], ['nein', 'ohne Störmeldung']], '',
-      w => setTimeout(() => los({ meldung: true, stoerung: w === 'ja' }), 0));
+      w => setTimeout(() => fgFrage({ meldung: true, stoerung: w === 'ja' }, los), 0));
     else wahlFeld('Betriebsmeldung?', [['ja', 'mit Meldeleuchte „Betrieb“', 'über einen weiteren Hilfsschließer'], ['nein', 'ohne Meldeleuchte']], '',
       w => setTimeout(() => los({ notaus: art === 'selbstnot', meldung: w === 'ja' }), 0));
   }, 0));
@@ -4885,6 +4993,7 @@ function vorlageEinsetzen(v, kr, art, o) {
     pfade.push(zw);                                              // Stellung „Automatik“ in Reihe mit dem Melder
   }
   kr.pfade = pfade;
+  if (o && o.freigabe) { freigabeAnlegen(v); delete kr.eigen; }      // ab v1.83 (X10): Kreis an der freigegebenen gemeinsamen Steuerspannung
   // Geräte, die nur in den ersetzten Pfaden vorkamen, entfallen
   const st = stDaten(v); st.geraete = st.geraete.filter(g => !alt.has(g.id) || stVerwendet(v, g.id) > 0);
 }
@@ -8323,6 +8432,19 @@ function pruefeProjekt(d, datei = false) {
       const gids = new Set();     // ab v1.71: doppelte Kennungen der Steuergeräte (die Plätze verweisen auf das erste)
       st.geraete.forEach(g => { if (typeof g.id !== 'string' || gids.has(g.id)) { g.id = id(); r.push(`${wo}: Steuergerät mit doppelter Kennung neu vergeben`); } gids.add(g.id);
         if (g.zeit !== undefined) zahl(g, 'zeit', `${wo} Zeit`, Z_ZEIT, '3 min'); texte(g, `${wo} Steuergerät`); });
+      // ab v1.83 (X10): zentrale Not-Aus-Freigabe – Verweise auf Steuergeräte als Text, Kennzeichen als Text
+      if (obj(st.spannung) && st.spannung.freigabe !== undefined) {
+        const fg = st.spannung.freigabe;
+        if (!obj(fg)) { delete st.spannung.freigabe; r.push(`${wo}: Not-Aus-Freigabe verworfen`); }
+        else {
+          if (!Array.isArray(fg.notaus)) fg.notaus = [];
+          const n0 = fg.notaus.length; fg.notaus = fg.notaus.filter(x => typeof x === 'string' && gids.has(x));
+          if (fg.notaus.length !== n0) r.push(`${wo}: Not-Aus-Freigabe – unbekannte Not-Aus-Taster entfernt`);
+          if (fg.ein !== undefined && !(typeof fg.ein === 'string' && gids.has(fg.ein))) { delete fg.ein; r.push(`${wo}: Not-Aus-Freigabe – unbekannter Ein-Taster entfernt`); }
+          if (!obj(fg.k)) fg.k = {};
+          texte(fg.k, `${wo} Hilfsschütz der Freigabe`);
+        }
+      }
       st.kreise = st.kreise.filter(kr => obj(kr) && Array.isArray(kr.pfade));
       const sids = new Set(), eindeutig = o => { if (neueId(o.id) || sids.has(o.id)) o.id = id(); sids.add(o.id); };
       st.kreise.forEach(kr => { eindeutig(kr); kr.pfade = kr.pfade.filter(obj); texte(kr, `${wo} Steuerstromkreis`, 39);

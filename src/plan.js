@@ -1764,15 +1764,19 @@ const PLAN = (() => {
       const grp = v.knoten.find(g => g.typ === 'gruppe' && g.kinder.includes(qk));     // Quelle in einer Gruppe?
       v.steuerung.kreise.filter(kr => gem.kreise.includes(kr.id)).forEach(kr => {
         const sg = kr.pfade.map(pf => pf.verbraucher && e.abgaenge[pf.verbraucher.g]).find(x => x && x.schalt);
-        kr.pfade.forEach(pf => ziel[pf.id] = 'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''));
+        const kK = kr.fg && e.steuer.geraete[e.steuer.fg.geraet.id];      // ab v1.83: Not-Aus-Freigabe
+        kr.pfade.forEach(pf => ziel[pf.id] = kK ? `Not-Aus-Freigabe ${kK.t}` : 'Steuerstromkreis' + (sg ? ' ' + sg.schalt.bmk.t : ''));
       });
+      // ab v1.83 (X10): die erste Klemme hinter der Freigabe kommt vom Schließer 23–24 des Hilfsschützes, nicht über die Brücke
+      const fgK = kl.frei && e.steuer.fg ? e.steuer.geraete[e.steuer.fg.geraet.id] : null, fgKey = fgK && e.steuer.fg.kreis.pfade.find(pf => pf.fgL);
+      const fgAn = fgKey && e.steuer.kontakte[fgKey.id + ':0'] ? `${fgK.t}:${e.steuer.kontakte[fgKey.id + ':0'].an[1]}` : null;
       const reihe = (nrn, l) => Object.entries(nrn).sort((x, y) => x[1] - y[1]).map(([pid, nr], i) => {
         const ll = l === 'N' ? 'N' : 'L';
         if (qk.trafo) {        // Steuertrafo: L vom Sekundär-LS, 0 V vom Trafo
-          const intern = i ? 'Brücke' : ll === 'N' ? `${q.t.t}:0V` : `${q.f2.t}:2`;
+          const intern = i ? (ll === 'L' && fgAn && nr === kl.frei ? fgAn : 'Brücke') : ll === 'N' ? `${q.t.t}:0V` : `${q.f2.t}:2`;
           return [String(nr), ll === 'N' ? qu.nName : qu.lName, 'Durchgangsklemme, gebrückt', intern, '', '', ziel[pid] || ''];
         }
-        const intern = i ? 'Brücke' : (ausgang(qk.geraet.zeichen, q.f && q.f.t, ll, lName)
+        const intern = i ? (ll === 'L' && fgAn && nr === kl.frei ? fgAn : 'Brücke') : (ausgang(qk.geraet.zeichen, q.f && q.f.t, ll, lName)
           || (grp && ausgang(grp.geraet.zeichen, e.geraete[grp.id] && e.geraete[grp.id].t, ll, lName)) || schiene(ll, lName));
         const art = l === 'N' ? (v.nKlemme === 'normal' ? 'N-Klemme' : 'N-Trennklemme') : 'Durchgangsklemme';
         return [String(nr), l === 'N' ? 'N' : lName, art + ', gebrückt', intern, '', '', ziel[pid] || ''];
@@ -1943,6 +1947,14 @@ const PLAN = (() => {
   }
   const ST_MELDER = /^(daemmerung|bewegung|praesenz|s_schwimmer|oe_schwimmer)$/;   // Beschriftung rechts (links sitzt die Betätigung)
   const ST_LINKS = 19;                              // Pfad in der Spalte: Platz links für Kennzeichen und Text
+  // Zentraler Not-Aus (ab v1.83, X10): der berechnete Kreis „Not-Aus-Freigabe“ (e.steuer.fg, siehe freigabeBauen() der App) steht
+  // vor den gespeicherten Kreisen, das Hilfsschütz -K bei den Geräten – alles Übrige zeichnet wie bei jedem anderen Kreis.
+  // Ohne Freigabe bleibt der Verteiler dasselbe Objekt (Pläne bitgleich).
+  function mitFreigabe(v, e) {
+    const fg = e && e.steuer && e.steuer.fg; if (!fg || !v.steuerung) return v;
+    return Object.assign({}, v, { steuerung: Object.assign({}, v.steuerung, { geraete: (v.steuerung.geraete || []).concat(fg.geraet), kreise: [fg.kreis].concat(v.steuerung.kreise || []) }) });
+  }
+  const FG_HINWEIS = ['Vereinfachte Darstellung – Sicherheitsfunktion', 'nach EN ISO 13849 mit Sicherheitsschaltgerät'];
   const stKnoten = (v, kid) => { let r = null; const such = l => l.forEach(k => { if (k.id === kid) r = k; if (k.kinder) such(k.kinder); }); such(v.knoten); return r; };
   // Kreise auf Blätter verteilen; ein Kreis wird nicht geteilt. Bei gemeinsamer
   // Steuerspannung stehen die daran hängenden Kreise vorn, Kreise mit eigenem Abgriff dahinter.
@@ -2006,7 +2018,10 @@ const PLAN = (() => {
       const erstes = ctx.steuer.kreise['*'] && ctx.steuer.kreise['*'].blatt === blattNr;
       const weiter = blattNr < letztesGem, xE = R.x1 - 12;
       [[yL, lName, anG.L], [yN, qu.nArt, anG.N]].forEach(([y, art, an]) => {
-        lt(xA, y, weiter ? xE : Math.max(...an), y, art);
+        // ab v1.83 (X10): die L ist am Freigabekontakt unterbrochen – davor die Not-Aus-Freigabe, dahinter alle übrigen Kreise
+        const fr = an === anG.L && anG.frei;
+        if (fr) { lt(xA, y, fr.x, y, art); lt(fr.x2, y, weiter ? xE : Math.max(fr.x2, ...an), y, art); }
+        else lt(xA, y, weiter ? xE : Math.max(...an), y, art);
         setze(g, 'qv_kommend', xA, y, t => t.richtung === 'e', art);
         if (weiter) { setze(g, 'qv_gehend', xE, y, t => t.richtung === 'w', art); text(g, xE + 4.5, y + 0.9, `/${blattNr + 1}.1`, 2.2); }
       });
@@ -2134,7 +2149,7 @@ const PLAN = (() => {
         y = u ? u.y : top + 15;
         const [, re] = seiten(z), kn = st.kontakte[p.id + ':' + i];
         let an;
-        const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && ger.zeichen === 'zeitrelais' && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
+        const relais = sa && sa.schalt ? sa.schalt.bmk.t : ger && (ger.zeichen === 'zeitrelais' || ger.zeichen === 'hilfsschuetz') && st.geraete[ger.id] ? st.geraete[ger.id].t : null;
         if (kn && (kn.ol || kn.ms)) {       // Überlastrelais bzw. Motorschutzschalter: Verweis auf den Abgang (ab v1.38)
           const la = ctx.lage[pl.g], kz = kn.ol ? (sa && sa.ol ? sa.ol.bmk.t : '?') : (sa && sa.f ? sa.f.t : '?');
           bmkSt(g, x, xr, R1(z, top), kz, [la ? `/${la.blatt}.${la.spalte}` : ''], mehr);
@@ -2147,12 +2162,14 @@ const PLAN = (() => {
           const kz = ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', zl = ger ? [pl.bez || ger.bez, ger.ort, st.feld && st.feld[p.id + ':' + i] ? leitungText(ger.id) : ''] : [];
           // ab v1.73: in der letzten Spalte reicht die Beschriftung rechts über den Rahmen – dann links wie bei den übrigen Geräten
           const mMax = R.sb - ST_LINKS + 3, rechtsPasst = x + 2.5 + Math.min(mMax, Math.max(textBreite(kz, 2.5, true), ...zl.filter(Boolean).map(t => textBreite(t, 2.2)))) <= R.x1 - 0.2;
-          if (ST_MELDER.test(z) && rechtsPasst) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
+          // ab v1.83: Not-Aus der Freigabe steht in der ersten, schmalen Spalte – links neben dem Pilzkopf bliebe kein Platz, daher rechts wie bei Meldern
+          if ((ST_MELDER.test(z) || (kr.fg && z === 'notaus')) && rechtsPasst) {     // Melder und Schwimmer (ab v1.41): links sitzt die Betätigung, Beschriftung rechts
             // ab v1.52 begrenzt: bis 5,5 mm in die nächste Spalte – dort bleibt 1,5 mm frei vor einem kurzen Kennzeichen (-S1),
             // das rechtsbündig an der Fluchtlinie des Nachbarpfads steht
-            const yb = R1(z, top), max = R.sb - ST_LINKS + 3;
-            passend(text(g, x + 2.5, yb, kz, 2.5, 'start', { 'font-weight': 'bold' }), max);
-            zl.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((s, n) => passend(text(g, x + 2.5, yb + 3.2 + 2.8 * n, s, 2.2, 'start'), max));
+            // Not-Aus der Freigabe (ab v1.83): rechts hinter den Anschlussnummern (11/12), damit nichts übereinander liegt
+            const dx = ST_MELDER.test(z) ? 2.5 : 5.5, yb = R1(z, top), max = R.sb - ST_LINKS + 5.5 - dx;
+            passend(text(g, x + dx, yb, kz, 2.5, 'start', { 'font-weight': 'bold' }), max);
+            zl.filter(Boolean).flatMap(t => umbrechenSt(t, max)).forEach((s, n) => passend(text(g, x + dx, yb + 3.2 + 2.8 * n, s, 2.2, 'start'), max));
           } else bmkSt(g, x, ST_MELDER.test(z) ? Math.min(xr, R3(z, x)) : xr, R1(z, top), kz, zl, mehr);
           an = kn ? kn.an : /_oe|notaus/.test(z) ? ['11', '12'] : ['13', '14'];
         }
@@ -2161,11 +2178,18 @@ const PLAN = (() => {
         if (fk) { feldKlemme(x, top + 1.2, fk[0]); feldKlemme(x, y - 1.2, fk[1]); }
         teil(null);
       }
-      if (bis >= ST_PL) {
+      if (p.fgL) {
+        // ab v1.83 (X10): Freigabekontakt in der gemeinsamen L – unter dem Kontakt eine Schleife zurück nach oben, dort geht die
+        // freigegebene L weiter (stBlatt unterbricht sie zwischen x und x2)
+        const yU = y + 2.5, x2 = x + 6, yLg = stSchienen(!!kl).yL;
+        lt(x, y, x, yU, lName); lt(x, yU, x2, yU, lName); lt(x2, yU, x2, yLg, lName);
+        anG.frei = { x, x2 };
+      } else if (bis >= ST_PL) {
         const vb = p.verbraucher, sa = vb && e.abgaenge[vb.g];
         const ger = vb && !sa && gerVon(vb.g);
         const zr = ger && ger.zeichen === 'zeitrelais';         // eigenständiges Zeitrelais
-        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : zr ? 'spule_' + (ger.fkt || 'aus') : ger ? ger.zeichen : null;
+        const hk = ger && ger.zeichen === 'hilfsschuetz';       // Hilfsschütz der Not-Aus-Freigabe (ab v1.83)
+        const z = sa && sa.schalt ? spulenZeichen(sa.schalt) : zr ? 'spule_' + (ger.fkt || 'aus') : hk ? 'spule' : ger ? ger.zeichen : null;
         if (z && ZEICHEN[z]) {
           lt(x, y, x, ST_YV, lName);
           const vk = `kr:${kr.id}/pl:${p.id}:${ST_PL}`;
@@ -2175,14 +2199,14 @@ const PLAN = (() => {
           const [, re] = seiten(z);
           // ab v1.73 (Q17): rechts neben der Spule ist in der letzten Spalte kein Platz mehr für A1/A2 (bzw. X1/X2) – sie
           // stehen dann links am Zeichen, die Beschriftung rückt um ihre Breite nach links
-          const anNr = [sa || zr ? 'A1' : 'X1', sa || zr ? 'A2' : 'X2'], nrLinks = x + re + 0.8 + textBreite(anNr[0], 1.8) > R.x1 - 0.2;
+          const anNr = [sa || zr || hk ? 'A1' : 'X1', sa || zr || hk ? 'A2' : 'X2'], nrLinks = x + re + 0.8 + textBreite(anNr[0], 1.8) > R.x1 - 0.2;
           const xr = R3(z, x) - (nrLinks ? textBreite(anNr[0], 1.8) + 0.8 : 0);
           if (sa) {
             const sg = sa.schalt;
             bmkSt(g, x, xr, R1(z, ST_YV), sg.bmk.t, [sg.typ === 'zeitrelais' && sg.zr.zeit ? zeitText(sg.zr.zeit) : sg.rolle || '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4); teil(vk);      // der Kontaktspiegel bleibt unter N
-          } else if (zr) {
-            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [ger.zeit ? zeitText(ger.zeit) : '']);
+          } else if (zr || hk) {
+            bmkSt(g, x, xr, R1(z, ST_YV), st.geraete[ger.id] ? st.geraete[ger.id].t : '', [zr && ger.zeit ? zeitText(ger.zeit) : '']);
             teil(null); stSpiegel(g, ctx, e, vb.g, x, yN + 4, ger); teil(vk);
           } else bmkSt(g, x, xr, R1(z, ST_YV), ger && st.geraete[ger.id] ? st.geraete[ger.id].t : '', ger ? [ger.bez, ger.ort, st.feld && st.feld[p.id + ':v'] ? leitungText(ger.id) : ''] : []);
           if (nrLinks) { const xl = R3(z, x) + 0.7; text(g, xl, ST_YV + 2.2, anNr[0], 1.8, 'end'); text(g, xl, y - 0.6, anNr[1], 1.8, 'end'); }
@@ -2199,6 +2223,8 @@ const PLAN = (() => {
         lt(x, y, x, yb, lName); lt(x, yb, xs[haupt[j]], yb, lName);
       }
     });
+    // ab v1.83 (X10): Hinweis unter der Not-Aus-Freigabe
+    if (kr.fg) FG_HINWEIS.forEach((t, i) => passend(text(g, xA - 4, ST_YN + 22 + 2.8 * i, t, 2.2, 'start'), pf.length * R.sb - 4));
   }
   // Kontaktspiegel unter der Spule: Hauptkontakte, dann alle Hilfskontakte der
   // Ausstattung; genutzte mit Querverweis, ungenutzte ohne
@@ -2213,7 +2239,7 @@ const PLAN = (() => {
     const polSpalte = i => la.spalte + Math.floor((LINKS + ABSTAND * (versatz + i)) / ctx.R.sb);
     const haupt = sg.pole.map((_, i) => [`${2 * i + 1}–${2 * i + 2}`, la ? `/${la.blatt}.${ctx.R ? polSpalte(i) : la.spalte}` : '']);
     // verzögert (Zeitrelais): Schließer n7–n8, Öffner n5–n6; sonst Hilfskontakte n3–n4, n1–n2
-    const vz = key => key ? !!(e.steuer.kontakte[key] || {}).vz : !!ger;
+    const vz = key => key ? !!(e.steuer.kontakte[key] || {}).vz : !!ger && ger.zeichen === 'zeitrelais';
     const hilf = [];
     for (let n = 1; n <= sg.hs; n++) { const k = gen.s[n - 1]; hilf.push([vz(k) ? `${n}7–${n}8` : `${n}3–${n}4`, k ? lageText(k) : '']); }
     for (let n = 1; n <= sg.ho; n++) { const k = gen.o[n - 1], o = sg.hs + n; hilf.push([vz(k) ? `${o}5–${o}6` : `${o}1–${o}2`, k ? lageText(k) : '']); }
@@ -2363,8 +2389,8 @@ const PLAN = (() => {
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
     // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe)
-    const plaene = P.verteiler.map(v => {
-      const e = hilf.berechne(v);
+    const plaene = P.verteiler.map(v0 => {
+      const e = hilf.berechne(v0), v = mitFreigabe(v0, e);
       const probe = (it, y0) => {
         const g = el('g'); const bars = {}; schienenNamen(v).forEach((n, i) => bars[n] = y0 + ABSTAND * i);
         const yG = y0 + ABSTAND * (schienenNamen(v).length - 1) + VOR_GERAET;
@@ -2591,6 +2617,8 @@ const PLAN = (() => {
         const anker = 'kr:' + b.kreise[0].kr.id, pruef = SZ.hinweise.concat(rahmenPruefen(g, R, nRahmen, F.h - RAND - SF_H - 2), zusatzZeichnen(g, zusaetze(v, anker, false), opt));
         const szene = szeneEnde();
         if (opt.ziele) b.kreise.forEach(({ kr, col }) => {
+          // ab v1.83: die berechnete Not-Aus-Freigabe öffnet die Steuerspannung (dort wird sie eingestellt), ohne Plätze
+          if (kr.fg) { ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'st:'); return; }
           ziel(g, R.x0 + (col - 1) * R.sb, RAND, kr.pfade.length * R.sb, F.h - RAND - SF_H - 2 - RAND, 'kr:' + kr.id);
           // je Pfad die Plätze 1–6 und der Verbraucherplatz (pl:pfad:zeile, Zeile 6 = Verbraucher)
           kr.pfade.forEach((pf, j) => { const x = R.x0 + (col - 1 + j) * R.sb;
@@ -2629,6 +2657,6 @@ const PLAN = (() => {
     return { faktor, zeichen: Math.floor(max / 0.85 / (textBreite(bez, 2.5, true) / bez.length)) * z.length };
   }
   // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
-  function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(v, e); }
+  function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(mitFreigabe(v, e), e); }
   return { blaetter, pfadtext, klemmen, adern, blattHash, revGeaendert, nrBereiche };
 })();

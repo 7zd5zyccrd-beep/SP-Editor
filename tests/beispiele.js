@@ -375,6 +375,11 @@ window.BEISPIELE = {
   vorlage_baustrom: () => {
     P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Baustrom aus Vorlage', ersteller:'Jean', nummer:'SLP-0083'});
     verteilerAusVorlage('baustrom', 'Baustromverteiler'); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.83 (X10): wie schaltungen, dazu zentrale Not-Aus-Freigabe mit zwei Not-Aus-Tastern (Halle, Tor) vor allen Kreisen
+  notaus: () => { BEISPIELE.schaltungen(); const [hv] = P.verteiler;
+    const fg = freigabeAnlegen(hv); freigabeNotaus(hv, 2);
+    const st = hv.steuerung, g = id => st.geraete.find(x => x.id === id);
+    g(fg.notaus[0]).ort = 'Halle'; g(fg.notaus[1]).ort = 'Tor'; sichern(); zeichne(); },
   steuerfrei: () => { BEISPIELE.steuerung(); const [hv] = P.verteiler, kr = hv.steuerung.kreise.find(k => k.pfade.length > 1), L = lay(hv);
     L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':0'] = [2, 0]; L.lage['kr:' + kr.id + '/pl:' + kr.pfade[0].id + ':6'] = [2, 0];
     sichern(); zeichne(); },

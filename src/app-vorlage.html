@@ -16,6 +16,14 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.84: Netzform TT (Etappe X-I: X11, Q31): Netzform „TT“ in der Netzwahl, optional v.erder = { ra } (Erdungswiderstand RA am
+           obersten Verteiler, Feld unter „Netz“). Plan: oberster Verteiler im TT mit „Netz TT, 3/N“ bzw. „1/N“; der PE beginnt oben an der
+           Haupterdungsschiene (Trennlasche, Zeichen erdungsschiene) mit Anlagenerder (schutzerde), „Anlagenerder“ und „RA = … Ω“, und läuft
+           wie im TN-S rechts an den Kopfgeräten vorbei; Übersichtsschaltplan „PE vom Anlagenerder“ mit Erderzeichen und Leiterzahl 5 bzw. 3.
+           Unterverteiler im TT bekommen den PE mit der Zuleitung (wie TN-S, ohne PEN). Warnungen mit „So beheben“: Abgang im TT ohne FI,
+           RA · IΔn über 50 V (DIN VDE 0100-410, 411.5.3), Hinweis Überspannungsschutz in 3+1- bzw. 1+1-Schaltung, Unterverteiler mit anderem
+           Erdungssystem als der speisende Verteiler; Prüfprotokoll nennt RA; Begriff „TT“; Importprüfung kennt TT und RA (vorher → TN-S).
+           PROJEKT_VERSION 9; Beispiel `tt`; TN-Pläne bitgleich.
      v1.83: Zentraler Not-Aus (Etappe X-H: X10, Q15): bei gemeinsamer Steuerspannung mit Quelle wahlweise eine Not-Aus-Freigabe
            (stDaten(v).spannung.freigabe = { notaus: [gid …], ein: gid, k: { bmk } }, Fach „Steuerstromkreise“ → „Zentraler Not-Aus“: ohne /
            zentrale Freigabe, 1–5 Not-Aus-Taster in Reihe, Kennzeichen des Hilfsschützes). freigabeBauen() bildet daraus beim Berechnen den
@@ -1548,9 +1556,9 @@ const neuesSchalt = typ => ({ typ, nMit: false, hs: typ === 'zeitrelais' ? 0 : 1
 // ---------------------------------------------------------------------------
 // Datenhaltung
 const id = () => Math.random().toString(36).slice(2, 9);
-// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.83: 8)
+// version = PROJEKT_VERSION (als Zahl, weil neuesProjekt() schon vor dessen Deklaration läuft; ab v1.84: 9)
 function neuesProjekt() {
-  return { format: 'slp-projekt', version: 8, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
+  return { format: 'slp-projekt', version: 9, app: FASSUNG.replace(/^v/, ''), projekt: { titel: 'Stromlaufplan', datum: new Date().toISOString().slice(0, 10), rev: '0', format: 'A4' }, verteiler: [] };
 }
 // ab v1.72 (Q04): 1/N/PE mit Lasttrennschalter 2-polig (L und N, PE nie geschaltet)
 function neuerVerteiler(name, leiter = '3NPE') {
@@ -1629,7 +1637,10 @@ if (!P || P.format !== 'slp-projekt') P = neuesProjekt();
 // v7 (ab v1.81, X06, Q30): optional P.revisionen = [{ rev, datum, text, name, hash: { blattNr: kurzHash } }] und im Projektkopf
 //    P.projekt.bauherr, .anlage (Anlagenanschrift), .anschrift2 (zweite Zeile der Firmenanschrift), .pruefer („Geprüft durch“) –
 //    ohne diese Angaben bleibt jeder Plan gleich; migriere() setzt nur die Version
-const PROJEKT_VERSION = 8;
+// v8 (ab v1.83, X10): optional stDaten(v).spannung.freigabe
+// v9 (ab v1.84, X11, Q31): v.netzform 'TT', optional v.erder = { ra } (Erdungswiderstand des Anlagenerders in Ω, nur am obersten
+//    Verteiler) – TN-Pläne bleiben gleich; migriere() setzt nur die Version
+const PROJEKT_VERSION = 9;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
@@ -2070,7 +2081,12 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Not-Aus-Freigabe braucht eine gemeinsame Steuerspannung/, 'Unter „Steuerstromkreise“ die Steuerspannung gemeinsam einstellen und eine Quelle wählen (Steuer-LS oder Steuertrafo) – oder die Freigabe auf „ohne“ stellen.'],
   [/Not-Aus-Freigabe: kein Not-Aus-Taster/, 'Unter „Steuerstromkreise“ bei „Not-Aus-Taster“ die Zahl wählen.'],
   [/Not-Aus-Freigabe: kein Ein-Taster/, 'Freigabe unter „Steuerstromkreise“ auf „ohne“ und wieder auf „zentrale Freigabe“ stellen – das legt den Ein-Taster neu an.'],
-  [/nicht über die Not-Aus-Freigabe geschaltet/, 'Im Kreis die Steuerspannung auf „gemeinsam“ stellen, damit der Not-Aus auch ihn abschaltet.']];
+  [/nicht über die Not-Aus-Freigabe geschaltet/, 'Im Kreis die Steuerspannung auf „gemeinsam“ stellen, damit der Not-Aus auch ihn abschaltet.'],
+  // ab v1.84 (X11): Netzform TT
+  [/Netz TT ohne Fehlerstrom-Schutzeinrichtung/, 'FI für den Abgang vorsehen (FI/LS im Abgang oder Abgang in eine FI-Gruppe ziehen) oder einen FI vor den Verteiler setzen.'],
+  [/R_A · IΔn/, 'Anlagenerder verbessern (z. B. zusätzlicher Tiefenerder) oder FI mit kleinerem Nennfehlerstrom wählen.'],
+  [/[31]\+1-Schaltung/, 'Ableiter Typ 1+2 in 3+1- bzw. 1+1-Schaltung wählen; der N–PE-Ableiter ist eine Summenfunkenstrecke.'],
+  [/übernimmt das Erdungssystem/, 'Netzform des speisenden Verteilers wählen.']];
 const abhilfeVon = t => { const r = ABHILFE.filter(([re]) => re.test(t || '')).map(x => x[1]); return r.length ? 'So beheben: ' + r.join(' ') : null; };
 const warnZeile = t => { const ab = abhilfeVon(t); return h('p', { class: 'warnung' }, warnIk(), ohnePunkt(t), ab ? h('span', { class: 'abhilfe' }, ab) : null); };
 // Fehlerstrom-Schutz (ab v1.52): Gerät mit FI höchstens 30 mA; vor dem Verteiler im speisenden Abgang oder dessen Gruppe
@@ -2093,13 +2109,24 @@ function fiVor(v, tiefe = 0) {
   if (r && r.eltern && istFi(r.eltern.geraet)) l.push({ g: r.eltern.geraet, t: `FI der Gruppe in ${sp.v.name}` });
   return l.concat(fiVor(sp.v, tiefe + 1));
 }
+// Netzform TT (ab v1.84, X11/Q31): der Schutzleiter kommt vom Anlagenerder (Haupterdungsschiene), nicht aus dem Netz; Schutz durch
+// automatische Abschaltung praktisch nur mit FI, Bedingung R_A · I_Δn ≤ 50 V (DIN VDE 0100-410, 411.5.3). Ein Unterverteiler im TT
+// bekommt den PE mit seiner Zuleitung (wie TN-S gezeichnet); R_A steht am obersten Verteiler (v.erder.ra)
+const istTT = v => !!v && v.netzform === 'TT';
+const istPenNetz = v => !!v && (v.netzform === 'TN-C' || v.netzform === 'TN-C-S');
+const UL_TT = 50;
+const RA_OHM = { min: 0.1, max: 5000, einheit: /^(Ω|Ohm)$/i, zeigen: 'Ω' };
+function raVon(v, tiefe = 0) {
+  const sp = tiefe < 10 && speisenderAbgang(v.id); if (sp) return istTT(sp.v) ? raVon(sp.v, tiefe + 1) : null;
+  const r = zahlVon(v.erder && v.erder.ra); return istTT(v) && r > 0 ? r : null;
+}
 // FI in Reihe (ab v1.74, Q23): selektiv nur, wenn der vorgeschaltete ein selektiver (Typ S, ≥ 100 mA) mit größerem Nennfehlerstrom ist
 const fiReihe = (eigen, vor) => fiIdn(vor) <= Math.max(30, fiIdn(eigen));
 const FI_REIHE = 'keine Selektivität, beide können bei einem Fehler auslösen';
 // Quelle glatter Gleichfehlerströme hinter einem FI Typ A/F/AC (ab v1.74, Q12)
 const gleichText = (grund, vor) => `${grund} hinter ${vor.t} Typ ${fiTyp(vor.g)}: glatte Gleichfehlerströme können den vorgeschalteten FI unwirksam machen (DIN VDE 0100-530).`;
 // Zuleitung eines Unterverteilers mit PEN (ab v1.52): TN-C und TN-C-S bekommen L1 L2 L3 PEN (bzw. L PEN)
-const penZuleitung = k => { const u = k.speist && vById(k.speist); return !!u && u.netzform !== 'TN-S'; };
+const penZuleitung = k => { const u = k.speist && vById(k.speist); return istPenNetz(u); };      // ab v1.84: nicht bei TT
 function berechne(v) {
   const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   // ab v1.59 (D06): alle vergebenen Kennzeichen gesammelt, damit doppelte (von Hand gleich einem anderen) auffallen
@@ -2215,9 +2242,13 @@ function berechne(v) {
         if (ab.ok === false) warnDazu(a, `Abschaltbedingung nicht erfüllt: Z_s = ${ohm(ab.zs)} Ω am Leitungsende, höchstens ${ohm(ab.zsMax)} Ω (${ab.iaT} = ${dezimal(ab.ia)} A in ${ab.t04 ? '0,4' : '5'} s; DIN VDE 0100-410).`); }
     }
     // Steckdosen bis 32 A brauchen einen FI ≤ 30 mA (ab v1.52): am Abgang, an der Gruppe oder vor dem Verteiler
-    if (!k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
-      && !fiAm(k.geraet) && !(eltern && fiAm(eltern.geraet)) && !fiVorVerteiler(v))
-      warnDazu(a, 'Steckdose ohne Fehlerstrom-Schutz ≤ 30 mA (DIN VDE 0100-410, 411.3.3).');
+    const steckOhneFi = !k.speist && (k.ziel.anschluss === 'steckdose3' || k.ziel.anschluss === 'steckdose5') && (zahlVon(k.geraet.nenn) || 16) <= 32
+      && !fiAm(k.geraet) && !(eltern && fiAm(eltern.geraet)) && !fiVorVerteiler(v);
+    if (steckOhneFi) warnDazu(a, 'Steckdose ohne Fehlerstrom-Schutz ≤ 30 mA (DIN VDE 0100-410, 411.3.3).');
+    // ab v1.84 (X11): im TT ist die Fehlerschleife über R_A und R_B zu hochohmig für den Überstromschutz – jeder Stromkreis braucht
+    // einen FI (am Abgang, an der Gruppe oder vor dem Verteiler); Steuer-LS ohne Leitung ausgenommen
+    if (istTT(v) && !k.steuer && !steckOhneFi && !istFi(k.geraet) && !(eltern && istFi(eltern.geraet)) && !fiV.length)
+      warnDazu(a, 'Netz TT ohne Fehlerstrom-Schutzeinrichtung (RCD): der Überstromschutz schaltet einen Körperschluss über den Erder meist nicht rechtzeitig ab (DIN VDE 0100-410, 411.5).');
     // ab v1.74 (Q11): Abgang ohne Schutzorgan – außer in einer Gruppe hinter LS bzw. Sicherung
     if (!k.geraet.zeichen && !k.steuer && !(eltern && istSchutz(eltern.geraet)))
       warnDazu(a, 'Ohne Schutzorgan – Leitung und Verbraucher sind weder gegen Überlast noch gegen Kurzschluss geschützt (DIN VDE 0100-430).');
@@ -2328,8 +2359,19 @@ function verteilerWarnungen(v, e) {
   if (!ein && v.spd.zeichen === 'spd2') w.push(`Überspannungsschutz 1/N im Drehstromverteiler schützt nur ${/^L[123]$/.test(v.spd.phase || '') ? v.spd.phase : 'L1'} – für L1 L2 L3 Überspannungsschutz 3/N wählen.`);
   if (sp && v.netzform === 'TN-C' && sp.v.netzform !== 'TN-C')
     w.push(`TN-C hinter ${sp.v.name} (${sp.v.netzform}): N und PE sind dort schon getrennt und dürfen nicht wieder zum PEN verbunden werden.`);
-  if (sp && v.netzform !== 'TN-S' && quer(sp.k.leitung.quer) < 10)
+  if (sp && istPenNetz(v) && quer(sp.k.leitung.quer) < 10)
     w.push(`PEN in der Zuleitung (${sp.k.leitung.quer || '?'} mm²): ein PEN braucht mindestens 10 mm² Cu.`);
+  // ab v1.84 (X11): Netzform TT – Unterverteiler wie der speisende Verteiler, R_A · I_Δn ≤ 50 V, Überspannungsschutz 3+1 bzw. 1+1
+  if (sp && istTT(v) !== istTT(sp.v))
+    w.push(`Netzform ${v.netzform} hinter ${sp.v.name} (${sp.v.netzform}): ein Unterverteiler übernimmt das Erdungssystem des speisenden Verteilers – Schutzleiter und Abschaltung richten sich nach diesem.`);
+  if (istTT(v)) {
+    const ra = raVon(v), fis = fiVor(v).map(x => x.g);
+    alleKnoten(v, k => { if (istFi(k.geraet)) fis.push(k.geraet); });
+    const idn = Math.max(0, ...fis.map(fiIdn));
+    if (ra != null && idn && ra * idn / 1000 > UL_TT + 1e-9)
+      w.push(`Anlagenerder R_A = ${ohm(ra)} Ω zu hoch für FI ${dezimal(idn)} mA: R_A · IΔn = ${dezimal(ra * idn / 1000)} V über ${UL_TT} V, höchstens ${ohm(UL_TT * 1000 / idn)} Ω (DIN VDE 0100-410, 411.5.3).`);
+    if (v.spd.zeichen) w.push(`Hinweis: Überspannungsschutz im TT-Netz vor dem FI in ${ein ? '1+1' : '3+1'}-Schaltung (Ableiter L–N, Summenfunkenstrecke N–PE) vorsehen (DIN VDE 0100-534).`);
+  }
   // ab v1.57 (C09): TN-C mit Endstromkreisen N + PE – der Verteiler ist selbst Aufteilungspunkt (Warnung, keine Planänderung)
   if (v.netzform === 'TN-C') {
     const np = []; let fi = false;
@@ -2705,7 +2747,9 @@ function bemessung(g) {
   return t.join(' ');
 }
 // ankommende Leiter wie im Plan (ab v1.52): TN-C „3/PEN“, TN-C-S „3/PEN → 3/N/PE“ (Aufteilung im Verteiler)
-const leiterText = v => { const n = v.leiter === '1NPE' ? '1' : '3'; return v.netzform === 'TN-S' ? `${n}/N/PE` : v.netzform === 'TN-C' ? `${n}/PEN` : `${n}/PEN → ${n}/N/PE`; };
+// ab v1.84 (X11): TT „3/N + PE vom Erder“, im Unterverteiler kommt der PE mit der Zuleitung
+const leiterText = v => { const n = v.leiter === '1NPE' ? '1' : '3';
+  return v.netzform === 'TT' ? (speisenderAbgang(v.id) ? `${n}/N/PE` : `${n}/N + PE vom Erder`) : v.netzform === 'TN-S' ? `${n}/N/PE` : v.netzform === 'TN-C' ? `${n}/PEN` : `${n}/PEN → ${n}/N/PE`; };
 const KLEMMEN_V = { ohne: 'ohne Klemmleiste', leiste: 'Klemmleiste' };
 const klemmenText = a => a.klemmen ? `${a.klemmen.bmk}:${a.klemmen.von}–${a.klemmen.bis}` : '—';
 function leitungText(k, a) {
@@ -3111,6 +3155,7 @@ const BEGRIFFE = {
   'PE': 'Schutzleiter (im Plan grün, Ader grün-gelb) – verbindet die Gehäuse mit der Erdung.',
   'PEN': 'N und PE in einem Leiter (Netz TN-C); mindestens 10 mm² Kupfer.',
   'TN-S / TN-C / TN-C-S': 'Netzformen: TN-S mit getrenntem N und PE, TN-C mit gemeinsamem PEN, TN-C-S erst PEN, dann getrennt.',
+  'TT': 'Netzform, bei der das Netz nur Außenleiter und N liefert; der Schutzleiter kommt vom eigenen Anlagenerder über die Haupterdungsschiene. Schutz bei Körperschluss praktisch nur mit FI: RA · IΔn ≤ 50 V (z. B. 30 mA bis 1666 Ω). Typisch für Baustrom und ländliche Netze.',
   'NYM-J': 'Mantelleitung für feste Verlegung; „-J“ mit grün-gelber Schutzleiterader, „-O“ ohne.',
   'Querschnitt': 'Fläche einer Ader in mm²; sie bestimmt, wie viel Strom die Leitung führen darf.',
   'Kennzeichen': 'Betriebsmittelkennzeichen nach DIN EN IEC 81346, z. B. -F3 (Schutzorgan), -XD3 (Steckdose), -W3 (Leitung); die App vergibt sie automatisch, von Hand überschreibbar.',
@@ -4036,12 +4081,12 @@ function bEinspeisung(b) {
     zeile('Gespeist aus', sp ? `${sp.v.name}` : 'Hausanschluss', () => wahlFeld('Gespeist aus', [['', 'Hausanschluss']].concat(quellen),
       sp ? sp.v.id + ':' + sp.k.id : '', w => {
         for (const x of P.verteiler) alleKnoten(x, k => { if (k.speist === v.id) k.speist = null; });
-        if (w) { const [vid, kid] = w.split(':'); const q = knoten(vById(vid), kid); q.k.speist = v.id; q.k.ziel.anschluss = 'fest'; v.netzform = vById(vid).netzform === 'TN-C' ? 'TN-C' : 'TN-S'; }
+        if (w) { const [vid, kid] = w.split(':'); const q = knoten(vById(vid), kid); q.k.speist = v.id; q.k.ziel.anschluss = 'fest'; const nf = vById(vid).netzform; v.netzform = nf === 'TN-C' || nf === 'TT' ? nf : 'TN-S'; }
       }, { text: 'Ein Unterverteiler hängt an einem Abgang eines anderen Verteilers. Der Abgang führt dann zum Unterverteiler statt zu einem Verbraucher.' }))));
   m.append(h('h2', {}, 'Netz'), h('div', { class: 'liste' },
-    zeile('Netzform', v.netzform, () => wahlFeld('Netzform', [['TN-S', 'TN-S', 'N und PE getrennt'], ['TN-C', 'TN-C', 'PEN – nur, wenn alle Abgänge PEN ≥ 10 mm² führen'], ['TN-C-S', 'TN-C-S', 'PEN wird im Verteiler aufgeteilt']], v.netzform, w => v.netzform = w)),
+    zeile('Netzform', v.netzform, () => wahlFeld('Netzform', [['TN-S', 'TN-S', 'N und PE getrennt'], ['TN-C', 'TN-C', 'PEN – nur, wenn alle Abgänge PEN ≥ 10 mm² führen'], ['TN-C-S', 'TN-C-S', 'PEN wird im Verteiler aufgeteilt'], ['TT', 'TT', 'PE vom Anlagenerder, Schutz über FI']], v.netzform, w => v.netzform = w)),
     zeile('Leiter', leiterText(v), () => wahlFeld('Leiter', [['3NPE', '3/N/PE', 'Drehstrom'], ['1NPE', '1/N/PE', 'Wechselstrom']], v.leiter, w => leiterSetzen(v, w))),
-    ...netzZsZeilen(v, sp)));
+    ...netzZsZeilen(v, sp), ...erderZeilen(v, sp)));
   if (v.leiter === '1NPE') m.append(h('p', { class: 'warnung' }, 'Bei 1/N/PE werden alle Abgänge einphasig gezählt; 3-polige Geräte passen hier nicht.'));
   app.append(m);
 }
@@ -4056,6 +4101,16 @@ function netzZsZeilen(v, sp) {
     w => { const t = w.replace(/\s*(Ω|Ohm)$/i, ''); if (t) v.netz = Object.assign(v.netz || {}, { zs: t }); else delete v.netz; },
     zahlOpt({ platz: 'z. B. 0,3', text: 'Fehlerschleife Außenleiter–Schutzleiter am Hausanschluss bzw. Zählerplatz: Angabe des Netzbetreibers oder gemessen. Ohne Angabe keine Prüfung der Abschaltbedingung.' }, Z_OHM)),
     { titel: 'für die Abschaltbedingung (DIN VDE 0100-410)' })];
+}
+// Anlagenerder im TT (ab v1.84, X11): Erdungswiderstand R_A am obersten Verteiler (v.erder.ra), für R_A · IΔn ≤ 50 V und die Angabe im Plan
+function erderZeilen(v, sp) {
+  if (!istTT(v)) return [];
+  const ra = raVon(v);
+  if (sp) return [zeile('Erdungswiderstand RA', ra != null ? `${ohm(ra)} Ω` : '—', () => {}, { ohnePfeil: true, un: `Anlagenerder am Verteiler ${sp.v.name}` })];
+  return [zeile('Erdungswiderstand RA', ra != null ? `${ohm(ra)} Ω` : '—', () => textFeld('Erdungswiderstand RA des Anlagenerders (Ω)', v.erder && v.erder.ra,
+    w => { const t = w.replace(/\s*(Ω|Ohm)$/i, ''); if (t) v.erder = { ra: t }; else delete v.erder; },
+    zahlOpt({ platz: 'z. B. 30', text: 'Gemessener Widerstand des Anlagenerders. Geprüft wird RA · IΔn ≤ 50 V (DIN VDE 0100-410, 411.5.3); im Plan steht er am Erderzeichen.' }, RA_OHM)),
+    { titel: 'Anlagenerder (TT)' })];
 }
 // Leiter des Verteilers wechseln (ab v1.72, Q04): die Kopfgeräte folgen der Polzahl (Lasttrennschalter 3-polig ↔ 2-polig,
 // Sicherungen und LS 3-polig ↔ 1-polig, Zähler und Überspannungsschutz), ein Hinweis nennt die Umstellung
@@ -8142,7 +8197,8 @@ function pruefprotokoll(v) {
   const ab = alle.filter(k => k.typ === 'abgang'), hatFi = istFi(v.hauptschalter) || alle.some(k => istFi(k.geraet)) || fiVor(v).length > 0;
   const hatSchalt = ab.some(k => (e.abgaenge[k.id] || {}).schalt) || Object.keys(e.steuer.aktiv || {}).length > 0;
   const hatDreh = ab.some(k => !k.speist && ['steckdose5', 'wallbox'].includes(k.ziel.anschluss) || (k.ziel.anschluss === 'motor' && motorVon(k).art !== '1'));
-  const netz = sp ? `${v.netzform}, ${leiterText(v)}, aus ${sp.v.name}` : `${v.netzform}, ${leiterText(v)}, 230/400\u00a0V`, sb = (a, i) => [a, h('sub', {}, i)];
+  const raP = raVon(v);      // ab v1.84 (X11): im TT mit dem Erdungswiderstand
+  const netz = (sp ? `${v.netzform}, ${leiterText(v)}, aus ${sp.v.name}` : `${v.netzform}, ${leiterText(v)}, 230/400\u00a0V`) + (raP != null ? `, RA = ${ohm(raP)}\u00a0Ω` : ''), sb = (a, i) => [a, h('sub', {}, i)];
   // Kopf in drei Spalten, Besichtigen in zwei Spalten neben Erproben – damit ein kleiner Verteiler auf eine Seite passt
   const kopfF = h('div', { class: 'ppkopf' },
     ppFeld('Projekt', P.projekt.projekt || ''), ppFeld('Verteiler', v.name), ppFeld('Netz', netz),
@@ -8373,7 +8429,8 @@ function pruefeProjekt(d, datei = false) {
   d.verteiler.forEach((v, vi) => {
     text(v, 'name', `Verteiler ${vi + 1} Name`);
     const wo = v.name = String(v.name || `Verteiler ${vi + 1}`);
-    if (!['TN-S', 'TN-C', 'TN-C-S'].includes(v.netzform)) { r.push(`${wo}: Netzform „${v.netzform}“ → TN-S`); v.netzform = 'TN-S'; }
+    if (!['TN-S', 'TN-C', 'TN-C-S', 'TT'].includes(v.netzform)) { r.push(`${wo}: Netzform „${v.netzform}“ → TN-S`); v.netzform = 'TN-S'; }      // ab v1.84 auch TT
+    if (v.erder !== undefined) { if (!obj(v.erder)) { r.push(`${wo}: Erderangaben entfernt`); delete v.erder; } else zahl(v.erder, 'ra', `${wo} Erdungswiderstand`, RA_OHM, ''); }      // ab v1.84
     if (!['3NPE', '1NPE'].includes(v.leiter)) { r.push(`${wo}: Leiter → 3/N/PE`); v.leiter = '3NPE'; }
     if (v.netz !== undefined) { if (!obj(v.netz)) { r.push(`${wo}: Netzangaben entfernt`); delete v.netz; } else zahl(v.netz, 'zs', `${wo} Schleifenimpedanz`, Z_OHM, ''); }      // ab v1.78
     ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true, WAHL[f]); });

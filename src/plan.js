@@ -1248,11 +1248,25 @@ const PLAN = (() => {
   }
 
   // ---- Einspeisung ----------------------------------------------------------
+  // Netzform TT (ab v1.84, X11/Q31): oberste Verteiler im TT (nicht aus einem Abgang gespeist) bekommen den PE von der
+  // Haupterdungsschiene mit Anlagenerder; Wert = Erdungswiderstand R_A (Text, '' = ohne Angabe). Gesetzt in blaetter().
+  let TT_ERDER = new Map();
+  const ttErder = v => TT_ERDER.has(v.id);
+  const penNetz = v => v.netzform === 'TN-C' || v.netzform === 'TN-C-S';
+  const TT_KETTE = 15.5;      // Erdungsschiene (10 mm) und Erderzeichen (5,5 mm) unter dem Anfang der Leiter
+  // „R_A = … Ω“ mit tiefgestelltem A
+  function raText(g, x, y, ra, gr) {
+    const t = text(g, x, y, 'R', gr);
+    el('tspan', { 'baseline-shift': 'sub', 'font-size': gr * 0.75 }, t).textContent = 'A';
+    el('tspan', {}, t).textContent = ra ? ` = ${String(ra).replace('.', ',')}\u00a0Ω` : '';
+    return t;
+  }
   // zeichnet die Leiter von oben durch Vorsicherung, Zähler, Hauptschalter;
   // gibt die x-Lage der Leiter und das untere Ende zurück
   function zeichneEinspeisung(g, v, e, xSp, yOben, herkunft, speisePhase) {
-    const pen = v.netzform !== 'TN-S';
+    const pen = penNetz(v), tt = ttErder(v);
     let namen = v.leiter === '1NPE' ? (pen ? ['L1', 'PEN'] : ['L1', 'N', 'PE']) : (pen ? ['L1', 'L2', 'L3', 'PEN'] : ['L1', 'L2', 'L3', 'N', 'PE']);
+    if (tt) namen = namen.filter(n => n !== 'PE');      // ab v1.84: im TT liefert das Netz keinen PE
     const x0 = xSp + LINKS;
     // ab v1.72 (Q04): Schaltglieder schalten nur Außenleiter und N; hat eines mehr Pole (3-polig im 1/N/PE-Verteiler), laufen
     // PE bzw. PEN rechts daran vorbei. Der Zähler bleibt wie bisher (im TN-C liegt der PEN an seinem N-Anschluss).
@@ -1282,6 +1296,20 @@ const PLAN = (() => {
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
     }
+    // ab v1.84 (X11): TT – der PE beginnt oben an der Haupterdungsschiene (Trennlasche) mit dem Anlagenerder rechts daneben und läuft
+    // wie im TN-S rechts an den Geräten vorbei; die Schienen beginnen erst unter dem Erderzeichen
+    if (tt) {
+      const xP = x0 + ABSTAND * breit, yT = yOben + 5.5, xE = xP + 2 * ABSTAND, hE = hoehe('erdungsschiene');
+      text(g, xP, yOben + 4, 'PE', 1.9, 'middle');
+      leiter(g, xP, yT, xE, yT, 'PE');
+      setze(g, 'erdungsschiene', xE, yT, null, 'PE');
+      setze(g, 'schutzerde', xE, yT + hE, null, 'PE');
+      text(g, xE + 2.5, yT + hE / 2 + 0.7, 'Haupterdungsschiene', 1.9);
+      text(g, xE + 3.5, yT + hE + 3, 'Anlagenerder', 1.9);
+      raText(g, xE + 3.5, yT + hE + 5.6, TT_ERDER.get(v.id), 1.9);
+      namen = namen.concat(['PE']); xs = xs.concat([xP]); enden = enden.concat([yT]);
+      cursor = Math.max(cursor, yOben + 5.5 + TT_KETTE - 3);
+    }
     // TN-C-S: PEN wird hier in N und PE aufgeteilt
     if (v.netzform === 'TN-C-S') {
       const i = namen.indexOf('PEN'), ys = cursor + 4;
@@ -1302,11 +1330,13 @@ const PLAN = (() => {
     return { namen, xs, enden, cursor };
   }
   // ankommende Leiter (ab v1.46): TN-C und TN-C-S kommen mit PEN an
-  const netzLeiter = v => (v.leiter === '3NPE' ? '3' : '1') + (v.netzform === 'TN-S' ? '/N/PE' : '/PEN');
+  // ab v1.84: TT „3/N“ (PE vom Anlagenerder), im Unterverteiler mit PE aus der Zuleitung
+  const netzLeiter = v => (v.leiter === '3NPE' ? '3' : '1') + (penNetz(v) ? '/PEN' : ttErder(v) ? '/N' : '/N/PE');
   function einspeisungsHoehe(v) {
     let h = 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) if (v[feld].zeichen) h += 5 + hoehe(v[feld].zeichen);
     if (v.netzform === 'TN-C-S') h += 4;
+    if (ttErder(v)) h = Math.max(h, 5.5 + TT_KETTE - 3);      // ab v1.84: wie in zeichneEinspeisung()
     return h;
   }
 
@@ -1610,8 +1640,8 @@ const PLAN = (() => {
   function ueBreite(it) { return it.art === 'gruppe' ? Math.max(1, it.teil ? it.teil.bis - it.teil.von : it.k.kinder.filter(k => k.typ === 'abgang').length) : 1; }
   // Einspeisung einpolig von oben bis zur Schiene; gibt die Schienenhöhe zurück
   function ueEinspeisung(g, v, e, x, herkunft, P) {
-    const pen = v.netzform !== 'TN-S';
-    const n0 = v.leiter === '1NPE' ? (pen ? 2 : 3) : (pen ? 4 : 5);
+    const pen = penNetz(v), tt = ttErder(v);
+    const n0 = (v.leiter === '1NPE' ? (pen ? 2 : 3) : (pen ? 4 : 5)) - (tt ? 1 : 0);
     if (g) passend(text(g, x - 8, RAND + 5, herkunft, 2.5, 'start', { 'font-weight': 'bold' }), 90);
     let y = RAND + 7;
     if (g) leiterzahl(g, x, y + 2, n0);
@@ -1627,6 +1657,13 @@ const PLAN = (() => {
       if (g) { linie(g, x, y, x, y + 6, 0.25); punkt(g, x, y + 2.5);
         text(g, x - 2, y + 3.2, 'PEN → N + PE', 2, 'end'); leiterzahl(g, x, y + 4.6, v.leiter === '1NPE' ? 3 : 5); }
       y += 6;
+    }
+    // ab v1.84 (X11): TT – der PE kommt vom Anlagenerder dazu
+    if (tt) {
+      if (g) { linie(g, x, y, x, y + 8, 0.25); punkt(g, x, y + 2.5); linie(g, x, y + 2.5, x + 8, y + 2.5, 0.25); setze(g, 'schutzerde', x + 8, y + 2.5);
+        text(g, x - 2, y + 3.2, 'PE vom Anlagenerder', 2, 'end'); leiterzahl(g, x, y + 4.6, v.leiter === '1NPE' ? 3 : 5);
+        raText(g, x + 11, y + 6.5, TT_ERDER.get(v.id), 2); }
+      y += 8;
     }
     const yS = y + 4;
     if (g) linie(g, x, y, x, yS, 0.25);
@@ -2388,6 +2425,8 @@ const PLAN = (() => {
     if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; ZA = {}; SICHT = {}; SLI = {}; ZEICHEN_BIB = BIB; }
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
+    TT_ERDER = new Map(P.verteiler.filter(v => v.netzform === 'TT' && !(hilf.speisenderAbgang && hilf.speisenderAbgang(v.id)))
+      .map(v => [v.id, (v.erder && v.erder.ra) || '']));      // ab v1.84 (X11)
     // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe)
     const plaene = P.verteiler.map(v0 => {
       const e = hilf.berechne(v0), v = mitFreigabe(v0, e);
@@ -2547,7 +2586,7 @@ const PLAN = (() => {
         if (b.art === 'einspeisung') {
           const ein = mitOrt('e:' + v.id, () => zeichneEinspeisung(g, v, e, R.x0 + R.sb, 16, herkunft, speisePhase));
           const y0 = ein.cursor + 10;
-          if (opt.ziele) ziel(g, R.x0, RAND, 3 * R.sb, y0 - RAND, 'e:' + v.id);
+          if (opt.ziele) ziel(g, R.x0, RAND, (ttErder(v) ? 4 : 3) * R.sb, y0 - RAND, 'e:' + v.id);      // ab v1.84: im TT mit dem Erder
           mitOrt('e:' + v.id, () => ein.namen.forEach((n, j) => leiter(g, ein.xs[j], ein.enden[j], ein.xs[j], y0 + ABSTAND * j, n)));
           zeichneSchienen(g, v, y0, ein.xs, xEnde, null, naechstes, false);
         } else {

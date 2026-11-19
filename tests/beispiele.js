@@ -375,6 +375,11 @@ window.BEISPIELE = {
   vorlage_baustrom: () => {
     P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Baustrom aus Vorlage', ersteller:'Jean', nummer:'SLP-0083'});
     verteilerAusVorlage('baustrom', 'Baustromverteiler'); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.84 (X11, Q31): Baustromverteiler aus der Vorlage im TT mit Anlagenerder R_A = 30 Ω
+  tt: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Baustrom im TT-Netz', ersteller:'Jean', nummer:'SLP-0084'});
+    const v = verteilerAusVorlage('baustrom', 'Baustromverteiler'); v.netzform = 'TT'; v.erder = { ra: '30' };
+    sichern(); stapel=[{s:'start'}]; zeichne(); },
   // ab v1.83 (X10): wie schaltungen, dazu zentrale Not-Aus-Freigabe mit zwei Not-Aus-Tastern (Halle, Tor) vor allen Kreisen
   notaus: () => { BEISPIELE.schaltungen(); const [hv] = P.verteiler;
     const fg = freigabeAnlegen(hv); freigabeNotaus(hv, 2);

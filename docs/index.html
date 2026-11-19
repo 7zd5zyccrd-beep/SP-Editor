@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.84 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.85 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -16,6 +16,13 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.85: Leistung (Etappe Z1: Q20, Q48, X27): plan.js plant je Verteiler nur neu, was sich geändert hat (Zwischenspeicher mit
+           Schlüssel aus Format, Erder, JSON von Verteiler und Berechnung; PLAN.planung() für Prüfungen), zeichnet je Blatt als Aufgabe –
+           { liste: true } liefert nur Nummer/Art/Verteiler/Titel (Blatt-Menü, Querverweis-Sprung), { stueckweise: true } zeichnet mit
+           res.weiter(n) (Druck großer Projekte in Stücken mit Fortschritt und „Abbrechen“); zuBegrenzen je Aufruf (Q48). App: Feld
+           öffnen und Esc ohne Datenänderung baut nichts neu, Palette/Fach messen vor dem Einhängen der Blätter, Palettenbreite je Reiter
+           und Fenstergröße gemerkt, Teilflächen erst messen, dann einhängen, speisenderAbgang während berechne() gemerkt, Textbreiten
+           gemerkt. Pläne bitgleich. Messlauf tests/leistung.py (10 Verteiler × 60 Abgänge).
      v1.84: Netzform TT (Etappe X-I: X11, Q31): Netzform „TT“ in der Netzwahl, optional v.erder = { ra } (Erdungswiderstand RA am
            obersten Verteiler, Feld unter „Netz“). Plan: oberster Verteiler im TT mit „Netz TT, 3/N“ bzw. „1/N“; der PE beginnt oben an der
            Haupterdungsschiene (Trennlasche, Zeichen erdungsschiene) mit Anlagenerder (schutzerde), „Anlagenerder“ und „RA = … Ω“, und läuft
@@ -564,6 +571,8 @@ table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:no
 .knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
 .knopf.rot{background:var(--rot)}
 .fenster .text{font-size:15px;color:var(--leise);margin:0 0 8px}
+/* ab v1.85 (X27): Fortschritt beim Füllen des Drucks großer Projekte */
+.fortschritt{display:block;width:100%;height:8px;margin:6px 0 4px;accent-color:var(--akzent)}
 /* ab v1.82 (X09): Vorschlagszeile unter Bezeichnung/Ort; (X08) Vorlagenwahl im Fenster „Neuer Verteiler“ */
 .vorschlaege{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .vorschlaege[hidden]{display:none}
@@ -1681,13 +1690,14 @@ const PLAN = (() => {
   const punkt = (g, x, y, art) => { const e = el('circle', { cx: x, cy: y, r: 0.6, fill: farbe(art) }, g);
     if (g === SZ.g && !SZ.teil) SZ.punkte.push({ el: e, x, y, art }); return e; };
   // Text auf eine Breite begrenzen (wirkt erst, wenn das Blatt im Dokument hängt)
-  const zuBegrenzen = [];
+  // ab v1.85 (Q48): je blaetter()-Aufruf eine eigene Liste – res.begrenzen() bearbeitet nur die Texte des eigenen Ergebnisses
+  let zuBegrenzen = [];
   function passend(t, max) { zuBegrenzen.push([t, max]); }
   // ab v1.54: gibt die Texte zurück, die stärker als auf 85 % gestaucht werden ({ el, text, faktor }, für die Prüfliste im Editor)
-  function begrenzen() {
+  function begrenzen(liste) {
     const gestaucht = [];
-    while (zuBegrenzen.length) {
-      const [t, max] = zuBegrenzen.pop();
+    while (liste.length) {
+      const [t, max] = liste.pop();
       try { const l = t.getComputedTextLength(); if (l > max) { t.setAttribute('textLength', max); t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
         if (max / l < 0.85) gestaucht.push({ el: t, text: t.textContent, faktor: max / l }); } } catch (e) {}
     }
@@ -1698,9 +1708,13 @@ const PLAN = (() => {
   function textBreite(t, gr, fett = false) {
     if (MESS === null) try { MESS = document.createElement('canvas').getContext('2d'); } catch (e) { MESS = false; }
     if (!MESS) return String(t).length * gr * 0.5;
-    MESS.font = (fett ? 'bold ' : '') + '100px Arial, Helvetica, Liberation Sans, sans-serif';
-    return MESS.measureText(String(t)).width * gr / 100;
+    // ab v1.85 (Q20): Breite je Text gemerkt (Systemschrift, keine nachgeladenen Schriften)
+    const k = (fett ? 'b' : 'n') + String(t); let w = BREITEN.get(k);
+    if (w === undefined) { MESS.font = (fett ? 'bold ' : '') + '100px Arial, Helvetica, Liberation Sans, sans-serif'; w = MESS.measureText(String(t)).width;
+      if (BREITEN.size > 20000) BREITEN.clear(); BREITEN.set(k, w); }
+    return w * gr / 100;
   }
+  const BREITEN = new Map();
   // E1-Regel „umbrechen statt stauchen“ (ab v1.63): passt die Zeile auch auf 85 % gestaucht nicht in max,
   // wird sie an Leerzeichen bzw. hinter einem Bindestrich in Zeilen geteilt, die möglichst ungestaucht passen
   function zeilenTeilen(t, gr, max, fett = false) {
@@ -3861,15 +3875,31 @@ const PLAN = (() => {
   // Abgänge einer Gruppe bzw. ihres Teilstücks auf diesem Blatt
   const stueckKinder = it => { const k = it.k.kinder.filter(c => c.typ === 'abgang'); return it.teil ? k.slice(it.teil.von, it.teil.bis) : k; };
   let letzteGruppeYK = 0;   // Oberkante der Abgänge in der zuletzt gezeichneten Gruppe
+  // Planung je Verteiler zwischengespeichert (ab v1.85, Q20/X27): Schlüssel = Format, Erder (TT), JSON des Verteilers und
+  // seiner Berechnung. Ein Treffer gilt nur, wenn der gemerkte Stand seither unverändert ist (Rückgängig liefert neue Objekte
+  // gleichen Inhalts, Bearbeiten ändert die alten an Ort und Stelle). Je Verteiler ein Eintrag.
+  // planung() für Prüfungen: { treffer, neu } seit dem letzten Aufruf; planung(true) leert den Zwischenspeicher
+  const PLANUNG = new Map(), PZ = { treffer: 0, neu: 0 };
+  function planung(leeren) { const r = Object.assign({}, PZ); PZ.treffer = PZ.neu = 0; if (leeren) PLANUNG.clear(); return r; }
+  function geplant(v0, e0, F, TT, planen) {
+    const jv = JSON.stringify(v0), je = JSON.stringify(e0), schl = F.w + 'x' + F.h + '|' + TT + '|' + jv + '|' + je, c = PLANUNG.get(v0.id);
+    if (c && c.schl === schl && (c.v0 === v0 || JSON.stringify(c.v0) === jv) && JSON.stringify(c.e) === je) { PZ.treffer++; return c.p; }
+    PZ.neu++;
+    const p = planen();
+    PLANUNG.set(v0.id, { schl, v0, e: p.e, p });
+    return p;
+  }
   function blaetter(P, BIB, hilf, opt = {}) {
-    if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; ZA = {}; SICHT = {}; SLI = {}; ZEICHEN_BIB = BIB; }
+    if (ZEICHEN_BIB !== BIB) { ZEICHEN = Object.fromEntries(BIB.zeichen.map(z => [z.kennung, z])); ZC = {}; ZA = {}; SICHT = {}; SLI = {}; ZEICHEN_BIB = BIB; PLANUNG.clear(); }
     const F = FORMATE[P.projekt.format || 'A4'];
     const R = rahmen(el('g'), F);
     TT_ERDER = new Map(P.verteiler.filter(v => v.netzform === 'TT' && !(hilf.speisenderAbgang && hilf.speisenderAbgang(v.id)))
       .map(v => [v.id, (v.erder && v.erder.ra) || '']));      // ab v1.84 (X11)
-    // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe)
-    const plaene = P.verteiler.map(v0 => {
-      const e = hilf.berechne(v0), v = mitFreigabe(v0, e);
+    // 1. Durchgang: Blätter je Verteiler planen (Probezeichnen für die Tiefe); ab v1.85 aus dem Zwischenspeicher, wenn
+    // sich Verteiler und Berechnung nicht geändert haben
+    zuBegrenzen = [];
+    const plaene = P.verteiler.map(v0 => { const e0 = hilf.berechne(v0); return Object.assign({}, geplant(v0, e0, F, TT_ERDER.has(v0.id) ? TT_ERDER.get(v0.id) : '-', () => {
+      const e = e0, v = mitFreigabe(v0, e);
       const probe = (it, y0) => {
         const g = el('g'); const bars = {}; schienenNamen(v).forEach((n, i) => bars[n] = y0 + ABSTAND * i);
         const yG = y0 + ABSTAND * (schienenNamen(v).length - 1) + VOR_GERAET;
@@ -3879,8 +3909,8 @@ const PLAN = (() => {
         return zeichneGruppe(g, ctx, v, e, it.k, 0, bars, yG, it.w, R, F.h - RAND - SF_H - 24, null, it.teil ? Object.assign({ kommend: '', gehend: '' }, it.teil) : null);
       };
       return { v, e, blaetter: planeVerteiler(v, e, F, R, probe), st: stPlane(v, F, e) };
-    });
-    zuBegrenzen.length = 0;      // Texte aus dem Probezeichnen verwerfen
+    })); });
+    const meine = zuBegrenzen = [];      // Texte aus dem Probezeichnen verwerfen; ab v1.85 eigene Liste dieses Aufrufs
     // Blattnummern durchgehend; Einspeisungsspalte jedes Verteilers für Querverweise
     // Deckblatt und Inhaltsverzeichnis vorneweg (P.projekt.deckblatt === false schaltet ab)
     const mitVorn = P.projekt.deckblatt !== false && plaene.length > 0;
@@ -3941,8 +3971,12 @@ const PLAN = (() => {
     })));
     ctx.lage = lage; ctx.R = R; ctx.steuer = { kreise: {}, kontakte: {}, spulen: {} };
     plaene.forEach(p => stLagen(p, ctx.steuer));
-    // 2. Durchgang: zeichnen
-    const aus = [];
+    // 2. Durchgang: zeichnen – ab v1.85 je Blatt eine Aufgabe mit ihren Kenndaten (nr, art, verteiler, titel). Ohne Sonderwunsch
+    // laufen alle sofort nacheinander; opt.liste gibt nur die Kenndaten zurück (Blatt-Menü, Querverweis), opt.stueckweise
+    // zeichnet erst mit res.weiter(n) (Druck mit Fortschritt). Jede Aufgabe stellt den Modulzustand dieses Aufrufs wieder her,
+    // damit ein anderer Aufruf dazwischen nichts verstellt.
+    const aus = [], aufgaben = [];
+    const auf = (kenn, f) => aufgaben.push({ kenn, f });
     const neuesBlatt = () => {
       const svg = el('svg', { viewBox: `0 0 ${F.w} ${F.h}`, width: `${F.w}mm`, height: `${F.h}mm` });
       el('rect', { x: 0, y: 0, width: F.w, height: F.h, fill: '#fff' }, svg);
@@ -3981,31 +4015,33 @@ const PLAN = (() => {
       sl.forEach(x => x.bl.forEach((b, i) => eintraege.push({ nr: x.start + i, verteiler: x.liste.projekt ? '' : x.liste.titel,
         inhalt: (x.liste.projekt ? 'Stückliste aller Verteiler' : 'Stückliste') + (i ? ' (Fortsetzung)' : '') })));
       eintraege.sort((x, y) => x.nr - y.nr);
-      const { svg, g } = neuesBlatt(), nR = g.children.length, yU = F.h - RAND - SF_H - 2;
+      const yU = F.h - RAND - SF_H - 2;
+      auf({ verteiler: '', titel: 'Deckblatt', nr: 1, art: 'deckblatt' }, kenn => {
+      const { svg, g } = neuesBlatt(), nR = g.children.length;
       zeichneDeckblatt(g, F, P, plaene.map(p => p.v.name));
       const pruef = rahmenPruefen(g, R, nR, yU);      // ab v1.73: Rahmenprüfung für alle Blattarten
       schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: '', blatt: 1, blaetter: gesamt }));
-      aus.push({ svg, verteiler: '', titel: 'Deckblatt', nr: 1, art: 'deckblatt', pruef });
-      for (let i = 0; i < nInhalt; i++) {
+      aus.push(Object.assign({ svg }, kenn, { pruef })); });
+      for (let i = 0; i < nInhalt; i++) auf({ verteiler: '', titel: 'Inhaltsverzeichnis', nr: 2 + i, art: 'inhalt' }, kenn => {
         const { svg, g } = neuesBlatt(), nR = g.children.length;
         zeichneInhalt(g, F, P, eintraege.slice(i * zProBlatt, (i + 1) * zProBlatt), i, nInhalt);
         const pruef = rahmenPruefen(g, R, nR, yU);
         schriftfeld(g, F, Object.assign({}, P.projekt, { verteiler: '', blatt: 2 + i, blaetter: gesamt }));
-        aus.push({ svg, verteiler: '', titel: 'Inhaltsverzeichnis', nr: 2 + i, art: 'inhalt', pruef });
-      }
+        aus.push(Object.assign({ svg }, kenn, { pruef }));
+      });
     }
     for (const p of plaene) {
       if (opt.nur) continue;           // Editor (ab v1.23): nur die Blätter des offenen Verteilers
       const { v, e } = p, sp = hilf.speisenderAbgang(v.id);
       let herkunft = `Netz ${v.netzform}, ${netzLeiter(v)}`;
       if (sp) { const l = lageUe[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
-      p.ue.forEach((b, i) => {
+      p.ue.forEach((b, i) => auf({ verteiler: v.name, titel: v.name, nr: p.ueStart + i, art: 'uebersicht' }, kenn => {
         const blattNr = p.ueStart + i, { svg, g } = neuesBlatt(), nR = g.children.length;
         ueZeichne(g, ctx, v, e, F, R, b, i, p.ue.length, herkunft, blattNr);
         const pruef = rahmenPruefen(g, R, nR, F.h - RAND - SF_H - 2);
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Übersichtsschaltplan', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
-        aus.push({ svg, verteiler: v.name, titel: v.name, nr: blattNr, art: 'uebersicht', pruef });
-      });
+        aus.push(Object.assign({ svg }, kenn, { pruef }));
+      }));
     }
     for (const p of plaene) {
       if (opt.nur && p.v.id !== opt.nur) continue;
@@ -4014,7 +4050,7 @@ const PLAN = (() => {
       let herkunft = `Netz ${v.netzform}, ${netzLeiter(v)}`;
       if (sp) { const l = lage[sp.k.id], fz = hilf.berechne(sp.v).abgaenge[sp.k.id].f; herkunft = `von ${sp.v.name}${fz ? ' ' + fz.t : ''}${l ? ` /${l.blatt}.${l.spalte}` : ''}`; }
       const speisePhase = sp ? (hilf.berechne(sp.v).abgaenge[sp.k.id].phase || {}).t : null;      // ab v1.75 (Q39)
-      p.blaetter.forEach((b, i) => {
+      p.blaetter.forEach((b, i) => auf({ verteiler: v.name, vid: v.id, titel: v.name, nr: p.start + i, gesamt, art: b.art }, () => {
         // ab v1.73 (Q09): Blätter mit hochgezogenen Untersammelschienen (b.hoch) haben keine Sammelschienen – deren Querverweise
         // springen über sie hinweg
         const jN = p.blaetter.findIndex((x, j) => j > i && !x.hoch), jV = p.blaetter.map((x, j) => j < i && !x.hoch ? j : -1).reduce((a, c) => Math.max(a, c), -1);
@@ -4087,8 +4123,8 @@ const PLAN = (() => {
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
         aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, gesamt, art: b.art, szene, anker, pruef,
           spalten: b.items.map(it => it.teil && it.teil.n ? { id: null, fort: it.k.id, col: it.col, w: it.w } : { id: it.k ? it.k.id : null, col: it.col, w: it.w }) });
-      });
-      p.st.forEach((b, i) => {
+      }));
+      p.st.forEach((b, i) => auf({ verteiler: v.name, vid: v.id, titel: v.name, nr: p.stStart + i, gesamt, art: 'steuerung' }, () => {
         const blattNr = p.stStart + i, { svg, g } = neuesBlatt(), nRahmen = g.children.length;
         szeneStart(g);
         stBlatt(g, ctx, v, e, b, R, F, blattNr, p.stStart + Math.max(0, ...p.st.map((x, j) => x.kreise.some(k => k.gem) ? j : -1)));
@@ -4107,23 +4143,35 @@ const PLAN = (() => {
         schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Steuerstromkreis', verteiler: v.name, blatt: blattNr, blaetter: gesamt }));
         if (opt.ziele) ziel(g, RAND_L, F.h - RAND - SF_H, F.w - RAND - RAND_L, SF_H, 'p:');
         aus.push({ svg, verteiler: v.name, vid: v.id, titel: v.name, nr: blattNr, gesamt, art: 'steuerung', kreise: b.kreise.map(x => x.kr.id), szene, anker, pruef });
-      });
+      }));
     }
-    for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => {
+    for (const p of plaene) if (!opt.nur) p.kl.forEach((b, i) => auf({ verteiler: p.v.name, titel: p.v.name, nr: p.klStart + i, art: 'klemmen' }, kenn => {
       const blattNr = p.klStart + i, { svg, g } = neuesBlatt(), nR = g.children.length;
       zeichneKlemmenplan(g, F, p.v, b.bloecke, b.teil, b.teile, b.leiste);
       const pruef = rahmenPruefen(g, R, nR, F.h - RAND - SF_H - 2);
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Klemmenplan', verteiler: p.v.name, blatt: blattNr, blaetter: gesamt }));
-      aus.push({ svg, verteiler: p.v.name, titel: p.v.name, nr: blattNr, art: 'klemmen', pruef });
-    });
-    if (!opt.nur) sl.forEach(x => x.bl.forEach((zeilen, i) => {
+      aus.push(Object.assign({ svg }, kenn, { pruef }));
+    }));
+    if (!opt.nur) sl.forEach(x => x.bl.forEach((zeilen, i) => auf({ verteiler: x.liste.projekt ? '' : x.liste.titel, titel: x.liste.titel, nr: x.start + i, art: 'stueckliste' }, kenn => {
       const blattNr = x.start + i, { svg, g } = neuesBlatt(), nR = g.children.length, vn = x.liste.projekt ? '' : x.liste.titel;
       zeichneStueckliste(g, F, x.liste, zeilen, i, x.bl.length, i === x.bl.length - 1);
       const pruef = rahmenPruefen(g, R, nR, F.h - RAND - SF_H - 2);
       schriftfeld(g, F, Object.assign({}, P.projekt, { titel: 'Stückliste', verteiler: vn, blatt: blattNr, blaetter: gesamt }));
-      aus.push({ svg, verteiler: vn, titel: x.liste.titel, nr: blattNr, art: 'stueckliste', pruef });
-    }));
-    return { blaetter: aus, format: P.projekt.format || 'A4', begrenzen, raster: { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H } };
+      aus.push(Object.assign({ svg }, kenn, { pruef }));
+    })));
+    const raster = { x0: R.x0, sb: R.sb, sp: F.sp, w: F.w, h: F.h, sfTop: F.h - RAND - SF_H }, format = P.projekt.format || 'A4';
+    if (opt.liste) return { blaetter: aufgaben.map(a => Object.assign({}, a.kenn)), format, raster };
+    const zustand = { REV, ankerAlle, TT_ERDER, hilfK };
+    let n = 0;
+    const weiter = (k = Infinity) => {
+      for (; n < aufgaben.length && k > 0; n++, k--) {
+        ({ REV, ankerAlle, TT_ERDER, hilfK } = zustand); zuBegrenzen = meine;
+        aufgaben[n].f(Object.assign({}, aufgaben[n].kenn));
+      }
+      return aufgaben.length - n;
+    };
+    if (!opt.stueckweise) weiter();
+    return { blaetter: aus, format, begrenzen: () => begrenzen(meine), raster, anzahl: aufgaben.length, weiter };
   }
   // Stauchung der Bezeichnung im Pfadtext des Stromlaufplans (ab v1.64, F03; für die Feldwarnung der App):
   // null, wenn sie mindestens auf 85 % passt, sonst { faktor, zeichen } (zeichen = etwa so viele passen)
@@ -4137,13 +4185,13 @@ const PLAN = (() => {
   }
   // ab v1.80 (X07): Klemmen und Adern für die Stückliste der App – dieselbe Quelle wie der Klemmenplan
   function klemmen(v, e, namen) { if (namen) hilfK = { name: namen }; return klemmenBloecke(mitFreigabe(v, e), e); }
-  return { blaetter, pfadtext, klemmen, adern, blattHash, revGeaendert, nrBereiche };
+  return { blaetter, pfadtext, klemmen, adern, blattHash, revGeaendert, nrBereiche, planung };
 })();
 
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.84';
+const FASSUNG = 'v1.85';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -4894,9 +4942,14 @@ function alleKnoten(v, f, liste = v.knoten, eltern = null, tiefe = 0) {
 // Zusatzschütze eines Motorabgangs (ab v1.40) tragen die Kennung <abgang>~2 bzw. ~3 und führen zum Abgang
 function knoten(v, kid) { if (typeof kid === 'string' && kid.includes('~')) kid = kid.split('~')[0]; let r = null; alleKnoten(v, (k, e, l, i) => { if (k.id === kid) r = { k, eltern: e, liste: l, i }; }); return r; }
 // welcher Abgang speist diesen Verteiler?
+// ab v1.85 (Q20): während einer Berechnung (berechne() ändert das Projekt nicht) gemerkt – sonst durchsucht jeder Aufruf alle Verteiler
+let speiseMemo = null;
 function speisenderAbgang(vid) {
-  for (const v of P.verteiler) { let r = null; alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) return r; }
-  return null;
+  if (speiseMemo && speiseMemo.has(vid)) return speiseMemo.get(vid);
+  let r = null;
+  for (const v of P.verteiler) { alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) break; }
+  if (speiseMemo) speiseMemo.set(vid, r);
+  return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -5001,6 +5054,11 @@ const gleichText = (grund, vor) => `${grund} hinter ${vor.t} Typ ${fiTyp(vor.g)}
 // Zuleitung eines Unterverteilers mit PEN (ab v1.52): TN-C und TN-C-S bekommen L1 L2 L3 PEN (bzw. L PEN)
 const penZuleitung = k => { const u = k.speist && vById(k.speist); return istPenNetz(u); };      // ab v1.84: nicht bei TT
 function berechne(v) {
+  if (speiseMemo) return berechneOhneMemo(v);
+  speiseMemo = new Map();
+  try { return berechneOhneMemo(v); } finally { speiseMemo = null; }
+}
+function berechneOhneMemo(v) {
   const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   // ab v1.59 (D06): alle vergebenen Kennzeichen gesammelt, damit doppelte (von Hand gleich einem anderen) auffallen
   const vergeben = [];
@@ -5934,12 +5992,15 @@ function textInline(z, titel, wert, setzen, opt) {
   // ab v1.60 (D17): nach Eingabe bzw. Esc liegt der Fokus wieder auf der Zeile, Tab/Umschalt+Tab geht zur nächsten bzw. vorigen
   const wurzel = z.closest('.edeigen') ? '.edeigen' : '#app', zeilen = () => [...document.querySelectorAll(wurzel + ' .zeile')];
   z.replaceWith(box);
-  const nr = zeilen().indexOf(box);
+  const nr = zeilen().indexOf(box), stand0 = JSON.stringify(P);
   let fertig = false;
   ende = (zurueckNehmen, weiter = null) => {
     if (fertig) return; fertig = true;
     if (zurueckNehmen) { verlauf.sitzung = i._sitz || null; setzen(wert || ''); sichern(); verlauf.sitzung = null; }
-    zeichne();
+    // ab v1.85 (Q20): ohne Datenänderung (Esc, Eingabe ohne Tippen) kehrt nur die Zeile zurück – kein Neuaufbau des Plans
+    // (der Anker der Zeile gilt danach nicht mehr – wie bisher nach dem Neuaufbau)
+    if (box.isConnected && JSON.stringify(P) === stand0) { box.replaceWith(z); if (anker && anker.zeile === z) anker = null; if (weiter === null) return; z.focus({ preventScroll: true }); }
+    else zeichne();
     const w = !zurueckNehmen && opt.warn ? opt.warn(i.value.trim()) : null;      // ab v1.59 (D06): Warnung bleibt nach dem Bestätigen sichtbar
     if (w) meldung('⚠ ' + w);
     // ab v1.65 (F10): Tab/Umschalt+Tab öffnet ein Textfeld gleich zum Bearbeiten (Wert markiert), eine Auswahlzeile erhält nur den Fokus
@@ -8451,10 +8512,14 @@ function paletteNeu() {
 // ab v1.54: reicht die Höhe zwischen 1280 und 1499 px Breite nicht, stehen die Kacheln zweispaltig
 // ab v1.58 (C20): die Breite hängt nicht vom Reiter ab – maßgebend sind „Abgänge“ und „Steuerung“ (der Reiter „Zeichnen“
 // mit wenigen Kacheln übernimmt sie), damit das Blatt beim Reiterwechsel nicht springt
+// ab v1.85 (Q20): gemessen wird nur, solange noch nicht zweispaltig feststeht, und nur einmal je Reiter, Fenstergröße und
+// Kachelzahl (b.palMass) – die Messung erzwingt sonst das Layout der Planblätter
 function paletteBreite() {
   const pal = ED.pal, b = ED.b; pal.classList.remove('zweispaltig');
   if (!(innerWidth >= 1280 && innerWidth < 1500)) return;
-  const zu = pal.scrollHeight > pal.clientHeight + 2;
+  const mk = b.palette + '|' + innerWidth + 'x' + innerHeight + '|' + pal.querySelectorAll('button').length;
+  b.palMass = b.palMass || {};
+  const zu = b.palette === 'ze' || b.palZwei ? false : mk in b.palMass ? b.palMass[mk] : (b.palMass[mk] = pal.scrollHeight > pal.clientHeight + 2);
   if (b.palette !== 'ze') b.palZwei = !!b.palZwei || zu;
   else if (b.palZwei === undefined) b.palZwei = true;      // „Abgänge“ passt in dieser Breite praktisch nie einspaltig
   if (b.palZwei) pal.classList.add('zweispaltig');
@@ -8928,7 +8993,9 @@ function nadeln() {
 const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', t: 'Wechselrichter', dc: 'DC-Freischalter', g: 'PV-Generator', p: 'Erzeugungszähler', bat: 'Batterie', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
 const teilBesitzer = besitzerVon;
 const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : /\/pl:[^:]+:6$/.test(key) ? 'Verbraucher' : /\/pl:/.test(key) ? 'Kontakt' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
+// ab v1.85 (Q20): erst alles messen, dann alle Flächen einhängen – sonst setzt jede neue Fläche das Layout zurück
 function teilFlaechen() {
+  const neu = [];
   ED.liste.forEach(bl => {
     if (!bl.szene) return;
     const svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
@@ -8945,9 +9012,10 @@ function teilFlaechen() {
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
         ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
-      svg.append(r);
+      neu.push([svg, r]);
     });
   });
+  neu.forEach(([svg, r]) => svg.append(r));
 }
 // Auswahl in den sichtbaren Bereich holen (ab v1.53: ganz, auch auf einem anderen Blatt; oben Platz für die
 // Kontextleiste). Unter 1000 px endet die Fläche über Fußleiste und Fach, die Rechnung bleibt dieselbe.
@@ -9191,11 +9259,15 @@ function verweisUnter(svg, ev) {
 }
 // Sprung zum Ziel eines Querverweises (ab v1.65, F45): Blatt nr, Spalte sp – im geöffneten Verteiler oder in einem anderen;
 // gewählt wird das schmalste Teil, das die Spalte trifft (Abgang vor Gruppe; im Steuerstromkreis der Kreis)
+// ab v1.85 (Q20): erst die Blattliste, gezeichnet wird nur der Verteiler des Ziels
 function verweisSpringen(v, vw) {
-  let res; try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }); } catch (er) { return; }
-  const bl = res.blaetter.find(x => x.nr === vw.nr); if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
+  const hilf = { berechne, speisenderAbgang };
+  let res; try { res = PLAN.blaetter(P, BIB, hilf, { liste: true }); } catch (er) { return; }
+  let bl = res.blaetter.find(x => x.nr === vw.nr); if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
   const ziel = P.verteiler.find(x => x.name === bl.verteiler) || v, R = res.raster, xm = R.x0 + (vw.sp - 0.5) * R.sb;
   if (!BLATT_ART[bl.art]) { geh({ s: 'plan', vid: ziel.id, nr: vw.nr }); return; }      // Übersicht, Klemmenplan: in der Druckvorschau
+  try { bl = PLAN.blaetter(P, BIB, hilf, { ziele: true, nur: bl.vid || ziel.id }).blaetter.find(x => x.nr === vw.nr); } catch (er) { return; }
+  if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
   let best = null;
   bl.svg.querySelectorAll('rect[data-ziel]').forEach(r => { const z = r.dataset.ziel; if (!/^(k|kr|e|s):/.test(z)) return;
     const rx = +r.getAttribute('x'), rw = +r.getAttribute('width'); if (xm < rx || xm > rx + rw) return;
@@ -9293,6 +9365,7 @@ function zoomAnwenden(halten = true, px = null, py = null) {
   const bw = ED.liste[0] ? +ED.liste[0].svg.getAttribute('viewBox').split(' ')[2] : 297, pmm = breite / bw, fein = !beruehrung();
   ED.ed.style.setProperty('--mkt', ((fein ? 24 : 44) / (12 * pmm)).toFixed(3));
   ED.ed.style.setProperty('--mks', ((fein ? 20 : 24) / (6.4 * pmm)).toFixed(3));
+  ED.b.kartenBreite = [breite + 'px', ED.ed.style.getPropertyValue('--mkt'), ED.ed.style.getPropertyValue('--mks')];      // ab v1.85 für den nächsten Aufbau
   if (halten) { f.scrollLeft = rx * f.scrollWidth - fx; f.scrollTop = ry * f.scrollHeight - fy; }
   if (ED.zoomKnopf) ED.zoomKnopf.textContent = `${Math.round(ED.b.zoom)} %`;
   kontextLage(); leerkarteLage();
@@ -9391,7 +9464,8 @@ function fussNeu() {
   // andere Verteiler), als Sprung in die Druckvorschau an das Blatt
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
     // ab v1.67 (DS3-09): die Zweitzeile nennt die echten Blätter („Deckblatt, Inhalt, Übersicht HV, Übersicht UV Werkstatt“)
-    let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, {}).blaetter; } catch (er) { alle = []; }
+    // ab v1.85 (Q20): nur die Blattliste (Nummer, Art, Verteiler) – ohne die Blätter zu zeichnen
+    let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { liste: true }).blaetter; } catch (er) { alle = []; }
     const ART_KURZ = { deckblatt: 'Deckblatt', inhalt: 'Inhalt', uebersicht: 'Übersicht', einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis', klemmen: 'Klemmenplan', stueckliste: 'Stückliste' };
     const namen = (a, z) => { const n = [...new Set(alle.filter(bl => bl.nr >= a && bl.nr <= z).map(bl => [ART_KURZ[bl.art] || bl.titel, bl.verteiler].filter(Boolean).join(' ')))];
       return n.length > 4 ? n.slice(0, 4).join(', ') + ' …' : n.join(', '); };
@@ -10070,9 +10144,14 @@ function bEditor(b) {
           title: fest ? 'Blatt freigeben – Spalten wieder automatisch' : 'Blatt festhalten – Spalten bleiben stehen', on: { click: festen } }, icon('nadel'));
     // ab v1.61 (D21): der Blatttitel nur bei mehreren Blättern (sonst steht dasselbe in der Fußleiste)
     const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, ED.liste.length > 1 ? `${BLATT_ART[bl.art]} ${v.name} · Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}` : ''), h('span', { class: 'btr' }, festK)), svg);
-    ED.karten.push(karte); blaetter.append(karte);
+    ED.karten.push(karte);
   });
+  // ab v1.85 (Q20): Palette, Fach und Fußleiste messen sich, bevor die Blätter im Dokument hängen – sonst erzwingt jede
+  // Messung das Layout aller Planblätter
   paletteNeu(); eigenNeu(); fussNeu();
+  // Breite der Blätter vom letzten Aufbau übernehmen: stimmt sie, setzt zoomAnwenden() nichts um und das Layout wird nur einmal berechnet
+  if (b.kartenBreite) { ED.karten.forEach(k => { k.style.width = b.kartenBreite[0]; }); ed.style.setProperty('--mkt', b.kartenBreite[1]); ed.style.setProperty('--mks', b.kartenBreite[2]); }
+  blaetter.append(...ED.karten);
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (startAusschnitt) {        // ab v1.55: Blatt des ersten Abgangs (im leeren Verteiler der Marke „+“) links oben im Blick
@@ -10869,6 +10948,34 @@ function druckFuellen() {
   document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
   d.style.display = 'block'; res.begrenzen(); d.style.display = '';
 }
+// ab v1.85 (X27): große Projekte (mehr als DRUCK_STUECK Blätter) füllen #druck in Stücken von etwa 40 ms – mit Fortschritt
+// und „Abbrechen“, die Oberfläche bleibt bedienbar; kleine wie bisher sofort. Die Texte werden je Stück in einer unsichtbaren,
+// aber gesetzten Ablage begrenzt (Ergebnis wie druckFuellen()). Gibt ein Promise: true = gefüllt, false = abgebrochen.
+const DRUCK_STUECK = 40;
+function druckFuellenStuecke() {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { stueckweise: true });
+  document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
+  const haengen = (von, ziel) => res.blaetter.slice(von).forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); ziel.append(w); });
+  if (res.anzahl <= DRUCK_STUECK) { res.weiter(); haengen(0, d); d.style.display = 'block'; res.begrenzen(); d.style.display = ''; return Promise.resolve(true); }
+  let abbruch = false, fertig = false;
+  const balken = h('progress', { class: 'fortschritt', max: String(res.anzahl), value: '0' }), zahl = h('p', { class: 'text', role: 'status', 'aria-live': 'polite' }, `0 von ${res.anzahl} Blättern`);
+  const schl = fenster('Druck wird vorbereitet', [balken, zahl], s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen')],
+    () => { if (!fertig) abbruch = true; }, { still: true });
+  const ablage = h('div', { 'aria-hidden': 'true', style: 'position:fixed;left:-100000px;top:0;visibility:hidden' }); document.body.append(ablage);
+  return new Promise(fertigDann => {
+    const stueck = () => {
+      if (abbruch) { ablage.remove(); d.innerHTML = ''; return fertigDann(false); }
+      const t0 = performance.now(), n0 = res.blaetter.length; let rest = 1;
+      while (rest && performance.now() - t0 < 40) rest = res.weiter(1);
+      haengen(n0, ablage); res.begrenzen(); d.append(...ablage.children);
+      balken.value = res.blaetter.length; zahl.textContent = `${res.blaetter.length} von ${res.anzahl} Blättern`;
+      if (rest) return setTimeout(stueck, 0);
+      fertig = true; ablage.remove(); schl(false); fertigDann(true);
+    };
+    setTimeout(stueck, 0);
+  });
+}
 // ab v1.59 (D02): druckt der Browser ohne die App (Menü „Drucken“), kommen immer die Planblätter aufs Papier
 window.addEventListener('beforeprint', () => { if (!druckBereit) try { druckFuellen(); } catch (er) {} });
 window.addEventListener('afterprint', () => { druckBereit = false; });
@@ -10876,14 +10983,18 @@ window.addEventListener('afterprint', () => { druckBereit = false; });
 // Hinweisleiste und dem fokussierten Knopf „Drucken“ (Eingabe druckt); in der Vorschau selbst druckt es sofort
 function drucken() {
   const b = stapel[stapel.length - 1];
-  druckFuellen();      // ab v1.59: sofort gefüllt – auch aus der Vorschau heraus druckt der Browser den Plan
+  // ab v1.85 (X27): großes Projekt – in Stücken mit Fortschritt; geht es erst in die Druckvorschau, füllt deren „Drucken“
+  // bzw. der Browserdruck (beforeprint)
+  const gross = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { liste: true }).blaetter.length > DRUCK_STUECK;
+  if (!gross) druckFuellen();      // ab v1.59: sofort gefüllt – auch aus der Vorschau heraus druckt der Browser den Plan
   if (b.s !== 'plan' && druckHinweise().length) {
     geh({ s: 'plan', vid: ED ? ED.v.id : b.vid, hinweise: true });
     setTimeout(() => { const k = document.querySelector('#app .kopf .druckknopf'); if (k) k.focus({ preventScroll: true }); }, 0);
     return;
   }
-  druckBereit = true;
-  setTimeout(() => window.print(), 60);
+  const los = () => { druckBereit = true; setTimeout(() => window.print(), 60); };
+  if (!gross) return los();
+  druckFuellenStuecke().then(ok => { if (ok) los(); });
 }
 // Hinweisleiste der Druckvorschau (ab v1.65, F13): je Hinweis „Verteiler – Text“, ein Klick zeigt die Stelle im Plan-Editor
 function druckHinweisListe() {

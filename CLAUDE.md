@@ -414,6 +414,8 @@ v1.69 Schriftskala auch außerhalb des Editors (DS3-05). Zurückgestellt: „-F1
   Summenstromwandler-Ellipse und IΔ-Kasten links.
 - Blattmaße: A4 297×210 (10 Spalten, 6 Zeilen), A3 420×297 (15, 8); Abgänge enden auf
   `F.h − 10 − 20 − 24`; nichts unterhalb `Schriftfeld-Oberkante − 2 mm`.
+- Leistung (ab v1.85): `PLAN.blaetter` merkt die Planung je Verteiler (nur Geändertes wird neu geplant); `{ liste: true }` nur
+  Blattliste, `{ stueckweise: true }` + `res.weiter(n)` für den Druck großer Projekte; Messlauf `python3 tests/leistung.py`.
 - Druck: `#druck`-Container, `@page` je Planart (Plan: Format quer, Rand 0; Türzettel A4
   hoch, 14/12 mm).
 - Lizenz der Zeichen: QElectroTech-Elementsammlung, CC-BY 3.0 (siehe `LIZENZEN.md`). Der

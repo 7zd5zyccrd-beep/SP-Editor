@@ -16,6 +16,13 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.85: Leistung (Etappe Z1: Q20, Q48, X27): plan.js plant je Verteiler nur neu, was sich geändert hat (Zwischenspeicher mit
+           Schlüssel aus Format, Erder, JSON von Verteiler und Berechnung; PLAN.planung() für Prüfungen), zeichnet je Blatt als Aufgabe –
+           { liste: true } liefert nur Nummer/Art/Verteiler/Titel (Blatt-Menü, Querverweis-Sprung), { stueckweise: true } zeichnet mit
+           res.weiter(n) (Druck großer Projekte in Stücken mit Fortschritt und „Abbrechen“); zuBegrenzen je Aufruf (Q48). App: Feld
+           öffnen und Esc ohne Datenänderung baut nichts neu, Palette/Fach messen vor dem Einhängen der Blätter, Palettenbreite je Reiter
+           und Fenstergröße gemerkt, Teilflächen erst messen, dann einhängen, speisenderAbgang während berechne() gemerkt, Textbreiten
+           gemerkt. Pläne bitgleich. Messlauf tests/leistung.py (10 Verteiler × 60 Abgänge).
      v1.84: Netzform TT (Etappe X-I: X11, Q31): Netzform „TT“ in der Netzwahl, optional v.erder = { ra } (Erdungswiderstand RA am
            obersten Verteiler, Feld unter „Netz“). Plan: oberster Verteiler im TT mit „Netz TT, 3/N“ bzw. „1/N“; der PE beginnt oben an der
            Haupterdungsschiene (Trennlasche, Zeichen erdungsschiene) mit Anlagenerder (schutzerde), „Anlagenerder“ und „RA = … Ω“, und läuft
@@ -564,6 +571,8 @@ table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:no
 .knopf.zweit{background:var(--karte);color:var(--akzent);border:1px solid var(--akzent)}
 .knopf.rot{background:var(--rot)}
 .fenster .text{font-size:15px;color:var(--leise);margin:0 0 8px}
+/* ab v1.85 (X27): Fortschritt beim Füllen des Drucks großer Projekte */
+.fortschritt{display:block;width:100%;height:8px;margin:6px 0 4px;accent-color:var(--akzent)}
 /* ab v1.82 (X09): Vorschlagszeile unter Bezeichnung/Ort; (X08) Vorlagenwahl im Fenster „Neuer Verteiler“ */
 .vorschlaege{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .vorschlaege[hidden]{display:none}
@@ -2021,9 +2030,14 @@ function alleKnoten(v, f, liste = v.knoten, eltern = null, tiefe = 0) {
 // Zusatzschütze eines Motorabgangs (ab v1.40) tragen die Kennung <abgang>~2 bzw. ~3 und führen zum Abgang
 function knoten(v, kid) { if (typeof kid === 'string' && kid.includes('~')) kid = kid.split('~')[0]; let r = null; alleKnoten(v, (k, e, l, i) => { if (k.id === kid) r = { k, eltern: e, liste: l, i }; }); return r; }
 // welcher Abgang speist diesen Verteiler?
+// ab v1.85 (Q20): während einer Berechnung (berechne() ändert das Projekt nicht) gemerkt – sonst durchsucht jeder Aufruf alle Verteiler
+let speiseMemo = null;
 function speisenderAbgang(vid) {
-  for (const v of P.verteiler) { let r = null; alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) return r; }
-  return null;
+  if (speiseMemo && speiseMemo.has(vid)) return speiseMemo.get(vid);
+  let r = null;
+  for (const v of P.verteiler) { alleKnoten(v, k => { if (k.typ === 'abgang' && k.speist === vid) r = { v, k }; }); if (r) break; }
+  if (speiseMemo) speiseMemo.set(vid, r);
+  return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -2128,6 +2142,11 @@ const gleichText = (grund, vor) => `${grund} hinter ${vor.t} Typ ${fiTyp(vor.g)}
 // Zuleitung eines Unterverteilers mit PEN (ab v1.52): TN-C und TN-C-S bekommen L1 L2 L3 PEN (bzw. L PEN)
 const penZuleitung = k => { const u = k.speist && vById(k.speist); return istPenNetz(u); };      // ab v1.84: nicht bei TT
 function berechne(v) {
+  if (speiseMemo) return berechneOhneMemo(v);
+  speiseMemo = new Map();
+  try { return berechneOhneMemo(v); } finally { speiseMemo = null; }
+}
+function berechneOhneMemo(v) {
   const z = { F: 0, Q: 0, K: 0, P: 0, W: 0, XD: 0, X: 1, E: 0, S: 0, B: 0, H: 0, T: 0, G: 0, M: 0 };   // X: -X1 ist die Klemmleiste im Verteiler, Anschlussdosen ab -X2
   // ab v1.59 (D06): alle vergebenen Kennzeichen gesammelt, damit doppelte (von Hand gleich einem anderen) auffallen
   const vergeben = [];
@@ -3061,12 +3080,15 @@ function textInline(z, titel, wert, setzen, opt) {
   // ab v1.60 (D17): nach Eingabe bzw. Esc liegt der Fokus wieder auf der Zeile, Tab/Umschalt+Tab geht zur nächsten bzw. vorigen
   const wurzel = z.closest('.edeigen') ? '.edeigen' : '#app', zeilen = () => [...document.querySelectorAll(wurzel + ' .zeile')];
   z.replaceWith(box);
-  const nr = zeilen().indexOf(box);
+  const nr = zeilen().indexOf(box), stand0 = JSON.stringify(P);
   let fertig = false;
   ende = (zurueckNehmen, weiter = null) => {
     if (fertig) return; fertig = true;
     if (zurueckNehmen) { verlauf.sitzung = i._sitz || null; setzen(wert || ''); sichern(); verlauf.sitzung = null; }
-    zeichne();
+    // ab v1.85 (Q20): ohne Datenänderung (Esc, Eingabe ohne Tippen) kehrt nur die Zeile zurück – kein Neuaufbau des Plans
+    // (der Anker der Zeile gilt danach nicht mehr – wie bisher nach dem Neuaufbau)
+    if (box.isConnected && JSON.stringify(P) === stand0) { box.replaceWith(z); if (anker && anker.zeile === z) anker = null; if (weiter === null) return; z.focus({ preventScroll: true }); }
+    else zeichne();
     const w = !zurueckNehmen && opt.warn ? opt.warn(i.value.trim()) : null;      // ab v1.59 (D06): Warnung bleibt nach dem Bestätigen sichtbar
     if (w) meldung('⚠ ' + w);
     // ab v1.65 (F10): Tab/Umschalt+Tab öffnet ein Textfeld gleich zum Bearbeiten (Wert markiert), eine Auswahlzeile erhält nur den Fokus
@@ -5565,10 +5587,14 @@ function paletteNeu() {
 // ab v1.54: reicht die Höhe zwischen 1280 und 1499 px Breite nicht, stehen die Kacheln zweispaltig
 // ab v1.58 (C20): die Breite hängt nicht vom Reiter ab – maßgebend sind „Abgänge“ und „Steuerung“ (der Reiter „Zeichnen“
 // mit wenigen Kacheln übernimmt sie), damit das Blatt beim Reiterwechsel nicht springt
+// ab v1.85 (Q20): gemessen wird nur, solange noch nicht zweispaltig feststeht, und nur einmal je Reiter, Fenstergröße und
+// Kachelzahl (b.palMass) – die Messung erzwingt sonst das Layout der Planblätter
 function paletteBreite() {
   const pal = ED.pal, b = ED.b; pal.classList.remove('zweispaltig');
   if (!(innerWidth >= 1280 && innerWidth < 1500)) return;
-  const zu = pal.scrollHeight > pal.clientHeight + 2;
+  const mk = b.palette + '|' + innerWidth + 'x' + innerHeight + '|' + pal.querySelectorAll('button').length;
+  b.palMass = b.palMass || {};
+  const zu = b.palette === 'ze' || b.palZwei ? false : mk in b.palMass ? b.palMass[mk] : (b.palMass[mk] = pal.scrollHeight > pal.clientHeight + 2);
   if (b.palette !== 'ze') b.palZwei = !!b.palZwei || zu;
   else if (b.palZwei === undefined) b.palZwei = true;      // „Abgänge“ passt in dieser Breite praktisch nie einspaltig
   if (b.palZwei) pal.classList.add('zweispaltig');
@@ -6042,7 +6068,9 @@ function nadeln() {
 const TEIL_NAME = { f: 'Schutzorgan', q: 'Schaltgerät', x: 'Klemmen', xd: 'Anschluss', t: 'Wechselrichter', dc: 'DC-Freischalter', g: 'PV-Generator', p: 'Erzeugungszähler', bat: 'Batterie', vorsicherung: 'Vorsicherung', zaehler: 'Zähler', hauptschalter: 'Hauptschalter' };
 const teilBesitzer = besitzerVon;
 const teilName = key => key.startsWith('s:') ? 'Überspannungsschutz' : /\/pl:[^:]+:6$/.test(key) ? 'Verbraucher' : /\/pl:/.test(key) ? 'Kontakt' : TEIL_NAME[key.split('/')[1]] || 'Gerät';
+// ab v1.85 (Q20): erst alles messen, dann alle Flächen einhängen – sonst setzt jede neue Fläche das Layout zurück
 function teilFlaechen() {
+  const neu = [];
   ED.liste.forEach(bl => {
     if (!bl.szene) return;
     const svg = bl.svg, M = svg.getScreenCTM(); if (!M) return;
@@ -6059,9 +6087,10 @@ function teilFlaechen() {
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       [['x', tl.box.x0], ['y', tl.box.y0], ['width', tl.box.x1 - tl.box.x0], ['height', tl.box.y1 - tl.box.y0], ['fill', 'transparent'], ['class', 'ziel teil'],
         ['data-ziel', 't:' + tl.key], ['data-besitzer', teilAnzeige(tl.key)], ['aria-label', teilName(tl.key)]].forEach(([k, w]) => r.setAttribute(k, w));
-      svg.append(r);
+      neu.push([svg, r]);
     });
   });
+  neu.forEach(([svg, r]) => svg.append(r));
 }
 // Auswahl in den sichtbaren Bereich holen (ab v1.53: ganz, auch auf einem anderen Blatt; oben Platz für die
 // Kontextleiste). Unter 1000 px endet die Fläche über Fußleiste und Fach, die Rechnung bleibt dieselbe.
@@ -6305,11 +6334,15 @@ function verweisUnter(svg, ev) {
 }
 // Sprung zum Ziel eines Querverweises (ab v1.65, F45): Blatt nr, Spalte sp – im geöffneten Verteiler oder in einem anderen;
 // gewählt wird das schmalste Teil, das die Spalte trifft (Abgang vor Gruppe; im Steuerstromkreis der Kreis)
+// ab v1.85 (Q20): erst die Blattliste, gezeichnet wird nur der Verteiler des Ziels
 function verweisSpringen(v, vw) {
-  let res; try { res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { ziele: true }); } catch (er) { return; }
-  const bl = res.blaetter.find(x => x.nr === vw.nr); if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
+  const hilf = { berechne, speisenderAbgang };
+  let res; try { res = PLAN.blaetter(P, BIB, hilf, { liste: true }); } catch (er) { return; }
+  let bl = res.blaetter.find(x => x.nr === vw.nr); if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
   const ziel = P.verteiler.find(x => x.name === bl.verteiler) || v, R = res.raster, xm = R.x0 + (vw.sp - 0.5) * R.sb;
   if (!BLATT_ART[bl.art]) { geh({ s: 'plan', vid: ziel.id, nr: vw.nr }); return; }      // Übersicht, Klemmenplan: in der Druckvorschau
+  try { bl = PLAN.blaetter(P, BIB, hilf, { ziele: true, nur: bl.vid || ziel.id }).blaetter.find(x => x.nr === vw.nr); } catch (er) { return; }
+  if (!bl) return meldung(`Blatt ${vw.nr} gibt es nicht`);
   let best = null;
   bl.svg.querySelectorAll('rect[data-ziel]').forEach(r => { const z = r.dataset.ziel; if (!/^(k|kr|e|s):/.test(z)) return;
     const rx = +r.getAttribute('x'), rw = +r.getAttribute('width'); if (xm < rx || xm > rx + rw) return;
@@ -6407,6 +6440,7 @@ function zoomAnwenden(halten = true, px = null, py = null) {
   const bw = ED.liste[0] ? +ED.liste[0].svg.getAttribute('viewBox').split(' ')[2] : 297, pmm = breite / bw, fein = !beruehrung();
   ED.ed.style.setProperty('--mkt', ((fein ? 24 : 44) / (12 * pmm)).toFixed(3));
   ED.ed.style.setProperty('--mks', ((fein ? 20 : 24) / (6.4 * pmm)).toFixed(3));
+  ED.b.kartenBreite = [breite + 'px', ED.ed.style.getPropertyValue('--mkt'), ED.ed.style.getPropertyValue('--mks')];      // ab v1.85 für den nächsten Aufbau
   if (halten) { f.scrollLeft = rx * f.scrollWidth - fx; f.scrollTop = ry * f.scrollHeight - fy; }
   if (ED.zoomKnopf) ED.zoomKnopf.textContent = `${Math.round(ED.b.zoom)} %`;
   kontextLage(); leerkarteLage();
@@ -6505,7 +6539,8 @@ function fussNeu() {
   // andere Verteiler), als Sprung in die Druckvorschau an das Blatt
   const blattMenue = () => { const L = ED.liste, erst = L.length ? L[0].nr : 1, letzt = L.length ? L[L.length - 1].nr : 0, ges = (L[0] && L[0].gesamt) || letzt;
     // ab v1.67 (DS3-09): die Zweitzeile nennt die echten Blätter („Deckblatt, Inhalt, Übersicht HV, Übersicht UV Werkstatt“)
-    let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, {}).blaetter; } catch (er) { alle = []; }
+    // ab v1.85 (Q20): nur die Blattliste (Nummer, Art, Verteiler) – ohne die Blätter zu zeichnen
+    let alle = []; try { alle = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { liste: true }).blaetter; } catch (er) { alle = []; }
     const ART_KURZ = { deckblatt: 'Deckblatt', inhalt: 'Inhalt', uebersicht: 'Übersicht', einspeisung: 'Einspeisung', abgang: 'Stromlaufplan', kombiniert: 'Stromlaufplan', steuerung: 'Steuerstromkreis', klemmen: 'Klemmenplan', stueckliste: 'Stückliste' };
     const namen = (a, z) => { const n = [...new Set(alle.filter(bl => bl.nr >= a && bl.nr <= z).map(bl => [ART_KURZ[bl.art] || bl.titel, bl.verteiler].filter(Boolean).join(' ')))];
       return n.length > 4 ? n.slice(0, 4).join(', ') + ' …' : n.join(', '); };
@@ -7184,9 +7219,14 @@ function bEditor(b) {
           title: fest ? 'Blatt freigeben – Spalten wieder automatisch' : 'Blatt festhalten – Spalten bleiben stehen', on: { click: festen } }, icon('nadel'));
     // ab v1.61 (D21): der Blatttitel nur bei mehreren Blättern (sonst steht dasselbe in der Fußleiste)
     const karte = h('div', { class: 'blatt', 'data-art': bl.art }, h('div', { class: 'bt' }, h('span', {}, ED.liste.length > 1 ? `${BLATT_ART[bl.art]} ${v.name} · Blatt ${bl.nr}${bl.gesamt ? ' von ' + bl.gesamt : ''}` : ''), h('span', { class: 'btr' }, festK)), svg);
-    ED.karten.push(karte); blaetter.append(karte);
+    ED.karten.push(karte);
   });
+  // ab v1.85 (Q20): Palette, Fach und Fußleiste messen sich, bevor die Blätter im Dokument hängen – sonst erzwingt jede
+  // Messung das Layout aller Planblätter
   paletteNeu(); eigenNeu(); fussNeu();
+  // Breite der Blätter vom letzten Aufbau übernehmen: stimmt sie, setzt zoomAnwenden() nichts um und das Layout wird nur einmal berechnet
+  if (b.kartenBreite) { ED.karten.forEach(k => { k.style.width = b.kartenBreite[0]; }); ed.style.setProperty('--mkt', b.kartenBreite[1]); ed.style.setProperty('--mks', b.kartenBreite[2]); }
+  blaetter.append(...ED.karten);
   zoomAnwenden(false);
   flaeche.scrollLeft = b.sx || 0; flaeche.scrollTop = b.sy || 0;
   if (startAusschnitt) {        // ab v1.55: Blatt des ersten Abgangs (im leeren Verteiler der Marke „+“) links oben im Blick
@@ -7983,6 +8023,34 @@ function druckFuellen() {
   document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
   d.style.display = 'block'; res.begrenzen(); d.style.display = '';
 }
+// ab v1.85 (X27): große Projekte (mehr als DRUCK_STUECK Blätter) füllen #druck in Stücken von etwa 40 ms – mit Fortschritt
+// und „Abbrechen“, die Oberfläche bleibt bedienbar; kleine wie bisher sofort. Die Texte werden je Stück in einer unsichtbaren,
+// aber gesetzten Ablage begrenzt (Ergebnis wie druckFuellen()). Gibt ein Promise: true = gefüllt, false = abgebrochen.
+const DRUCK_STUECK = 40;
+function druckFuellenStuecke() {
+  const d = document.getElementById('druck'); d.innerHTML = '';
+  const res = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { stueckweise: true });
+  document.getElementById('seite').textContent = `@page{size:${res.format} landscape;margin:0}`;
+  const haengen = (von, ziel) => res.blaetter.slice(von).forEach(bl => { const w = h('div', { class: 'db' }); w.append(bl.svg); ziel.append(w); });
+  if (res.anzahl <= DRUCK_STUECK) { res.weiter(); haengen(0, d); d.style.display = 'block'; res.begrenzen(); d.style.display = ''; return Promise.resolve(true); }
+  let abbruch = false, fertig = false;
+  const balken = h('progress', { class: 'fortschritt', max: String(res.anzahl), value: '0' }), zahl = h('p', { class: 'text', role: 'status', 'aria-live': 'polite' }, `0 von ${res.anzahl} Blättern`);
+  const schl = fenster('Druck wird vorbereitet', [balken, zahl], s => [h('button', { class: 'knopf zweit', on: { click: () => s(false) } }, 'Abbrechen')],
+    () => { if (!fertig) abbruch = true; }, { still: true });
+  const ablage = h('div', { 'aria-hidden': 'true', style: 'position:fixed;left:-100000px;top:0;visibility:hidden' }); document.body.append(ablage);
+  return new Promise(fertigDann => {
+    const stueck = () => {
+      if (abbruch) { ablage.remove(); d.innerHTML = ''; return fertigDann(false); }
+      const t0 = performance.now(), n0 = res.blaetter.length; let rest = 1;
+      while (rest && performance.now() - t0 < 40) rest = res.weiter(1);
+      haengen(n0, ablage); res.begrenzen(); d.append(...ablage.children);
+      balken.value = res.blaetter.length; zahl.textContent = `${res.blaetter.length} von ${res.anzahl} Blättern`;
+      if (rest) return setTimeout(stueck, 0);
+      fertig = true; ablage.remove(); schl(false); fertigDann(true);
+    };
+    setTimeout(stueck, 0);
+  });
+}
 // ab v1.59 (D02): druckt der Browser ohne die App (Menü „Drucken“), kommen immer die Planblätter aufs Papier
 window.addEventListener('beforeprint', () => { if (!druckBereit) try { druckFuellen(); } catch (er) {} });
 window.addEventListener('afterprint', () => { druckBereit = false; });
@@ -7990,14 +8058,18 @@ window.addEventListener('afterprint', () => { druckBereit = false; });
 // Hinweisleiste und dem fokussierten Knopf „Drucken“ (Eingabe druckt); in der Vorschau selbst druckt es sofort
 function drucken() {
   const b = stapel[stapel.length - 1];
-  druckFuellen();      // ab v1.59: sofort gefüllt – auch aus der Vorschau heraus druckt der Browser den Plan
+  // ab v1.85 (X27): großes Projekt – in Stücken mit Fortschritt; geht es erst in die Druckvorschau, füllt deren „Drucken“
+  // bzw. der Browserdruck (beforeprint)
+  const gross = PLAN.blaetter(P, BIB, { berechne, speisenderAbgang }, { liste: true }).blaetter.length > DRUCK_STUECK;
+  if (!gross) druckFuellen();      // ab v1.59: sofort gefüllt – auch aus der Vorschau heraus druckt der Browser den Plan
   if (b.s !== 'plan' && druckHinweise().length) {
     geh({ s: 'plan', vid: ED ? ED.v.id : b.vid, hinweise: true });
     setTimeout(() => { const k = document.querySelector('#app .kopf .druckknopf'); if (k) k.focus({ preventScroll: true }); }, 0);
     return;
   }
-  druckBereit = true;
-  setTimeout(() => window.print(), 60);
+  const los = () => { druckBereit = true; setTimeout(() => window.print(), 60); };
+  if (!gross) return los();
+  druckFuellenStuecke().then(ok => { if (ok) los(); });
 }
 // Hinweisleiste der Druckvorschau (ab v1.65, F13): je Hinweis „Verteiler – Text“, ein Klick zeigt die Stelle im Plan-Editor
 function druckHinweisListe() {

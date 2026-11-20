@@ -7,7 +7,7 @@
 <!-- ab v1.86 (X28): Content-Security-Policy – alles steckt in dieser Datei; keine Netzverbindungen (connect-src 'none'), keine fremden Skripte -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.86.1 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.87 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -18,6 +18,13 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.87: Kennlinie an Motorabgängen (Jean 20.11.2026, Frage zu Q09 „Würde der FILS nicht immer auslösen?“): Schutzorgane mit
+           Kennlinie bekommen an Motorabgängen C statt B (abgangGeraetSetzen(ge, w, k), kennlinieVor(); Wechsel des Anschlusses auf
+           Motor stellt B auf C mit Meldung); Import und Migration lassen B stehen. Warnung „Kennlinie B am Motor“ (DIN EN 60898-1,
+           bei Stern-Dreieck mit der Umschaltspitze) mit „So beheben“ und der Zeile „Kennlinie C einsetzen“ im Fach (ein
+           Rückgängig-Schritt). FI/LS 3P+N am Drehstrommotor ohne N: der N-Pol hängt oben an der N-Schiene (Verbindungspunkt bzw.
+           Untersammelschiene), unten offen, Anschlüsse „N“ – die Bibliothek hat kein FI/LS ohne N-Pol (für ein Auswahlblatt
+           vorgemerkt). Beispiel `motor_fils`; Pläne der übrigen Beispiele bitgleich.
      v1.86.1: Nachbesserung aus der Schlussprüfung (S01–S04): Hinweis „neuere Fassung“ nennt die Fassung nur, wenn sie neuer ist
            (fassungNeuer()); Rückgängig direkt nach „Verteiler duplizieren“ wirkt auch im Editor der Kopie (Editor wechselt aufs
            Original); Prüfprotokoll trennt lange Wörter (hyphens:auto); Zähler 1-phasig im Drehstromverteiler am gewählten
@@ -2141,9 +2148,14 @@ const PLAN = (() => {
       x0 += ABSTAND;      // dahinter liegen L, N, PE einen Platz weiter rechts
     } else if (pole) {
       arten.slice(0, pole).forEach((art, i) => { leiter(g, xs[i], enden[i], xs[i], yG, art); });
+      // ab v1.87: FI/LS mit N-Pol an einem Abgang ohne N (Drehstrommotor): der N-Pol hängt oben an der N-Schiene (der
+      // Summenstromwandler braucht keinen N, der Pol ist aber verdrahtet statt ein loser Stummel), unten bleibt er offen
+      const nPol = GERAETE[z] && GERAETE[z].fi && GERAETE[z].kennlinie && POLE[z] === pole + 1 && !arten.includes('N') && !arten.includes('PEN') && bars.N !== undefined;
+      const polArten = nPol ? arten.slice(0, pole).concat('N') : arten.slice(0, pole);
+      if (nPol) { const xN = x0 + ABSTAND * pole; if (tap) tap('N', xN, bars.N); else punkt(g, xN, bars.N, 'N'); leiter(g, xN, bars.N, xN, yG, 'N'); }
       teil(`k:${k.id}/f`);
-      const tp = setze(g, z, x0, yG, null, arten.slice(0, pole)), t = unten(tp);
-      if (!(GERAETE[z] && GERAETE[z].eigeneNr)) anschlussNr(g, tp, ...polNr(arten.slice(0, pole)));
+      const tp = setze(g, z, x0, yG, null, polArten), t = unten(tp);
+      if (!(GERAETE[z] && GERAETE[z].eigeneNr)) anschlussNr(g, tp, ...polNr(polArten));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
       cursor = Math.max(...t.map(p => p.y));
       // Motorschutzschalter (ab v1.46): genutzte Hilfsschalter mit Verweis in den Steuerstromkreis
@@ -4239,7 +4251,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.86.1';
+const FASSUNG = 'v1.87';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -4513,6 +4525,9 @@ const wallboxNeu = () => ({ kw: '11', rdc: true });
 // Motor (ab v1.37, Etappe M1): k.ziel.anschluss = 'motor', k.motor = { art: '3' | '1', kw, strom };
 // Drehstrommotor mit L1 L2 L3 PE (ohne N, Leitung 4-adrig), Wechselstrommotor mit L N PE; Kennzeichen -M
 const motorVon = k => k.motor || { art: '3', kw: '' };
+// ab v1.87: Motorabgang (nicht als Zuleitung eines Unterverteilers) – Schutzorgane mit Kennlinie bekommen dort C statt B (Anlaufstrom)
+const istMotorAbgang = k => !!(k && !k.speist && k.ziel && k.ziel.anschluss === 'motor');
+const kennlinieVor = k => istMotorAbgang(k) ? 'C' : 'B';
 const motorNeu = v => ({ art: v.leiter === '1NPE' ? '1' : '3', kw: '4' });
 // Schaltungen des Drehstrommotors (ab v1.40): Zusatzschütze ~2/~3 mit Rolle; k.motor.schaltung, k.motor.q2/q3 = { bmk, hs, ho }
 const SCHALTUNG = { direkt: 'Direktstart', wende: 'Wendeschaltung', sd: 'Stern-Dreieck' };
@@ -5092,6 +5107,7 @@ const ABHILFE = [[/Fehlerstrom-Schutz ≤ 30 mA|eigene Fehlerstrom-Schutzeinrich
   [/Betriebsstrom .* über dem/, 'Schutzorgan und Leitung für den Betriebsstrom bemessen oder die Leistung prüfen.'],
   [/nicht lastschaltend/, 'Als Hauptschalter einen Lasttrennschalter wählen.'],
   [/Motor .* ohne Überlastschutz/, 'Motorschutzschalter als Schutzorgan wählen oder ein Schütz mit Überlastrelais vorsehen.'],
+  [/Kennlinie B am Motor/, 'Kennlinie C einstellen („Kennlinie C einsetzen“ unter Schutzorgan), bei schwerem Anlauf D.'],      // ab v1.87
   [/Not-Aus mit \d+ Öffnern/, 'Weitere Kreise über einen zweiten Not-Aus-Taster oder ein Hilfsschütz abschalten (zentrale Freigabe).'],
   // ab v1.83 (X10): zentrale Not-Aus-Freigabe
   [/Not-Aus-Freigabe braucht eine gemeinsame Steuerspannung/, 'Unter „Steuerstromkreise“ die Steuerspannung gemeinsam einstellen und eine Quelle wählen (Steuer-LS oder Steuertrafo) – oder die Freigabe auf „ohne“ stellen.'],
@@ -5116,6 +5132,8 @@ function fiVorVerteiler(v, tiefe = 0) {
 const istFi = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].fi);
 const istSchutz = g => !!(g && g.zeichen && GERAETE[g.zeichen] && (GERAETE[g.zeichen].kennlinie || GERAETE[g.zeichen].sicherung));
 const istLs = g => !!(g && g.zeichen && GERAETE[g.zeichen] && GERAETE[g.zeichen].kennlinie);
+// ab v1.87: Schutzorgan des Motorabgangs mit Kennlinie B (ohne Angabe gilt B wie im Plan); Gruppengeräte betrifft es nicht
+const kennlinieBMotor = k => istMotorAbgang(k) && istLs(k.geraet) && (k.geraet.kennlinie || 'B') === 'B';
 const fiTyp = g => g.fityp || 'A', fiIdn = g => zahlVon(g.idn || '30');
 // FI vor dem Verteiler (ab v1.74): im speisenden Abgang und in dessen Gruppe, von nah nach fern, mit Ortsangabe
 function fiVor(v, tiefe = 0) {
@@ -5286,6 +5304,8 @@ function berechneOhneMemo(v) {
     const mkw = !k.speist && k.ziel.anschluss === 'motor' ? zahlVon(motorVon(k).kw) : 0;
     if (mkw > 0.5 && istSchutz(k.geraet) && !a.ol && !a.fu)
       warnDazu(a, `Hinweis: Motor ${String(motorVon(k).kw).replace('.', ',')} kW ohne Überlastschutz – LS bzw. Sicherung schützen nur die Leitung (EN 60204-1, 7.3).`);
+    // ab v1.87: Kennlinie B (3–5 × In) am Motor – Anlauf- und Umschaltströme lösen aus; „So beheben“ setzt C (kennlinieBMotor())
+    if (kennlinieBMotor(k)) warnDazu(a, `Kennlinie B am Motor: löst schon bei 3–5 × In aus – der Anlaufstrom (6–8 × In${motorVon(k).schaltung === 'sd' ? ', dazu die Umschaltspitze Stern→Dreieck' : ''}) kann sie auslösen; für Motoren Kennlinie C oder D (DIN EN 60898-1).`);
     // Abgangsklemmen: Einstellung des Verteilers, je Abgang abweichend möglich
     a.mitKlemmen = !k.steuer && !a.ohneLtg && (k.klemmen === 'ja' || (k.klemmen !== 'nein' && v.klemmen === 'leiste'));
     const nKl = a.leiter.length + (a.sd ? 3 : 0);      // ab v1.72: nur bei gezeichneter Stern-Dreieck-Schaltung (nicht mit FU)
@@ -7244,8 +7264,9 @@ const QUERSCHNITTE = ['1,5', '2,5', '4', '6', '10', '16', '25', '35', '50', '70'
 const KLEMMEN_WAHL = v => [['verteiler', 'wie im Verteiler', `zurzeit ${KLEMMEN_V[v.klemmen || 'ohne']}`], ['ja', 'mit Klemmen', 'über die Klemmleiste -X1'],
   ['nein', 'ohne Klemmen', 'direkt vom Schutzorgan bzw. den Schienen']];
 // Schutzorgan eines Abgangs wechseln: fehlende Angaben mit Voreinstellungen ergänzen (auch für die Sammeländerung, ab v1.56)
-function abgangGeraetSetzen(ge, w) {
-  ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = 'B'; if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG';
+// ab v1.87: mit dem Abgang k bekommt ein Motorabgang Kennlinie C statt B
+function abgangGeraetSetzen(ge, w, k = null) {
+  ge.zeichen = w; if (w && GERAETE[w].kennlinie && !ge.kennlinie) ge.kennlinie = kennlinieVor(k); if (w && GERAETE[w].sicherung && !ge.art) ge.art = 'gG';
   if (w && GERAETE[w].bereich && !ge.bereich) ge.bereich = '6,3–10'; if (w && !ge.nenn && !GERAETE[w].ohneNenn) ge.nenn = '16';
 }
 // ab v1.64 (F03): Bezeichnung, die im Pfadtext stärker als auf 85 % gestaucht würde (ohne Ort steht sie zweizeilig)
@@ -7301,7 +7322,7 @@ function bAbgang(b) {
     if (mo.art !== '1' && v.leiter !== '1NPE') m.lastChild.append(...[
       schalterZeile('Frequenzumrichter', !!mo.fu, an => { mo.fu = an ? (mo.fu || {}) : null; if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) k.leitung.typ = '2YSLCY-J';
         if (mo.fu && ge.zeichen === 'motorschutz3') setTimeout(() => meldung('Eingangsschutz nach Herstellerangabe des Umrichters', ['LS C einsetzen', () => {
-          abgangGeraetSetzen(ge, 'ls3'); ge.kennlinie = 'C'; ge.nenn = fuNenn(k); aenderung('LS C für den Umrichter'); sichern(); zeichne(); }]), 0); },
+          abgangGeraetSetzen(ge, 'ls3', k); ge.kennlinie = 'C'; ge.nenn = fuNenn(k); aenderung('LS C für den Umrichter'); sichern(); zeichne(); }]), 0); },
         { titel: 'zwischen Schutzorgan und Klemmen, Motorleitung geschirmt', aus: SCHALT_ROLLEN[mo.schaltung] && !mo.fu ? FU_GRUND : null }),
       a.fu ? zeile('Kennzeichen Frequenzumrichter', a.fu.t, () => bmkFeld('Kennzeichen', mo.fu, a.fu.hand ? '' : a.fu.t)) : null].filter(Boolean));
     if (mo.fu && !GESCHIRMT.includes(k.leitung.typ)) m.append(h('p', { class: 'warnung' }, 'Hinter dem Frequenzumrichter ist eine geschirmte Motorleitung üblich (z. B. 2YSLCY-J, NYCWY).'));
@@ -7315,9 +7336,12 @@ function bAbgang(b) {
   if (a.t && k.ziel.anschluss === 'pv') m.append(h('h2', {}, 'PV-Anlage'), h('div', { class: 'liste' }, ...pvZeilen(v, k, a)));
   if (a.t && k.ziel.anschluss === 'speicher') m.append(h('h2', {}, 'Batteriespeicher'), h('div', { class: 'liste' }, ...speicherZeilen(v, k, a)));
   m.append(kopfMitHilfe('Schutzorgan', ['LS', 'FI', 'FI/LS', 'Sicherung', 'Motorschutzschalter', 'Kennlinie', 'Nennstrom', 'Nennfehlerstrom', 'Typ A / F / B', 'Typ S', 'Selektivität', 'Überlastschutz', 'Kennzeichen']), h('div', { class: 'liste' },
-    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : GERAET_KLEIN[x]]), ge.zeichen, w => abgangGeraetSetzen(ge, w))),
+    zeile('Gerät', gName(ge.zeichen), () => wahlFeld('Schutzorgan', WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x === '' ? (inGruppe ? 'geschützt durch die Gruppe' : 'direkt an der Schiene') : GERAET_KLEIN[x]]), ge.zeichen, w => abgangGeraetSetzen(ge, w, k))),
     ...geraetZeilen(ge, k),
-    a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null));
+    a.f ? zeile('Kennzeichen', a.f.t, () => bmkFeld('Kennzeichen', ge, a.f.hand ? '' : a.f.t)) : null,
+    // ab v1.87: „So beheben“ der Warnung „Kennlinie B am Motor“ – ein Rückgängig-Schritt
+    kennlinieBMotor(k) ? zeile('Kennlinie C einsetzen', 'für Motoren', () => { ge.kennlinie = 'C'; aenderung('Kennlinie C'); sichern(); zeichne(); meldung('Kennlinie C eingestellt'); },
+      { ohnePfeil: true }) : null));
   if (a.warn) m.append(warnZeile(a.warn));
   m.append(h('h2', {}, 'Schaltgerät'), h('div', { class: 'liste' }, ...schaltZeilen(v, k, a)));
   if (inGruppe && ge.zeichen && GERAETE[ge.zeichen].fi && GERAETE[r.eltern.geraet.zeichen].fi && !/FI in Reihe/.test(a.warn || ''))      // ab v1.74 sonst in a.warn
@@ -7415,6 +7439,8 @@ function anschlussSetzen(v, k, w) {
   const tausch = drei ? { ls1: 'ls3', fils1n: 'fils3n', sich1: 'sich3' } : ein ? { ls3: 'ls1', fils3n: 'fils1n', sich3: 'sich1' } : {};
   if (tausch[ge.zeichen]) { ge.zeichen = tausch[ge.zeichen]; m.push(`${{ ls: 'LS', fils: 'FI/LS', sich: 'Sicherung' }[ge.zeichen.replace(/\d.*$/, '')]} auf ${drei ? '3' : '1'}-polig umgestellt`); }
   if (w === 'leuchte' && ge.nenn === '16' && k.leitung.quer === '2,5') { ge.nenn = '10'; k.leitung.quer = '1,5'; m.push('10 A, 1,5 mm²'); }
+  // ab v1.87: Wechsel auf Motor – Kennlinie B (Voreinstellung der anderen Anschlüsse) wird C
+  if (w === 'motor' && alt !== 'motor' && kennlinieBMotor(k)) { ge.kennlinie = 'C'; m.push('Kennlinie C'); }
   if (bezNeu) m.push(`Bezeichnung „${k.ziel.bez}“`);
   if (m.length) setTimeout(() => meldung(m.join(' · ')), 0);
 }
@@ -8804,7 +8830,7 @@ function editorSammel(v, b) {
   };
   const gd = k => k.geraet.zeichen ? GERAETE[k.geraet.zeichen] : null, mitLeitung = ks.filter(k => !k.steuer);
   feld('Schutzorgan', ks, k => gName(k.geraet.zeichen), WAHL.abgang.map(x => [x, x ? gName(x) : 'ohne Schutzorgan', x ? GERAET_KLEIN[x] : '']),
-    (k, w) => abgangGeraetSetzen(k.geraet, w), { wert: k => k.geraet.zeichen || '' });
+    (k, w) => abgangGeraetSetzen(k.geraet, w, k), { wert: k => k.geraet.zeichen || '' });
   feld('Kennlinie', ks.filter(k => gd(k) && gd(k).kennlinie), k => k.geraet.kennlinie || 'B', KENNLINIEN.map(x => [x, x, KENNLINIE_KLEIN[x]]), (k, w) => { k.geraet.kennlinie = w; });
   const mitNenn = ks.filter(k => gd(k) && !gd(k).ohneNenn);
   feld('Nennstrom', mitNenn, k => k.geraet.nenn ? k.geraet.nenn + ' A' : '—',

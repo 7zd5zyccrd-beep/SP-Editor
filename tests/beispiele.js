@@ -229,6 +229,18 @@ window.BEISPIELE = {
     uv.zaehler = {zeichen:'zaehler1', phase:'L1'}; uv.hauptschalter = {zeichen:'lasttrenn3', nenn:'40'};
     const b = neuerAbgang(); b.ziel.bez = 'Herd'; b.ziel.ort = 'Werkstatt'; b.ziel.anschluss = 'dose'; b.geraet = {zeichen:'ls3', kennlinie:'B', nenn:'16'}; uv.knoten.push(b);
     P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // ab v1.87: Kompressor Stern-Dreieck am FI/LS 3P+N – über die Eingabe angelegt (Motorabgang → Kennlinie C), der N-Pol des FI/LS
+  // hängt oben an der N-Schiene, unten offen; dazu ein Lüfter mit LS 3-polig Kennlinie B (Warnung „Kennlinie B am Motor“)
+  motor_fils: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Motor am FI/LS', ersteller:'Jean', nummer:'SLP-0870'});
+    const hv = neuerVerteiler('HV'); P.verteiler.push(hv);
+    const sls = neuerSteuerLs(); hv.knoten.push(editorNeu(hv, 'steckdose'), sls); stDaten(hv).spannung = { art: 'durch', quelle: sls.id };
+    const c = editorNeu(hv, 'motor'); c.ziel.bez = 'Kompressor'; c.ziel.ort = 'Halle'; c.motor = {art:'3', kw:'7,5', strom:'15'};
+    abgangGeraetSetzen(c.geraet, 'fils3n', c); c.geraet.nenn = '25'; c.leitung.quer = '4'; hv.knoten.push(c);
+    schaltungSetzen(hv, c, 'sd'); c.schalt.ol = { bereich: '6,3–10' };
+    const l = neuerAbgang(); l.ziel = {bez:'Lüfter', ort:'Dach', anschluss:'motor'}; l.motor = {art:'3', kw:'1,5', strom:'3,6'};
+    l.geraet = {zeichen:'ls3', kennlinie:'B', nenn:'10'}; l.leitung.quer = '1,5'; hv.knoten.push(l);
+    sichern(); stapel=[{s:'start'}]; zeichne(); },
   // Etappe Q3 (v1.72, Q05/Q13): Pumpe 1~ am Motorschutzschalter (L über Pol 1 und 2 in Reihe, N über Pol 3) mit Schütz und
   // Vorlage „Motor Ein/Aus“ mit Störung – Freigabe und Störmeldung über die Hilfsschalter des Motorschutzschalters, kein
   // Überlastrelais; ebenso der Lüfter 3~ (Steuerspannung über Steuer-LS)

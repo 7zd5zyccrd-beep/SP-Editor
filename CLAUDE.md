@@ -450,10 +450,15 @@ in 17 Etappen; Planänderungen nur im erlaubten Umfang, je mit Vorher/Nachher. K
 - v1.86.1 Nachbesserung S01–S04 (Schlussprüfung): Hinweis „neuere Fassung“ nur mit Fassungszahl, wenn neuer (`fassungNeuer()`),
   Rückgängig nach „Verteiler duplizieren“ im Editor der Kopie (`duplizierenOriginal()`), Prüfprotokoll mit `hyphens:auto`, Zähler
   1-phasig im Drehstromverteiler am Außenleiter `v.zaehler.phase` (ohne Angabe L3 wie bisher; L1/L2: L3 weicht links aus); Beispiel `zaehlerphase`.
+- v1.87 (Jean 20.11.2026, Frage zu Q09): Motorabgänge bekommen bei Schutzorganen mit Kennlinie C statt B (`kennlinieVor()`,
+  `abgangGeraetSetzen(ge, w, k)`, Anschlusswechsel auf Motor); bestehende Daten bleiben. Warnung „Kennlinie B am Motor“ (DIN EN 60898-1)
+  mit „So beheben“ und Zeile „Kennlinie C einsetzen“ im Fach (`kennlinieBMotor()`). FI/LS 3P+N am Drehstrommotor ohne N: N-Pol oben an
+  der N-Schiene (Verbindungspunkt), unten offen – ein FI/LS ohne N-Pol fehlt in der Bibliothek (Auswahlblatt). Beispiel `motor_fils`.
 
 **Offen für Jean:** Auswahlblatt für neue Schaltzeichen – Drehstromzähler mit N (Vierleiter), Wandlermessung, SLS (selektiver
 Hauptleitungsschutzschalter), AFDD/Brandschutzschalter, Steuerbox bzw. Steuerkontakt nach § 14a EnWG, Isolationsüberwachung, NA-Schutz,
-CEE-Einspeisestecker, Rollladenmotor (auf/ab), Sicherheitsrelais/Not-Aus-Schaltgerät, Batterie bzw. Hybrid-Wechselrichter einpolig;
+CEE-Einspeisestecker, Rollladenmotor (auf/ab), Sicherheitsrelais/Not-Aus-Schaltgerät, Batterie bzw. Hybrid-Wechselrichter einpolig,
+FI/LS 3-polig ohne N-Pol (für Drehstrommotoren ohne N, vorgemerkt v1.87);
 Teil-Neuzeichnen großer Projekte (V7; Leistung auf dem iPad bei sehr großen Projekten); Prüfung am echten iPad/iPhone (Tastatur,
 Safe Areas, Pencil).
 

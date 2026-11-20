@@ -670,9 +670,14 @@ const PLAN = (() => {
       x0 += ABSTAND;      // dahinter liegen L, N, PE einen Platz weiter rechts
     } else if (pole) {
       arten.slice(0, pole).forEach((art, i) => { leiter(g, xs[i], enden[i], xs[i], yG, art); });
+      // ab v1.87: FI/LS mit N-Pol an einem Abgang ohne N (Drehstrommotor): der N-Pol hängt oben an der N-Schiene (der
+      // Summenstromwandler braucht keinen N, der Pol ist aber verdrahtet statt ein loser Stummel), unten bleibt er offen
+      const nPol = GERAETE[z] && GERAETE[z].fi && GERAETE[z].kennlinie && POLE[z] === pole + 1 && !arten.includes('N') && !arten.includes('PEN') && bars.N !== undefined;
+      const polArten = nPol ? arten.slice(0, pole).concat('N') : arten.slice(0, pole);
+      if (nPol) { const xN = x0 + ABSTAND * pole; if (tap) tap('N', xN, bars.N); else punkt(g, xN, bars.N, 'N'); leiter(g, xN, bars.N, xN, yG, 'N'); }
       teil(`k:${k.id}/f`);
-      const tp = setze(g, z, x0, yG, null, arten.slice(0, pole)), t = unten(tp);
-      if (!(GERAETE[z] && GERAETE[z].eigeneNr)) anschlussNr(g, tp, ...polNr(arten.slice(0, pole)));
+      const tp = setze(g, z, x0, yG, null, polArten), t = unten(tp);
+      if (!(GERAETE[z] && GERAETE[z].eigeneNr)) anschlussNr(g, tp, ...polNr(polArten));
       t.forEach((p, i) => { if (i < pole) enden[i] = p.y; });
       cursor = Math.max(...t.map(p => p.y));
       // Motorschutzschalter (ab v1.46): genutzte Hilfsschalter mit Verweis in den Steuerstromkreis

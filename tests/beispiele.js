@@ -219,6 +219,16 @@ window.BEISPIELE = {
     [['Steckdosen','Werkbank'],['Steckdosen','Teich']].forEach(([b,o])=>{const x=neuerAbgang(); x.ziel.bez=b; x.ziel.ort=o; x.geraet={zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; uv.knoten.push(x);});
     const pu = neuerAbgang(); pu.ziel = {bez:'Pumpe', ort:'Teich', anschluss:'motor'}; pu.motor = {art:'1', kw:'0,55', strom:'3,8'}; pu.geraet = {zeichen:'motorschutz3', bereich:'2,5–4'}; pu.leitung.quer = '1,5'; uv.knoten.push(pu);
     P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
+  // Nachbesserung v1.86.1 (S04): Zähler 1-phasig im Drehstromverteiler am gewählten Außenleiter – HV TN-C an L2, UV TN-S an L1
+  zaehlerphase: () => {
+    P = neuesProjekt(); Object.assign(P.projekt, {firma:'Musterfirma Elektro GmbH', anschrift:'Musterstraße 1, 12345 Musterstadt', projekt:'Zähler am Außenleiter', ersteller:'Jean', nummer:'SLP-0861'});
+    const hv = neuerVerteiler('HV'); hv.vorsicherung = {zeichen:'sich3', art:'gG', nenn:'50'}; hv.netzform = 'TN-C'; hv.zaehler = {zeichen:'zaehler1', phase:'L2'}; hv.hauptschalter = {zeichen:'lasttrenn3', nenn:'63'};
+    const a = neuerAbgang(); a.ziel.bez = 'Steckdosen'; a.ziel.ort = 'Laden'; a.geraet = {zeichen:'fils1n', kennlinie:'B', nenn:'16', idn:'30', fityp:'A'}; hv.knoten.push(a);
+    const uvA = neuerAbgang(); uvA.geraet = {zeichen:'ls3', kennlinie:'C', nenn:'32'}; uvA.ziel = {bez:'', ort:'Werkstatt', anschluss:'fest'}; uvA.leitung = {typ:'NYY-J', quer:'10'}; hv.knoten.push(uvA);
+    const uv = neuerVerteiler('UV Werkstatt'); uvA.speist = uv.id;
+    uv.zaehler = {zeichen:'zaehler1', phase:'L1'}; uv.hauptschalter = {zeichen:'lasttrenn3', nenn:'40'};
+    const b = neuerAbgang(); b.ziel.bez = 'Herd'; b.ziel.ort = 'Werkstatt'; b.ziel.anschluss = 'dose'; b.geraet = {zeichen:'ls3', kennlinie:'B', nenn:'16'}; uv.knoten.push(b);
+    P.verteiler.push(hv, uv); sichern(); stapel=[{s:'start'}]; zeichne(); },
   // Etappe Q3 (v1.72, Q05/Q13): Pumpe 1~ am Motorschutzschalter (L über Pol 1 und 2 in Reihe, N über Pol 3) mit Schütz und
   // Vorlage „Motor Ein/Aus“ mit Störung – Freigabe und Störmeldung über die Hilfsschalter des Motorschutzschalters, kein
   // Überlastrelais; ebenso der Lüfter 3~ (Steuerspannung über Steuer-LS)

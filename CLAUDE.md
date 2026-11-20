@@ -447,6 +447,9 @@ in 17 Etappen; Planänderungen nur im erlaubten Umfang, je mit Vorher/Nachher. K
   `g.spule` (PROJEKT_VERSION 10, Beispiel `angaben`), keine Speisung im Kreis (`gespeistAus()`), Build-Prüfungen in `app_bauen.py`,
   `tests/zufall.py --seeds 1-20` (mit `tests/zufall_seite.js`), iPad-, Türzettel- und axe-Lauf in `tests/pruefen.py`
   (axe: `npm install --prefix quelle axe-core@4.10.2`).
+- v1.86.1 Nachbesserung S01–S04 (Schlussprüfung): Hinweis „neuere Fassung“ nur mit Fassungszahl, wenn neuer (`fassungNeuer()`),
+  Rückgängig nach „Verteiler duplizieren“ im Editor der Kopie (`duplizierenOriginal()`), Prüfprotokoll mit `hyphens:auto`, Zähler
+  1-phasig im Drehstromverteiler am Außenleiter `v.zaehler.phase` (ohne Angabe L3 wie bisher; L1/L2: L3 weicht links aus); Beispiel `zaehlerphase`.
 
 **Offen für Jean:** Auswahlblatt für neue Schaltzeichen – Drehstromzähler mit N (Vierleiter), Wandlermessung, SLS (selektiver
 Hauptleitungsschutzschalter), AFDD/Brandschutzschalter, Steuerbox bzw. Steuerkontakt nach § 14a EnWG, Isolationsüberwachung, NA-Schutz,

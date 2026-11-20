@@ -1836,5 +1836,39 @@
    "13 HV klemmen",
    "55977ef6264ab6cff7d5d3431a1c2f91"
   ]
+ ],
+ "zaehlerphase": [
+  [
+   "1 Deckblatt deckblatt",
+   "a584b8546ce307a5480f45744c6021da"
+  ],
+  [
+   "2 Inhaltsverzeichnis inhalt",
+   "d96cb26eacf419f8871626c20ff9d9f8"
+  ],
+  [
+   "3 HV uebersicht",
+   "86b378f2f30535f86215e7850f29fa2c"
+  ],
+  [
+   "4 UV Werkstatt uebersicht",
+   "3e6b5e36b1496cbe7dda24ef8c71b1ef"
+  ],
+  [
+   "5 HV einspeisung",
+   "2a11af18c029c0ad0a24e10907a1d902"
+  ],
+  [
+   "6 HV abgang",
+   "c201dc9d2d5c05b856eb257d66e5da83"
+  ],
+  [
+   "7 UV Werkstatt einspeisung",
+   "bfe77dc1fc286b25e42061a8eb349308"
+  ],
+  [
+   "8 UV Werkstatt abgang",
+   "4080cdaf4deaec67c2022c9b9736ee04"
+  ]
  ]
 }

@@ -1287,21 +1287,38 @@ const PLAN = (() => {
     let enden = namen.map(() => yOben + 5.5), cursor = yOben + 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) {
       const gz = v[feld].zeichen; if (!gz) continue;
-      const top = cursor + 5, zaehler = /^zaehler/.test(gz);
+      let top = cursor + 5; const zaehler = /^zaehler/.test(gz);
       // Pole des Geräts → Leiter (Indizes in namen); Zähler 1-phasig im Drehstromverteiler (ab v1.72, Q24) an L3 und N bzw. PEN,
       // den einzigen Außenleiter neben dem N (ein Hinweis nennt es)
       let idx = zaehler ? namen.map((_, i) => i).slice(0, Math.min(POLE[gz], namen.length)).filter(i => !(SCHUTZ_L(namen[i]) && breit > nAktiv))
         : namen.map((_, i) => i).filter(i => !SCHUTZ_L(namen[i])).slice(0, POLE[gz]);
       if (gz === 'zaehler1' && nAktiv >= 3) idx = [2, 3];
+      // ab v1.86.1 (S04): gewählter Außenleiter L1/L2 (v.zaehler.phase; ohne Angabe L3 wie bisher) – der Zähler bleibt in den
+      // Spalten L3/N; der gewählte Leiter läuft hinein, L3 weicht links daneben aus (zwischen L1 und L2) und kehrt darunter zurück
+      const zp = feld === 'zaehler' ? zaehlerUmweg(v) : -1, xU = xs[0] + ABSTAND / 2;
+      if (zp >= 0) {
+        const yb = top, ya = top + ABSTAND / 2; top += ABSTAND;
+        namen.forEach((n, i) => { if (i !== zp && i !== 2) leiter(g, xs[i], enden[i], xs[i], top, n); });
+        leiter(g, xs[2], enden[2], xs[2], yb, namen[2]); leiter(g, xs[2], yb, xU, yb, namen[2]);
+        leiter(g, xs[zp], enden[zp], xs[zp], ya, namen[zp]); leiter(g, xs[zp], ya, xs[2], ya, namen[zp]); leiter(g, xs[2], ya, xs[2], top, namen[zp]);
+        namen.forEach((n, i) => { enden[i] = top; });
+      } else
       namen.forEach((n, i) => { leiter(g, xs[i], enden[i], xs[i], top, n); enden[i] = top; });
       teil(`e:${v.id}/${feld}`);
-      const arten = idx.map(i => namen[i]), xg = xs[idx[0]];
+      const arten = idx.map(i => namen[zp >= 0 && i === 2 ? zp : i]), xg = xs[idx[0]];
       const tp = setze(g, gz, xg, top, null, arten), t = unten(tp), pole = idx.length;
       if (!zaehler) anschlussNr(g, tp, ...polNr(arten));
       t.forEach((p, i) => { if (i < pole) enden[idx[i]] = p.y; });
       bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? (zaehlerArtText(v) ? [zaehlerArtText(v)] : []) : bemZeilen(v[feld]));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
+      if (zp >= 0) {      // ab v1.86.1 (S04): zurück in die eigenen Spalten
+        const yc = cursor + ABSTAND / 2, yd = cursor + ABSTAND, yo = enden[2];
+        leiter(g, xs[2], yo, xs[2], yc, namen[zp]); leiter(g, xs[2], yc, xs[zp], yc, namen[zp]);
+        leiter(g, xU, top - ABSTAND, xU, yd, namen[2]); leiter(g, xU, yd, xs[2], yd, namen[2]);
+        enden[zp] = yc; enden[2] = yd;
+        cursor = yd;
+      }
     }
     // ab v1.84 (X11): TT – der PE beginnt oben an der Haupterdungsschiene (Trennlasche) mit dem Anlagenerder rechts daneben und läuft
     // wie im TN-S rechts an den Geräten vorbei; die Schienen beginnen erst unter dem Erderzeichen
@@ -1339,9 +1356,12 @@ const PLAN = (() => {
   // ankommende Leiter (ab v1.46): TN-C und TN-C-S kommen mit PEN an
   // ab v1.84: TT „3/N“ (PE vom Anlagenerder), im Unterverteiler mit PE aus der Zuleitung
   const netzLeiter = v => (v.leiter === '3NPE' ? '3' : '1') + (penNetz(v) ? '/PEN' : ttErder(v) ? '/N' : '/N/PE');
+  // ab v1.86.1 (S04): Zähler 1-phasig im Drehstromverteiler an L1/L2 → Index des Außenleiters (Umweg), sonst −1 (L3 wie bisher)
+  const zaehlerUmweg = v => v.leiter === '3NPE' && v.zaehler.zeichen === 'zaehler1' && /^L[12]$/.test(v.zaehler.phase || '') ? +v.zaehler.phase[1] - 1 : -1;
   function einspeisungsHoehe(v) {
     let h = 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) if (v[feld].zeichen) h += 5 + hoehe(v[feld].zeichen);
+    if (zaehlerUmweg(v) >= 0) h += 2 * ABSTAND;
     if (v.netzform === 'TN-C-S') h += 4;
     if (ttErder(v)) h = Math.max(h, 5.5 + TT_KETTE - 3);      // ab v1.84: wie in zeichneEinspeisung()
     return h;

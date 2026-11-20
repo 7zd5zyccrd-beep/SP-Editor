@@ -7,7 +7,7 @@
 <!-- ab v1.86 (X28): Content-Security-Policy – alles steckt in dieser Datei; keine Netzverbindungen (connect-src 'none'), keine fremden Skripte -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Stromlaufplan</title>
-<!-- Stromlaufplan · Fassung v1.86 · Stand 28.10.2026
+<!-- Stromlaufplan · Fassung v1.86.1 · Stand 28.10.2026
      Etappe 3: Datenmodell und Eingabe.
        - Projekt mit mehreren Verteilern; ein Unterverteiler wird aus einem
          Abgang eines anderen Verteilers gespeist
@@ -18,6 +18,10 @@
          (-Q Hauptschalter, -F Schutzorgane, -P Zähler, -X Klemmen,
          -XD Steckdosen, -W Leitungen), Klemmennummern, Phasenverteilung
        - Planansicht vorerst als Liste; Zeichnen kommt mit Etappe 4
+     v1.86.1: Nachbesserung aus der Schlussprüfung (S01–S04): Hinweis „neuere Fassung“ nennt die Fassung nur, wenn sie neuer ist
+           (fassungNeuer()); Rückgängig direkt nach „Verteiler duplizieren“ wirkt auch im Editor der Kopie (Editor wechselt aufs
+           Original); Prüfprotokoll trennt lange Wörter (hyphens:auto); Zähler 1-phasig im Drehstromverteiler am gewählten
+           Außenleiter (v.zaehler.phase L1/L2/L3, ohne Angabe L3 wie bisher – bestehende Pläne bitgleich); Beispiel `zaehlerphase`.
      v1.86: Kleinigkeiten, Qualität, Tests (Etappe Z2: Q29, Q32/X32, Q44, Q45, Q46, Q50, Q52, Q53, Q54, X14, X15, X26, X28, X29):
            Strg+V bei gewählter Gruppe fügt in die Gruppe ein (wie der Palettenklick), Umschalt+Strg+V bzw. „Dahinter einfügen“ dahinter;
            Kontextleiste „Einfügen in Gruppe“ (inGruppeEinfuegen()). Gemeinsame Steuerspannung: gibt es nur eine Quelle (bzw. nur einen
@@ -652,7 +656,7 @@ table.ueb.sl{table-layout:fixed;min-width:760px}table.ueb.sl td.m{white-space:no
 .pp .pptab th{font-size:7pt;font-weight:700;text-align:left;border:.3mm solid #000;padding:.6mm .8mm;vertical-align:bottom;line-height:1.15}
 .pp .pptab tr.ppgr th{text-align:center;vertical-align:middle;font-size:7.5pt}
 .pp .pptab .ppmess{border-left:.6mm solid #000}
-.pp .pptab td{border:.2mm solid #000;padding:.5mm .8mm;height:5.6mm;box-sizing:border-box;vertical-align:middle;overflow-wrap:anywhere;line-height:1.15}
+.pp .pptab td{border:.2mm solid #000;padding:.5mm .8mm;height:5.6mm;box-sizing:border-box;vertical-align:middle;overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto;line-height:1.15}
 .pp .pptab td.k{font-weight:700;white-space:nowrap;overflow-wrap:normal}
 .pp .pptab td.nw,.pp .pptab .nw{white-space:nowrap}
 .pp .pptab .z{text-align:right}
@@ -2754,21 +2758,38 @@ const PLAN = (() => {
     let enden = namen.map(() => yOben + 5.5), cursor = yOben + 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) {
       const gz = v[feld].zeichen; if (!gz) continue;
-      const top = cursor + 5, zaehler = /^zaehler/.test(gz);
+      let top = cursor + 5; const zaehler = /^zaehler/.test(gz);
       // Pole des Geräts → Leiter (Indizes in namen); Zähler 1-phasig im Drehstromverteiler (ab v1.72, Q24) an L3 und N bzw. PEN,
       // den einzigen Außenleiter neben dem N (ein Hinweis nennt es)
       let idx = zaehler ? namen.map((_, i) => i).slice(0, Math.min(POLE[gz], namen.length)).filter(i => !(SCHUTZ_L(namen[i]) && breit > nAktiv))
         : namen.map((_, i) => i).filter(i => !SCHUTZ_L(namen[i])).slice(0, POLE[gz]);
       if (gz === 'zaehler1' && nAktiv >= 3) idx = [2, 3];
+      // ab v1.86.1 (S04): gewählter Außenleiter L1/L2 (v.zaehler.phase; ohne Angabe L3 wie bisher) – der Zähler bleibt in den
+      // Spalten L3/N; der gewählte Leiter läuft hinein, L3 weicht links daneben aus (zwischen L1 und L2) und kehrt darunter zurück
+      const zp = feld === 'zaehler' ? zaehlerUmweg(v) : -1, xU = xs[0] + ABSTAND / 2;
+      if (zp >= 0) {
+        const yb = top, ya = top + ABSTAND / 2; top += ABSTAND;
+        namen.forEach((n, i) => { if (i !== zp && i !== 2) leiter(g, xs[i], enden[i], xs[i], top, n); });
+        leiter(g, xs[2], enden[2], xs[2], yb, namen[2]); leiter(g, xs[2], yb, xU, yb, namen[2]);
+        leiter(g, xs[zp], enden[zp], xs[zp], ya, namen[zp]); leiter(g, xs[zp], ya, xs[2], ya, namen[zp]); leiter(g, xs[2], ya, xs[2], top, namen[zp]);
+        namen.forEach((n, i) => { enden[i] = top; });
+      } else
       namen.forEach((n, i) => { leiter(g, xs[i], enden[i], xs[i], top, n); enden[i] = top; });
       teil(`e:${v.id}/${feld}`);
-      const arten = idx.map(i => namen[i]), xg = xs[idx[0]];
+      const arten = idx.map(i => namen[zp >= 0 && i === 2 ? zp : i]), xg = xs[idx[0]];
       const tp = setze(g, gz, xg, top, null, arten), t = unten(tp), pole = idx.length;
       if (!zaehler) anschlussNr(g, tp, ...polNr(arten));
       t.forEach((p, i) => { if (i < pole) enden[idx[i]] = p.y; });
       bmk(g, R3(gz, x0), R1(gz, top), e.kopf[feld].t, feld === 'zaehler' ? (zaehlerArtText(v) ? [zaehlerArtText(v)] : []) : bemZeilen(v[feld]));
       teil(null);
       cursor = Math.max(...t.map(p => p.y));
+      if (zp >= 0) {      // ab v1.86.1 (S04): zurück in die eigenen Spalten
+        const yc = cursor + ABSTAND / 2, yd = cursor + ABSTAND, yo = enden[2];
+        leiter(g, xs[2], yo, xs[2], yc, namen[zp]); leiter(g, xs[2], yc, xs[zp], yc, namen[zp]);
+        leiter(g, xU, top - ABSTAND, xU, yd, namen[2]); leiter(g, xU, yd, xs[2], yd, namen[2]);
+        enden[zp] = yc; enden[2] = yd;
+        cursor = yd;
+      }
     }
     // ab v1.84 (X11): TT – der PE beginnt oben an der Haupterdungsschiene (Trennlasche) mit dem Anlagenerder rechts daneben und läuft
     // wie im TN-S rechts an den Geräten vorbei; die Schienen beginnen erst unter dem Erderzeichen
@@ -2806,9 +2827,12 @@ const PLAN = (() => {
   // ankommende Leiter (ab v1.46): TN-C und TN-C-S kommen mit PEN an
   // ab v1.84: TT „3/N“ (PE vom Anlagenerder), im Unterverteiler mit PE aus der Zuleitung
   const netzLeiter = v => (v.leiter === '3NPE' ? '3' : '1') + (penNetz(v) ? '/PEN' : ttErder(v) ? '/N' : '/N/PE');
+  // ab v1.86.1 (S04): Zähler 1-phasig im Drehstromverteiler an L1/L2 → Index des Außenleiters (Umweg), sonst −1 (L3 wie bisher)
+  const zaehlerUmweg = v => v.leiter === '3NPE' && v.zaehler.zeichen === 'zaehler1' && /^L[12]$/.test(v.zaehler.phase || '') ? +v.zaehler.phase[1] - 1 : -1;
   function einspeisungsHoehe(v) {
     let h = 5.5;
     for (const feld of ['vorsicherung', 'zaehler', 'hauptschalter']) if (v[feld].zeichen) h += 5 + hoehe(v[feld].zeichen);
+    if (zaehlerUmweg(v) >= 0) h += 2 * ABSTAND;
     if (v.netzform === 'TN-C-S') h += 4;
     if (ttErder(v)) h = Math.max(h, 5.5 + TT_KETTE - 3);      // ab v1.84: wie in zeichneEinspeisung()
     return h;
@@ -4215,7 +4239,7 @@ const PLAN = (() => {
 </script>
 <script>
 'use strict';
-const FASSUNG = 'v1.86';
+const FASSUNG = 'v1.86.1';
 const SPEICHER = 'slp.projekt.v1';
 
 // ---------------------------------------------------------------------------
@@ -4262,6 +4286,8 @@ const gName = k => k ? GERAETE[k].name : 'ohne';
 // 3/N/PE nur 3-polige; das eingestellte Gerät bleibt immer in der Liste (dann mit Hinweis)
 const kopfWahl = (v, feld) => WAHL[feld].filter(z => !z || z === v[feld].zeichen || GERAETE[z].pole === (v.leiter === '1NPE' ? 1 : 3));
 // Gegenstücke beim Wechsel der Leiter des Verteilers (ab v1.72)
+// ab v1.86.1 (S04): Außenleiter des Zählers 1-phasig im Drehstromverteiler (v.zaehler.phase, ohne Angabe L3 wie bis v1.86)
+const zaehlerPhase = v => /^L[123]$/.test(v.zaehler.phase || '') ? v.zaehler.phase : 'L3';
 const KOPF_1 = { lasttrenn3: 'lasttrenn2', sichlasttrenn3: 'sichlasttrenn1', sichtrenn3: 'sichtrenn1', sich3: 'sich1', ls3: 'ls1', zaehler3: 'zaehler1', spd4: 'spd2' };
 const KOPF_3 = Object.fromEntries(Object.entries(KOPF_1).map(([a, b]) => [b, a]));
 // Name des Schutzorgans eines Abgangs (ab v1.72, Q25): der Primär-LS des Steuertrafos 400 V wird 2-polig (L1–L2) gezeichnet
@@ -4605,6 +4631,13 @@ const PROJEKT_VERSION = 10;
 // ab v1.70 (Q34): gespeichert wird immer als Stand dieser Fassung – version = PROJEKT_VERSION (auch aus einer neueren Datei),
 // app = Fassung der App, die zuletzt geschrieben hat
 const APP_FASSUNG = FASSUNG.replace(/^v/, '');
+// ab v1.86.1 (S01): true, wenn Fassung a (z. B. „1.90.2“) neuer ist als b; Teile numerisch verglichen
+function fassungNeuer(a, b) {
+  const x = String(a).split('.').map(t => parseInt(t, 10)), y = String(b).split('.').map(t => parseInt(t, 10));
+  if (x.some(isNaN)) return false;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const p = x[i] || 0, q = y[i] || 0; if (p !== q) return p > q; }
+  return false;
+}
 function migriere(d) { d.version = PROJEKT_VERSION; d.app = APP_FASSUNG; return d; }
 P = migriere(P);
 // Rückgängig/Wiederholen über das ganze Projekt (ab v1.18): jeder gespeicherte Stand; Änderungen
@@ -4879,6 +4912,8 @@ function projektRueck(vor) {
   if (s === undefined) { meldung(vor ? 'Nichts zu wiederholen' : 'Nichts rückgängig zu machen'); return; }
   if (schreibschutz) { leseBand(true); return; }      // ab v1.70 (Q02)
   const eb = stapel[stapel.length - 1], d = JSON.parse(s.s), imEd = !!ED && eb && eb.s === 'editor';
+  // ab v1.86.1 (S02): „… duplizieren“ aus dem Editor der Kopie zurücknehmen – der Editor wechselt aufs Original (wie der Meldungsknopf)
+  if (imEd && !vor) { const o = duplizierenOriginal(s, eb.vid, d); if (o) { eb.vid = o; eb.sel = null; } }
   if (imEd && !d.verteiler.some(x => x.id === eb.vid)) { meldung(`${vor ? 'Wiederholen' : 'Rückgängig'}: ${s.n} – auf der Startseite`); return; }
   von.pop(); verlauf.sitzung = null;
   (vor ? verlauf.zurueck : verlauf.vor).push({ s: verlauf.stand, n: s.n });
@@ -4892,6 +4927,15 @@ function projektRueck(vor) {
     const w = reiterFuer(sel, eb.palette); if (w !== eb.palette) { eb.palette = w; eb.tool = null; } } }      // ab v1.65 (F26): Reiter folgt der Auswahl
   zeichne();
   meldung((vor ? 'Wiederholt: ' : 'Rückgängig: ') + s.n);
+}
+// ab v1.86.1 (S02): ist s ein Schritt „… duplizieren“, nach dessen Rücknahme es den Verteiler vid nicht mehr gibt, die Kennung des
+// Originals (gleicher Name im Stand davor, sonst der Verteiler davor), sonst null; d = Stand des Schritts (schon gelesen)
+function duplizierenOriginal(s, vid, d) {
+  if (!s || !/ duplizieren$/.test(s.n)) return null;
+  d = d || JSON.parse(s.s); if (d.verteiler.some(x => x.id === vid)) return null;
+  const name = s.n.replace(/ duplizieren$/, ''), i = P.verteiler.findIndex(x => x.id === vid);
+  const o = d.verteiler.find(x => x.name === name) || (i > 0 && d.verteiler.find(x => x.id === P.verteiler[i - 1].id));
+  return o ? o.id : null;
 }
 function auswahlVorher(a, vid, text) {
   if (!a || a.vid !== vid || !a.sel) return null;
@@ -5331,7 +5375,7 @@ function verteilerWarnungen(v, e) {
     if (ein && d.pole === 3) w.push(`${KOPF_TITEL[f]} ${gName(z)}: 3-poliges Kopfgerät im 1/N/PE-Verteiler – der PE wird nicht geschaltet, ein Pol bleibt frei.`);
     if (!ein && d.pole === 1) w.push(`${KOPF_TITEL[f]} ${gName(z)}: 1-poliges Kopfgerät im Drehstromverteiler – nur ${d.n ? 'L1 und L2 werden' : 'L1 wird'} geschaltet bzw. geschützt.`); });
   if (ein && v.zaehler.zeichen === 'zaehler3') w.push('Zähler 3-phasig im 1/N/PE-Verteiler.');
-  if (!ein && v.zaehler.zeichen === 'zaehler1') w.push('Zähler 1-phasig im Drehstromverteiler – gezeichnet an L3 und N; für alle Außenleiter Zähler 3-phasig wählen.');
+  if (!ein && v.zaehler.zeichen === 'zaehler1') w.push(`Zähler 1-phasig im Drehstromverteiler – gezeichnet an ${zaehlerPhase(v)} und N; für alle Außenleiter Zähler 3-phasig wählen.`);      // ab v1.86.1 (S04) mit gewähltem Außenleiter
   if (ein && v.spd.zeichen === 'spd4') w.push('Überspannungsschutz 3/N im 1/N/PE-Verteiler.');
   if (!ein && v.spd.zeichen === 'spd2') w.push(`Überspannungsschutz 1/N im Drehstromverteiler schützt nur ${/^L[123]$/.test(v.spd.phase || '') ? v.spd.phase : 'L1'} – für L1 L2 L3 Überspannungsschutz 3/N wählen.`);
   if (sp && v.netzform === 'TN-C' && sp.v.netzform !== 'TN-C')
@@ -7046,6 +7090,9 @@ function bKopf(b) {
   if (b.feld === 'zaehler' && g.zeichen) m.lastChild.append(zeile('Zählerart', zaehlerArt(v) || 'ohne Angabe', () => wahlFeld('Zählerart',
     [['', 'ohne Angabe', 'nichts im Plan']].concat(ZAEHLER_ARTEN.map(([w, un]) => [w, w, un])).concat([['+', 'Eigener Text …', 'z. B. „Allgemein“, „Heizung“']]), ZAEHLER_ARTEN.some(([w]) => w === g.art) ? g.art : g.art ? '+' : '',
     w => { if (w === '+') setTimeout(() => textFeld('Zählerart', g.art, t => { if (t.trim()) g.art = t.trim().slice(0, 30); else delete g.art; }, { platz: 'z. B. Zweirichtung, WP' }), 0); else if (w) g.art = w; else delete g.art; })));
+  // ab v1.86.1 (S04): Zähler 1-phasig im Drehstromverteiler am gewählten Außenleiter (ohne Angabe L3 wie bisher)
+  if (b.feld === 'zaehler' && g.zeichen === 'zaehler1' && v.leiter !== '1NPE') m.lastChild.append(zeile('Außenleiter', zaehlerPhase(v),
+    () => wahlFeld('Außenleiter', ['L1', 'L2', 'L3'], zaehlerPhase(v), w => g.phase = w)));
   if (b.feld === 'spd' && g.zeichen === 'spd2' && v.leiter !== '1NPE') m.lastChild.append(zeile('Außenleiter', /^L[123]$/.test(g.phase || '') ? g.phase : 'L1',
     () => wahlFeld('Außenleiter', ['L1', 'L2', 'L3'], /^L[123]$/.test(g.phase || '') ? g.phase : 'L1', w => g.phase = w)));
   // ab v1.72: Hinweise zu Polzahl und Leitern (wie in der Prüfliste)
@@ -10104,7 +10151,8 @@ function bEditor(b) {
   if (b.sel && !editorZiel(v, b.sel)) b.sel = null;
   if (b.blatt === undefined) b.blatt = !!b.sel;
   if (!b.palette) b.palette = /^(pl|kr):/.test(b.sel || '') ? 'st' : istZeichenWerkzeug(b.tool) || b.tool === 'zauswahl' ? 'ze' : 'ab';
-  const nZ = verlauf.zurueck.length, nV = verlauf.vor.length, grenze = nZ > 0 && !verlauf.zurueck[nZ - 1].s.includes(`"${v.id}"`);
+  const nZ = verlauf.zurueck.length, nV = verlauf.vor.length, grenze = nZ > 0 && !verlauf.zurueck[nZ - 1].s.includes(`"${v.id}"`)
+    && !duplizierenOriginal(verlauf.zurueck[nZ - 1], v.id);      // ab v1.86.1 (S02): „… duplizieren“ lässt sich hier zurücknehmen
   // Reiterwechsel (ab v1.53): Auswahl folgt – Abgang ↔ sein Steuerstromkreis, sonst wird sie aufgehoben
   const tab = (w, t, kurz) => h('button', { role: 'tab', 'data-w': w, 'aria-selected': String(b.palette === w), 'aria-label': t, title: t, on: { click: () => {
     const sel = b.sel || '', stSel = /^(pl|kr|g|st):/.test(sel);
@@ -11524,6 +11572,7 @@ function pruefeProjekt(d, datei = false) {
     if (!['3NPE', '1NPE'].includes(v.leiter)) { r.push(`${wo}: Leiter → 3/N/PE`); v.leiter = '3NPE'; }
     if (v.netz !== undefined) { if (!obj(v.netz)) { r.push(`${wo}: Netzangaben entfernt`); delete v.netz; } else zahl(v.netz, 'zs', `${wo} Schleifenimpedanz`, Z_OHM, ''); }      // ab v1.78
     ['vorsicherung', 'zaehler', 'hauptschalter', 'spd'].forEach(f => { v[f] = geraet(v[f], `${wo} ${KOPF_TITEL[f] || f}`, { zeichen: '' }, true, WAHL[f]); });
+    if (v.zaehler.phase !== undefined && !['L1', 'L2', 'L3'].includes(v.zaehler.phase)) { r.push(`${wo} Zähler: Außenleiter „${kurz(String(v.zaehler.phase))}“ → L3`); delete v.zaehler.phase; }      // ab v1.86.1 (S04)
     if (v.spd.phase !== undefined && !['L1', 'L2', 'L3'].includes(v.spd.phase)) { r.push(`${wo} Überspannungsschutz: Außenleiter „${kurz(String(v.spd.phase))}“ → L1`); delete v.spd.phase; }      // ab v1.72
     // ab v1.86 (X14, X32): Typ des Überspannungsschutzes und Zählerart (unbekannt → ohne Angabe)
     if (v.spd.typ !== undefined && !SPD_TYPEN.includes(String(v.spd.typ))) { r.push(`${wo} Überspannungsschutz: Typ „${kurz(String(v.spd.typ))}“ → ohne Angabe`); delete v.spd.typ; }
@@ -11712,7 +11761,8 @@ document.getElementById('datei').addEventListener('change', async ev => {
       : projektLeer(P) ? `„${name || f.name}“ wird geöffnet und ersetzt das leere Projekt.`      // ab v1.65 (F12)
       : `„${name || f.name}“ wird als weiteres Projekt angelegt; die übrigen Projekte bleiben.`) , neuer
       // ab v1.70 (Q34): sagt, was wirklich geschieht
-      ? h('p', {}, `Achtung: Die Datei stammt aus einer neueren Fassung der App${datApp ? ` (${datApp})` : ''}. Angaben, die diese Fassung (${APP_FASSUNG}) nicht kennt, `
+      // ab v1.86.1 (S01): die Fassung nur nennen, wenn sie wirklich neuer ist als diese
+      ? h('p', {}, `Achtung: Die Datei stammt aus einer neueren Fassung der App${datApp && fassungNeuer(datApp, APP_FASSUNG) ? ` (${datApp})` : ''}. Angaben, die diese Fassung (${APP_FASSUNG}) nicht kennt, `
         + 'bleiben in den Daten, soweit möglich, erhalten, erscheinen aber nicht im Plan und lassen sich hier nicht bearbeiten. Gespeichert wird das Projekt als Stand dieser Fassung. '
         + 'Am besten mit der neueren App weiterarbeiten.') : null,
     rep.length ? h('p', {}, `Beim Prüfen ersetzt (${rep.length}):`) : null, rep.length ? h('ul', {}, ...rep.slice(0, 10).map(t => h('li', {}, t))) : null,
